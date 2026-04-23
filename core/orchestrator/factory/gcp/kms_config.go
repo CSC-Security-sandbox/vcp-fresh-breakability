@@ -54,6 +54,7 @@ type KmsConfigInterface interface {
 	GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
 	GetExistingKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
 	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
+	GetKmsConfigsByUUIDs(ctx context.Context, kmsConfigUUIDs []string) ([]*models.KmsConfig, error)
 	ListKmsConfigs(ctx context.Context, accountName string) ([]*models.KmsConfig, error)
 	UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, error)
 	CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error)
@@ -211,6 +212,25 @@ func (o *GCPOrchestrator) GetMultipleKMSConfigs(ctx context.Context, kmsConfigUU
 	}
 
 	return kmsConfigModelList, nil
+}
+
+// GetKmsConfigsByUUIDs returns KMS configs matching the given UUIDs across all accounts.
+// Every supported batch KMS field is served from the base row and the KmsAttributes JSON column,
+// so no fetch options or relation preloads are required.
+func (o *GCPOrchestrator) GetKmsConfigsByUUIDs(
+	ctx context.Context,
+	kmsConfigUUIDs []string,
+) ([]*models.KmsConfig, error) {
+	kmsConfigs, err := o.storage.GetKmsConfigsByUUIDs(ctx, kmsConfigUUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*models.KmsConfig, 0, len(kmsConfigs))
+	for _, kmsConfig := range kmsConfigs {
+		result = append(result, convertDataStoreKmsConfigToModel(kmsConfig))
+	}
+	return result, nil
 }
 
 // ListKmsConfigs lists all KMS configurations for the given account.

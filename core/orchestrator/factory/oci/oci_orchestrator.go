@@ -377,6 +377,13 @@ func (o *OCIOrchestrator) GetMultipleKMSConfigs(ctx context.Context, kmsConfigID
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) GetKmsConfigsByUUIDs(
+	ctx context.Context,
+	kmsConfigUUIDs []string,
+) ([]*models.KmsConfig, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) UpdateKmsConfig(ctx context.Context, params *commonparams.UpdateKmsConfigParams) (*models.KmsConfig, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

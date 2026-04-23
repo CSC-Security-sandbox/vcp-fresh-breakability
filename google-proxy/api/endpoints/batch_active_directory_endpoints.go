@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -92,14 +93,7 @@ func (h Handler) V1betaBatchListActiveDirectories(ctx context.Context, req *gcpg
 }
 
 func buildADBatchFieldSet(fields []gcpgenserver.V1betaBatchListActiveDirectoriesFieldsItem) map[string]bool {
-	if len(fields) == 0 {
-		return nil
-	}
-	set := make(map[string]bool, len(fields))
-	for _, f := range fields {
-		set[string(f)] = true
-	}
-	return set
+	return utils.BuildFieldSet(fields)
 }
 
 func isValidBatchADState(s gcpgenserver.BatchActiveDirectoryV1betaActiveDirectoryState) bool {

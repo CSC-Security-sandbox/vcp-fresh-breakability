@@ -81,6 +81,10 @@ type (
 		GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error)
 		ListTpProjects(ctx context.Context) ([]string, error)
 
+		// GetKmsConfigsByUUIDs fetches KMS configs by UUID without relation preloads; callers derive
+		// all batch-KMS fields from the base row and the KmsAttributes JSON column.
+		GetKmsConfigsByUUIDs(ctx context.Context, kmsConfigUUIDs []string) ([]*datamodel.KmsConfig, error)
+
 		CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
 		GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 		DescribeVolume(ctx context.Context, id string) (*datamodel.Volume, error)

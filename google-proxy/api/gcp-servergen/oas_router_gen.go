@@ -1144,6 +1144,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 
+						case 'k': // Prefix: "kmsConfigs"
+
+							if l := len("kmsConfigs"); len(elem) >= l && elem[0:l] == "kmsConfigs" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleV1betaBatchListKmsConfigsRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+
 						case 'p': // Prefix: "pools"
 
 							if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
@@ -4410,6 +4432,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									r.summary = "Batch lists all host groups with the given UUIDs"
 									r.operationID = "v1beta_batchListHostGroups"
 									r.pathPattern = "/v1beta/locations/{locationId}/batch/hostGroups"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'k': // Prefix: "kmsConfigs"
+
+							if l := len("kmsConfigs"); len(elem) >= l && elem[0:l] == "kmsConfigs" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = V1betaBatchListKmsConfigsOperation
+									r.summary = "Batch lists all KMS configurations with the given UUIDs"
+									r.operationID = "v1beta_batchListKmsConfigs"
+									r.pathPattern = "/v1beta/locations/{locationId}/batch/kmsConfigs"
 									r.args = args
 									r.count = 1
 									return r, true

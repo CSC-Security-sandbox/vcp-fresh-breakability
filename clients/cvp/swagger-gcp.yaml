@@ -7268,7 +7268,7 @@ paths:
     post:
       operationId: v1beta_batchListKmsConfigs
       summary: Batch lists all KMS configurations with the given UUIDs
-      description: Batch lists all KMS configurations with the given UUIDs
+      description: Batch lists all KMS configurations with the given UUIDs across all accounts
       tags:
         - batch
       parameters:
@@ -7283,26 +7283,34 @@ paths:
           items:
             type: string
             enum:
+              - uuid
               - serviceAccountEmail
               - keyFullPath
               - kmsState
               - kmsStateDetails
               - description
               - createdTime
+              - updatedTime
+              - deletedTime
+              - instructions
               - resourceId
         - name: body
           in: body
           required: true
           description: A list of KMS configuration UUIDs to return.
           schema:
-            $ref: '#/definitions/kmsConfigIDList_v1beta'
+            $ref: '#/definitions/BatchKmsConfigUUIDList_v1beta'
       responses:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchKmsConfig_v1beta'
+            type: object
+            allOf:
+              - properties:
+                  kmsConfigs:
+                    type: array
+                    items:
+                      $ref: '#/definitions/BatchKmsConfig_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':
@@ -15279,6 +15287,18 @@ definitions:
         x-nullable: true
         description: The last error that occurred during a transfer
         example: Transfer aborted.
+  BatchKmsConfigUUIDList_v1beta:
+    type: object
+    title: BatchKmsConfigUUIDList
+    required:
+      - kmsConfigUUIDs
+    properties:
+      kmsConfigUUIDs:
+        title: kmsConfigUUIDs
+        type: array
+        items:
+          type: string
+        description: List of KMS configuration UUIDs to return
   BatchKmsConfig_v1beta:
     type: object
     title: KmsConfig
@@ -15286,6 +15306,8 @@ definitions:
       uuid:
         title: UUID
         type: string
+        x-omitempty: true
+        x-nullable: true
         description: UUID v4 used to identify the GCP KMS configuration
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         maxLength: 36
@@ -15302,6 +15324,7 @@ definitions:
         title: keyFullPath
         type: string
         x-omitempty: true
+        x-nullable: true
         description: Includes key ring, key-ring location, key name and key project
           ID
         example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
@@ -15309,6 +15332,7 @@ definitions:
         title: state
         type: string
         x-omitempty: true
+        x-nullable: true
         description: The state of the configuration
         enum:
           - STATE_UNSPECIFIED
@@ -15330,6 +15354,7 @@ definitions:
         title: stateDetails
         type: string
         x-omitempty: true
+        x-nullable: true
         description: Error creating service account
       description:
         title: description
@@ -15346,6 +15371,29 @@ definitions:
         x-nullable: true
         description: Creation date of the resource
         example: '2016-11-28T19:30:23.123Z'
+      updatedTime:
+        title: updatedTime
+        type: string
+        format: date-time
+        x-omitempty: true
+        x-nullable: true
+        description: Date of last update of the resource
+        example: '2016-11-29T20:32:50.459Z'
+      deletedTime:
+        title: deletedTime
+        type: string
+        format: date-time
+        x-omitempty: true
+        x-nullable: true
+        description: Date the resource was deleted
+        example: '2016-11-30T23:59:59.999Z'
+      instructions:
+        title: instructions
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: Instructions to provide access to the encryption key.
+        example: gcloud kms keys add-iam-policy-binding key_Name --keyring keyring_Name --location key_Ring_Location --member serviceAccount:service_Account_Name --role roles/cloudkms.cryptoKeyEncrypterDecrypter
       resourceId:
         title: resourceId
         type: string

@@ -66,6 +66,16 @@ type V1betaBatchListHostGroupsParams struct {
 	Fields []V1betaBatchListHostGroupsFieldsItem
 }
 
+// V1betaBatchListKmsConfigsParams is parameters of v1beta_batchListKmsConfigs operation.
+type V1betaBatchListKmsConfigsParams struct {
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListKmsConfigsFieldsItem
+}
+
 // V1betaBatchListPoolsParams is parameters of v1beta_batchListPools operation.
 type V1betaBatchListPoolsParams struct {
 	// The location/region to perform the operation in.

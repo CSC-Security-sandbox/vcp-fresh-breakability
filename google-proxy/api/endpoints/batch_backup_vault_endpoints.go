@@ -196,14 +196,7 @@ func fetchBatchBackupVaultsFromCVP(
 }
 
 func buildBVFieldSet(fields []gcpgenserver.V1betaBatchListBackupVaultsFieldsItem) map[string]bool {
-	if len(fields) == 0 {
-		return nil
-	}
-	set := make(map[string]bool, len(fields))
-	for _, f := range fields {
-		set[string(f)] = true
-	}
-	return set
+	return utils.BuildFieldSet(fields)
 }
 
 // --- VCP model -> ogen response conversion ---

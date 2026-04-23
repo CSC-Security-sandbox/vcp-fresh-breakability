@@ -136,6 +136,21 @@ func (d *DataStoreRepository) GetMultipleKmsConfigs(ctx context.Context, conditi
 	return getMultipleKmsConfigs(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
 }
 
+// GetKmsConfigsByUUIDs retrieves KMS configs by UUID without preloading any relations. All currently
+// supported batch KMS fields are served from the base KMS config row and its KmsAttributes JSON column,
+// so no eager loading is needed.
+func (d *DataStoreRepository) GetKmsConfigsByUUIDs(
+	ctx context.Context,
+	kmsConfigUUIDs []string,
+) ([]*datamodel.KmsConfig, error) {
+	var kmsConfigs []*datamodel.KmsConfig
+	db := d.db.GORM().WithContext(ctx).Where("uuid in ?", kmsConfigUUIDs)
+	if err := db.Find(&kmsConfigs).Error; err != nil {
+		return nil, err
+	}
+	return kmsConfigs, nil
+}
+
 func getMultipleKmsConfigs(db *gorm.DB) ([]*datamodel.KmsConfig, error) {
 	var kmsConfigs []*datamodel.KmsConfig
 	err := db.Preload("ServiceAccount").Find(&kmsConfigs).Error

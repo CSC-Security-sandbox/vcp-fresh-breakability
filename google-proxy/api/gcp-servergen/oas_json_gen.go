@@ -8656,6 +8656,411 @@ func (s *BatchHostGroupV1betaType) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *BatchKmsConfigUUIDListV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BatchKmsConfigUUIDListV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("kmsConfigUUIDs")
+		e.ArrStart()
+		for _, elem := range s.KmsConfigUUIDs {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfBatchKmsConfigUUIDListV1beta = [1]string{
+	0: "kmsConfigUUIDs",
+}
+
+// Decode decodes BatchKmsConfigUUIDListV1beta from json.
+func (s *BatchKmsConfigUUIDListV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchKmsConfigUUIDListV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "kmsConfigUUIDs":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.KmsConfigUUIDs = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.KmsConfigUUIDs = append(s.KmsConfigUUIDs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsConfigUUIDs\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BatchKmsConfigUUIDListV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBatchKmsConfigUUIDListV1beta) {
+					name = jsonFieldsNameOfBatchKmsConfigUUIDListV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BatchKmsConfigUUIDListV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchKmsConfigUUIDListV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BatchKmsConfigV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BatchKmsConfigV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.UUID.Set {
+			e.FieldStart("uuid")
+			s.UUID.Encode(e)
+		}
+	}
+	{
+		if s.ServiceAccountEmail.Set {
+			e.FieldStart("serviceAccountEmail")
+			s.ServiceAccountEmail.Encode(e)
+		}
+	}
+	{
+		if s.KeyFullPath.Set {
+			e.FieldStart("keyFullPath")
+			s.KeyFullPath.Encode(e)
+		}
+	}
+	{
+		if s.KmsState.Set {
+			e.FieldStart("kmsState")
+			s.KmsState.Encode(e)
+		}
+	}
+	{
+		if s.KmsStateDetails.Set {
+			e.FieldStart("kmsStateDetails")
+			s.KmsStateDetails.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.CreatedTime.Set {
+			e.FieldStart("createdTime")
+			s.CreatedTime.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.UpdatedTime.Set {
+			e.FieldStart("updatedTime")
+			s.UpdatedTime.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.DeletedTime.Set {
+			e.FieldStart("deletedTime")
+			s.DeletedTime.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.Instructions.Set {
+			e.FieldStart("instructions")
+			s.Instructions.Encode(e)
+		}
+	}
+	{
+		if s.ResourceId.Set {
+			e.FieldStart("resourceId")
+			s.ResourceId.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBatchKmsConfigV1beta = [11]string{
+	0:  "uuid",
+	1:  "serviceAccountEmail",
+	2:  "keyFullPath",
+	3:  "kmsState",
+	4:  "kmsStateDetails",
+	5:  "description",
+	6:  "createdTime",
+	7:  "updatedTime",
+	8:  "deletedTime",
+	9:  "instructions",
+	10: "resourceId",
+}
+
+// Decode decodes BatchKmsConfigV1beta from json.
+func (s *BatchKmsConfigV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchKmsConfigV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "uuid":
+			if err := func() error {
+				s.UUID.Reset()
+				if err := s.UUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"uuid\"")
+			}
+		case "serviceAccountEmail":
+			if err := func() error {
+				s.ServiceAccountEmail.Reset()
+				if err := s.ServiceAccountEmail.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serviceAccountEmail\"")
+			}
+		case "keyFullPath":
+			if err := func() error {
+				s.KeyFullPath.Reset()
+				if err := s.KeyFullPath.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"keyFullPath\"")
+			}
+		case "kmsState":
+			if err := func() error {
+				s.KmsState.Reset()
+				if err := s.KmsState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsState\"")
+			}
+		case "kmsStateDetails":
+			if err := func() error {
+				s.KmsStateDetails.Reset()
+				if err := s.KmsStateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsStateDetails\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "createdTime":
+			if err := func() error {
+				s.CreatedTime.Reset()
+				if err := s.CreatedTime.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdTime\"")
+			}
+		case "updatedTime":
+			if err := func() error {
+				s.UpdatedTime.Reset()
+				if err := s.UpdatedTime.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updatedTime\"")
+			}
+		case "deletedTime":
+			if err := func() error {
+				s.DeletedTime.Reset()
+				if err := s.DeletedTime.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deletedTime\"")
+			}
+		case "instructions":
+			if err := func() error {
+				s.Instructions.Reset()
+				if err := s.Instructions.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"instructions\"")
+			}
+		case "resourceId":
+			if err := func() error {
+				s.ResourceId.Reset()
+				if err := s.ResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BatchKmsConfigV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BatchKmsConfigV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchKmsConfigV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchKmsConfigV1betaKmsState as json.
+func (s BatchKmsConfigV1betaKmsState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BatchKmsConfigV1betaKmsState from json.
+func (s *BatchKmsConfigV1betaKmsState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchKmsConfigV1betaKmsState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BatchKmsConfigV1betaKmsState(v) {
+	case BatchKmsConfigV1betaKmsStateSTATEUNSPECIFIED:
+		*s = BatchKmsConfigV1betaKmsStateSTATEUNSPECIFIED
+	case BatchKmsConfigV1betaKmsStateCREATING:
+		*s = BatchKmsConfigV1betaKmsStateCREATING
+	case BatchKmsConfigV1betaKmsStateREADY:
+		*s = BatchKmsConfigV1betaKmsStateREADY
+	case BatchKmsConfigV1betaKmsStateUPDATING:
+		*s = BatchKmsConfigV1betaKmsStateUPDATING
+	case BatchKmsConfigV1betaKmsStateINUSE:
+		*s = BatchKmsConfigV1betaKmsStateINUSE
+	case BatchKmsConfigV1betaKmsStateDELETING:
+		*s = BatchKmsConfigV1betaKmsStateDELETING
+	case BatchKmsConfigV1betaKmsStateERROR:
+		*s = BatchKmsConfigV1betaKmsStateERROR
+	case BatchKmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED:
+		*s = BatchKmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED
+	case BatchKmsConfigV1betaKmsStateKEYCHECKPENDING:
+		*s = BatchKmsConfigV1betaKmsStateKEYCHECKPENDING
+	case BatchKmsConfigV1betaKmsStateKEYNOTREACHABLE:
+		*s = BatchKmsConfigV1betaKmsStateKEYNOTREACHABLE
+	case BatchKmsConfigV1betaKmsStateDISABLING:
+		*s = BatchKmsConfigV1betaKmsStateDISABLING
+	case BatchKmsConfigV1betaKmsStateDISABLED:
+		*s = BatchKmsConfigV1betaKmsStateDISABLED
+	case BatchKmsConfigV1betaKmsStateDELETED:
+		*s = BatchKmsConfigV1betaKmsStateDELETED
+	case BatchKmsConfigV1betaKmsStateMIGRATING:
+		*s = BatchKmsConfigV1betaKmsStateMIGRATING
+	default:
+		*s = BatchKmsConfigV1betaKmsState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BatchKmsConfigV1betaKmsState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchKmsConfigV1betaKmsState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *BatchPoolUUIDListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -25197,6 +25602,55 @@ func (s *OptNilBatchHostGroupV1betaType) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes BatchKmsConfigV1betaKmsState as json.
+func (o OptNilBatchKmsConfigV1betaKmsState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BatchKmsConfigV1betaKmsState from json.
+func (o *OptNilBatchKmsConfigV1betaKmsState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilBatchKmsConfigV1betaKmsState to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v BatchKmsConfigV1betaKmsState
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilBatchKmsConfigV1betaKmsState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilBatchKmsConfigV1betaKmsState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes BatchPoolV1betaAssetLocationMetadata as json.
 func (o OptNilBatchPoolV1betaAssetLocationMetadata) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -39499,6 +39953,232 @@ func (s *V1betaBatchListHostGroupsUnauthorized) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaBatchListHostGroupsUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListKmsConfigsBadRequest as json.
+func (s *V1betaBatchListKmsConfigsBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListKmsConfigsBadRequest from json.
+func (s *V1betaBatchListKmsConfigsBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListKmsConfigsBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListKmsConfigsBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListKmsConfigsBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListKmsConfigsBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListKmsConfigsForbidden as json.
+func (s *V1betaBatchListKmsConfigsForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListKmsConfigsForbidden from json.
+func (s *V1betaBatchListKmsConfigsForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListKmsConfigsForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListKmsConfigsForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListKmsConfigsForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListKmsConfigsForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListKmsConfigsInternalServerError as json.
+func (s *V1betaBatchListKmsConfigsInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListKmsConfigsInternalServerError from json.
+func (s *V1betaBatchListKmsConfigsInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListKmsConfigsInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListKmsConfigsInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListKmsConfigsInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListKmsConfigsInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaBatchListKmsConfigsOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaBatchListKmsConfigsOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.KmsConfigs != nil {
+			e.FieldStart("kmsConfigs")
+			e.ArrStart()
+			for _, elem := range s.KmsConfigs {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaBatchListKmsConfigsOK = [1]string{
+	0: "kmsConfigs",
+}
+
+// Decode decodes V1betaBatchListKmsConfigsOK from json.
+func (s *V1betaBatchListKmsConfigsOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListKmsConfigsOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "kmsConfigs":
+			if err := func() error {
+				s.KmsConfigs = make([]BatchKmsConfigV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BatchKmsConfigV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.KmsConfigs = append(s.KmsConfigs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsConfigs\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaBatchListKmsConfigsOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListKmsConfigsOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListKmsConfigsOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListKmsConfigsUnauthorized as json.
+func (s *V1betaBatchListKmsConfigsUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListKmsConfigsUnauthorized from json.
+func (s *V1betaBatchListKmsConfigsUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListKmsConfigsUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListKmsConfigsUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListKmsConfigsUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListKmsConfigsUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

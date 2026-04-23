@@ -109,6 +109,7 @@ data:
   MAX_BATCH_BACKUP_VAULT_UUIDS: "{{ index .Values "maxBatchBackupVaultUUIDs" }}"
   MAX_BATCH_BACKUP_POLICY_UUIDS: "{{ index .Values "maxBatchBackupPolicyUUIDs" }}"
   MAX_BATCH_REPLICATION_URIS: "{{ index .Values "maxBatchReplicationURIs" }}"
+  MAX_BATCH_KMS_CONFIG_UUIDS: "{{ index .Values "maxBatchKmsConfigUUIDs" }}"
   PROBER_PROJECT_LIST: {{ .Values.proberProjectList | quote }}
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"
   CLUSTER_SERIAL_NUMBER_PREFIX: "{{ index .Values "clusterSerialNumberPrefix" }}"

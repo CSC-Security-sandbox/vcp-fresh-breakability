@@ -12,6 +12,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -165,14 +166,7 @@ func fetchBatchSnapshotsFromCVP(ctx context.Context, snapshotUUIDs []string, par
 }
 
 func batchSnapshotFieldsAsSet(fields []gcpgenserver.V1betaBatchListSnapshotsFieldsItem) map[string]bool {
-	if len(fields) == 0 {
-		return nil
-	}
-	set := make(map[string]bool, len(fields))
-	for _, f := range fields {
-		set[string(f)] = true
-	}
-	return set
+	return utils.BuildFieldSet(fields)
 }
 
 func convertSnapshotToBatchSnapshot(snap *models.Snapshot, fieldSet map[string]bool) gcpgenserver.BatchSnapshotV1beta {

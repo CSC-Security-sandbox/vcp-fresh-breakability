@@ -163,14 +163,7 @@ func fetchBatchReplicationsFromCVP(ctx context.Context, params gcpgenserver.V1be
 }
 
 func buildReplicationFieldSet(fields []gcpgenserver.V1betaBatchListReplicationsFieldsItem) map[string]bool {
-	if len(fields) == 0 {
-		return nil
-	}
-	set := make(map[string]bool, len(fields))
-	for _, f := range fields {
-		set[string(f)] = true
-	}
-	return set
+	return utils.BuildFieldSet(fields)
 }
 
 func validateBatchReplicationURIList(replicationURIs []string, locationID string) error {

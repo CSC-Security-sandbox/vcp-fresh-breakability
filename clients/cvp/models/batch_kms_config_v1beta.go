@@ -25,26 +25,37 @@ type BatchKmsConfigV1beta struct {
 	// Format: date-time
 	CreatedTime *strfmt.DateTime `json:"createdTime,omitempty"`
 
+	// deletedTime
+	//
+	// Date the resource was deleted
+	// Format: date-time
+	DeletedTime *strfmt.DateTime `json:"deletedTime,omitempty"`
+
 	// description
 	//
 	// Description of the GCP KMS configuration
 	Description *string `json:"description,omitempty"`
 
+	// instructions
+	//
+	// Instructions to provide access to the encryption key.
+	Instructions *string `json:"instructions,omitempty"`
+
 	// keyFullPath
 	//
 	// Includes key ring, key-ring location, key name and key project ID
-	KeyFullPath string `json:"keyFullPath,omitempty"`
+	KeyFullPath *string `json:"keyFullPath,omitempty"`
 
 	// state
 	//
 	// The state of the configuration
 	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING IN_USE DELETING ERROR KEY_STATE_UNSPECIFIED KEY_CHECK_PENDING KEY_NOT_REACHABLE DISABLING DISABLED DELETED MIGRATING]
-	KmsState string `json:"kmsState,omitempty"`
+	KmsState *string `json:"kmsState,omitempty"`
 
 	// stateDetails
 	//
 	// Error creating service account
-	KmsStateDetails string `json:"kmsStateDetails,omitempty"`
+	KmsStateDetails *string `json:"kmsStateDetails,omitempty"`
 
 	// resourceId
 	//
@@ -56,13 +67,19 @@ type BatchKmsConfigV1beta struct {
 	// Service account email which will have access to key through Google IAM policy
 	ServiceAccountEmail string `json:"serviceAccountEmail,omitempty"`
 
+	// updatedTime
+	//
+	// Date of last update of the resource
+	// Format: date-time
+	UpdatedTime *strfmt.DateTime `json:"updatedTime,omitempty"`
+
 	// UUID
 	//
 	// UUID v4 used to identify the GCP KMS configuration
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
-	UUID string `json:"uuid,omitempty"`
+	UUID *string `json:"uuid,omitempty"`
 }
 
 // Validate validates this batch kms config v1beta
@@ -73,7 +90,15 @@ func (m *BatchKmsConfigV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateDeletedTime(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateKmsState(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateUpdatedTime(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -94,6 +119,19 @@ func (m *BatchKmsConfigV1beta) validateCreatedTime(formats strfmt.Registry) erro
 	}
 
 	if err := validate.FormatOf("createdTime", "body", "date-time", m.CreatedTime.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchKmsConfigV1beta) validateDeletedTime(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.DeletedTime) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("deletedTime", "body", "date-time", m.DeletedTime.String(), formats); err != nil {
 		return err
 	}
 
@@ -172,7 +210,20 @@ func (m *BatchKmsConfigV1beta) validateKmsState(formats strfmt.Registry) error {
 	}
 
 	// value enum
-	if err := m.validateKmsStateEnum("kmsState", "body", m.KmsState); err != nil {
+	if err := m.validateKmsStateEnum("kmsState", "body", *m.KmsState); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchKmsConfigV1beta) validateUpdatedTime(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.UpdatedTime) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("updatedTime", "body", "date-time", m.UpdatedTime.String(), formats); err != nil {
 		return err
 	}
 
@@ -185,15 +236,15 @@ func (m *BatchKmsConfigV1beta) validateUUID(formats strfmt.Registry) error {
 		return nil
 	}
 
-	if err := validate.MinLength("uuid", "body", string(m.UUID), 36); err != nil {
+	if err := validate.MinLength("uuid", "body", string(*m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("uuid", "body", string(m.UUID), 36); err != nil {
+	if err := validate.MaxLength("uuid", "body", string(*m.UUID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("uuid", "body", string(m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("uuid", "body", string(*m.UUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

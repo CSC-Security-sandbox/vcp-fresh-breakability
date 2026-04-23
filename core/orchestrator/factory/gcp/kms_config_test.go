@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -94,6 +95,93 @@ func TestGetMultipleKmsConfigs(t *testing.T) {
 		result, err := orchInstanceNew.GetMultipleKMSConfigs(context.Background(), kmsConfigUUIDList)
 
 		assert.Error(tt, err)
+		assert.Empty(tt, result)
+	})
+}
+
+func TestGetKmsConfigsByUUIDs(t *testing.T) {
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	orchInstance := GCPOrchestrator{
+		storage: store,
+	}
+	kmsConfigs := []*datamodel.KmsConfig{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid1"},
+			Name:        "kmsConfig1",
+			Description: "desc1",
+			KmsAttributes: &datamodel.KmsAttributes{
+				VcpServiceAccountEmail: "vcp-sa-1@example.com",
+			},
+		},
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid2"},
+			Name:        "kmsConfig2",
+			Description: "desc2",
+			KmsAttributes: &datamodel.KmsAttributes{
+				VcpServiceAccountEmail: "vcp-sa-2@example.com",
+			},
+		},
+	}
+	err = store.DB().Create(kmsConfigs).Error
+	if err != nil {
+		t.Fatalf("Failed to create KMS Configs table: %v", err)
+	}
+
+	t.Run("WhenListedKMSConfigsAreFound", func(tt *testing.T) {
+		result, getErr := orchInstance.GetKmsConfigsByUUIDs(
+			context.Background(),
+			[]string{"uuid1", "uuid2"},
+		)
+
+		require.NoError(tt, getErr)
+		require.Len(tt, result, 2)
+
+		resultByUUID := make(map[string]*models.KmsConfig, len(result))
+		for _, kmsConfig := range result {
+			resultByUUID[kmsConfig.UUID] = kmsConfig
+		}
+
+		uuid1Config, ok := resultByUUID["uuid1"]
+		require.True(tt, ok)
+		require.NotNil(tt, uuid1Config)
+		require.NotNil(tt, uuid1Config.KmsAttributes)
+		assert.Equal(tt, "kmsConfig1", uuid1Config.Name)
+		assert.Equal(tt, "vcp-sa-1@example.com", uuid1Config.KmsAttributes.VcpServiceAccountEmail)
+	})
+
+	t.Run("ReturnsEmptyListWhenNoUUIDsMatch", func(tt *testing.T) {
+		result, getErr := orchInstance.GetKmsConfigsByUUIDs(
+			context.Background(),
+			[]string{"missing"},
+		)
+
+		require.NoError(tt, getErr)
+		assert.Empty(tt, result)
+	})
+
+	t.Run("WhenStorageLayerReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().
+			GetKmsConfigsByUUIDs(mock.Anything, []string{"uuid1"}).
+			Return(nil, errors.New("internal error"))
+		orchInstanceNew := GCPOrchestrator{storage: mockStorage}
+
+		result, getErr := orchInstanceNew.GetKmsConfigsByUUIDs(
+			context.Background(),
+			[]string{"uuid1"},
+		)
+
+		assert.Error(tt, getErr)
 		assert.Empty(tt, result)
 	})
 }

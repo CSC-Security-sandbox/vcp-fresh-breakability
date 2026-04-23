@@ -447,6 +447,13 @@ func (s *PersistenceStore) ListPoolsSelective(ctx context.Context, filter *dbuti
 	return s.dataStore.ListPoolsSelective(ctx, filter, opts)
 }
 
+func (s *PersistenceStore) GetKmsConfigsByUUIDs(
+	ctx context.Context,
+	kmsConfigUUIDs []string,
+) ([]*datamodel.KmsConfig, error) {
+	return s.dataStore.GetKmsConfigsByUUIDs(ctx, kmsConfigUUIDs)
+}
+
 func (s *PersistenceStore) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error) {
 	return s.dataStore.ListPoolsWithFilterAndPaginationOrderedByUUID(ctx, filter, pagination)
 }

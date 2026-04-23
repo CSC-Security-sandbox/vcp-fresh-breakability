@@ -189,7 +189,7 @@ func (a *Client) V1betaBatchListBackups(params *V1betaBatchListBackupsParams) (*
 /*
 V1betaBatchListKmsConfigs batches lists all k m s configurations with the given u UI ds
 
-Batch lists all KMS configurations with the given UUIDs
+Batch lists all KMS configurations with the given UUIDs across all accounts
 */
 func (a *Client) V1betaBatchListKmsConfigs(params *V1betaBatchListKmsConfigsParams) (*V1betaBatchListKmsConfigsOK, error) {
 	// TODO: Validate the params before sending

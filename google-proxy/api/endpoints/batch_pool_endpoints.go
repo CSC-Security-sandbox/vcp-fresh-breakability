@@ -179,14 +179,7 @@ func fetchBatchPoolsFromCVP(
 }
 
 func buildFieldSet(fields []gcpgenserver.V1betaBatchListPoolsFieldsItem) map[string]bool {
-	if len(fields) == 0 {
-		return nil
-	}
-	set := make(map[string]bool, len(fields))
-	for _, f := range fields {
-		set[string(f)] = true
-	}
-	return set
+	return utils.BuildFieldSet(fields)
 }
 
 // convertPoolToBatchPool converts a VCP pool to BatchPoolV1beta.

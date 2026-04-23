@@ -438,6 +438,7 @@ var (
 	MaxBatchBackupVaultUUIDs     = GetInt("MAX_BATCH_BACKUP_VAULT_UUIDS", 1000)
 	MaxBatchBackupPolicyUUIDs    = GetInt("MAX_BATCH_BACKUP_POLICY_UUIDS", 1000)
 	MaxBatchReplicationURIs      = GetInt("MAX_BATCH_REPLICATION_URIS", 700)
+	MaxBatchKmsConfigUUIDs       = GetInt("MAX_BATCH_KMS_CONFIG_UUIDS", 1000)
 
 	// OCISecretDeletionRetentionDays controls how many days after scheduling a
 	// deletion the OCI Vault secret is permanently removed. OCI enforces a

@@ -8542,6 +8542,66 @@ paths:
         '500':
           $ref: '#/components/responses/StandardError-500'
       x-codegen-request-body-name: body
+  /v1beta/locations/{locationId}/batch/kmsConfigs:
+    post:
+      operationId: v1beta_batchListKmsConfigs
+      summary: Batch lists all KMS configurations with the given UUIDs
+      description: Batch lists all KMS configurations with the given UUIDs across all accounts
+      tags:
+        - batch
+      parameters:
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: fields
+          in: query
+          description: Specify the fields to return.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              enum:
+                - uuid
+                - serviceAccountEmail
+                - keyFullPath
+                - kmsState
+                - kmsStateDetails
+                - description
+                - createdTime
+                - updatedTime
+                - deletedTime
+                - instructions
+                - resourceId
+      requestBody:
+        description: A list of KMS configuration UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchKmsConfigUUIDList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kmsConfigs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BatchKmsConfig_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+      x-codegen-request-body-name: body
   /v1beta/locations/{locationId}/batch/activeDirectories:
     post:
       operationId: v1beta_batchListActiveDirectories
@@ -9323,6 +9383,132 @@ components:
           x-omitempty: true
           nullable: true
           description: Flag indicating if region has C4/hyperdisk machines.
+    BatchKmsConfigUUIDList_v1beta:
+      type: object
+      title: BatchKmsConfigUUIDList
+      required:
+        - kmsConfigUUIDs
+      properties:
+        kmsConfigUUIDs:
+          title: kmsConfigUUIDs
+          type: array
+          items:
+            type: string
+          description: List of KMS configuration UUIDs to return
+    BatchKmsConfig_v1beta:
+      type: object
+      title: KmsConfig
+      properties:
+        uuid:
+          title: uuid
+          type: string
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: UUID v4 used to identify the KMS configuration
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        serviceAccountEmail:
+          title: serviceAccountEmail
+          type: string
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: Service account email which will have access to the key through Google IAM policy.
+          example: service-account@example.com
+        keyFullPath:
+          title: keyFullPath
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: Includes key ring, key-ring location, key name and key project ID
+          example: projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName
+        kmsState:
+          title: kmsState
+          type: string
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: The current lifecycle state of the configuration
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - IN_USE
+            - DELETING
+            - ERROR
+            - KEY_STATE_UNSPECIFIED
+            - KEY_CHECK_PENDING
+            - KEY_NOT_REACHABLE
+            - DISABLING
+            - DISABLED
+            - DELETED
+            - MIGRATING
+          example: READY
+        kmsStateDetails:
+          title: kmsStateDetails
+          type: string
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: Details about the current KMS configuration state
+          example: Credentials saved and available for use
+        description:
+          title: description
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: Description of the KMS configuration
+          example: My kms description
+          maxLength: 2048
+        createdTime:
+          title: createdTime
+          type: string
+          format: date-time
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        updatedTime:
+          title: updatedTime
+          type: string
+          format: date-time
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: Date of last update of the resource
+          example: '2016-11-29T20:32:50.459Z'
+        deletedTime:
+          title: deletedTime
+          type: string
+          format: date-time
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: Date the resource was deleted
+          example: '2016-11-30T23:59:59.999Z'
+        instructions:
+          title: instructions
+          type: string
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: Instructions to provide access to the encryption key.
+          example: gcloud kms keys add-iam-policy-binding key_Name --keyring keyring_Name --location key_Ring_Location --member serviceAccount:service_Account_Name --role roles/cloudkms.cryptoKeyEncrypterDecrypter
+        resourceId:
+          title: resourceId
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: Resource ID for KMS configuration
+          example: my-resource
+          minLength: 1
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
     BatchActiveDirectoryUUIDList_v1beta:
       type: object
       title: BatchActiveDirectoryUUIDList

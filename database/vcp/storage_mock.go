@@ -8806,6 +8806,65 @@ func (_c *MockStorage_GetKmsConfigByUUID_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// GetKmsConfigsByUUIDs provides a mock function with given fields: ctx, kmsConfigUUIDs
+func (_m *MockStorage) GetKmsConfigsByUUIDs(ctx context.Context, kmsConfigUUIDs []string) ([]*datamodel.KmsConfig, error) {
+	ret := _m.Called(ctx, kmsConfigUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetKmsConfigsByUUIDs")
+	}
+
+	var r0 []*datamodel.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]*datamodel.KmsConfig, error)); ok {
+		return rf(ctx, kmsConfigUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []*datamodel.KmsConfig); ok {
+		r0 = rf(ctx, kmsConfigUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, kmsConfigUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetKmsConfigsByUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetKmsConfigsByUUIDs'
+type MockStorage_GetKmsConfigsByUUIDs_Call struct {
+	*mock.Call
+}
+
+// GetKmsConfigsByUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - kmsConfigUUIDs []string
+func (_e *MockStorage_Expecter) GetKmsConfigsByUUIDs(ctx interface{}, kmsConfigUUIDs interface{}) *MockStorage_GetKmsConfigsByUUIDs_Call {
+	return &MockStorage_GetKmsConfigsByUUIDs_Call{Call: _e.mock.On("GetKmsConfigsByUUIDs", ctx, kmsConfigUUIDs)}
+}
+
+func (_c *MockStorage_GetKmsConfigsByUUIDs_Call) Run(run func(ctx context.Context, kmsConfigUUIDs []string)) *MockStorage_GetKmsConfigsByUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetKmsConfigsByUUIDs_Call) Return(_a0 []*datamodel.KmsConfig, _a1 error) *MockStorage_GetKmsConfigsByUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetKmsConfigsByUUIDs_Call) RunAndReturn(run func(context.Context, []string) ([]*datamodel.KmsConfig, error)) *MockStorage_GetKmsConfigsByUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLatestBackupByVolumeAndVault provides a mock function with given fields: ctx, volumeUUID, backupVaultID
 func (_m *MockStorage) GetLatestBackupByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, volumeUUID, backupVaultID)

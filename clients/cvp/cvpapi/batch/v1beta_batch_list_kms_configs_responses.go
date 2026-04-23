@@ -8,9 +8,12 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +79,23 @@ V1betaBatchListKmsConfigsOK handles this case with default header values.
 OK
 */
 type V1betaBatchListKmsConfigsOK struct {
-	Payload []*models.BatchKmsConfigV1beta
+	Payload *V1betaBatchListKmsConfigsOKBody
 }
 
 func (o *V1betaBatchListKmsConfigsOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/kmsConfigs][%d] v1betaBatchListKmsConfigsOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListKmsConfigsOK) GetPayload() []*models.BatchKmsConfigV1beta {
+func (o *V1betaBatchListKmsConfigsOK) GetPayload() *V1betaBatchListKmsConfigsOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListKmsConfigsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListKmsConfigsOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +278,105 @@ func (o *V1betaBatchListKmsConfigsDefault) readResponse(response runtime.ClientR
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListKmsConfigsOKBody v1beta batch list kms configs o k body
+swagger:model V1betaBatchListKmsConfigsOKBody
+*/
+type V1betaBatchListKmsConfigsOKBody struct {
+
+	// kms configs
+	KmsConfigs []*models.BatchKmsConfigV1beta `json:"kmsConfigs"`
+}
+
+// UnmarshalJSON unmarshals this object from a JSON structure
+func (o *V1betaBatchListKmsConfigsOKBody) UnmarshalJSON(raw []byte) error {
+	// V1betaBatchListKmsConfigsOKBodyAO0
+	var dataV1betaBatchListKmsConfigsOKBodyAO0 struct {
+		KmsConfigs []*models.BatchKmsConfigV1beta `json:"kmsConfigs"`
+	}
+	if err := swag.ReadJSON(raw, &dataV1betaBatchListKmsConfigsOKBodyAO0); err != nil {
+		return err
+	}
+
+	o.KmsConfigs = dataV1betaBatchListKmsConfigsOKBodyAO0.KmsConfigs
+
+	return nil
+}
+
+// MarshalJSON marshals this object to a JSON structure
+func (o V1betaBatchListKmsConfigsOKBody) MarshalJSON() ([]byte, error) {
+	_parts := make([][]byte, 0, 1)
+
+	var dataV1betaBatchListKmsConfigsOKBodyAO0 struct {
+		KmsConfigs []*models.BatchKmsConfigV1beta `json:"kmsConfigs"`
+	}
+
+	dataV1betaBatchListKmsConfigsOKBodyAO0.KmsConfigs = o.KmsConfigs
+
+	jsonDataV1betaBatchListKmsConfigsOKBodyAO0, errV1betaBatchListKmsConfigsOKBodyAO0 := swag.WriteJSON(dataV1betaBatchListKmsConfigsOKBodyAO0)
+	if errV1betaBatchListKmsConfigsOKBodyAO0 != nil {
+		return nil, errV1betaBatchListKmsConfigsOKBodyAO0
+	}
+	_parts = append(_parts, jsonDataV1betaBatchListKmsConfigsOKBodyAO0)
+	return swag.ConcatJSON(_parts...), nil
+}
+
+// Validate validates this v1beta batch list kms configs o k body
+func (o *V1betaBatchListKmsConfigsOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateKmsConfigs(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListKmsConfigsOKBody) validateKmsConfigs(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.KmsConfigs) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.KmsConfigs); i++ {
+		if swag.IsZero(o.KmsConfigs[i]) { // not required
+			continue
+		}
+
+		if o.KmsConfigs[i] != nil {
+			if err := o.KmsConfigs[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListKmsConfigsOK" + "." + "kmsConfigs" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListKmsConfigsOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListKmsConfigsOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListKmsConfigsOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

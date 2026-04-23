@@ -599,6 +599,22 @@ func (re *retryEngine) ListTpProjects(ctx context.Context) ([]string, error) {
 	return var0, err
 }
 
+func (re *retryEngine) GetKmsConfigsByUUIDs(ctx context.Context, kmsConfigUUIDs []string) ([]*datamodel.KmsConfig, error) {
+	var var0 []*datamodel.KmsConfig
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetKmsConfigsByUUIDs(ctx, kmsConfigUUIDs)
+		if err != nil {
+			re.logError("GetKmsConfigsByUUIDs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {

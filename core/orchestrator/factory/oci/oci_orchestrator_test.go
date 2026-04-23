@@ -382,6 +382,19 @@ func TestOCIOrchestrator_ListVolumes(t *testing.T) {
 	})
 }
 
+func TestOCIOrchestrator_GetKmsConfigsByUUIDs(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		result, err := orch.GetKmsConfigsByUUIDs(ctx, []string{"kms-uuid"})
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, result)
+	})
+}
+
 func TestOCIOrchestrator_EstablishFlexCacheVolumePeering(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}

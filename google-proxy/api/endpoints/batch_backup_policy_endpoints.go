@@ -329,14 +329,7 @@ func fetchBatchBackupPoliciesFromCVP(
 }
 
 func buildBackupPolicyFieldSet(fields []gcpgenserver.V1betaBatchListBackupPoliciesFieldsItem) map[string]bool {
-	if len(fields) == 0 {
-		return nil
-	}
-	set := make(map[string]bool, len(fields))
-	for _, f := range fields {
-		set[string(f)] = true
-	}
-	return set
+	return utils.BuildFieldSet(fields)
 }
 
 // fieldSetWithBackupPolicyIDForMerge returns a copy of fieldSet with backupPolicyId forced true, for use

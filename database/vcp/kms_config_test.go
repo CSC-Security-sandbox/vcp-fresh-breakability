@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
 
@@ -219,6 +221,103 @@ func TestGetMultipleKMSConfigsDBErrorCondition(t *testing.T) {
 		assert.Error(tt, kmsErr)
 		assert.Nil(tt, result)
 	})
+}
+
+func TestGetKmsConfigsByUUIDs(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err, "Failed to set up test database")
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err, "Failed to clean up test database")
+
+	serviceAccount := &datamodel.ServiceAccount{
+		BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "sa-uuid"},
+		Name:      "ServiceAccount1",
+	}
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel:        datamodel.BaseModel{UUID: "kms-uuid"},
+		Name:             "kmsConfig1",
+		ServiceAccountID: &serviceAccount.ID,
+		KmsAttributes: &datamodel.KmsAttributes{
+			VcpServiceAccountEmail: "kms-sa@example.com",
+		},
+	}
+
+	err = store.db.Create(serviceAccount).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(kmsConfig).Error()
+	assert.NoError(t, err)
+
+	t.Run("ReturnsBaseRowAndKmsAttributesWithoutServiceAccountPreload", func(tt *testing.T) {
+		// Batch KMS derives every supported field from the base row + KmsAttributes JSON column,
+		// so the fetch deliberately does not preload the ServiceAccount relation.
+		result, listErr := store.GetKmsConfigsByUUIDs(
+			context.Background(),
+			[]string{"kms-uuid"},
+		)
+
+		require.NoError(tt, listErr)
+		require.Len(tt, result, 1)
+		assert.Nil(tt, result[0].ServiceAccount)
+		assert.Equal(tt, "kms-sa@example.com", result[0].KmsAttributes.VcpServiceAccountEmail)
+	})
+
+	t.Run("ReturnsEmptyForUnknownUUIDs", func(tt *testing.T) {
+		result, listErr := store.GetKmsConfigsByUUIDs(
+			context.Background(),
+			[]string{"missing"},
+		)
+
+		require.NoError(tt, listErr)
+		assert.Empty(tt, result)
+	})
+
+	t.Run("ReturnsErrorWhenQueryFails", func(tt *testing.T) {
+		err := store.db.GORM().Migrator().DropTable(&datamodel.KmsConfig{})
+		require.NoError(tt, err)
+
+		result, listErr := store.GetKmsConfigsByUUIDs(
+			context.Background(),
+			[]string{"kms-uuid"},
+		)
+
+		require.Error(tt, listErr)
+		assert.Nil(tt, result)
+	})
+}
+
+func TestPersistenceStore_GetKmsConfigsByUUIDs(t *testing.T) {
+	logger := log.NewLogger()
+	storage, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+
+	ps := storage.(*PersistenceStore)
+	ctx := context.Background()
+
+	serviceAccount := &datamodel.ServiceAccount{
+		BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "sa-uuid"},
+		Name:      "ServiceAccount1",
+	}
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel:        datamodel.BaseModel{UUID: "kms-uuid"},
+		Name:             "kmsConfig1",
+		ServiceAccountID: &serviceAccount.ID,
+		KmsAttributes: &datamodel.KmsAttributes{
+			VcpServiceAccountEmail: "kms-sa@example.com",
+		},
+	}
+
+	err = ps.db.GORM().Create(serviceAccount).Error
+	require.NoError(t, err)
+	err = ps.db.GORM().Create(kmsConfig).Error
+	require.NoError(t, err)
+
+	result, listErr := ps.GetKmsConfigsByUUIDs(ctx, []string{"kms-uuid"})
+	require.NoError(t, listErr)
+	require.Len(t, result, 1)
+	assert.Equal(t, "kms-uuid", result[0].UUID)
 }
 
 func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {

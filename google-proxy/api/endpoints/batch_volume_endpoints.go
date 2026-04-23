@@ -254,14 +254,7 @@ func fetchBatchVolumesFromCVP(
 }
 
 func buildBatchVolumeFieldSet(fields []gcpgenserver.V1betaBatchListVolumesFieldsItem) map[string]bool {
-	if len(fields) == 0 {
-		return nil
-	}
-	fieldSet := make(map[string]bool, len(fields))
-	for _, field := range fields {
-		fieldSet[string(field)] = true
-	}
-	return fieldSet
+	return utils.BuildFieldSet(fields)
 }
 
 func convertVolumeModelToBatchVolume(logger log.Logger, v gcpgenserver.VolumeV1beta, fieldSet map[string]bool) (gcpgenserver.BatchVolumeV1beta, error) {

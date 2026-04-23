@@ -29,6 +29,10 @@ type V1betaBatchListHostGroupsRes interface {
 	v1betaBatchListHostGroupsRes()
 }
 
+type V1betaBatchListKmsConfigsRes interface {
+	v1betaBatchListKmsConfigsRes()
+}
+
 type V1betaBatchListPoolsRes interface {
 	v1betaBatchListPoolsRes()
 }

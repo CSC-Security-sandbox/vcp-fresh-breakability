@@ -1270,6 +1270,71 @@ func TestBatchHostGroupV1betaType_Examples(t *testing.T) {
 		})
 	}
 }
+func TestBatchKmsConfigUUIDListV1beta_EncodeDecode(t *testing.T) {
+	var typ BatchKmsConfigUUIDListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchKmsConfigUUIDListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchKmsConfigV1beta_EncodeDecode(t *testing.T) {
+	var typ BatchKmsConfigV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchKmsConfigV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchKmsConfigV1betaKmsState_EncodeDecode(t *testing.T) {
+	var typ BatchKmsConfigV1betaKmsState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchKmsConfigV1betaKmsState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchKmsConfigV1betaKmsState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchKmsConfigV1betaKmsState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchKmsConfigV1betaKmsState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestBatchPoolUUIDListV1beta_EncodeDecode(t *testing.T) {
 	var typ BatchPoolUUIDListV1beta
 	typ.SetFake()
@@ -6543,6 +6608,66 @@ func TestV1betaBatchListHostGroupsUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaBatchListHostGroupsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListKmsConfigsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListKmsConfigsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListKmsConfigsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListKmsConfigsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListKmsConfigsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListKmsConfigsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListKmsConfigsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListKmsConfigsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListKmsConfigsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListKmsConfigsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListKmsConfigsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListKmsConfigsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListKmsConfigsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListKmsConfigsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListKmsConfigsUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaBatchListPoolsBadRequest_EncodeDecode(t *testing.T) {

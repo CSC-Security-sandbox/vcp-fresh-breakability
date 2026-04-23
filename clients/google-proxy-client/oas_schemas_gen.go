@@ -5099,6 +5099,284 @@ func (s *BatchHostGroupV1betaType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/BatchKmsConfigUUIDList_v1beta
+type BatchKmsConfigUUIDListV1beta struct {
+	// List of KMS configuration UUIDs to return.
+	KmsConfigUUIDs []string `json:"kmsConfigUUIDs"`
+}
+
+// GetKmsConfigUUIDs returns the value of KmsConfigUUIDs.
+func (s *BatchKmsConfigUUIDListV1beta) GetKmsConfigUUIDs() []string {
+	return s.KmsConfigUUIDs
+}
+
+// SetKmsConfigUUIDs sets the value of KmsConfigUUIDs.
+func (s *BatchKmsConfigUUIDListV1beta) SetKmsConfigUUIDs(val []string) {
+	s.KmsConfigUUIDs = val
+}
+
+// Ref: #/components/schemas/BatchKmsConfig_v1beta
+type BatchKmsConfigV1beta struct {
+	// UUID v4 used to identify the KMS configuration.
+	UUID OptNilString `json:"uuid"`
+	// Service account email which will have access to the key through Google IAM policy.
+	ServiceAccountEmail OptNilString `json:"serviceAccountEmail"`
+	// Includes key ring, key-ring location, key name and key project ID.
+	KeyFullPath OptNilString `json:"keyFullPath"`
+	// The current lifecycle state of the configuration.
+	KmsState OptNilBatchKmsConfigV1betaKmsState `json:"kmsState"`
+	// Details about the current KMS configuration state.
+	KmsStateDetails OptNilString `json:"kmsStateDetails"`
+	// Description of the KMS configuration.
+	Description OptNilString `json:"description"`
+	// Creation date of the resource.
+	CreatedTime OptNilDateTime `json:"createdTime"`
+	// Date of last update of the resource.
+	UpdatedTime OptNilDateTime `json:"updatedTime"`
+	// Date the resource was deleted.
+	DeletedTime OptNilDateTime `json:"deletedTime"`
+	// Instructions to provide access to the encryption key.
+	Instructions OptNilString `json:"instructions"`
+	// Resource ID for KMS configuration.
+	ResourceId OptNilString `json:"resourceId"`
+}
+
+// GetUUID returns the value of UUID.
+func (s *BatchKmsConfigV1beta) GetUUID() OptNilString {
+	return s.UUID
+}
+
+// GetServiceAccountEmail returns the value of ServiceAccountEmail.
+func (s *BatchKmsConfigV1beta) GetServiceAccountEmail() OptNilString {
+	return s.ServiceAccountEmail
+}
+
+// GetKeyFullPath returns the value of KeyFullPath.
+func (s *BatchKmsConfigV1beta) GetKeyFullPath() OptNilString {
+	return s.KeyFullPath
+}
+
+// GetKmsState returns the value of KmsState.
+func (s *BatchKmsConfigV1beta) GetKmsState() OptNilBatchKmsConfigV1betaKmsState {
+	return s.KmsState
+}
+
+// GetKmsStateDetails returns the value of KmsStateDetails.
+func (s *BatchKmsConfigV1beta) GetKmsStateDetails() OptNilString {
+	return s.KmsStateDetails
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchKmsConfigV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetCreatedTime returns the value of CreatedTime.
+func (s *BatchKmsConfigV1beta) GetCreatedTime() OptNilDateTime {
+	return s.CreatedTime
+}
+
+// GetUpdatedTime returns the value of UpdatedTime.
+func (s *BatchKmsConfigV1beta) GetUpdatedTime() OptNilDateTime {
+	return s.UpdatedTime
+}
+
+// GetDeletedTime returns the value of DeletedTime.
+func (s *BatchKmsConfigV1beta) GetDeletedTime() OptNilDateTime {
+	return s.DeletedTime
+}
+
+// GetInstructions returns the value of Instructions.
+func (s *BatchKmsConfigV1beta) GetInstructions() OptNilString {
+	return s.Instructions
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchKmsConfigV1beta) GetResourceId() OptNilString {
+	return s.ResourceId
+}
+
+// SetUUID sets the value of UUID.
+func (s *BatchKmsConfigV1beta) SetUUID(val OptNilString) {
+	s.UUID = val
+}
+
+// SetServiceAccountEmail sets the value of ServiceAccountEmail.
+func (s *BatchKmsConfigV1beta) SetServiceAccountEmail(val OptNilString) {
+	s.ServiceAccountEmail = val
+}
+
+// SetKeyFullPath sets the value of KeyFullPath.
+func (s *BatchKmsConfigV1beta) SetKeyFullPath(val OptNilString) {
+	s.KeyFullPath = val
+}
+
+// SetKmsState sets the value of KmsState.
+func (s *BatchKmsConfigV1beta) SetKmsState(val OptNilBatchKmsConfigV1betaKmsState) {
+	s.KmsState = val
+}
+
+// SetKmsStateDetails sets the value of KmsStateDetails.
+func (s *BatchKmsConfigV1beta) SetKmsStateDetails(val OptNilString) {
+	s.KmsStateDetails = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchKmsConfigV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetCreatedTime sets the value of CreatedTime.
+func (s *BatchKmsConfigV1beta) SetCreatedTime(val OptNilDateTime) {
+	s.CreatedTime = val
+}
+
+// SetUpdatedTime sets the value of UpdatedTime.
+func (s *BatchKmsConfigV1beta) SetUpdatedTime(val OptNilDateTime) {
+	s.UpdatedTime = val
+}
+
+// SetDeletedTime sets the value of DeletedTime.
+func (s *BatchKmsConfigV1beta) SetDeletedTime(val OptNilDateTime) {
+	s.DeletedTime = val
+}
+
+// SetInstructions sets the value of Instructions.
+func (s *BatchKmsConfigV1beta) SetInstructions(val OptNilString) {
+	s.Instructions = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchKmsConfigV1beta) SetResourceId(val OptNilString) {
+	s.ResourceId = val
+}
+
+// The current lifecycle state of the configuration.
+type BatchKmsConfigV1betaKmsState string
+
+const (
+	BatchKmsConfigV1betaKmsStateSTATEUNSPECIFIED    BatchKmsConfigV1betaKmsState = "STATE_UNSPECIFIED"
+	BatchKmsConfigV1betaKmsStateCREATING            BatchKmsConfigV1betaKmsState = "CREATING"
+	BatchKmsConfigV1betaKmsStateREADY               BatchKmsConfigV1betaKmsState = "READY"
+	BatchKmsConfigV1betaKmsStateUPDATING            BatchKmsConfigV1betaKmsState = "UPDATING"
+	BatchKmsConfigV1betaKmsStateINUSE               BatchKmsConfigV1betaKmsState = "IN_USE"
+	BatchKmsConfigV1betaKmsStateDELETING            BatchKmsConfigV1betaKmsState = "DELETING"
+	BatchKmsConfigV1betaKmsStateERROR               BatchKmsConfigV1betaKmsState = "ERROR"
+	BatchKmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED BatchKmsConfigV1betaKmsState = "KEY_STATE_UNSPECIFIED"
+	BatchKmsConfigV1betaKmsStateKEYCHECKPENDING     BatchKmsConfigV1betaKmsState = "KEY_CHECK_PENDING"
+	BatchKmsConfigV1betaKmsStateKEYNOTREACHABLE     BatchKmsConfigV1betaKmsState = "KEY_NOT_REACHABLE"
+	BatchKmsConfigV1betaKmsStateDISABLING           BatchKmsConfigV1betaKmsState = "DISABLING"
+	BatchKmsConfigV1betaKmsStateDISABLED            BatchKmsConfigV1betaKmsState = "DISABLED"
+	BatchKmsConfigV1betaKmsStateDELETED             BatchKmsConfigV1betaKmsState = "DELETED"
+	BatchKmsConfigV1betaKmsStateMIGRATING           BatchKmsConfigV1betaKmsState = "MIGRATING"
+)
+
+// AllValues returns all BatchKmsConfigV1betaKmsState values.
+func (BatchKmsConfigV1betaKmsState) AllValues() []BatchKmsConfigV1betaKmsState {
+	return []BatchKmsConfigV1betaKmsState{
+		BatchKmsConfigV1betaKmsStateSTATEUNSPECIFIED,
+		BatchKmsConfigV1betaKmsStateCREATING,
+		BatchKmsConfigV1betaKmsStateREADY,
+		BatchKmsConfigV1betaKmsStateUPDATING,
+		BatchKmsConfigV1betaKmsStateINUSE,
+		BatchKmsConfigV1betaKmsStateDELETING,
+		BatchKmsConfigV1betaKmsStateERROR,
+		BatchKmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED,
+		BatchKmsConfigV1betaKmsStateKEYCHECKPENDING,
+		BatchKmsConfigV1betaKmsStateKEYNOTREACHABLE,
+		BatchKmsConfigV1betaKmsStateDISABLING,
+		BatchKmsConfigV1betaKmsStateDISABLED,
+		BatchKmsConfigV1betaKmsStateDELETED,
+		BatchKmsConfigV1betaKmsStateMIGRATING,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchKmsConfigV1betaKmsState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchKmsConfigV1betaKmsStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateCREATING:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateREADY:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateUPDATING:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateINUSE:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateDELETING:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateERROR:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateKEYCHECKPENDING:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateKEYNOTREACHABLE:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateDISABLING:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateDISABLED:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateDELETED:
+		return []byte(s), nil
+	case BatchKmsConfigV1betaKmsStateMIGRATING:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchKmsConfigV1betaKmsState) UnmarshalText(data []byte) error {
+	switch BatchKmsConfigV1betaKmsState(data) {
+	case BatchKmsConfigV1betaKmsStateSTATEUNSPECIFIED:
+		*s = BatchKmsConfigV1betaKmsStateSTATEUNSPECIFIED
+		return nil
+	case BatchKmsConfigV1betaKmsStateCREATING:
+		*s = BatchKmsConfigV1betaKmsStateCREATING
+		return nil
+	case BatchKmsConfigV1betaKmsStateREADY:
+		*s = BatchKmsConfigV1betaKmsStateREADY
+		return nil
+	case BatchKmsConfigV1betaKmsStateUPDATING:
+		*s = BatchKmsConfigV1betaKmsStateUPDATING
+		return nil
+	case BatchKmsConfigV1betaKmsStateINUSE:
+		*s = BatchKmsConfigV1betaKmsStateINUSE
+		return nil
+	case BatchKmsConfigV1betaKmsStateDELETING:
+		*s = BatchKmsConfigV1betaKmsStateDELETING
+		return nil
+	case BatchKmsConfigV1betaKmsStateERROR:
+		*s = BatchKmsConfigV1betaKmsStateERROR
+		return nil
+	case BatchKmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED:
+		*s = BatchKmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED
+		return nil
+	case BatchKmsConfigV1betaKmsStateKEYCHECKPENDING:
+		*s = BatchKmsConfigV1betaKmsStateKEYCHECKPENDING
+		return nil
+	case BatchKmsConfigV1betaKmsStateKEYNOTREACHABLE:
+		*s = BatchKmsConfigV1betaKmsStateKEYNOTREACHABLE
+		return nil
+	case BatchKmsConfigV1betaKmsStateDISABLING:
+		*s = BatchKmsConfigV1betaKmsStateDISABLING
+		return nil
+	case BatchKmsConfigV1betaKmsStateDISABLED:
+		*s = BatchKmsConfigV1betaKmsStateDISABLED
+		return nil
+	case BatchKmsConfigV1betaKmsStateDELETED:
+		*s = BatchKmsConfigV1betaKmsStateDELETED
+		return nil
+	case BatchKmsConfigV1betaKmsStateMIGRATING:
+		*s = BatchKmsConfigV1betaKmsStateMIGRATING
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BatchPoolUUIDList_v1beta
 type BatchPoolUUIDListV1beta struct {
 	// List of pool UUIDs to return.
@@ -17595,6 +17873,69 @@ func (o OptNilBatchHostGroupV1betaType) Or(d BatchHostGroupV1betaType) BatchHost
 	return d
 }
 
+// NewOptNilBatchKmsConfigV1betaKmsState returns new OptNilBatchKmsConfigV1betaKmsState with value set to v.
+func NewOptNilBatchKmsConfigV1betaKmsState(v BatchKmsConfigV1betaKmsState) OptNilBatchKmsConfigV1betaKmsState {
+	return OptNilBatchKmsConfigV1betaKmsState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchKmsConfigV1betaKmsState is optional nullable BatchKmsConfigV1betaKmsState.
+type OptNilBatchKmsConfigV1betaKmsState struct {
+	Value BatchKmsConfigV1betaKmsState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchKmsConfigV1betaKmsState was set.
+func (o OptNilBatchKmsConfigV1betaKmsState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchKmsConfigV1betaKmsState) Reset() {
+	var v BatchKmsConfigV1betaKmsState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchKmsConfigV1betaKmsState) SetTo(v BatchKmsConfigV1betaKmsState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchKmsConfigV1betaKmsState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchKmsConfigV1betaKmsState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchKmsConfigV1betaKmsState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchKmsConfigV1betaKmsState) Get() (v BatchKmsConfigV1betaKmsState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchKmsConfigV1betaKmsState) Or(d BatchKmsConfigV1betaKmsState) BatchKmsConfigV1betaKmsState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilBatchPoolV1betaAssetLocationMetadata returns new OptNilBatchPoolV1betaAssetLocationMetadata with value set to v.
 func NewOptNilBatchPoolV1betaAssetLocationMetadata(v BatchPoolV1betaAssetLocationMetadata) OptNilBatchPoolV1betaAssetLocationMetadata {
 	return OptNilBatchPoolV1betaAssetLocationMetadata{
@@ -29844,6 +30185,142 @@ func (*V1betaBatchListHostGroupsOK) v1betaBatchListHostGroupsRes() {}
 type V1betaBatchListHostGroupsUnauthorized Error
 
 func (*V1betaBatchListHostGroupsUnauthorized) v1betaBatchListHostGroupsRes() {}
+
+type V1betaBatchListKmsConfigsBadRequest Error
+
+func (*V1betaBatchListKmsConfigsBadRequest) v1betaBatchListKmsConfigsRes() {}
+
+type V1betaBatchListKmsConfigsFieldsItem string
+
+const (
+	V1betaBatchListKmsConfigsFieldsItemUUID                V1betaBatchListKmsConfigsFieldsItem = "uuid"
+	V1betaBatchListKmsConfigsFieldsItemServiceAccountEmail V1betaBatchListKmsConfigsFieldsItem = "serviceAccountEmail"
+	V1betaBatchListKmsConfigsFieldsItemKeyFullPath         V1betaBatchListKmsConfigsFieldsItem = "keyFullPath"
+	V1betaBatchListKmsConfigsFieldsItemKmsState            V1betaBatchListKmsConfigsFieldsItem = "kmsState"
+	V1betaBatchListKmsConfigsFieldsItemKmsStateDetails     V1betaBatchListKmsConfigsFieldsItem = "kmsStateDetails"
+	V1betaBatchListKmsConfigsFieldsItemDescription         V1betaBatchListKmsConfigsFieldsItem = "description"
+	V1betaBatchListKmsConfigsFieldsItemCreatedTime         V1betaBatchListKmsConfigsFieldsItem = "createdTime"
+	V1betaBatchListKmsConfigsFieldsItemUpdatedTime         V1betaBatchListKmsConfigsFieldsItem = "updatedTime"
+	V1betaBatchListKmsConfigsFieldsItemDeletedTime         V1betaBatchListKmsConfigsFieldsItem = "deletedTime"
+	V1betaBatchListKmsConfigsFieldsItemInstructions        V1betaBatchListKmsConfigsFieldsItem = "instructions"
+	V1betaBatchListKmsConfigsFieldsItemResourceId          V1betaBatchListKmsConfigsFieldsItem = "resourceId"
+)
+
+// AllValues returns all V1betaBatchListKmsConfigsFieldsItem values.
+func (V1betaBatchListKmsConfigsFieldsItem) AllValues() []V1betaBatchListKmsConfigsFieldsItem {
+	return []V1betaBatchListKmsConfigsFieldsItem{
+		V1betaBatchListKmsConfigsFieldsItemUUID,
+		V1betaBatchListKmsConfigsFieldsItemServiceAccountEmail,
+		V1betaBatchListKmsConfigsFieldsItemKeyFullPath,
+		V1betaBatchListKmsConfigsFieldsItemKmsState,
+		V1betaBatchListKmsConfigsFieldsItemKmsStateDetails,
+		V1betaBatchListKmsConfigsFieldsItemDescription,
+		V1betaBatchListKmsConfigsFieldsItemCreatedTime,
+		V1betaBatchListKmsConfigsFieldsItemUpdatedTime,
+		V1betaBatchListKmsConfigsFieldsItemDeletedTime,
+		V1betaBatchListKmsConfigsFieldsItemInstructions,
+		V1betaBatchListKmsConfigsFieldsItemResourceId,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListKmsConfigsFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListKmsConfigsFieldsItemUUID:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemServiceAccountEmail:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemKeyFullPath:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemKmsState:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemKmsStateDetails:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemDescription:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemCreatedTime:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemUpdatedTime:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemDeletedTime:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemInstructions:
+		return []byte(s), nil
+	case V1betaBatchListKmsConfigsFieldsItemResourceId:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListKmsConfigsFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListKmsConfigsFieldsItem(data) {
+	case V1betaBatchListKmsConfigsFieldsItemUUID:
+		*s = V1betaBatchListKmsConfigsFieldsItemUUID
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemServiceAccountEmail:
+		*s = V1betaBatchListKmsConfigsFieldsItemServiceAccountEmail
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemKeyFullPath:
+		*s = V1betaBatchListKmsConfigsFieldsItemKeyFullPath
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemKmsState:
+		*s = V1betaBatchListKmsConfigsFieldsItemKmsState
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemKmsStateDetails:
+		*s = V1betaBatchListKmsConfigsFieldsItemKmsStateDetails
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemDescription:
+		*s = V1betaBatchListKmsConfigsFieldsItemDescription
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemCreatedTime:
+		*s = V1betaBatchListKmsConfigsFieldsItemCreatedTime
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemUpdatedTime:
+		*s = V1betaBatchListKmsConfigsFieldsItemUpdatedTime
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemDeletedTime:
+		*s = V1betaBatchListKmsConfigsFieldsItemDeletedTime
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemInstructions:
+		*s = V1betaBatchListKmsConfigsFieldsItemInstructions
+		return nil
+	case V1betaBatchListKmsConfigsFieldsItemResourceId:
+		*s = V1betaBatchListKmsConfigsFieldsItemResourceId
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaBatchListKmsConfigsForbidden Error
+
+func (*V1betaBatchListKmsConfigsForbidden) v1betaBatchListKmsConfigsRes() {}
+
+type V1betaBatchListKmsConfigsInternalServerError Error
+
+func (*V1betaBatchListKmsConfigsInternalServerError) v1betaBatchListKmsConfigsRes() {}
+
+type V1betaBatchListKmsConfigsOK struct {
+	KmsConfigs []BatchKmsConfigV1beta `json:"kmsConfigs"`
+}
+
+// GetKmsConfigs returns the value of KmsConfigs.
+func (s *V1betaBatchListKmsConfigsOK) GetKmsConfigs() []BatchKmsConfigV1beta {
+	return s.KmsConfigs
+}
+
+// SetKmsConfigs sets the value of KmsConfigs.
+func (s *V1betaBatchListKmsConfigsOK) SetKmsConfigs(val []BatchKmsConfigV1beta) {
+	s.KmsConfigs = val
+}
+
+func (*V1betaBatchListKmsConfigsOK) v1betaBatchListKmsConfigsRes() {}
+
+type V1betaBatchListKmsConfigsUnauthorized Error
+
+func (*V1betaBatchListKmsConfigsUnauthorized) v1betaBatchListKmsConfigsRes() {}
 
 type V1betaBatchListPoolsBadRequest Error
 

@@ -1859,6 +1859,86 @@ func (s *BatchHostGroupV1betaType) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BatchKmsConfigUUIDListV1beta) SetFake() {
+	{
+		{
+			s.KmsConfigUUIDs = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.KmsConfigUUIDs = append(s.KmsConfigUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchKmsConfigV1beta) SetFake() {
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+	{
+		{
+			s.ServiceAccountEmail.SetFake()
+		}
+	}
+	{
+		{
+			s.KeyFullPath.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsState.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedTime.SetFake()
+		}
+	}
+	{
+		{
+			s.UpdatedTime.SetFake()
+		}
+	}
+	{
+		{
+			s.DeletedTime.SetFake()
+		}
+	}
+	{
+		{
+			s.Instructions.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchKmsConfigV1betaKmsState) SetFake() {
+	*s = BatchKmsConfigV1betaKmsStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *BatchPoolUUIDListV1beta) SetFake() {
 	{
 		{
@@ -5511,6 +5591,12 @@ func (s *OptNilBatchHostGroupV1betaType) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptNilBatchKmsConfigV1betaKmsState) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
 func (s *OptNilBatchPoolV1betaAssetLocationMetadata) SetFake() {
 	s.Null = true
 	s.Set = true
@@ -8334,6 +8420,58 @@ func (s *V1betaBatchListHostGroupsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaBatchListHostGroupsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListKmsConfigsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListKmsConfigsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListKmsConfigsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListKmsConfigsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListKmsConfigsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListKmsConfigsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListKmsConfigsOK) SetFake() {
+	{
+		{
+			s.KmsConfigs = nil
+			for i := 0; i < 0; i++ {
+				var elem BatchKmsConfigV1beta
+				{
+					elem.SetFake()
+				}
+				s.KmsConfigs = append(s.KmsConfigs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListKmsConfigsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListKmsConfigsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

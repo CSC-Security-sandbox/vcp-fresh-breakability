@@ -68,7 +68,7 @@ type V1betaBatchListKmsConfigsParams struct {
 	  A list of KMS configuration UUIDs to return.
 
 	*/
-	Body *models.KmsConfigIDListV1beta
+	Body *models.BatchKmsConfigUUIDListV1beta
 	/*Fields
 	  Specify the fields to return.
 
@@ -124,13 +124,13 @@ func (o *V1betaBatchListKmsConfigsParams) SetHTTPClient(client *http.Client) {
 }
 
 // WithBody adds the body to the v1beta batch list kms configs params
-func (o *V1betaBatchListKmsConfigsParams) WithBody(body *models.KmsConfigIDListV1beta) *V1betaBatchListKmsConfigsParams {
+func (o *V1betaBatchListKmsConfigsParams) WithBody(body *models.BatchKmsConfigUUIDListV1beta) *V1betaBatchListKmsConfigsParams {
 	o.SetBody(body)
 	return o
 }
 
 // SetBody adds the body to the v1beta batch list kms configs params
-func (o *V1betaBatchListKmsConfigsParams) SetBody(body *models.KmsConfigIDListV1beta) {
+func (o *V1betaBatchListKmsConfigsParams) SetBody(body *models.BatchKmsConfigUUIDListV1beta) {
 	o.Body = body
 }
 
