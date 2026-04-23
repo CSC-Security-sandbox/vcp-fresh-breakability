@@ -117,6 +117,7 @@ type OrchestratorFactory interface {
 	ListBackupVaults(ctx context.Context, accountName string) ([]*models.BackupVaultV1beta, error)
 	GetBackupVaultByUUID(ctx context.Context, bvUUID string, ownerID string) (*models.BackupVaultV1beta, error)
 	GetBackupVaultByUUIDWithoutAccount(ctx context.Context, bvUUID string) (*models.BackupVaultV1beta, error)
+	GetBackupsByUUIDs(ctx context.Context, backupUUIDs []string) ([]*datamodel.Backup, error)
 	UpdateBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)
 	GetMultipleBackupVaults(ctx context.Context, backupVaultUUIDList []string) ([]*models.BackupVaultV1beta, error)
 	DeleteBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)

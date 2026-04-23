@@ -305,6 +305,7 @@ type (
 		CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error)
 		GetBackupByExternalUUID(ctx context.Context, backupVaultUUID string, externalUUID string, accountName string) (*datamodel.Backup, error)
+		BatchGetBackupsByUUIDs(ctx context.Context, backupUUIDs []string) ([]*datamodel.Backup, error)
 		DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
 		UpdateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error

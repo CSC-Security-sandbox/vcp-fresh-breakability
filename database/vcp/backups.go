@@ -776,6 +776,25 @@ func (d *DataStoreRepository) GetBackupsByVolumeUUID(ctx context.Context, volume
 	return backups, nil
 }
 
+// BatchGetBackupsByUUIDs fetches backups for the given UUID list with a narrow
+// BackupVault preload. Only the BackupVault columns consumed by the batch API
+// response are selected
+func (d *DataStoreRepository) BatchGetBackupsByUUIDs(ctx context.Context, backupUUIDs []string) ([]*datamodel.Backup, error) {
+	var backups []*datamodel.Backup
+	if len(backupUUIDs) == 0 {
+		return backups, nil
+	}
+
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Preload("BackupVault", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, uuid, source_region_name, backup_region_name, service_type, bucket_details, immutable_attributes")
+	}).Where("uuid IN ?", backupUUIDs).Find(&backups).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return backups, nil
+}
+
 func (d *DataStoreRepository) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

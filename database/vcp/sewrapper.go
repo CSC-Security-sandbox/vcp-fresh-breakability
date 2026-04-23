@@ -3774,6 +3774,22 @@ func (re *retryEngine) GetBackupByExternalUUID(ctx context.Context, backupVaultU
 	return var0, err
 }
 
+func (re *retryEngine) BatchGetBackupsByUUIDs(ctx context.Context, backupUUIDs []string) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.BatchGetBackupsByUUIDs(ctx, backupUUIDs)
+		if err != nil {
+			re.logError("BatchGetBackupsByUUIDs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
 	var var0 *datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {

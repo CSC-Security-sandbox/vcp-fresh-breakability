@@ -81,6 +81,16 @@ func (o *GCPOrchestrator) ListBackupsWithoutAccountFilter(ctx context.Context, b
 	return o.storage.GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVaultID, filters)
 }
 
+// GetBackupsByUUIDs retrieves multiple backups across all accounts/vaults by their UUIDs.
+// The backup vault is preloaded with a narrow column set (id, uuid, source_region_name,
+// backup_region_name, service_type, bucket_details, immutable_attributes) so callers can
+// build batch responses without additional queries. Note that BackupVault.Account is NOT
+// preloaded; callers that need account data must fetch it separately. Missing UUIDs are
+// silently omitted from the result.
+func (o *GCPOrchestrator) GetBackupsByUUIDs(ctx context.Context, backupUUIDs []string) ([]*datamodel.Backup, error) {
+	return o.storage.BatchGetBackupsByUUIDs(ctx, backupUUIDs)
+}
+
 // GetBackupsUnderBackupVault retrieves all backups associated with the specified BackupVault
 func (o *GCPOrchestrator) GetBackupsUnderBackupVault(ctx context.Context, backupVaultID, ownerID string, backupUUIDs []string) ([]*datamodel.Backup, error) {
 	se := o.storage

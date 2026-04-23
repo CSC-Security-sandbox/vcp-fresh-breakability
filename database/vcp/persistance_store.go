@@ -933,6 +933,10 @@ func (s *PersistenceStore) BatchGetSnapshotsByUUIDs(ctx context.Context, snapsho
 	return s.dataStore.BatchGetSnapshotsByUUIDs(ctx, snapshotUUIDs)
 }
 
+func (s *PersistenceStore) BatchGetBackupsByUUIDs(ctx context.Context, backupUUIDs []string) ([]*datamodel.Backup, error) {
+	return s.dataStore.BatchGetBackupsByUUIDs(ctx, backupUUIDs)
+}
+
 func (s *PersistenceStore) BatchGetWronglyDeletedSnapshots(ctx context.Context, snapshotExternalUUIDs []string) ([]*datamodel.Snapshot, error) {
 	return s.dataStore.BatchGetWronglyDeletedSnapshots(ctx, snapshotExternalUUIDs)
 }

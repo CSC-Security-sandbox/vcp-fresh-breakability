@@ -484,6 +484,10 @@ func (o *OCIOrchestrator) GetMultipleBackupVaults(ctx context.Context, backupVau
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) GetBackupsByUUIDs(ctx context.Context, backupUUIDs []string) ([]*datamodel.Backup, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) DeleteBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
 	// TODO implement me
 	return nil, "", utilserrors.NewNotImplementedYetErr()

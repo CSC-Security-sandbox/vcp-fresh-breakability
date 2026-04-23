@@ -4210,6 +4210,65 @@ func (_c *MockOrchestratorFactory_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) 
 	return _c
 }
 
+// GetBackupsByUUIDs provides a mock function with given fields: ctx, backupUUIDs
+func (_m *MockOrchestratorFactory) GetBackupsByUUIDs(ctx context.Context, backupUUIDs []string) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backupUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupsByUUIDs")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, backupUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []*datamodel.Backup); ok {
+		r0 = rf(ctx, backupUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, backupUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackupsByUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupsByUUIDs'
+type MockOrchestratorFactory_GetBackupsByUUIDs_Call struct {
+	*mock.Call
+}
+
+// GetBackupsByUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupUUIDs []string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupsByUUIDs(ctx interface{}, backupUUIDs interface{}) *MockOrchestratorFactory_GetBackupsByUUIDs_Call {
+	return &MockOrchestratorFactory_GetBackupsByUUIDs_Call{Call: _e.mock.On("GetBackupsByUUIDs", ctx, backupUUIDs)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackupsByUUIDs_Call) Run(run func(ctx context.Context, backupUUIDs []string)) *MockOrchestratorFactory_GetBackupsByUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupsByUUIDs_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockOrchestratorFactory_GetBackupsByUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupsByUUIDs_Call) RunAndReturn(run func(context.Context, []string) ([]*datamodel.Backup, error)) *MockOrchestratorFactory_GetBackupsByUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupsUnderBackupVault provides a mock function with given fields: ctx, backupVaultID, ownerID, backupUUIDs
 func (_m *MockOrchestratorFactory) GetBackupsUnderBackupVault(ctx context.Context, backupVaultID string, ownerID string, backupUUIDs []string) ([]*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backupVaultID, ownerID, backupUUIDs)
