@@ -40,7 +40,7 @@ func encodeV1betaBatchListActiveDirectoriesRequest(
 }
 
 func encodeV1betaBatchListBackupPoliciesRequest(
-	req *BackupPolicyIdListV1beta,
+	req *BatchBackupPolicyUUIDListV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

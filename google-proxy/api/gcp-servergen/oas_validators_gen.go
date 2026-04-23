@@ -1307,7 +1307,7 @@ func (s *BackupPolicyIdListV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.BackupPolicyUUIDs == nil {
+		if s.BackupPolicyUuids == nil {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
@@ -1315,11 +1315,11 @@ func (s *BackupPolicyIdListV1beta) Validate() error {
 			MinLengthSet: true,
 			MaxLength:    0,
 			MaxLengthSet: false,
-		}).ValidateLength(len(s.BackupPolicyUUIDs)); err != nil {
+		}).ValidateLength(len(s.BackupPolicyUuids)); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		var failures []validate.FieldError
-		for i, elem := range s.BackupPolicyUUIDs {
+		for i, elem := range s.BackupPolicyUuids {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    0,
@@ -1346,7 +1346,7 @@ func (s *BackupPolicyIdListV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "backupPolicyUUIDs",
+			Name:  "backupPolicyUuids",
 			Error: err,
 		})
 	}
@@ -3117,6 +3117,62 @@ func (s BatchActiveDirectoryV1betaActiveDirectoryState) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *BatchBackupPolicyUUIDListV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.BackupPolicyUUIDs == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.BackupPolicyUUIDs)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.BackupPolicyUUIDs {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    0,
+					MaxLengthSet: false,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupPolicyUUIDs",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *BatchBackupPolicyV1beta) Validate() error {

@@ -50,7 +50,7 @@ func (UnimplementedHandler) V1betaBatchListActiveDirectories(ctx context.Context
 // selection controls which attributes are returned.
 //
 // POST /v1beta/locations/{locationId}/batch/backupPolicies
-func (UnimplementedHandler) V1betaBatchListBackupPolicies(ctx context.Context, req *BackupPolicyIdListV1beta, params V1betaBatchListBackupPoliciesParams) (r V1betaBatchListBackupPoliciesRes, _ error) {
+func (UnimplementedHandler) V1betaBatchListBackupPolicies(ctx context.Context, req *BatchBackupPolicyUUIDListV1beta, params V1betaBatchListBackupPoliciesParams) (r V1betaBatchListBackupPoliciesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -610,7 +610,7 @@ func (s *Server) handleV1betaBatchListBackupPoliciesRequest(args [1]string, args
 		}
 
 		type (
-			Request  = *BackupPolicyIdListV1beta
+			Request  = *BatchBackupPolicyUUIDListV1beta
 			Params   = V1betaBatchListBackupPoliciesParams
 			Response = V1betaBatchListBackupPoliciesRes
 		)

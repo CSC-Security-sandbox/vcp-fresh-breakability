@@ -4387,7 +4387,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-uuid-1"},
+			BackupPolicyUuids: []string{"backup-policy-uuid-1"},
 		}
 
 		handler := Handler{}
@@ -4418,7 +4418,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock response
@@ -4477,7 +4477,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		mockOrchestrator.EXPECT().
-			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUUIDs).
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
 			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -4531,7 +4531,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock response
@@ -4576,7 +4576,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		mockOrchestrator.EXPECT().
-			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUUIDs).
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
 			Return(nil, nil, fmt.Errorf("failed to get multiple backup policy volume count"))
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -4612,7 +4612,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock response
@@ -4631,7 +4631,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		vcpBackupPolicyVolumeCount := make(map[string]int64)
 		vcpBackupPolicies := make(map[string]*coremodels.BackupPolicy)
 		mockOrchestrator.EXPECT().
-			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUUIDs).
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
 			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
 
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
@@ -4667,7 +4667,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 		// Define request
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock error
@@ -4717,7 +4717,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 		// Define request
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock error
@@ -4767,7 +4767,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 		// Define request
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock error
@@ -4817,7 +4817,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 		// Define request
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock error
@@ -4867,7 +4867,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 		// Define request
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock error
@@ -4917,7 +4917,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 		// Define request
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock error
@@ -4967,7 +4967,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 		// Define request
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		// Define mock error
@@ -5010,7 +5010,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1", "backup-policy-id-2"},
+			BackupPolicyUuids: []string{"backup-policy-id-1", "backup-policy-id-2"},
 		}
 
 		originalBackupEnabled := backupEnabled
@@ -5080,7 +5080,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1", "backup-policy-id-nonexistent"},
+			BackupPolicyUuids: []string{"backup-policy-id-1", "backup-policy-id-nonexistent"},
 		}
 
 		originalBackupEnabled := backupEnabled
@@ -5139,7 +5139,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		req := &gcpgenserver.BackupPolicyIdListV1beta{
-			BackupPolicyUUIDs: []string{"backup-policy-id-1"},
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
 		}
 
 		originalBackupEnabled := backupEnabled

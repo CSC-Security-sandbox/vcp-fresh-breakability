@@ -523,13 +523,13 @@ func (s *BackupPolicyDetailsV1betaState) SetFake() {
 func (s *BackupPolicyIdListV1beta) SetFake() {
 	{
 		{
-			s.BackupPolicyUUIDs = nil
+			s.BackupPolicyUuids = nil
 			for i := 0; i < 1; i++ {
 				var elem string
 				{
 					elem = "string"
 				}
-				s.BackupPolicyUUIDs = append(s.BackupPolicyUUIDs, elem)
+				s.BackupPolicyUuids = append(s.BackupPolicyUuids, elem)
 			}
 		}
 	}
@@ -1477,6 +1477,22 @@ func (s *BatchActiveDirectoryV1beta) SetFake() {
 // SetFake set fake values.
 func (s *BatchActiveDirectoryV1betaActiveDirectoryState) SetFake() {
 	*s = BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchBackupPolicyUUIDListV1beta) SetFake() {
+	{
+		{
+			s.BackupPolicyUUIDs = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.BackupPolicyUUIDs = append(s.BackupPolicyUUIDs, elem)
+			}
+		}
+	}
 }
 
 // SetFake set fake values.

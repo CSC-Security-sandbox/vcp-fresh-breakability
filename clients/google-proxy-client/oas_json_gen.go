@@ -2322,9 +2322,9 @@ func (s *BackupPolicyIdListV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *BackupPolicyIdListV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("backupPolicyUUIDs")
+		e.FieldStart("backupPolicyUuids")
 		e.ArrStart()
-		for _, elem := range s.BackupPolicyUUIDs {
+		for _, elem := range s.BackupPolicyUuids {
 			e.Str(elem)
 		}
 		e.ArrEnd()
@@ -2332,7 +2332,7 @@ func (s *BackupPolicyIdListV1beta) encodeFields(e *jx.Encoder) {
 }
 
 var jsonFieldsNameOfBackupPolicyIdListV1beta = [1]string{
-	0: "backupPolicyUUIDs",
+	0: "backupPolicyUuids",
 }
 
 // Decode decodes BackupPolicyIdListV1beta from json.
@@ -2344,10 +2344,10 @@ func (s *BackupPolicyIdListV1beta) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "backupPolicyUUIDs":
+		case "backupPolicyUuids":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.BackupPolicyUUIDs = make([]string, 0)
+				s.BackupPolicyUuids = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
 					var elem string
 					v, err := d.Str()
@@ -2355,14 +2355,14 @@ func (s *BackupPolicyIdListV1beta) Decode(d *jx.Decoder) error {
 					if err != nil {
 						return err
 					}
-					s.BackupPolicyUUIDs = append(s.BackupPolicyUUIDs, elem)
+					s.BackupPolicyUuids = append(s.BackupPolicyUuids, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"backupPolicyUUIDs\"")
+				return errors.Wrap(err, "decode field \"backupPolicyUuids\"")
 			}
 		default:
 			return d.Skip()
@@ -6807,6 +6807,114 @@ func (s BatchActiveDirectoryV1betaActiveDirectoryState) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *BatchActiveDirectoryV1betaActiveDirectoryState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BatchBackupPolicyUUIDListV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BatchBackupPolicyUUIDListV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("backupPolicyUUIDs")
+		e.ArrStart()
+		for _, elem := range s.BackupPolicyUUIDs {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfBatchBackupPolicyUUIDListV1beta = [1]string{
+	0: "backupPolicyUUIDs",
+}
+
+// Decode decodes BatchBackupPolicyUUIDListV1beta from json.
+func (s *BatchBackupPolicyUUIDListV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchBackupPolicyUUIDListV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupPolicyUUIDs":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.BackupPolicyUUIDs = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.BackupPolicyUUIDs = append(s.BackupPolicyUUIDs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupPolicyUUIDs\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BatchBackupPolicyUUIDListV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBatchBackupPolicyUUIDListV1beta) {
+					name = jsonFieldsNameOfBatchBackupPolicyUUIDListV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BatchBackupPolicyUUIDListV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchBackupPolicyUUIDListV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

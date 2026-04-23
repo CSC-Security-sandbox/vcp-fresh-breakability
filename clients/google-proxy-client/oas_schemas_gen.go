@@ -1195,19 +1195,21 @@ func (s *BackupPolicyDetailsV1betaState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Request body for getMultipleBackupPolicies. Uses legacy JSON field name backupPolicyUuids for
+// backward compatibility with existing clients.
 // Ref: #/components/schemas/BackupPolicyIdList_v1beta
 type BackupPolicyIdListV1beta struct {
-	BackupPolicyUUIDs []string `json:"backupPolicyUUIDs"`
+	BackupPolicyUuids []string `json:"backupPolicyUuids"`
 }
 
-// GetBackupPolicyUUIDs returns the value of BackupPolicyUUIDs.
-func (s *BackupPolicyIdListV1beta) GetBackupPolicyUUIDs() []string {
-	return s.BackupPolicyUUIDs
+// GetBackupPolicyUuids returns the value of BackupPolicyUuids.
+func (s *BackupPolicyIdListV1beta) GetBackupPolicyUuids() []string {
+	return s.BackupPolicyUuids
 }
 
-// SetBackupPolicyUUIDs sets the value of BackupPolicyUUIDs.
-func (s *BackupPolicyIdListV1beta) SetBackupPolicyUUIDs(val []string) {
-	s.BackupPolicyUUIDs = val
+// SetBackupPolicyUuids sets the value of BackupPolicyUuids.
+func (s *BackupPolicyIdListV1beta) SetBackupPolicyUuids(val []string) {
+	s.BackupPolicyUuids = val
 }
 
 // Merged schema.
@@ -3823,6 +3825,22 @@ func (s *BatchActiveDirectoryV1betaActiveDirectoryState) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Request body for batch list backup policies (canonical backupPolicyUUIDs field).
+// Ref: #/components/schemas/BatchBackupPolicyUUIDList_v1beta
+type BatchBackupPolicyUUIDListV1beta struct {
+	BackupPolicyUUIDs []string `json:"backupPolicyUUIDs"`
+}
+
+// GetBackupPolicyUUIDs returns the value of BackupPolicyUUIDs.
+func (s *BatchBackupPolicyUUIDListV1beta) GetBackupPolicyUUIDs() []string {
+	return s.BackupPolicyUUIDs
+}
+
+// SetBackupPolicyUUIDs sets the value of BackupPolicyUUIDs.
+func (s *BatchBackupPolicyUUIDListV1beta) SetBackupPolicyUUIDs(val []string) {
+	s.BackupPolicyUUIDs = val
 }
 
 // Merged schema.

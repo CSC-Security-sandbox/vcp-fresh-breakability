@@ -150,7 +150,7 @@ func (s *Server) decodeV1betaBatchListActiveDirectoriesRequest(r *http.Request) 
 }
 
 func (s *Server) decodeV1betaBatchListBackupPoliciesRequest(r *http.Request) (
-	req *BackupPolicyIdListV1beta,
+	req *BatchBackupPolicyUUIDListV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -189,7 +189,7 @@ func (s *Server) decodeV1betaBatchListBackupPoliciesRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request BackupPolicyIdListV1beta
+		var request BatchBackupPolicyUUIDListV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err

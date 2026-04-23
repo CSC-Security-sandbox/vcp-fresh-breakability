@@ -36,7 +36,7 @@ type Handler interface {
 	// selection controls which attributes are returned.
 	//
 	// POST /v1beta/locations/{locationId}/batch/backupPolicies
-	V1betaBatchListBackupPolicies(ctx context.Context, req *BackupPolicyIdListV1beta, params V1betaBatchListBackupPoliciesParams) (V1betaBatchListBackupPoliciesRes, error)
+	V1betaBatchListBackupPolicies(ctx context.Context, req *BatchBackupPolicyUUIDListV1beta, params V1betaBatchListBackupPoliciesParams) (V1betaBatchListBackupPoliciesRes, error)
 	// V1betaBatchListBackupVaults implements v1beta_batchListBackupVaults operation.
 	//
 	// Batch list all backup vaults with the given UUIDs.

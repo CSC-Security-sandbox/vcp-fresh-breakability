@@ -34,7 +34,7 @@ var cvpBatchBackupPolicyFieldWhitelist = map[string]struct{}{
 	"state":              {},
 }
 
-func (h Handler) V1betaBatchListBackupPolicies(ctx context.Context, req *gcpgenserver.BackupPolicyIdListV1beta, params gcpgenserver.V1betaBatchListBackupPoliciesParams) (gcpgenserver.V1betaBatchListBackupPoliciesRes, error) {
+func (h Handler) V1betaBatchListBackupPolicies(ctx context.Context, req *gcpgenserver.BatchBackupPolicyUUIDListV1beta, params gcpgenserver.V1betaBatchListBackupPoliciesParams) (gcpgenserver.V1betaBatchListBackupPoliciesRes, error) {
 	if !backupEnabled {
 		return &gcpgenserver.V1betaBatchListBackupPoliciesBadRequest{
 			Code:    http.StatusBadRequest,

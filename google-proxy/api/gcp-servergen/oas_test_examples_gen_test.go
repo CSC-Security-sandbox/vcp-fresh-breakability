@@ -904,6 +904,18 @@ func TestBatchActiveDirectoryV1betaActiveDirectoryState_Examples(t *testing.T) {
 		})
 	}
 }
+func TestBatchBackupPolicyUUIDListV1beta_EncodeDecode(t *testing.T) {
+	var typ BatchBackupPolicyUUIDListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchBackupPolicyUUIDListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestBatchBackupPolicyV1beta_EncodeDecode(t *testing.T) {
 	var typ BatchBackupPolicyV1beta
 	typ.SetFake()

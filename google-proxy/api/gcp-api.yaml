@@ -8766,7 +8766,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BackupPolicyIdList_v1beta'
+              $ref: '#/components/schemas/BatchBackupPolicyUUIDList_v1beta'
         required: true
       responses:
         '200':
@@ -15529,6 +15529,25 @@ components:
     BackupPolicyIdList_v1beta:
       type: object
       title: BackupPolicyIdList
+      description: >-
+        Request body for getMultipleBackupPolicies. Uses legacy JSON field name
+        backupPolicyUuids for backward compatibility with existing clients.
+      required:
+        - backupPolicyUuids
+      properties:
+        backupPolicyUuids:
+          title: backupPolicyUuids
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: Uuid v4 used to identify the backup policy
+            pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    BatchBackupPolicyUUIDList_v1beta:
+      type: object
+      title: BatchBackupPolicyUUIDList
+      description: Request body for batch list backup policies (canonical backupPolicyUUIDs field).
       required:
         - backupPolicyUUIDs
       properties:

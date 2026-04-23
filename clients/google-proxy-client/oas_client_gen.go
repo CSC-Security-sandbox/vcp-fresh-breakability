@@ -49,7 +49,7 @@ type Invoker interface {
 	// selection controls which attributes are returned.
 	//
 	// POST /v1beta/locations/{locationId}/batch/backupPolicies
-	V1betaBatchListBackupPolicies(ctx context.Context, request *BackupPolicyIdListV1beta, params V1betaBatchListBackupPoliciesParams) (V1betaBatchListBackupPoliciesRes, error)
+	V1betaBatchListBackupPolicies(ctx context.Context, request *BatchBackupPolicyUUIDListV1beta, params V1betaBatchListBackupPoliciesParams) (V1betaBatchListBackupPoliciesRes, error)
 	// V1betaBatchListBackupVaults invokes v1beta_batchListBackupVaults operation.
 	//
 	// Batch list all backup vaults with the given UUIDs.
@@ -1197,12 +1197,12 @@ func (c *Client) sendV1betaBatchListActiveDirectories(ctx context.Context, reque
 // selection controls which attributes are returned.
 //
 // POST /v1beta/locations/{locationId}/batch/backupPolicies
-func (c *Client) V1betaBatchListBackupPolicies(ctx context.Context, request *BackupPolicyIdListV1beta, params V1betaBatchListBackupPoliciesParams) (V1betaBatchListBackupPoliciesRes, error) {
+func (c *Client) V1betaBatchListBackupPolicies(ctx context.Context, request *BatchBackupPolicyUUIDListV1beta, params V1betaBatchListBackupPoliciesParams) (V1betaBatchListBackupPoliciesRes, error) {
 	res, err := c.sendV1betaBatchListBackupPolicies(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendV1betaBatchListBackupPolicies(ctx context.Context, request *BackupPolicyIdListV1beta, params V1betaBatchListBackupPoliciesParams) (res V1betaBatchListBackupPoliciesRes, err error) {
+func (c *Client) sendV1betaBatchListBackupPolicies(ctx context.Context, request *BatchBackupPolicyUUIDListV1beta, params V1betaBatchListBackupPoliciesParams) (res V1betaBatchListBackupPoliciesRes, err error) {
 	// Validate request before sending.
 	if err := func() error {
 		if err := request.Validate(); err != nil {
