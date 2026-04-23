@@ -36,6 +36,7 @@ const (
 	VolumeReplicationScheduleHourly     = "Hourly"
 	VolumeReplicationScheduleDaily      = "Daily"
 	ReplicationModeOntap                = "ONTAP"
+	ReplicationTypeDataMigration        = "DATA_MIGRATION"
 )
 
 var (
@@ -942,7 +943,10 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		case "/replication/destination_service_level":
 			return "FLEX_UNIFIED", nil
 		case "/replication/replication_type":
-			return getReplicationType(metric)
+			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
+				return ReplicationTypeDataMigration, nil
+			}
+			return repType, nil
 		case "/replication/mode":
 			serviceLevel, err := getServiceLevel(metric)
 			if err == nil && serviceLevel == "4" {

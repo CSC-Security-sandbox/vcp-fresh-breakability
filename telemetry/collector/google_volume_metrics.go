@@ -111,6 +111,7 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				"metric.label.relationship_id",
 				"metric.label.source_details",
 				"metric.label.destination_details",
+				"metric.label.last_transfer_type",
 			},
 		}
 		if metric.MetricType == "performance" {
@@ -254,6 +255,9 @@ func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metad
 		}
 		if dd := resp.Metric.Labels["destination_details"]; dd != "" {
 			metaDataMap["destination_details"] = dd
+		}
+		if tp := resp.Metric.Labels["last_transfer_type"]; tp != "" {
+			metaDataMap["last_transfer_type"] = tp
 		}
 		if len(metaDataMap) > 0 {
 			if metadataJSON, err := json.Marshal(metaDataMap); err == nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	clientmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -74,6 +75,10 @@ func hydratedMetricsToDataPoints(metrics []datamodel2.HydratedMetrics) []common.
 	})
 
 	return dataPoints
+}
+
+func strPtr(v string) *string {
+	return &v
 }
 
 // MockUsageSink is a mock implementation of the UsageSink interface for testing
@@ -6042,6 +6047,157 @@ func TestGroupMetricsByResource_ParsesPoolName(t *testing.T) {
 			assert.Equal(t, "eu-west1", *hydratedMetrics[0].Metadata.BackupRegionName)
 		}
 	})
+}
+
+func TestGroupMetricsByResource_ParsesTransferTypeFromMetadata(t *testing.T) {
+	processor := &BillingProvider{}
+	now := time.Now()
+
+	t.Run("sets transfer_type when source_details is non-gcnv", func(t *testing.T) {
+		metrics := []datamodel2.HydratedMetrics{
+			{
+				ResourceName:    "replication-1",
+				DeploymentName:  "deployment-1",
+				ConsumerID:      "customer-1",
+				ResourceType:    metadata.VolumeReplicationRelationship,
+				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+				Quantity:        2048,
+				MetricTimestamp: now,
+				Metadata:        []byte(`{"source_details":"onprem-source","last_transfer_type":"initialize"}`),
+			},
+		}
+
+		groups := processor.groupMetricsByResource(metrics)
+		assert.Len(t, groups, 1)
+
+		for _, hydratedMetrics := range groups {
+			assert.Len(t, hydratedMetrics, 1)
+			assert.NotNil(t, hydratedMetrics[0].Metadata.TransferType)
+			assert.Equal(t, "initialize", *hydratedMetrics[0].Metadata.TransferType)
+		}
+	})
+
+	t.Run("does not set transfer_type when source_details has gcnv prefix", func(t *testing.T) {
+		metrics := []datamodel2.HydratedMetrics{
+			{
+				ResourceName:    "replication-2",
+				DeploymentName:  "deployment-1",
+				ConsumerID:      "customer-1",
+				ResourceType:    metadata.VolumeReplicationRelationship,
+				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+				Quantity:        1024,
+				MetricTimestamp: now,
+				Metadata:        []byte(`{"source_details":"gcnv-dep-a-r34_suffix","last_transfer_type":"update"}`),
+			},
+		}
+
+		groups := processor.groupMetricsByResource(metrics)
+		assert.Len(t, groups, 1)
+
+		for _, hydratedMetrics := range groups {
+			assert.Len(t, hydratedMetrics, 1)
+			assert.Nil(t, hydratedMetrics[0].Metadata.TransferType)
+		}
+	})
+}
+
+func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationReplication(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	testCases := []struct {
+		name            string
+		replicationType string
+		transferType    *string
+		expectedBilling bool
+	}{
+		{
+			name:            "onprem + initialize => non-billable",
+			replicationType: string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION),
+			transferType:    strPtr(TransferTypeInitial),
+			expectedBilling: false,
+		},
+		{
+			name:            "migration + initialize => non-billable",
+			replicationType: string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			transferType:    strPtr(TransferTypeInitial),
+			expectedBilling: false,
+		},
+		{
+			name:            "onprem + update => billable",
+			replicationType: string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION),
+			transferType:    strPtr("update"),
+			expectedBilling: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			processor := &BillingProvider{
+				config: &common.TelemetryConfig{},
+			}
+
+			resourceID := ResourceKey{
+				ResourceType: metadata.VolumeReplicationRelationship,
+				ResourceName: "rep-1",
+				ConsumerID:   "customer-1",
+			}
+
+			repName := "rep-1"
+			srcLoc := "us-central1"
+			dstLoc := "us-east1"
+			resourceCollection := &ResourceCollection{
+				PoolData:              make(map[ResourceKey]ResourceData),
+				VolumeData:            make(map[ResourceKey]ResourceData),
+				BackupData:            make(map[ResourceKey]ResourceData),
+				VolumeReplicationData: make(map[ResourceKey]ResourceData),
+			}
+			resourceCollection.VolumeReplicationData[resourceID] = ResourceData{
+				UUID:      "rep-uuid-1",
+				AccountID: 123,
+				VolumeReplicationInfo: &VolumeReplicationInfo{
+					ReplicationName:     &repName,
+					ReplicationType:     tc.replicationType,
+					SourceLocation:      &srcLoc,
+					DestinationLocation: &dstLoc,
+				},
+			}
+
+			timeSeries := common.TimeSeries{
+				AggregationStart: startTime,
+				AggregationEnd:   now,
+				Metadata: metadata.ResourceMetadata{
+					ResourceType: metadata.VolumeReplicationRelationship,
+					RegionName:   strPtr("us-central1"),
+					TransferType: tc.transferType,
+				},
+				MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+				DataPoints: []common.DataPoint{
+					{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+					{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200},
+				},
+			}
+
+			var aggregatedRecords []datamodel2.AggregatedUsage
+			err := processor.processMetricsWithJobDef(
+				ctx,
+				resourceID,
+				timeSeries,
+				common.AggregationJobDefinition{AggregationType: common.CounterAggregation},
+				startTime,
+				now,
+				resourceCollection,
+				&aggregatedRecords,
+				make(map[CounterAggregationCacheResourceKey]*float64),
+				logger,
+			)
+			require.NoError(t, err)
+			require.Len(t, aggregatedRecords, 1)
+			assert.Equal(t, tc.expectedBilling, aggregatedRecords[0].IsBillable)
+		})
+	}
 }
 
 func TestFetchHistoricalVolumeSizeMetrics(t *testing.T) {

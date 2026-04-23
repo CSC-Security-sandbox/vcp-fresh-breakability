@@ -849,10 +849,11 @@ func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_PerformanceFlow(t *te
 		return req.Aggregation != nil &&
 			req.Aggregation.PerSeriesAligner == monitoringpb.Aggregation_ALIGN_MEAN &&
 			req.Aggregation.CrossSeriesReducer == monitoringpb.Aggregation_REDUCE_MEAN &&
-			len(req.Aggregation.GroupByFields) == 10 &&
+			len(req.Aggregation.GroupByFields) == 11 &&
 			groupBy["metric.label.relationship_id"] &&
 			groupBy["metric.label.source_details"] &&
-			groupBy["metric.label.destination_details"]
+			groupBy["metric.label.destination_details"] &&
+			groupBy["metric.label.last_transfer_type"]
 	})).Return(mockIterator)
 
 	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)

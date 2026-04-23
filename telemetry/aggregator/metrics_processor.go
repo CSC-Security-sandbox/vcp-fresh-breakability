@@ -31,6 +31,7 @@ import (
 
 const (
 	ReplicationScheduleOntapMode = "ONTAP_MODE"
+	TransferTypeInitial          = "initialize"
 )
 
 var (
@@ -1301,6 +1302,11 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 					if v, ok := extra["pool_name"]; ok {
 						resMeta.SetPoolName(v)
 					}
+					if sourceDetails, ok := extra["source_details"]; ok && !strings.HasPrefix(sourceDetails, "gcnv-") {
+						if v, ok := extra["last_transfer_type"]; ok {
+							resMeta.SetTransferType(v)
+						}
+					}
 				}
 			}
 			hydratedMetric := entity.HydratedMetric{
@@ -1520,6 +1526,11 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 			aggregated.DestinationRegion = resourceData.VolumeReplicationInfo.DestinationLocation
 			aggregated.ReplicationDstVolumeID = resourceData.VolumeReplicationInfo.DestinationVolumeUUID
 			aggregated.ReplicationType = resourceData.VolumeReplicationInfo.ReplicationType
+			if (aggregated.ReplicationType == clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION || aggregated.ReplicationType == clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION) && metrics.Metadata.TransferType != nil && *metrics.Metadata.TransferType == TransferTypeInitial {
+				aggregated.IsBillable = false
+				logger.Infof("Setting IsBillable=false for onprem_replication/migration with initialize transfer type, resource %s, deployment %s",
+					resourceKey.ResourceName, resourceKey.DeploymentName)
+			}
 		} else {
 			logger.Infof("No resourceData found for resource name %s, deployment name :%s", resourceKey.ResourceName, resourceKey.DeploymentName)
 		}

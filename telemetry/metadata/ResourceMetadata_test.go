@@ -131,3 +131,11 @@ func Test_SetsPoolNameCorrectly(t *testing.T) {
 	assert.NotNil(t, metadata.PoolName)
 	assert.Equal(t, poolName, *metadata.PoolName)
 }
+
+func Test_SetTransferType(t *testing.T) {
+	metadata := ResourceMetadata{}
+	transferType := "test-transfer-type"
+	metadata.SetTransferType(transferType)
+	assert.NotNil(t, metadata.TransferType)
+	assert.Equal(t, transferType, *metadata.TransferType)
+}

@@ -21,6 +21,7 @@ type ResourceMetadata struct {
 	SourceRegionName    *string
 	PoolName            *string
 	CreatedAt           *time.Time
+	TransferType        *string
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {
@@ -81,4 +82,8 @@ func (m *ResourceMetadata) SetSourceRegionName(region string) {
 
 func (m *ResourceMetadata) SetPoolName(name string) {
 	m.PoolName = &name
+}
+
+func (m *ResourceMetadata) SetTransferType(transferType string) {
+	m.TransferType = &transferType
 }

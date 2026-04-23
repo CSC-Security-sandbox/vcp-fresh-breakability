@@ -1220,6 +1220,9 @@ func Test_GetLabelValue(t *testing.T) {
 			assert.NoError(t, err, key)
 			assert.Empty(t, result, "MIGRATION should return empty for %s", key)
 		}
+		migrationRepType, err := GetLabelValue("/replication/replication_type", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, ReplicationTypeDataMigration, migrationRepType)
 		dstCont, err := GetLabelValue("/replication/destination_continent", googleMetric, logger)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, dstCont, "destination_continent still derived for MIGRATION")
@@ -1240,6 +1243,9 @@ func Test_GetLabelValue(t *testing.T) {
 			assert.NoError(t, err, key)
 			assert.Empty(t, result, "ONPREM should return empty for %s", key)
 		}
+		onPremRepType, err := GetLabelValue("/replication/replication_type", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, ReplicationTypeDataMigration, onPremRepType)
 	})
 
 	t.Run("VolumeReplicationRelationship getReplicationType error", func(t *testing.T) {
