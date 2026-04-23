@@ -28,6 +28,7 @@ const (
 	UpdateVSAClusterDeploymentWorkflowName     = "vlm.UpdateVSAClusterDeploymentWorkflow"
 	UpgradeVSAClusterDeploymentWorkflowName    = "vlm.UpgradeVSAClusterDeploymentWorkflow"
 	PreUpgradeVSAClusterDeploymentWorkflowName = "vlm.PreUpgradeVSAClusterDeploymentWorkflow"
+	VSASvmUpgradeWorkflowName                  = "vlm.VSASvmUpgradeWorkflow"
 	ClusterPowerCycleWorkflowName              = "vlm.ClusterPowerCycle"
 	ClusterHealthCheckWorkflowName             = "vlm.ClusterHealthCheck"
 	GetClusterZiZsDetailsWorkflowName          = "vlm.GetClusterZiZsDetails"
@@ -78,6 +79,7 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	GetClusterZiZsDetailsWorkflowName:          10 * time.Minute,
 	UpdateVSAMediatorWorkflowName:              30 * time.Minute,
 	UpdateLicenseWorkflowName:                  10 * time.Minute,
+	CreateVSAExpertModeUserWorkflowName:        30 * time.Minute,
 }
 
 type VLMConfig struct {
