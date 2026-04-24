@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -2283,9 +2284,9 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		activity := ScheduledBackupActivity{SE: mockStorage}
 		excludeBackupUUIDs := []string{"backup-1", "backup-2"}
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs).Return(false, nil).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs, mock.Anything).Return(false, nil).Once()
 
-		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs, nil)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -2295,9 +2296,9 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		activity := ScheduledBackupActivity{SE: mockStorage}
 		excludeBackupUUIDs := []string{}
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs).Return(false, nil).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs, mock.Anything).Return(false, nil).Once()
 
-		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs, nil)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -2307,9 +2308,9 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		activity := ScheduledBackupActivity{SE: mockStorage}
 		var excludeBackupUUIDs []string
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs).Return(false, nil).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs, mock.Anything).Return(false, nil).Once()
 
-		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs, nil)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -2319,9 +2320,9 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		activity := ScheduledBackupActivity{SE: mockStorage}
 		excludeBackupUUIDs := []string{"backup-1"}
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs).Return(true, nil).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs, mock.Anything).Return(true, nil).Once()
 
-		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "another backup operation is already in progress")
 		assert.Contains(t, err.Error(), volumeUUID)
@@ -2334,9 +2335,9 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		excludeBackupUUIDs := []string{"backup-1"}
 		dbError := errors.New("database connection failed")
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs).Return(false, dbError).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs, mock.Anything).Return(false, dbError).Once()
 
-		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "database connection failed")
 		mockStorage.AssertExpectations(t)
@@ -2348,9 +2349,9 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		excludeBackupUUIDs := []string{"backup-1"}
 		dbError := errors.New("database query timeout")
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs).Return(true, dbError).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs, mock.Anything).Return(true, dbError).Once()
 
-		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "database query timeout")
 		mockStorage.AssertExpectations(t)
@@ -2361,9 +2362,9 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		activity := ScheduledBackupActivity{SE: mockStorage}
 		excludeBackupUUIDs := []string{"backup-1", "backup-2", "backup-3"}
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs).Return(true, nil).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs, mock.Anything).Return(true, nil).Once()
 
-		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "another backup operation is already in progress")
 		mockStorage.AssertExpectations(t)
@@ -2376,13 +2377,13 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		volumeUUID2 := "volume-uuid-2"
 		excludeBackupUUIDs := []string{"backup-1"}
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID1, excludeBackupUUIDs).Return(false, nil).Once()
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID2, excludeBackupUUIDs).Return(false, nil).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID1, excludeBackupUUIDs, mock.Anything).Return(false, nil).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID2, excludeBackupUUIDs, mock.Anything).Return(false, nil).Once()
 
-		err1 := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID1, excludeBackupUUIDs)
+		err1 := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID1, excludeBackupUUIDs, nil)
 		assert.NoError(t, err1)
 
-		err2 := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID2, excludeBackupUUIDs)
+		err2 := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID2, excludeBackupUUIDs, nil)
 		assert.NoError(t, err2)
 
 		mockStorage.AssertExpectations(t)
@@ -2394,9 +2395,20 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 		emptyVolumeUUID := ""
 		excludeBackupUUIDs := []string{"backup-1"}
 
-		mockStorage.On("AreBackupsInProgressForVolume", ctx, emptyVolumeUUID, excludeBackupUUIDs).Return(false, nil).Once()
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, emptyVolumeUUID, excludeBackupUUIDs, mock.Anything).Return(false, nil).Once()
 
-		err := activity.CheckBackupsInProgressByVolume(ctx, emptyVolumeUUID, excludeBackupUUIDs)
+		err := activity.CheckBackupsInProgressByVolume(ctx, emptyVolumeUUID, excludeBackupUUIDs, nil)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success_PassesCreatedBeforeToStorage", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		excludeBackupUUIDs := []string{"backup-1"}
+		cb := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
+		mockStorage.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs, &cb).Return(false, nil).Once()
+		err := activity.CheckBackupsInProgressByVolume(ctx, volumeUUID, excludeBackupUUIDs, &cb)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})

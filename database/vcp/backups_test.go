@@ -5647,7 +5647,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Check if backups are in progress
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -5682,7 +5682,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Check if backups are in progress
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -5717,7 +5717,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Check if backups are in progress
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -5753,7 +5753,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 
 		// Check if backups are in progress, excluding the backup we just created
 		excludeUUIDs := []string{"test-backup-uuid"}
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -5789,7 +5789,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 
 		// Check if backups are in progress, excluding a different backup UUID
 		excludeUUIDs := []string{"different-backup-uuid"}
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -5834,7 +5834,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Check if backups are in progress
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -5880,7 +5880,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 
 		// Check if backups are in progress, excluding all backups
 		excludeUUIDs := []string{"test-backup-uuid-1", "test-backup-uuid-2"}
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -5896,7 +5896,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Check if backups are in progress for a volume with no backups
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "non-existent-volume-uuid", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "non-existent-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -5932,7 +5932,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 
 		// Check if backups are in progress with empty exclude list
 		excludeUUIDs := []string{}
-		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs)
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -5952,8 +5952,123 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		_ = sqlDB.Close()
 
-		_, err = store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		_, err = store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil, nil)
 		assert.Error(tt, err)
+	})
+}
+
+func TestGetEarliestCreatingBackupTime(t *testing.T) {
+	t.Run("ReturnsNilWhenNoCreatingBackups", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		ts, err := store.GetEarliestCreatingBackupTime(context.Background(), "test-volume-uuid")
+		assert.NoError(tt, err)
+		assert.Nil(tt, ts)
+	})
+
+	t.Run("ReturnsMinCreatedAtAmongCreatingBackups", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		b1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-older", CreatedAt: time.Now()},
+			Name:          "backup-older",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(b1).Error()
+		assert.NoError(tt, err)
+
+		b2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-newer", CreatedAt: time.Now().Add(time.Hour)},
+			Name:          "backup-newer",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(b2).Error()
+		assert.NoError(tt, err)
+
+		var loaded1, loaded2 datamodel.Backup
+		require.NoError(tt, store.db.GORM().Where("uuid = ?", "backup-older").First(&loaded1).Error)
+		require.NoError(tt, store.db.GORM().Where("uuid = ?", "backup-newer").First(&loaded2).Error)
+		require.True(tt, loaded1.CreatedAt.Before(loaded2.CreatedAt))
+
+		ts, err := store.GetEarliestCreatingBackupTime(context.Background(), "test-volume-uuid")
+		assert.NoError(tt, err)
+		require.NotNil(tt, ts)
+		assert.WithinDuration(tt, loaded1.CreatedAt, *ts, time.Second)
+	})
+
+	t.Run("IgnoresNonCreatingStates", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		oldTime := time.Now().UTC().Add(-24 * time.Hour)
+		ready := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-ready", CreatedAt: oldTime},
+			Name:          "backup-ready",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(ready).Error()
+		assert.NoError(tt, err)
+
+		ts, err := store.GetEarliestCreatingBackupTime(context.Background(), "test-volume-uuid")
+		assert.NoError(tt, err)
+		assert.Nil(tt, ts)
 	})
 }
 
@@ -5988,7 +6103,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test the internal function directly
-		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil)
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -6023,7 +6138,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test the internal function directly
-		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil)
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -6058,7 +6173,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test the internal function directly
-		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil)
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -6094,7 +6209,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 
 		// Test the internal function directly with exclude list
 		excludeUUIDs := []string{"test-backup-uuid"}
-		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", excludeUUIDs)
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -6130,9 +6245,46 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 
 		// Test the internal function directly with different exclude UUID
 		excludeUUIDs := []string{"different-backup-uuid"}
-		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", excludeUUIDs)
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenCreatingBackupIsNewerThanCreatedBefore", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		future := time.Now().Add(2 * time.Hour)
+		past := time.Now().Add(-1 * time.Hour)
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid-newer",
+				CreatedAt: future,
+			},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil, &past)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
 	})
 
 	t.Run("HandlesRecordNotFoundError", func(tt *testing.T) {
@@ -6147,7 +6299,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 
 		// Test with non-existent volume (should return false, not error)
 		// Note: GORM's Count doesn't return ErrRecordNotFound, but we test the error handling path
-		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "non-existent-volume-uuid", nil)
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "non-existent-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -6167,7 +6319,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		_ = sqlDB.Close()
 
-		_, err = areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil)
+		_, err = areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil, nil)
 		assert.Error(tt, err)
 	})
 }

@@ -1105,8 +1105,12 @@ func (s *PersistenceStore) IsBackupInCreatingorDeletingStateByVolume(ctx context
 	return s.dataStore.IsBackupInCreatingorDeletingStateByVolume(ctx, volumeUUID)
 }
 
-func (s *PersistenceStore) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
-	return s.dataStore.AreBackupsInProgressForVolume(ctx, volumeUUID, excludeBackupUUIDs)
+func (s *PersistenceStore) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string, createdBefore *time.Time) (bool, error) {
+	return s.dataStore.AreBackupsInProgressForVolume(ctx, volumeUUID, excludeBackupUUIDs, createdBefore)
+}
+
+func (s *PersistenceStore) GetEarliestCreatingBackupTime(ctx context.Context, volumeUUID string) (*time.Time, error) {
+	return s.dataStore.GetEarliestCreatingBackupTime(ctx, volumeUUID)
 }
 
 func (s *PersistenceStore) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {

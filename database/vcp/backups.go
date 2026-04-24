@@ -396,16 +396,37 @@ func isBackupInCreatingorDeletingStateByVolume(db *gorm.DB, volumeUUID string) (
 	return false, err
 }
 
-func (d *DataStoreRepository) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
-	return areBackupsInProgressForVolume(d.db.GORM().WithContext(ctx), volumeUUID, excludeBackupUUIDs)
+func (d *DataStoreRepository) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string, createdBefore *time.Time) (bool, error) {
+	return areBackupsInProgressForVolume(d.db.GORM().WithContext(ctx), volumeUUID, excludeBackupUUIDs, createdBefore)
 }
 
-func areBackupsInProgressForVolume(db *gorm.DB, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
+// GetEarliestCreatingBackupTime returns created_at of the oldest CREATING backup for the volume, or nil if none exist.
+func (d *DataStoreRepository) GetEarliestCreatingBackupTime(ctx context.Context, volumeUUID string) (*time.Time, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var backup datamodel.Backup
+	err := db.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateCreating).
+		Order("created_at ASC").
+		First(&backup).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	t := backup.CreatedAt
+	return &t, nil
+}
+
+func areBackupsInProgressForVolume(db *gorm.DB, volumeUUID string, excludeBackupUUIDs []string, createdBefore *time.Time) (bool, error) {
 	var backups int64
 	query := db.Model(&datamodel.Backup{}).Where("volume_uuid = ?", volumeUUID).Where("state = ? OR state = ?", models.LifeCycleStateCreating, models.LifeCycleStateDeleting)
 
 	if len(excludeBackupUUIDs) > 0 {
 		query = query.Where("uuid NOT IN ?", excludeBackupUUIDs)
+	}
+
+	if createdBefore != nil {
+		query = query.Where("created_at < ?", *createdBefore)
 	}
 
 	err := query.Count(&backups).Error
@@ -658,6 +679,7 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Daily).
+		Where("state != ?", models.LifeCycleStateCreating).
 		Order("id desc").
 		Offset(int(backupPolicy.DailyBackupsToKeep)).
 		Find(&dailyBackups).Error
@@ -670,6 +692,7 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Weekly).
+		Where("state != ?", models.LifeCycleStateCreating).
 		Order("id desc").
 		Offset(int(backupPolicy.WeeklyBackupsToKeep)).
 		Find(&weeklyBackups).Error
@@ -682,6 +705,7 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Monthly).
+		Where("state != ?", models.LifeCycleStateCreating).
 		Order("id desc").
 		Offset(int(backupPolicy.MonthlyBackupsToKeep)).
 		Find(&monthlyBackups).Error

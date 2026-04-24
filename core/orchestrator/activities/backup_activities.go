@@ -67,6 +67,7 @@ type BackupActivitiesContext struct {
 	BackupWorkflowInit *BackupWorkflowInput
 	// for Scheduled backup workflow
 	ScheduledBackupParams *ScheduledBackupParams
+	CorrelationID         string
 
 	// Workflow state
 	Node                   *models.Node
@@ -1195,9 +1196,16 @@ func (a BackupActivity) GetSmDestinationPathActivity(ctx context.Context, backup
 	return GetSmDestinationPath(backupVault, volume)
 }
 
-// CleanupOldBackupSnapshotsActivity cleans up older backup snapshots for a volume, keeping only the latest one
+// CleanupOldBackupSnapshotsActivity cleans up older backup snapshots for a volume, keeping only the latest one.
+// When concurrent scheduled backups run, snapshots created at or after the oldest CREATING backup's created_at
+// are preserved so in-progress transfers are not broken; older snapshots are still deleted.
 func (a BackupActivity) CleanupOldBackupSnapshotsActivity(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+
+	cutoffTime, cutoffErr := a.SE.GetEarliestCreatingBackupTime(ctx, volume.UUID)
+	if cutoffErr != nil {
+		logger.Errorf("Failed to get earliest creating backup time for volume %s: %v", volume.Name, cutoffErr)
+	}
 
 	// Get all backup snapshots for this volume, ordered by creation time (newest first)
 	snapshots, err := a.SE.GetSnapshotsByTypeAndVolumeID(ctx, SnapshotTypeBackup, volume.ID)
@@ -1206,57 +1214,63 @@ func (a BackupActivity) CleanupOldBackupSnapshotsActivity(ctx context.Context, v
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// If we have more than 1 snapshot, delete the older ones (skip the first one which is the latest)
-	if len(snapshots) > 1 {
-		logger.Infof("Found %d backup snapshots for volume %s, cleaning up %d older snapshots",
-			len(snapshots), volume.Name, len(snapshots)-1)
+	if len(snapshots) <= 1 {
+		logger.Infof("No cleanup needed for volume %s - found %d backup snapshots", volume.Name, len(snapshots))
+		return nil
+	}
 
-		// Process older snapshots (skip the first one which is the latest)
-		for i := 1; i < len(snapshots); i++ {
-			snapshot := snapshots[i]
-			logger.Infof("Deleting older backup snapshot %s for volume %s", snapshot.Name, volume.Name)
+	logger.Infof("Found %d backup snapshots for volume %s, evaluating cleanup", len(snapshots), volume.Name)
 
-			// Try to delete the snapshot from ONTAP first
-			if snapshot.SnapshotAttributes != nil && snapshot.SnapshotAttributes.ExternalUUID != "" && volume.VolumeAttributes != nil && volume.VolumeAttributes.ExternalUUID != "" {
-				err = a.DeleteBackupSnapshot(ctx, node, snapshot.SnapshotAttributes.ExternalUUID, volume.VolumeAttributes.ExternalUUID)
-				if err != nil {
-					logger.Errorf("Failed to delete snapshot %s from ONTAP: %v", snapshot.Name, err)
-					// Mark snapshot as error state instead of failing the entire operation
-					err = a.markSnapshotAsError(ctx, snapshot, fmt.Sprintf("Failed to delete from ONTAP: %v", err))
-					if err != nil {
-						logger.Errorf("Failed to mark snapshot %s as error: %v", snapshot.Name, err)
-					}
-					continue
-				}
-			}
+	// Process older snapshots (skip index 0 which is the newest)
+	for i := 1; i < len(snapshots); i++ {
+		snapshot := snapshots[i]
 
-			// Delete the snapshot from database
-			_, err = a.SE.DeleteSnapshot(ctx, snapshot.UUID)
-			if err != nil && !errors.IsNotFoundErr(err) {
-				logger.Errorf("Failed to delete snapshot %s from database: %v", snapshot.Name, err)
+		if cutoffTime != nil && !snapshot.CreatedAt.Before(*cutoffTime) {
+			logger.Infof("Preserving snapshot %s for volume %s: created at %v (cutoff for in-progress backups %v)",
+				snapshot.Name, volume.Name, snapshot.CreatedAt, *cutoffTime)
+			continue
+		}
+
+		logger.Infof("Deleting older backup snapshot %s for volume %s", snapshot.Name, volume.Name)
+
+		// Try to delete the snapshot from ONTAP first
+		if snapshot.SnapshotAttributes != nil && snapshot.SnapshotAttributes.ExternalUUID != "" && volume.VolumeAttributes != nil && volume.VolumeAttributes.ExternalUUID != "" {
+			err = a.DeleteBackupSnapshot(ctx, node, snapshot.SnapshotAttributes.ExternalUUID, volume.VolumeAttributes.ExternalUUID)
+			if err != nil {
+				logger.Errorf("Failed to delete snapshot %s from ONTAP: %v", snapshot.Name, err)
 				// Mark snapshot as error state instead of failing the entire operation
-				err = a.markSnapshotAsError(ctx, snapshot, fmt.Sprintf("Failed to delete from database: %v", err))
+				err = a.markSnapshotAsError(ctx, snapshot, fmt.Sprintf("Failed to delete from ONTAP: %v", err))
 				if err != nil {
 					logger.Errorf("Failed to mark snapshot %s as error: %v", snapshot.Name, err)
 				}
 				continue
 			}
-
-			// Hydrate snapshot deletion to CCFE
-			snapshot.Volume.Pool = volume.Pool
-			location := utils.GetLocation(*snapshot)
-			snapshot.State = models.LifeCycleStateDeleted
-			snapshot.StateDetails = models.LifeCycleStateDeletedDetails
-			err = a.HydrateSnapshotDeletionToCCFEActivity(ctx, snapshot, volume.Name, location, volume.Account.Name)
-			if err != nil {
-				logger.Errorf("Failed to hydrate snapshot deletion to CCFE for snapshot %s: %v", snapshot.Name, err)
-				continue
-			}
-
-			logger.Infof("Successfully deleted older backup snapshot %s for volume %s", snapshot.Name, volume.Name)
 		}
-	} else {
-		logger.Infof("No cleanup needed for volume %s - found %d backup snapshots", volume.Name, len(snapshots))
+
+		// Delete the snapshot from database
+		_, err = a.SE.DeleteSnapshot(ctx, snapshot.UUID)
+		if err != nil && !errors.IsNotFoundErr(err) {
+			logger.Errorf("Failed to delete snapshot %s from database: %v", snapshot.Name, err)
+			// Mark snapshot as error state instead of failing the entire operation
+			err = a.markSnapshotAsError(ctx, snapshot, fmt.Sprintf("Failed to delete from database: %v", err))
+			if err != nil {
+				logger.Errorf("Failed to mark snapshot %s as error: %v", snapshot.Name, err)
+			}
+			continue
+		}
+
+		// Hydrate snapshot deletion to CCFE
+		snapshot.Volume.Pool = volume.Pool
+		location := utils.GetLocation(*snapshot)
+		snapshot.State = models.LifeCycleStateDeleted
+		snapshot.StateDetails = models.LifeCycleStateDeletedDetails
+		err = a.HydrateSnapshotDeletionToCCFEActivity(ctx, snapshot, volume.Name, location, volume.Account.Name)
+		if err != nil {
+			logger.Errorf("Failed to hydrate snapshot deletion to CCFE for snapshot %s: %v", snapshot.Name, err)
+			continue
+		}
+
+		logger.Infof("Successfully deleted older backup snapshot %s for volume %s", snapshot.Name, volume.Name)
 	}
 
 	return nil

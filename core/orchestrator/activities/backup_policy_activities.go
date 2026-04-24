@@ -21,7 +21,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/temporal"
-	logger "golang.org/x/exp/slog"
 )
 
 var (
@@ -96,6 +95,7 @@ func (j *BackupPolicyActivity) RevertBackupPolicyUpdateInVCP(ctx context.Context
 
 func (j *BackupPolicyActivity) PauseBackupPolicySchedule(ctx context.Context, dbBackupPolicy *datamodel.BackupPolicy) error {
 	temporalScheduler := j.Scheduler
+	logger := util.GetLogger(ctx)
 
 	// Check current scheduler state to avoid pausing an already paused schedule
 	description, err := temporalScheduler.Describe(ctx, scheduler.DescribeScheduleParams{
@@ -119,6 +119,7 @@ func (j *BackupPolicyActivity) PauseBackupPolicySchedule(ctx context.Context, db
 }
 
 func (j *BackupPolicyActivity) UnpauseBackupPolicySchedule(ctx context.Context, dbBackupPolicy *datamodel.BackupPolicy) error {
+	logger := util.GetLogger(ctx)
 	temporalScheduler := j.Scheduler
 
 	// Check current scheduler state to avoid unpausing an already active schedule

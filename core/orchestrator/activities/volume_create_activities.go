@@ -2688,6 +2688,7 @@ func _createBackupPolicySchedule(ctx context.Context, temporalScheduler *schedul
 			Spec: client.ScheduleSpec{
 				CronExpressions: []string{cronExpr},
 			},
+			WorkflowExecutionTimeout: nillable.ToPointer(24 * time.Hour),
 		},
 	}
 

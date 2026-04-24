@@ -3901,13 +3901,29 @@ func (re *retryEngine) IsBackupInCreatingorDeletingStateByVolume(ctx context.Con
 	return var0, err
 }
 
-func (re *retryEngine) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
+func (re *retryEngine) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string, createdBefore *time.Time) (bool, error) {
 	var var0 bool
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.AreBackupsInProgressForVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		var0, err = re.dataStore.AreBackupsInProgressForVolume(ctx, volumeUUID, excludeBackupUUIDs, createdBefore)
 		if err != nil {
 			re.logError("AreBackupsInProgressForVolume", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetEarliestCreatingBackupTime(ctx context.Context, volumeUUID string) (*time.Time, error) {
+	var var0 *time.Time
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetEarliestCreatingBackupTime(ctx, volumeUUID)
+		if err != nil {
+			re.logError("GetEarliestCreatingBackupTime", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

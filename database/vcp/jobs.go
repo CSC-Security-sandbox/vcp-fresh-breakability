@@ -28,7 +28,9 @@ func (d *DataStoreRepository) CreateJob(ctx context.Context, job *datamodel.Job)
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	job.UUID = utils.RandomUUID()
+	if job.UUID == "" {
+		job.UUID = utils.RandomUUID()
+	}
 	job.CreatedAt = time.Now()
 	job.UpdatedAt = job.CreatedAt
 	job.WorkflowID = job.UUID

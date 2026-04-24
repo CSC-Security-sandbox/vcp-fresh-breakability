@@ -3,6 +3,7 @@ package backgroundactivities
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -57,6 +58,7 @@ func (j *ScheduledBackupActivity) CheckExpertModeVolumeReady(ctx context.Context
 // Returns the created Backup object or an error.
 func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault, timestamp, scheduleTag string, isExpertMode bool) (*datamodel.Backup, error) {
 	se := j.SE
+	logger := util.GetLogger(ctx)
 
 	var volumeUUIDForScheduledBackup string
 	if isExpertMode {
@@ -108,6 +110,9 @@ func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, vol
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Infof("Created scheduled backup: name=%s volumeUUID=%s backupUUID=%s",
+		backup.Name, volume.UUID, backup.UUID)
 
 	return backup, nil
 }
@@ -470,11 +475,11 @@ func (j *ScheduledBackupActivity) DeleteRemoteScheduledBackupFromVCPActivity(ctx
 // CheckBackupsInProgressByVolume checks if any backup for the volume is in CREATING or DELETING state.
 // Excludes the specified backup UUIDs from the check (typically the backups being created in the current workflow).
 // Returns an error if a backup is found in these states to prevent parallel transfers on the same Snapmirror instance.
-func (j *ScheduledBackupActivity) CheckBackupsInProgressByVolume(ctx context.Context, volumeUUID string, excludedBackupUUIDs []string) error {
+func (j *ScheduledBackupActivity) CheckBackupsInProgressByVolume(ctx context.Context, volumeUUID string, excludedBackupUUIDs []string, createdBefore *time.Time) error {
 	se := j.SE
 	logger := util.GetLogger(ctx)
 
-	backupInTransition, err := se.AreBackupsInProgressForVolume(ctx, volumeUUID, excludedBackupUUIDs)
+	backupInTransition, err := se.AreBackupsInProgressForVolume(ctx, volumeUUID, excludedBackupUUIDs, createdBefore)
 	if err != nil {
 		logger.Errorf("Failed to check backup state for volume %s: %v", volumeUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -485,5 +490,6 @@ func (j *ScheduledBackupActivity) CheckBackupsInProgressByVolume(ctx context.Con
 		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("another backup operation is already in progress for volume %s. Please wait for it to complete before starting a new backup", volumeUUID))
 	}
 
+	logger.Infof("No in-progress backups blocking transfer for volume: volumeUUID=%s", volumeUUID)
 	return nil
 }

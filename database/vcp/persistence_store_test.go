@@ -6443,7 +6443,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Check if backups are in progress
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -6487,7 +6487,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Check if backups are in progress
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-2", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-2", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -6537,7 +6537,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Check if backups are in progress
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-3", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-3", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -6582,7 +6582,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 
 		// Check if backups are in progress, excluding the backup we just created
 		excludeUUIDs := []string{backup.UUID}
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-4", excludeUUIDs)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-4", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -6627,7 +6627,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 
 		// Check if backups are in progress, excluding a different backup UUID
 		excludeUUIDs := []string{"different-backup-uuid"}
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-5", excludeUUIDs)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-5", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -6685,7 +6685,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Check if backups are in progress
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-6", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-6", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -6744,7 +6744,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 
 		// Check if backups are in progress, excluding all backups
 		excludeUUIDs := []string{backup1.UUID, backup2.UUID}
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-7", excludeUUIDs)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-7", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -6762,7 +6762,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		ctx := context.Background()
 
 		// Check if backups are in progress for a volume with no backups
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "non-existent-volume-uuid", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "non-existent-volume-uuid", nil, nil)
 		assert.NoError(tt, err)
 		assert.False(tt, inProgress)
 	})
@@ -6807,7 +6807,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 
 		// Check if backups are in progress with empty exclude list
 		excludeUUIDs := []string{}
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-8", excludeUUIDs)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-8", excludeUUIDs, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -6851,7 +6851,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Check if backups are in progress with nil exclude list
-		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-9", nil)
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-9", nil, nil)
 		assert.NoError(tt, err)
 		assert.True(tt, inProgress)
 	})
@@ -6869,7 +6869,7 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		err = sqlDB.Close()
 		require.NoError(tt, err)
 
-		_, err = store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid", nil)
+		_, err = store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid", nil, nil)
 		assert.Error(tt, err)
 
 		// Clean up

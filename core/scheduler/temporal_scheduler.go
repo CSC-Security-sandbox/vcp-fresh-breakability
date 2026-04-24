@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"time"
 
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -22,9 +23,10 @@ type TemporalScheduler struct {
 // Workflow: The workflow function or type to be scheduled.
 // Spec: Schedule specification, such as intervals or cron expressions.
 type TemporalCreateScheduleParams struct {
-	WorkflowID string
-	Workflow   interface{}
-	Spec       client.ScheduleSpec
+	WorkflowID               string
+	Workflow                 interface{}
+	Spec                     client.ScheduleSpec
+	WorkflowExecutionTimeout *time.Duration
 }
 
 // TemporalUpdateScheduleParams defines options for updating an existing Temporal schedule.
@@ -72,14 +74,19 @@ func (temporalScheduler TemporalScheduler) Create(ctx context.Context, params Cr
 	var lastErr error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
+		var workflowExecutionTimeout time.Duration
+		if temporalArgs.WorkflowExecutionTimeout != nil {
+			workflowExecutionTimeout = *temporalArgs.WorkflowExecutionTimeout
+		}
 		scheduleHandler, err := temporalScheduler.schedulerClient.Create(ctx, client.ScheduleOptions{
 			ID:   params.ScheduleID,
 			Spec: temporalArgs.Spec,
 			Action: &client.ScheduleWorkflowAction{
-				ID:        temporalArgs.WorkflowID,
-				TaskQueue: workflowengine.BackgroundTaskQueue,
-				Workflow:  temporalArgs.Workflow,
-				Args:      params.Args,
+				ID:                       temporalArgs.WorkflowID,
+				TaskQueue:                workflowengine.BackgroundTaskQueue,
+				Workflow:                 temporalArgs.Workflow,
+				Args:                     params.Args,
+				WorkflowExecutionTimeout: workflowExecutionTimeout,
 			},
 		})
 
