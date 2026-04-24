@@ -6150,8 +6150,9 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
 			{
-				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
-				Name:      "vol-1",
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-1",
+				ExternalUUID: "vol-1",
 				BackupConfig: &datamodel.DataProtection{
 					BackupVaultID:  "vault-uuid-1",
 					BackupPolicyID: "policy-uuid-1",
@@ -6194,6 +6195,7 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
 				Name:         "vol-no-backup",
 				BackupConfig: nil,
+				ExternalUUID: "vol-no-backup",
 			},
 		}, nil).Once()
 		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
@@ -6246,8 +6248,9 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
 			{
-				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
-				Name:      "vol-orphan",
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-orphan",
+				ExternalUUID: "vol-orphan",
 				BackupConfig: &datamodel.DataProtection{
 					BackupVaultID:  "non-existent-vault-uuid",
 					BackupPolicyID: "non-existent-policy-uuid",
@@ -6281,8 +6284,9 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
 			{
-				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
-				Name:      "vol-with-vault-only",
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-with-vault-only",
+				ExternalUUID: "vol-with-vault-only",
 				BackupConfig: &datamodel.DataProtection{
 					BackupVaultID: "vault-uuid-1",
 				},
@@ -6291,6 +6295,7 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-2"},
 				Name:         "vol-no-config",
 				BackupConfig: nil,
+				ExternalUUID: "vol-no-config",
 			},
 			{
 				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-3"},
@@ -6299,6 +6304,7 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 					BackupVaultID:  "vault-uuid-1",
 					BackupPolicyID: "policy-uuid-1",
 				},
+				ExternalUUID: "vol-with-both",
 			},
 		}, nil).Once()
 		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{
@@ -6480,8 +6486,9 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
 			{
-				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
-				Name:      "vol-empty-ids",
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-empty-ids",
+				ExternalUUID: "vol-empty-ids",
 				BackupConfig: &datamodel.DataProtection{
 					BackupVaultID:  "",
 					BackupPolicyID: "",

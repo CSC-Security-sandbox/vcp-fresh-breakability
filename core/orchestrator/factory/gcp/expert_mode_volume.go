@@ -1216,7 +1216,7 @@ func (o *GCPOrchestrator) GetBackupConfigsForPool(ctx context.Context, poolID st
 	backupConfigs := make([]*models.ExpertModeVolumeBackupConfig, 0, len(expertModeVolumes))
 	for _, vol := range expertModeVolumes {
 		config := &models.ExpertModeVolumeBackupConfig{
-			VolumeResourceID: vol.Name,
+			VolumeResourceID: vol.ExternalUUID,
 		}
 
 		if vol.BackupConfig != nil && vol.BackupConfig.BackupVaultID != "" {
