@@ -467,62 +467,87 @@ jobs:
       - name: Create a release
         if: ${{ inputs.create_release }}
         run: |
+          set -e
           REPO="${{ github.repository }}"
-          TAG="${{ inputs.tag }}"
-
-          # Check if release already exists using the REST API directly
-          # (gh release view can false-positive when only a git tag exists)
+          TAG="$newTag"
+          TARGET="$prBaseBranch"
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${REPO}/releases/tags/${TAG}")
-
           if [ "$HTTP_CODE" = "200" ]; then
-            echo "Release ${TAG} already exists (HTTP ${HTTP_CODE})"
+            echo "Release ${TAG} already exists"
             exit 0
           fi
-          echo "No existing release found for ${TAG} (HTTP ${HTTP_CODE}), creating..."
 
-          # Try to create the release with auto-generated notes
-          CREATE_OUTPUT=$(gh release create -R "https://github.com/${REPO}" \
-              --generate-notes \
+          # Pick a previous tag of the same kind (DEV/RC/GA) so generated notes
+          # aren't polluted by commits from a different release track.
+          KIND=$(printf '%s' "$TAG" | sed -n 's/^[^-]*-\([^.]*\).*/\1/p')
+          if [ -n "$KIND" ]; then
+            echo "Tag kind detected: ${KIND}; looking for previous ${KIND} release"
+            PREV_TAG=$(gh api "/repos/${REPO}/releases?per_page=100" \
+              --jq "[.[] | select(.tag_name != \"${TAG}\") | select(.tag_name | test(\"-${KIND}\\\\.\")) | .tag_name] | .[0]" 2>/dev/null || true)
+          else
+            echo "Tag kind detected: GA; looking for previous GA release"
+            PREV_TAG=$(gh api "/repos/${REPO}/releases?per_page=100" \
+              --jq "[.[] | select(.tag_name != \"${TAG}\") | select(.tag_name | test(\"^[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\")) | .tag_name] | .[0]" 2>/dev/null || true)
+          fi
+          if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "null" ]; then
+            echo "No same-kind predecessor found; falling back to latest release"
+            PREV_TAG=$(gh api "/repos/${REPO}/releases?per_page=100" \
+              --jq "[.[] | select(.tag_name != \"${TAG}\") | .tag_name] | .[0]" 2>/dev/null || true)
+          fi
+
+          NOTES_FILE="$(mktemp)"
+          if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "null" ]; then
+            echo "Generating notes against previous tag: $PREV_TAG"
+            gh api -X POST -H "Accept: application/vnd.github+json" \
+              "/repos/${REPO}/releases/generate-notes" \
+              -f tag_name="${TAG}" \
+              -f target_commitish="${TARGET}" \
+              -f previous_tag_name="${PREV_TAG}" \
+              --jq .body > "$NOTES_FILE"
+          else
+            echo "No previous release tag found; generating notes without explicit previous_tag_name"
+            gh api -X POST -H "Accept: application/vnd.github+json" \
+              "/repos/${REPO}/releases/generate-notes" \
+              -f tag_name="${TAG}" \
+              -f target_commitish="${TARGET}" \
+              --jq .body > "$NOTES_FILE"
+          fi
+          MAX=120000
+          if [ "$(wc -c < "$NOTES_FILE")" -gt "$MAX" ]; then
+            echo "Notes exceed ${MAX} chars, truncating"
+            head -c "$MAX" "$NOTES_FILE" > "$NOTES_FILE.t"
+            printf '\n\n_…release notes truncated; see full commit history on GitHub._\n' >> "$NOTES_FILE.t"
+            mv "$NOTES_FILE.t" "$NOTES_FILE"
+          fi
+          if gh release create -R "https://github.com/${REPO}" \
+              --title "${TAG}" \
+              --notes-file "$NOTES_FILE" \
               ${{ inputs.pre_release && '--prerelease' || '' }} \
               "${TAG}" \
-              --target "${{ inputs.pr_base_branch }}" 2>&1) && CREATE_RC=0 || CREATE_RC=$?
-
-          if [ "$CREATE_RC" = "0" ]; then
+              --target "${TARGET}"; then
             echo "Successfully created release ${TAG}"
-          elif echo "$CREATE_OUTPUT" | grep -qi "body is too long"; then
-            # Auto-generated notes exceeded 125000-char limit; retry without notes
-            echo "Auto-generated notes exceeded GitHub size limit, retrying without notes..."
-            RELEASE_BODY="Release ${TAG} (auto-generated notes omitted: too many commits since last release)."
-            if gh release create -R "https://github.com/${REPO}" \
-                --notes "${RELEASE_BODY}" \
-                ${{ inputs.pre_release && '--prerelease' || '' }} \
-                "${TAG}" \
-                --target "${{ inputs.pr_base_branch }}"; then
-              echo "Successfully created release ${TAG} (without auto-generated notes)"
-            else
-              echo "Failed to create release ${TAG} on retry"
-              exit 1
-            fi
           else
-            # Double-check if it was created by a concurrent build
             RETRY_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${REPO}/releases/tags/${TAG}")
             if [ "$RETRY_CODE" = "200" ]; then
               echo "Release ${TAG} was created by concurrent build"
+              rm -f "$NOTES_FILE"
               exit 0
-            else
-              echo "Failed to create release ${TAG}"
-              echo "Error output: $CREATE_OUTPUT"
-              exit 1
             fi
+            echo "Failed to create release ${TAG}"
+            rm -f "$NOTES_FILE"
+            exit 1
           fi
+          rm -f "$NOTES_FILE"
         env:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
+          newTag: ${{ inputs.tag }}
+          prBaseBranch: ${{ inputs.pr_base_branch }}
 
       - name: Upload vcp-worker binary assets to release
         if: ${{ inputs.create_release }}
