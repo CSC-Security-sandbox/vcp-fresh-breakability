@@ -1,3 +1,7 @@
 # This file is used to define the code owners for the repository.
 
-
+# Pre/post SQL migrations (run before and after GORM AutoMigrate; see database/drivers/postgres/migrate.go)
+database/vcp/migrations/pre/ @VCP-VSA-control-Plane/vsa-database-team
+database/vcp/migrations/post/ @VCP-VSA-control-Plane/vsa-database-team
+database/metrics/migrations/pre/ @VCP-VSA-control-Plane/vsa-database-team
+database/metrics/migrations/post/ @VCP-VSA-control-Plane/vsa-database-team
