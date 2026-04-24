@@ -121,7 +121,7 @@ on:
 
 permissions:
   packages: write
-  contents: read
+  contents: write
   id-token: write
   security-events: write
   actions: read
@@ -140,7 +140,7 @@ jobs:
       image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
     permissions:
-      contents: read
+      contents: write
       packages: write
       id-token: write
     outputs:
@@ -467,34 +467,45 @@ jobs:
       - name: Create a release
         if: ${{ inputs.create_release }}
         run: |
-          # Check if release already exists
-          if gh release view "${{ inputs.tag }}" -R https://github.com/${{ github.repository }} &>/dev/null; then
-            echo "Release ${{ inputs.tag }} already exists (created by concurrent build)"
-            echo "Skipping release creation"
+          REPO="${{ github.repository }}"
+          TAG="${{ inputs.tag }}"
+
+          # Check if release already exists using the REST API directly
+          # (gh release view can false-positive when only a git tag exists)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/releases/tags/${TAG}")
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Release ${TAG} already exists (HTTP ${HTTP_CODE})"
             exit 0
           fi
+          echo "No existing release found for ${TAG} (HTTP ${HTTP_CODE}), creating..."
 
           # Try to create the release
-          if gh release create -R https://github.com/${{ github.repository }} \
+          if gh release create -R "https://github.com/${REPO}" \
               --generate-notes \
               ${{ inputs.pre_release && '--prerelease' || '' }} \
-              "${{ inputs.tag }}" \
+              "${TAG}" \
               --target "${{ inputs.pr_base_branch }}"; then
-            echo "Successfully created release ${{ inputs.tag }}"
+            echo "Successfully created release ${TAG}"
           else
-            # Double-check if it exists now (race condition)
-            if gh release view "${{ inputs.tag }}" -R https://github.com/${{ github.repository }} &>/dev/null; then
-              echo "Release ${{ inputs.tag }} was created by concurrent build"
+            # Double-check if it was created by a concurrent build
+            RETRY_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/releases/tags/${TAG}")
+            if [ "$RETRY_CODE" = "200" ]; then
+              echo "Release ${TAG} was created by concurrent build"
               exit 0
             else
-              echo "Failed to create release"
+              echo "Failed to create release ${TAG}"
               exit 1
             fi
           fi
         env:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
-          GITHUB_REPOSITORY: ${{ github.event.repository.name }}
-          newTag: ${{ inputs.tag }}
 
       - name: Upload vcp-worker binary assets to release
         if: ${{ inputs.create_release }}
