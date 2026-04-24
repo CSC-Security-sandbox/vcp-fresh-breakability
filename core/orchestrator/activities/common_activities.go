@@ -18,6 +18,7 @@ import (
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vcputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
@@ -525,8 +526,9 @@ func _makeSubnetName(projectNumber string, isLargeCapacity bool) string {
 	return fmt.Sprintf("%s%s-%s", VSASubnetPrefix, projectNumber, timeNow)
 }
 
-// getSubnetToBeUsed examines existing subnets or identifies if existing subnet can be used for creation of new pool
-func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion string, isLargeCapacity bool) (*hyperscaler_models.Subnet, error) {
+// getSubnetToBeUsed examines existing subnets or identifies if existing subnet can be used for creation of new pool;
+// also handles address range pinning when address space management is enabled.
+func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion string, isLargeCapacity bool, addressRanges []*datamodel.AddressRange) (*hyperscaler_models.Subnet, error) {
 	logger := service.GetLogger()
 	subnetsReceived, err := service.ListSubnetworks(snHost, tenantProjectRegion)
 	if err != nil {
@@ -534,6 +536,7 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 		return nil, err
 	}
 	if subnetsReceived == nil || len(*subnetsReceived) == 0 {
+		logger.Infof("getSubnetToBeUsed: no subnets found in snHost=%s region=%s tenantProject=%s", snHost, tenantProjectRegion, tenantProjectNumber)
 		return nil, nil
 	}
 	ctx := service.GetContext()
@@ -545,9 +548,16 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 	if isLargeCapacity {
 		subnetPrefix = fmt.Sprintf("%s%s", VSALVSubnetPrefix, tenantProjectNumber)
 	}
+	logger.Infof("getSubnetToBeUsed: scanning %d subnet(s) in snHost=%s region=%s for prefix=%q largeCapacity=%v addressRangeCount=%d", len(*subnetsReceived), snHost, tenantProjectRegion, subnetPrefix, isLargeCapacity, len(addressRanges))
 	var allPoolsInDeleting bool
 	for _, subnet := range *subnetsReceived {
 		if strings.HasPrefix(subnet.Name, subnetPrefix) {
+			// Address range pinning: skip subnets not carved from a registered range (address space mgmt only).
+			if len(addressRanges) > 0 && !vcputils.SubnetCIDRInAnyRange(subnet.IpCidrRange, addressRanges) {
+				logger.Infof("getSubnetToBeUsed: skipping subnet %s (CIDR %q not in any registered address range)", subnet.Name, subnet.IpCidrRange)
+				continue
+			}
+
 			pools, err := getPoolsBySubnetwork(ctx, se, strconv.Itoa(int(account.ID)), subnet.Name, "")
 			if err != nil {
 				logger.Errorf("Error checking pools for subnet: %s, Error: %s", subnet.Name, err.Error())
@@ -559,10 +569,13 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 			if len(pools) > 0 {
 				// For large capacity pools, check if subnet already has a pool associated with it
 				if isLargeCapacity {
-					logger.Debug(fmt.Sprintf("Subnetwork %s already has %d pools associated with it. Skipping for large capacity pool creation", subnet.Name, len(pools)))
+					logger.Infof("getSubnetToBeUsed: skipping subnet %s — large capacity pool requires a dedicated subnet (has %d pool(s))", subnet.Name, len(pools))
 					continue
 				}
 				allPoolsInDeleting = allPoolsDeleting(pools)
+				if allPoolsInDeleting {
+					logger.Infof("getSubnetToBeUsed: skipping subnet %s — all %d associated pool(s) are in DELETING state", subnet.Name, len(pools))
+				}
 			}
 
 			// get number of free IPs in the subnet
@@ -572,12 +585,16 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 				return nil, err
 			}
 			if reuseSubnet && !allPoolsInDeleting {
-				logger.Debug(fmt.Sprintf("Subnetwork %s already exists in tenant project %s and region %s. Reusing the subnet", subnet.Name, tenantProjectNumber, tenantProjectRegion))
+				logger.Infof("getSubnetToBeUsed: selected subnet=%s CIDR=%s for reuse — has capacity and is within a registered address range (or range filter is off), tenantProject=%s region=%s", subnet.Name, subnet.IpCidrRange, tenantProjectNumber, tenantProjectRegion)
 				return &subnet, nil
+			}
+			if !reuseSubnet {
+				logger.Infof("getSubnetToBeUsed: skipping subnet %s (CIDR %s) — not enough free IPs for a new HA pair", subnet.Name, subnet.IpCidrRange)
 			}
 		}
 	}
 	// either no subnet was found or no subnet was found with enough free IPs sufficient to create a HA pair for pool
+	logger.Infof("getSubnetToBeUsed: no reusable subnet found in snHost=%s region=%s tenantProject=%s — will create a new subnet", snHost, tenantProjectRegion, tenantProjectNumber)
 	return nil, nil
 }
 

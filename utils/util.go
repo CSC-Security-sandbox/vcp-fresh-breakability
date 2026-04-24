@@ -1611,3 +1611,29 @@ func ConvertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
 func ConvertSourceBackupVaultNameToRemoteBackupVaultName(sourceBackupVaultName, backupVaultUUID string) string {
 	return sourceBackupVaultName[:min(len(sourceBackupVaultName), remoteBackupVaultHydrationNameMaxLength-len(remoteBackupVaultHydrationNamePrefix)-4)] + remoteBackupVaultHydrationNamePrefix + strings.Split(backupVaultUUID, "-")[0][:4]
 }
+
+// SubnetCIDRInAnyRange returns true only when the entire subnet CIDR block is fully contained within
+// at least one of the provided address ranges. Both the network address and the last (broadcast) IP
+// of the subnet must lie inside the range, ensuring a subnet that straddles a range boundary is
+// correctly rejected.
+func SubnetCIDRInAnyRange(subnetCIDR string, addressRanges []*datamodel.AddressRange) bool {
+	_, subnetNet, err := net.ParseCIDR(subnetCIDR)
+	if err != nil {
+		return false
+	}
+	// Derive the last IP of the subnet: flip all host bits to 1.
+	lastIP := make(net.IP, len(subnetNet.IP))
+	for i := range subnetNet.IP {
+		lastIP[i] = subnetNet.IP[i] | ^subnetNet.Mask[i]
+	}
+	for _, ar := range addressRanges {
+		_, rangeNet, err := net.ParseCIDR(ar.AddressRangeCidr)
+		if err != nil {
+			continue
+		}
+		if rangeNet.Contains(subnetNet.IP) && rangeNet.Contains(lastIP) {
+			return true
+		}
+	}
+	return false
+}

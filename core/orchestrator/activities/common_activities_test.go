@@ -472,7 +472,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, errors.New("list error"))
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, nil)
 		assert.Nil(t, subnet)
 		assert.Error(t, err)
 		mgs.AssertExpectations(t)
@@ -484,7 +484,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, nil)
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, nil)
 		assert.Nil(t, subnet)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
@@ -499,7 +499,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
 		mgs.On("GetContext").Return(ctx)
 		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(&datamodel.Account{}, errors.New("account error"))
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, nil)
 		assert.Nil(t, subnet)
 		assert.Error(t, err)
 		mgs.AssertExpectations(t)
@@ -520,7 +520,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
 			return true, nil
 		}
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, nil)
 
 		assert.NotNil(t, subnet)
 		assert.NoError(t, err)
@@ -545,7 +545,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 			return false, nil
 		}
 		defer func() {}()
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, nil)
 		assert.Nil(t, subnet)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
@@ -567,7 +567,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
 			return false, errors.New("reuse error")
 		}
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, nil)
 		assert.Nil(t, subnet)
 		assert.Error(t, err, "reuse error")
 		mgs.AssertExpectations(t)
@@ -580,7 +580,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, errors.New("list error"))
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 		assert.Nil(t, subnet)
 		assert.Error(t, err)
 		mgs.AssertExpectations(t)
@@ -592,7 +592,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, nil)
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 		assert.Nil(t, subnet)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
@@ -607,7 +607,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
 		mgs.On("GetContext").Return(ctx)
 		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(&datamodel.Account{}, errors.New("account error"))
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 		assert.Nil(t, subnet)
 		assert.Error(t, err)
 		mgs.AssertExpectations(t)
@@ -630,7 +630,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
 			return true, nil
 		}
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 
 		assert.NotNil(t, subnet)
 		assert.NoError(t, err)
@@ -656,7 +656,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
 			return false, nil
 		}
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 		assert.Nil(t, subnet)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
@@ -679,7 +679,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
 			return false, errors.New("reuse error")
 		}
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 		assert.Nil(t, subnet)
 		assert.Error(t, err, "reuse error")
 		mgs.AssertExpectations(t)
@@ -695,7 +695,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs.On("GetContext").Return(ctx)
 		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
 
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, nil)
 
 		assert.Nil(t, subnet, "Standard pool should not find large capacity subnet")
 		assert.NoError(t, err)
@@ -713,7 +713,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs.On("GetContext").Return(ctx)
 		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
 
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 
 		assert.Nil(t, subnet, "Large capacity pool should not find standard subnet")
 		assert.NoError(t, err)
@@ -742,7 +742,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		isSubnetReusable = func(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {
 			return true, nil
 		}
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 
 		assert.NotNil(t, subnet)
 		assert.NoError(t, err)
@@ -762,7 +762,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		// Mock ListPools to return pools (subnet has pools associated with it)
 		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
 
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 
 		assert.Nil(t, subnet)
 		assert.NoError(t, err)
@@ -781,10 +781,268 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		// Mock ListPools to return error
 		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return(nil, errors.New("list pools error"))
 
-		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true)
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, true, nil)
 
 		assert.Nil(t, subnet)
 		assert.Error(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	// Address-range-aware subnet reuse tests (ADDRESS_SPACE_MGMT_ENABLED behaviour)
+
+	t.Run("Subnet CIDR outside all address ranges is skipped", func(t *testing.T) {
+		// subnetDefault was created before address space management: its CIDR (192.168.1.0/29)
+		// does not fall within range1 (10.1.0.0/20) or range2 (10.2.0.0/20).
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-tenant-456", IpCidrRange: "192.168.1.0/29"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+
+		addressRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20"},
+			{Name: "range2", AddressRangeCidr: "10.2.0.0/20"},
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, addressRanges)
+
+		assert.Nil(t, subnet, "subnet outside all address ranges must not be reused")
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Subnet CIDR inside range1 with free IPs is reused", func(t *testing.T) {
+		// Pool 2 create: subnet carved from range1 (10.1.0.0/29 ∈ 10.1.0.0/20) has free IPs → reuse it.
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-tenant-456", IpCidrRange: "10.1.0.0/29"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		isSubnetReusable = func(_ context.Context, _ database.Storage, _ hyperscaler_models.Subnet, _, _ string) (bool, error) {
+			return true, nil
+		}
+
+		addressRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20"},
+			{Name: "range2", AddressRangeCidr: "10.2.0.0/20"},
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, addressRanges)
+
+		assert.NotNil(t, subnet, "subnet inside range1 with free IPs should be reused")
+		assert.Equal(t, "vsa-tenant-456", subnet.Name)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Subnet inside range1 exhausted, subnet inside range2 has free IPs - reuse range2 subnet", func(t *testing.T) {
+		// range1 subnet is full; range2 subnet has capacity → reuse range2 subnet.
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{
+			{Name: "vsa-tenant-456-range1", IpCidrRange: "10.1.0.0/29"},
+			{Name: "vsa-tenant-456-range2", IpCidrRange: "10.2.0.0/29"},
+		}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		callCount := 0
+		isSubnetReusable = func(_ context.Context, _ database.Storage, s hyperscaler_models.Subnet, _, _ string) (bool, error) {
+			callCount++
+			// range1 subnet is exhausted; range2 subnet is reusable
+			return s.IpCidrRange == "10.2.0.0/29", nil
+		}
+
+		addressRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20"},
+			{Name: "range2", AddressRangeCidr: "10.2.0.0/20"},
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, addressRanges)
+
+		assert.NotNil(t, subnet, "range2 subnet with free IPs should be reused")
+		assert.Equal(t, "vsa-tenant-456-range2", subnet.Name)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("No address ranges provided — existing reuse logic unchanged", func(t *testing.T) {
+		// When addressRanges is nil (feature disabled or no ranges registered),
+		// any subnet with free IPs is reusable regardless of its CIDR.
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{{Name: "vsa-tenant-456", IpCidrRange: "192.168.1.0/29"}}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		isSubnetReusable = func(_ context.Context, _ database.Storage, _ hyperscaler_models.Subnet, _, _ string) (bool, error) {
+			return true, nil
+		}
+
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, nil)
+
+		assert.NotNil(t, subnet, "without address ranges, any reusable subnet should be returned")
+		assert.Equal(t, "vsa-tenant-456", subnet.Name)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	// Multi-range scenarios: VPC has more than one address range registered.
+
+	t.Run("Multiple ranges — two in-range subnets both reusable, first subnet wins", func(t *testing.T) {
+		// VPC has range1 and range2. Two subnets, one carved from each range, both have free IPs.
+		// The first subnet in iteration order should be returned.
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{
+			{Name: "vsa-tenant-456-r1", IpCidrRange: "10.1.0.0/29"},
+			{Name: "vsa-tenant-456-r2", IpCidrRange: "10.2.0.0/29"},
+		}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		isSubnetReusable = func(_ context.Context, _ database.Storage, _ hyperscaler_models.Subnet, _, _ string) (bool, error) {
+			return true, nil
+		}
+
+		addressRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20"},
+			{Name: "range2", AddressRangeCidr: "10.2.0.0/20"},
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, addressRanges)
+
+		assert.NotNil(t, subnet)
+		assert.Equal(t, "vsa-tenant-456-r1", subnet.Name, "first in-range reusable subnet should be selected")
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Multiple ranges — pre-existing subnet mixed with in-range subnets, pre-existing skipped", func(t *testing.T) {
+		// VPC has range1 and range2. Three subnets: subnetDefault (pre-existing, outside ranges),
+		// one inside range1, one inside range2. Only in-range subnets should be candidates.
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{
+			{Name: "vsa-tenant-456-default", IpCidrRange: "192.168.1.0/29"}, // pre-existing, outside ranges
+			{Name: "vsa-tenant-456-r1", IpCidrRange: "10.1.5.0/29"},         // inside range1
+			{Name: "vsa-tenant-456-r2", IpCidrRange: "10.2.5.0/29"},         // inside range2
+		}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		// ListPools called only for in-range subnets (2 calls, not 3)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		isSubnetReusable = func(_ context.Context, _ database.Storage, s hyperscaler_models.Subnet, _, _ string) (bool, error) {
+			// Only range1 subnet is reusable
+			return s.Name == "vsa-tenant-456-r1", nil
+		}
+
+		addressRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20"},
+			{Name: "range2", AddressRangeCidr: "10.2.0.0/20"},
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, addressRanges)
+
+		assert.NotNil(t, subnet)
+		assert.Equal(t, "vsa-tenant-456-r1", subnet.Name, "pre-existing subnet must be skipped; first reusable in-range subnet selected")
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Multiple ranges — all in-range subnets exhausted, returns nil for new subnet creation", func(t *testing.T) {
+		// VPC has range1 and range2. Both subnets are within ranges but neither has free IPs.
+		// Should return nil so the caller creates a new subnet.
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{
+			{Name: "vsa-tenant-456-r1", IpCidrRange: "10.1.0.0/29"},
+			{Name: "vsa-tenant-456-r2", IpCidrRange: "10.2.0.0/29"},
+		}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		isSubnetReusable = func(_ context.Context, _ database.Storage, _ hyperscaler_models.Subnet, _, _ string) (bool, error) {
+			return false, nil // both subnets are full
+		}
+
+		addressRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20"},
+			{Name: "range2", AddressRangeCidr: "10.2.0.0/20"},
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, addressRanges)
+
+		assert.Nil(t, subnet, "all in-range subnets exhausted — should return nil for new subnet creation")
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Multiple ranges — subnet matches third range out of three", func(t *testing.T) {
+		// VPC has three address ranges. The only existing subnet falls in the third range.
+		// Verifies subnetCIDRInAnyRange scans all ranges, not just the first.
+		mockStorage := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		subnets := []hyperscaler_models.Subnet{
+			{Name: "vsa-tenant-456-r3", IpCidrRange: "10.3.5.0/29"},
+		}
+		mgs.On("GetLogger").Return(mockLogger)
+		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
+		mgs.On("GetContext").Return(ctx)
+		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+		origIsSubnetReusable := isSubnetReusable
+		defer func() { isSubnetReusable = origIsSubnetReusable }()
+		isSubnetReusable = func(_ context.Context, _ database.Storage, _ hyperscaler_models.Subnet, _, _ string) (bool, error) {
+			return true, nil
+		}
+
+		addressRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20"},
+			{Name: "range2", AddressRangeCidr: "10.2.0.0/20"},
+			{Name: "range3", AddressRangeCidr: "10.3.0.0/20"},
+		}
+		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion, false, addressRanges)
+
+		assert.NotNil(t, subnet)
+		assert.Equal(t, "vsa-tenant-456-r3", subnet.Name, "subnet within the third address range should be found")
+		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
 		mockStorage.AssertExpectations(t)
 	})

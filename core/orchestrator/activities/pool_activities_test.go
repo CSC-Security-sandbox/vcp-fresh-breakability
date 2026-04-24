@@ -7421,6 +7421,228 @@ func TestPoolActivity_GetAvailableSubnet(t *testing.T) {
 	})
 }
 
+func Test_checkReusableSubnet(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	tenantProjectNumber := "tenant-456"
+	// network string that ParseProjectId can resolve: projects/<hostProject>/global/networks/<vpc>
+	network := "projects/host-123/global/networks/vpc1"
+
+	expectedSubnet := &hyperscaler_models.Subnet{Name: "vsa-tenant-456", IpCidrRange: "10.1.0.0/29"}
+
+	// origGetSubnetToBeUsed is saved/restored per sub-test that overrides it.
+	origGetSubnetToBeUsed := activities.GetSubnetToBeUsed
+	t.Cleanup(func() { activities.GetSubnetToBeUsed = origGetSubnetToBeUsed })
+
+	t.Run("AddressSpaceMgmtEnabled_LoadsRangesAndPassesToGetSubnetToBeUsed", func(t *testing.T) {
+		t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+
+		mockSE := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+
+		mgs.On("GetLogger").Return(util.GetLogger(ctx))
+		mgs.On("GetContext").Return(ctx)
+		mgs.On("GetSnHost", tenantProjectNumber).Return("sn-host-project", nil)
+
+		registeredRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20", LifType: "dataLIF"},
+		}
+		lifType := database.AddressRangeLifTypeDataLIF
+		mockSE.On("ListAddressRanges", ctx, "host-123", "vpc1", (*string)(nil), &lifType).Return(registeredRanges, nil)
+
+		// Capture the addressRanges that _checkReusableSubnet passes down.
+		var capturedRanges []*datamodel.AddressRange
+		activities.GetSubnetToBeUsed = func(_ hyperscaler2.GoogleServices, _ database.Storage, _, _, _, _ string, _ bool, ar []*datamodel.AddressRange) (*hyperscaler_models.Subnet, error) {
+			capturedRanges = ar
+			return expectedSubnet, nil
+		}
+
+		params := commonparams.CreatePoolParams{AccountName: "cust-123", Region: "us-east4", VendorSubNetID: network}
+		result, err := activities.CheckReusableSubnet(mockSE, mgs, params, tenantProjectNumber)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSubnet, result)
+		require.Len(t, capturedRanges, 1, "address ranges should be forwarded to GetSubnetToBeUsed")
+		assert.Equal(t, "range1", capturedRanges[0].Name)
+		mockSE.AssertExpectations(t)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("AddressSpaceMgmtEnabled_MultipleRanges_AllForwardedToGetSubnetToBeUsed", func(t *testing.T) {
+		// VPC has three address ranges registered. All three must be forwarded to GetSubnetToBeUsed
+		// so the filter can match subnets carved from any of the registered ranges.
+		t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+
+		mockSE := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+
+		mgs.On("GetLogger").Return(util.GetLogger(ctx))
+		mgs.On("GetContext").Return(ctx)
+		mgs.On("GetSnHost", tenantProjectNumber).Return("sn-host-project", nil)
+
+		registeredRanges := []*datamodel.AddressRange{
+			{Name: "range1", AddressRangeCidr: "10.1.0.0/20", LifType: "dataLIF"},
+			{Name: "range2", AddressRangeCidr: "10.2.0.0/20", LifType: "dataLIF"},
+			{Name: "range3", AddressRangeCidr: "10.3.0.0/20", LifType: "dataLIF"},
+		}
+		lifType := database.AddressRangeLifTypeDataLIF
+		mockSE.On("ListAddressRanges", ctx, "host-123", "vpc1", (*string)(nil), &lifType).Return(registeredRanges, nil)
+
+		var capturedRanges []*datamodel.AddressRange
+		activities.GetSubnetToBeUsed = func(_ hyperscaler2.GoogleServices, _ database.Storage, _, _, _, _ string, _ bool, ar []*datamodel.AddressRange) (*hyperscaler_models.Subnet, error) {
+			capturedRanges = ar
+			return expectedSubnet, nil
+		}
+
+		params := commonparams.CreatePoolParams{AccountName: "cust-123", Region: "us-east4", VendorSubNetID: network}
+		result, err := activities.CheckReusableSubnet(mockSE, mgs, params, tenantProjectNumber)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSubnet, result)
+		require.Len(t, capturedRanges, 3, "all three address ranges must be forwarded to GetSubnetToBeUsed")
+		assert.Equal(t, "range1", capturedRanges[0].Name)
+		assert.Equal(t, "range2", capturedRanges[1].Name)
+		assert.Equal(t, "range3", capturedRanges[2].Name)
+		mockSE.AssertExpectations(t)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("AddressSpaceMgmtEnabled_ListAddressRangesError_FallsBackToNilRanges", func(t *testing.T) {
+		t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+
+		mockSE := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+
+		mgs.On("GetLogger").Return(util.GetLogger(ctx))
+		mgs.On("GetContext").Return(ctx)
+		mgs.On("GetSnHost", tenantProjectNumber).Return("sn-host-project", nil)
+
+		lifType := database.AddressRangeLifTypeDataLIF
+		mockSE.On("ListAddressRanges", ctx, "host-123", "vpc1", (*string)(nil), &lifType).Return(nil, errors.New("db error"))
+
+		// Even on DB error the subnet lookup should still proceed with nil ranges.
+		var capturedRanges []*datamodel.AddressRange
+		capturedRangesCalled := false
+		activities.GetSubnetToBeUsed = func(_ hyperscaler2.GoogleServices, _ database.Storage, _, _, _, _ string, _ bool, ar []*datamodel.AddressRange) (*hyperscaler_models.Subnet, error) {
+			capturedRanges = ar
+			capturedRangesCalled = true
+			return nil, nil
+		}
+
+		params := commonparams.CreatePoolParams{AccountName: "cust-123", Region: "us-east4", VendorSubNetID: network}
+		result, err := activities.CheckReusableSubnet(mockSE, mgs, params, tenantProjectNumber)
+
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		assert.True(t, capturedRangesCalled, "GetSubnetToBeUsed must still be called after DB error")
+		assert.Nil(t, capturedRanges, "address ranges must be nil when DB call failed")
+		mockSE.AssertExpectations(t)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("AddressSpaceMgmtDisabled_ListAddressRangesNotCalled", func(t *testing.T) {
+		t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "false")
+
+		mockSE := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+
+		mgs.On("GetLogger").Return(util.GetLogger(ctx))
+		mgs.On("GetContext").Return(ctx)
+		mgs.On("GetSnHost", tenantProjectNumber).Return("sn-host-project", nil)
+		// ListAddressRanges must NOT be called — no mock registered for them.
+
+		var capturedRanges []*datamodel.AddressRange
+		activities.GetSubnetToBeUsed = func(_ hyperscaler2.GoogleServices, _ database.Storage, _, _, _, _ string, _ bool, ar []*datamodel.AddressRange) (*hyperscaler_models.Subnet, error) {
+			capturedRanges = ar
+			return nil, nil
+		}
+
+		params := commonparams.CreatePoolParams{AccountName: "cust-123", Region: "us-east4", VendorSubNetID: network}
+		result, err := activities.CheckReusableSubnet(mockSE, mgs, params, tenantProjectNumber)
+
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		assert.Nil(t, capturedRanges, "address ranges must be nil when feature is disabled")
+		mockSE.AssertExpectations(t)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("AddressSpaceMgmtEnabled_MalformedNetwork_WarnsAndProceedsWithNilRanges", func(t *testing.T) {
+		t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+
+		mockSE := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+
+		mgs.On("GetLogger").Return(util.GetLogger(ctx))
+		mgs.On("GetContext").Return(ctx)
+		mgs.On("GetSnHost", tenantProjectNumber).Return("sn-host-project", nil)
+		// ListAddressRanges must NOT be called — network is unparseable.
+
+		var capturedRanges []*datamodel.AddressRange
+		capturedRangesCalled := false
+		activities.GetSubnetToBeUsed = func(_ hyperscaler2.GoogleServices, _ database.Storage, _, _, _, _ string, _ bool, ar []*datamodel.AddressRange) (*hyperscaler_models.Subnet, error) {
+			capturedRanges = ar
+			capturedRangesCalled = true
+			return nil, nil
+		}
+
+		params := commonparams.CreatePoolParams{AccountName: "cust-123", Region: "us-east4", VendorSubNetID: "not-a-valid-network-url"}
+		result, err := activities.CheckReusableSubnet(mockSE, mgs, params, tenantProjectNumber)
+
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		assert.True(t, capturedRangesCalled, "GetSubnetToBeUsed must still be called even when network is malformed")
+		assert.Nil(t, capturedRanges, "address ranges must be nil when network URL cannot be parsed")
+		mockSE.AssertExpectations(t)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("AddressSpaceMgmtEnabled_EmptyNetwork_ListAddressRangesNotCalled", func(t *testing.T) {
+		t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+
+		mockSE := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+
+		mgs.On("GetLogger").Return(util.GetLogger(ctx))
+		mgs.On("GetContext").Return(ctx)
+		mgs.On("GetSnHost", tenantProjectNumber).Return("sn-host-project", nil)
+		// ListAddressRanges must NOT be called when VendorSubNetID is empty.
+
+		var capturedRanges []*datamodel.AddressRange
+		activities.GetSubnetToBeUsed = func(_ hyperscaler2.GoogleServices, _ database.Storage, _, _, _, _ string, _ bool, ar []*datamodel.AddressRange) (*hyperscaler_models.Subnet, error) {
+			capturedRanges = ar
+			return nil, nil
+		}
+
+		params := commonparams.CreatePoolParams{AccountName: "cust-123", Region: "us-east4", VendorSubNetID: ""}
+		result, err := activities.CheckReusableSubnet(mockSE, mgs, params, tenantProjectNumber)
+
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		assert.Nil(t, capturedRanges, "address ranges must be nil when VendorSubNetID is empty")
+		mockSE.AssertExpectations(t)
+		mgs.AssertExpectations(t)
+	})
+
+	t.Run("SnHostNotFound_ReturnsNilWithoutAnyDBCall", func(t *testing.T) {
+		t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+
+		mockSE := database.NewMockStorage(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+
+		mgs.On("GetLogger").Return(util.GetLogger(ctx))
+		mgs.On("GetSnHost", tenantProjectNumber).Return("", errors.New("not found"))
+		// No ListAddressRanges, no GetSubnetToBeUsed call expected.
+
+		params := commonparams.CreatePoolParams{AccountName: "cust-123", Region: "us-east4", VendorSubNetID: network}
+		result, err := activities.CheckReusableSubnet(mockSE, mgs, params, tenantProjectNumber)
+
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		mockSE.AssertExpectations(t)
+		mgs.AssertExpectations(t)
+	})
+}
+
 func TestPoolActivity_GetTenancyInfo(t *testing.T) {
 	mockSE := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockSE}

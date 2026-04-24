@@ -626,14 +626,53 @@ func _checkReusableSubnet(se database.Storage, service hyperscaler2.GoogleServic
 	tenantProjectRegion := params.Region
 	isLargeCapacity := params.LargeCapacity
 	if snHostProject != "" {
+		addressRanges := fetchAddressRangesForSubnetFilter(service.GetContext(), se, params.VendorSubNetID)
+
 		// if snHost is found, check if the subnetwork already exists in the SN host project and reuse it if applicable
-		subnet, err = GetSubnetToBeUsed(service, se, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion, isLargeCapacity)
+		subnet, err = GetSubnetToBeUsed(service, se, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion, isLargeCapacity, addressRanges)
 		if err != nil {
 			logger.Errorf("Error getting data subnet for tenant project: %s, SN host : %s, Region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 		}
+		if subnet != nil {
+			logger.Infof("_checkReusableSubnet: reusing existing subnet=%s CIDR=%s tenantProject=%s snHost=%s", subnet.Name, subnet.IpCidrRange, tenantProjectNumber, snHostProject)
+		} else {
+			logger.Infof("_checkReusableSubnet: no reusable subnet found — a new subnet will be created. tenantProject=%s snHost=%s region=%s largeCapacity=%v addressRangeCount=%d", tenantProjectNumber, snHostProject, tenantProjectRegion, isLargeCapacity, len(addressRanges))
+		}
 	}
 	return subnet, nil
+}
+
+// fetchAddressRangesForSubnetFilter returns the registered address ranges for the VPC identified by
+// vendorSubNetID when address space management is enabled. The returned slice is used by
+// getSubnetToBeUsed to restrict subnet reuse to only subnets carved from a managed range.
+// Returns nil (unrestricted reuse) when the feature is disabled, the network URL is absent or
+// malformed, or the DB call fails — all cases are logged so silent bypasses are visible.
+func fetchAddressRangesForSubnetFilter(ctx context.Context, se database.Storage, vendorSubNetID string) []*datamodel.AddressRange {
+	logger := util.GetLogger(ctx)
+	if !addressSpaceMgmtEnabled() || vendorSubNetID == "" {
+		logger.Infof("fetchAddressRangesForSubnetFilter: address space management disabled or no network — subnet reuse unrestricted. addressSpaceMgmtEnabled=%v network=%s", addressSpaceMgmtEnabled(), vendorSubNetID)
+		return nil
+	}
+	hostProjectNumber, vpcName, parseErr := utils.ParseProjectId(vendorSubNetID)
+	if parseErr != nil {
+		// A malformed VendorSubNetID means we cannot look up address ranges; log prominently so
+		// the misconfiguration is visible rather than silently bypassing the range filter.
+		logger.Warnf("fetchAddressRangesForSubnetFilter: could not parse VendorSubNetID — address range filter will not be applied and subnet reuse is unrestricted. network=%s error=%v", vendorSubNetID, parseErr)
+		return nil
+	}
+	lifType := database.AddressRangeLifTypeDataLIF
+	addressRanges, err := se.ListAddressRanges(ctx, hostProjectNumber, vpcName, nil, &lifType)
+	if err != nil {
+		logger.Warnf("fetchAddressRangesForSubnetFilter: failed to list address ranges for address space management; proceeding without range filter. network=%s error=%v", vendorSubNetID, err)
+		return nil
+	}
+	rangeNames := make([]string, 0, len(addressRanges))
+	for _, ar := range addressRanges {
+		rangeNames = append(rangeNames, ar.Name)
+	}
+	logger.Infof("fetchAddressRangesForSubnetFilter: loaded %d address range(s) for subnet reuse filter: %v network=%s", len(addressRanges), rangeNames, vendorSubNetID)
+	return addressRanges
 }
 
 // GetCreateDataSubnetOp creates a subnetwork for the tenant project

@@ -4523,3 +4523,88 @@ func TestConvertSourceBackupVaultNameToRemoteBackupVaultName(t *testing.T) {
 		assert.Equal(tt, 63, len(result))
 	})
 }
+
+func TestSubnetCIDRInAnyRange(t *testing.T) {
+	ranges := func(cidrs ...string) []*datamodel.AddressRange {
+		out := make([]*datamodel.AddressRange, 0, len(cidrs))
+		for _, c := range cidrs {
+			out = append(out, &datamodel.AddressRange{AddressRangeCidr: c})
+		}
+		return out
+	}
+
+	tests := []struct {
+		name       string
+		subnetCIDR string
+		ranges     []*datamodel.AddressRange
+		want       bool
+	}{
+		{
+			name:       "subnet fully inside range",
+			subnetCIDR: "10.0.1.0/29",
+			ranges:     ranges("10.0.0.0/20"),
+			want:       true,
+		},
+		{
+			name:       "subnet network address is the range network address (same block)",
+			subnetCIDR: "10.0.0.0/24",
+			ranges:     ranges("10.0.0.0/20"),
+			want:       true,
+		},
+		{
+			name:       "subnet last IP is exactly the range broadcast",
+			subnetCIDR: "10.0.15.248/29", // last /29 in 10.0.0.0/20; last IP = 10.0.15.255
+			ranges:     ranges("10.0.0.0/20"),
+			want:       true,
+		},
+		{
+			name:       "subnet straddles range boundary — last IP outside range",
+			subnetCIDR: "10.0.3.252/22", // network=10.0.0.0 of the /22; last IP falls outside 10.0.0.0/24
+			ranges:     ranges("10.0.0.0/24"),
+			want:       false,
+		},
+		{
+			name:       "subnet network address outside range",
+			subnetCIDR: "10.1.0.0/29",
+			ranges:     ranges("10.0.0.0/20"),
+			want:       false,
+		},
+		{
+			name:       "subnet matched by second range",
+			subnetCIDR: "192.168.5.0/29",
+			ranges:     ranges("10.0.0.0/20", "192.168.0.0/16"),
+			want:       true,
+		},
+		{
+			name:       "no ranges provided",
+			subnetCIDR: "10.0.1.0/29",
+			ranges:     nil,
+			want:       false,
+		},
+		{
+			name:       "malformed subnet CIDR",
+			subnetCIDR: "not-a-cidr",
+			ranges:     ranges("10.0.0.0/20"),
+			want:       false,
+		},
+		{
+			name:       "malformed range CIDR is skipped, valid range still matches",
+			subnetCIDR: "10.0.1.0/29",
+			ranges:     append(ranges("bad-cidr"), &datamodel.AddressRange{AddressRangeCidr: "10.0.0.0/20"}),
+			want:       true,
+		},
+		{
+			name:       "subnet larger than range is rejected",
+			subnetCIDR: "10.0.0.0/18", // /18 is wider than /20 — network address matches but last IP overshoots
+			ranges:     ranges("10.0.0.0/20"),
+			want:       false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := SubnetCIDRInAnyRange(tc.subnetCIDR, tc.ranges)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
