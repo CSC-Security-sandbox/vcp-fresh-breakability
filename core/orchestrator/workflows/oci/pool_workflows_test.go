@@ -94,7 +94,7 @@ func TestValidateOCIWorkerStartupEnv(t *testing.T) {
 	})
 }
 
-func TestPrepareVLMConfig_CustomPerformanceAndSerialPrefix(t *testing.T) {
+func TestPrepareVLMConfig_CustomPerformanceAndFixedSerialPrefix(t *testing.T) {
 	setTestOCIImageEnv(t)
 	iops := int64(5000)
 	params := &common.CreatePoolParams{
@@ -109,7 +109,6 @@ func TestPrepareVLMConfig_CustomPerformanceAndSerialPrefix(t *testing.T) {
 			ThroughputMibps: 128,
 			Iops:            &iops,
 		},
-		SerialNumberPrefix: "99999",
 	}
 	pool := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "u1"},
@@ -122,7 +121,17 @@ func TestPrepareVLMConfig_CustomPerformanceAndSerialPrefix(t *testing.T) {
 	require.NotNil(t, cfg)
 	assert.Equal(t, int64(128), cfg.Deployment.SPConfig.Throughput)
 	assert.Equal(t, int64(5000), cfg.Deployment.SPConfig.IOps)
-	assert.Equal(t, "99999", cfg.Deployment.SerialNumberPrefix)
+
+	// SerialNumberPrefix is the concatenation of ociSerialNumberLeadingPrefix ("955")
+	// and the 15-zero ociSerialNumberPrefix const, yielding 18 characters total.
+	assert.Equal(t, ociSerialNumberLeadingPrefix+ociSerialNumberPrefix, cfg.Deployment.SerialNumberPrefix,
+		"SerialNumberPrefix must equal ociSerialNumberLeadingPrefix + ociSerialNumberPrefix")
+	assert.Equal(t, "955000000000000000", cfg.Deployment.SerialNumberPrefix,
+		"SerialNumberPrefix must be the literal 18-char fixed value")
+	assert.Len(t, cfg.Deployment.SerialNumberPrefix, 18,
+		"SerialNumberPrefix must be exactly 18 characters")
+	assert.Len(t, ociSerialNumberPrefix, 15,
+		"ociSerialNumberPrefix const must be exactly 15 zero digits")
 }
 
 func TestPrepareOCIDeleteVSAClusterDeploymentRequest(t *testing.T) {

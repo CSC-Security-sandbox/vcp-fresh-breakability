@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	defaultSerialNumberPrefix = "12345"
-	ociVSAUserBootargs        = "bootarg.use.cam.nda=true;bootarg.vm.vnvram_jswap_enable=false;bootarg.vm.nvramdevice=/dev/da2"
+	ociSerialNumberLeadingPrefix = "955"
+	ociSerialNumberPrefix        = "000000000000000"
+	ociVSAUserBootargs           = "bootarg.use.cam.nda=true;bootarg.vm.vnvram_jswap_enable=false;bootarg.vm.nvramdevice=/dev/da2"
 )
 
 var (
@@ -281,16 +282,10 @@ func ociDefinedTags(deploymentName string) map[string]map[string]interface{} {
 
 // ociDeploymentConfig builds the VLM DeploymentConfig for OCI (provider, deployment ID, images, OCI config, SP config, etc.).
 func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, sizeStr string, throughputMibps, iops int64, ociConfig vlm.OCIConfig) vlm.DeploymentConfig {
-	deploymentType := vlm.DeploymentTypeNonSharedHA
-	serialNumberPrefix := params.SerialNumberPrefix
-	if serialNumberPrefix == "" {
-		serialNumberPrefix = defaultSerialNumberPrefix
-	}
-
 	return vlm.DeploymentConfig{
 		Provider:           vlm.OCICloud,
 		DeploymentID:       pool.DeploymentName,
-		SerialNumberPrefix: serialNumberPrefix,
+		SerialNumberPrefix: ociSerialNumberLeadingPrefix + ociSerialNumberPrefix,
 		Region:             localRegion,
 		Images: vlm.ImageConfig{
 			VSAImageName:      vsaImageName,
@@ -302,7 +297,7 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 			"pool_uuid":  pool.UUID,
 			"account_id": params.AccountName,
 		},
-		DeploymentType:       deploymentType,
+		DeploymentType:       vlm.DeploymentTypeNonSharedHA,
 		NumHAPair:            numHAPair,
 		VSAInstanceType:      ociVSAInstanceType,
 		MediatorInstanceType: ociMediatorInstanceType,

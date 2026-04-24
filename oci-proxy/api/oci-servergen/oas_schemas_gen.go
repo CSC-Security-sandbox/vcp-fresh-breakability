@@ -148,8 +148,6 @@ type CreatePoolRequest struct {
 	SecondaryAvailabilityDomain OptString `json:"secondaryAvailabilityDomain"`
 	// Availability domain for the mediator VM. Required for HA deployments.
 	MediatorAvailabilityDomain OptString `json:"mediatorAvailabilityDomain"`
-	// Mandatory serial number prefix used for provisioning.
-	SerialNumberPrefix OptString `json:"serialNumberPrefix"`
 	// Total pool throughput in GBps.
 	ThroughputGBps float64 `json:"throughputGBps"`
 	// Target IOPS for the pool.
@@ -200,11 +198,6 @@ func (s *CreatePoolRequest) GetSecondaryAvailabilityDomain() OptString {
 // GetMediatorAvailabilityDomain returns the value of MediatorAvailabilityDomain.
 func (s *CreatePoolRequest) GetMediatorAvailabilityDomain() OptString {
 	return s.MediatorAvailabilityDomain
-}
-
-// GetSerialNumberPrefix returns the value of SerialNumberPrefix.
-func (s *CreatePoolRequest) GetSerialNumberPrefix() OptString {
-	return s.SerialNumberPrefix
 }
 
 // GetThroughputGBps returns the value of ThroughputGBps.
@@ -270,11 +263,6 @@ func (s *CreatePoolRequest) SetSecondaryAvailabilityDomain(val OptString) {
 // SetMediatorAvailabilityDomain sets the value of MediatorAvailabilityDomain.
 func (s *CreatePoolRequest) SetMediatorAvailabilityDomain(val OptString) {
 	s.MediatorAvailabilityDomain = val
-}
-
-// SetSerialNumberPrefix sets the value of SerialNumberPrefix.
-func (s *CreatePoolRequest) SetSerialNumberPrefix(val OptString) {
-	s.SerialNumberPrefix = val
 }
 
 // SetThroughputGBps sets the value of ThroughputGBps.

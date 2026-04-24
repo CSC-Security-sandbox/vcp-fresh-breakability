@@ -128,9 +128,8 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 			ThroughputMibps: int64(req.ThroughputGBps * gBpsToMibpsMultiplier), // convert GBps to MiBps
 			Iops:            &req.Iops,                                         // iops from spconfig
 		},
-		LargeCapacity:      false,
-		CompartmentOCID:    req.CompartmentOCID,
-		SerialNumberPrefix: req.SerialNumberPrefix.Value,
+		LargeCapacity:   false,
+		CompartmentOCID: req.CompartmentOCID,
 		OciAdminPassword: &commonparams.OciAdminPassword{
 			Ocid:    req.OciAdminPassword.Ocid,
 			Version: ociAdminPasswordVersion,

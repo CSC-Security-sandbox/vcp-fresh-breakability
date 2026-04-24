@@ -74,7 +74,7 @@ func TestCreatePoolRequest_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
-		{Input: "{\"compartmentOCID\":\"ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a\",\"description\":\"Demo pool\",\"displayName\":\"my-pool\",\"iops\":3000,\"mediatorAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-3\",\"poolOCID\":\"ocid1.pool.oc1.eu-frankfurt-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"primaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-1\",\"secondaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-2\",\"serialNumberPrefix\":\"12345\",\"sizeInGiB\":1024,\"subnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"throughputGBps\":1}"},
+		{Input: "{\"compartmentOCID\":\"ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a\",\"description\":\"Demo pool\",\"displayName\":\"my-pool\",\"iops\":3000,\"mediatorAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-3\",\"poolOCID\":\"ocid1.pool.oc1.eu-frankfurt-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"primaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-1\",\"secondaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-2\",\"sizeInGiB\":1024,\"subnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"throughputGBps\":1}"},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {

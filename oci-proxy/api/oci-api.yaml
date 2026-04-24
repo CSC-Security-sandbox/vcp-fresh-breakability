@@ -79,7 +79,6 @@ paths:
               primaryAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-1"
               secondaryAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-2"
               mediatorAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-3"
-              serialNumberPrefix: "12345"
               throughputGBps: 1.0
               iops: 3000
               description: "Demo pool"
@@ -544,9 +543,6 @@ components:
         mediatorAvailabilityDomain:
           type: string
           description: Availability domain for the mediator VM. Required for HA deployments.
-        serialNumberPrefix:
-          type: string
-          description: Mandatory serial number prefix used for provisioning.
         throughputGBps:
           type: number
           format: double

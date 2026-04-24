@@ -57,15 +57,14 @@ type CreatePoolParams struct {
 	ADExistsInVCP           bool
 	// OCI-specific fields (only fields that don't map to existing GCP fields)
 	// Note: CompartmentId maps to AccountName (for OCI, AccountName is the compartment OCID)
-	CustomerSubnet     string // OCI subnet OCID for the customer data path - OCI has separate customer subnet
-	CustomerDataNicIP  string // IP address for the customer data NIC (optional, may be assigned by service)
-	PoolOCID           string // OCI pool OCID - used to generate deployment name following OCI naming convention
-	DeploymentName     string // Pre-generated deployment name (if set, CreatePoolInDB will use it instead of generating)
-	CompartmentOCID    string
-	SerialNumberPrefix string
-	RequestedRanges    []string
-	OciAdminPassword   *OciAdminPassword
-	DataNICSubnetID    string
+	CustomerSubnet    string // OCI subnet OCID for the customer data path - OCI has separate customer subnet
+	CustomerDataNicIP string // IP address for the customer data NIC (optional, may be assigned by service)
+	PoolOCID          string // OCI pool OCID - used to generate deployment name following OCI naming convention
+	DeploymentName    string // Pre-generated deployment name (if set, CreatePoolInDB will use it instead of generating)
+	CompartmentOCID   string
+	RequestedRanges   []string
+	OciAdminPassword  *OciAdminPassword
+	DataNICSubnetID   string
 }
 
 type OciAdminPassword struct {

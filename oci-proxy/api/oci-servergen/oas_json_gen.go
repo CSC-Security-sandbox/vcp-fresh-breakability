@@ -187,12 +187,6 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.SerialNumberPrefix.Set {
-			e.FieldStart("serialNumberPrefix")
-			s.SerialNumberPrefix.Encode(e)
-		}
-	}
-	{
 		e.FieldStart("throughputGBps")
 		e.Float64(s.ThroughputGBps)
 	}
@@ -216,7 +210,7 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCreatePoolRequest = [14]string{
+var jsonFieldsNameOfCreatePoolRequest = [13]string{
 	0:  "poolOCID",
 	1:  "compartmentOCID",
 	2:  "displayName",
@@ -225,12 +219,11 @@ var jsonFieldsNameOfCreatePoolRequest = [14]string{
 	5:  "primaryAvailabilityDomain",
 	6:  "secondaryAvailabilityDomain",
 	7:  "mediatorAvailabilityDomain",
-	8:  "serialNumberPrefix",
-	9:  "throughputGBps",
-	10: "iops",
-	11: "ociAdminPassword",
-	12: "description",
-	13: "dataNicSubnetId",
+	8:  "throughputGBps",
+	9:  "iops",
+	10: "ociAdminPassword",
+	11: "description",
+	12: "dataNicSubnetId",
 }
 
 // Decode decodes CreatePoolRequest from json.
@@ -334,18 +327,8 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mediatorAvailabilityDomain\"")
 			}
-		case "serialNumberPrefix":
-			if err := func() error {
-				s.SerialNumberPrefix.Reset()
-				if err := s.SerialNumberPrefix.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"serialNumberPrefix\"")
-			}
 		case "throughputGBps":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Float64()
 				s.ThroughputGBps = float64(v)
@@ -357,7 +340,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"throughputGBps\"")
 			}
 		case "iops":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int64()
 				s.Iops = int64(v)
@@ -369,7 +352,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"iops\"")
 			}
 		case "ociAdminPassword":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.OciAdminPassword.Decode(d); err != nil {
 					return err
@@ -389,7 +372,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"description\"")
 			}
 		case "dataNicSubnetId":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.DataNicSubnetId = string(v)
@@ -411,7 +394,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b00111111,
-		0b00101110,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -65,11 +65,6 @@ func (s *CreatePoolRequest) SetFake() {
 	}
 	{
 		{
-			s.SerialNumberPrefix.SetFake()
-		}
-	}
-	{
-		{
 			s.ThroughputGBps = float64(0)
 		}
 	}
