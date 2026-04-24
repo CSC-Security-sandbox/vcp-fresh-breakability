@@ -229,6 +229,7 @@ const (
 	ErrKMSUpdate                                   = 6067
 	ErrKMSCreate                                   = 6068
 	ErrGeneratingUniqueSerialNumber                = 6069
+	ErrKMSMigrationSdeClientError                  = 6070
 	ErrCVPClientHandleResourceEventError           = 6073
 	ErrCVPClientFinishProjectEventError            = 6074
 	ErrHREResourceIsTransitioning                  = 6075

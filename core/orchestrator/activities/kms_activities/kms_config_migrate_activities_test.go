@@ -743,3 +743,155 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		assert.NoError(tt, errMigrate)
 	})
 }
+
+// opaqueErrWrapper hides inner.Error() from its own Error() output so the
+// regex cannot match at the outer level - fmt.Errorf("%w", inner) would
+// embed the inner string and bypass the chain walk.
+type opaqueErrWrapper struct {
+	msg   string
+	inner error
+}
+
+func (o *opaqueErrWrapper) Error() string { return o.msg }
+func (o *opaqueErrWrapper) Unwrap() error { return o.inner }
+
+func TestClassifyMigrationPollError(t *testing.T) {
+	t.Run("ReturnsNilWhenErrIsNil", func(tt *testing.T) {
+		assert.Nil(tt, classifyMigrationPollError(nil))
+	})
+
+	t.Run("ReturnsOriginalErrWhenNotSdeShape", func(tt *testing.T) {
+		orig := errors.New("some unrelated error")
+		got := classifyMigrationPollError(orig)
+		assert.Same(tt, orig, got)
+	})
+
+	t.Run("ReturnsOriginalErrWhen5xx", func(tt *testing.T) {
+		orig := errors.New("operation failed: &{500 [] internal server error}")
+		got := classifyMigrationPollError(orig)
+		assert.Same(tt, orig, got)
+	})
+
+	t.Run("ReturnsOriginalErrWhenBelow400", func(tt *testing.T) {
+		orig := errors.New("operation failed: &{399 [] not a client error}")
+		got := classifyMigrationPollError(orig)
+		assert.Same(tt, orig, got)
+	})
+
+	t.Run("WrapsSdeMessageOn400", func(tt *testing.T) {
+		orig := errors.New("operation failed: &{400 [] kms key is disabled}")
+		got := classifyMigrationPollError(orig)
+		if !assert.NotNil(tt, got) {
+			return
+		}
+		assert.Contains(tt, got.Error(), "kms key is disabled")
+		assert.Contains(tt, got.Error(), "(type: CustomError, retryable: false)")
+	})
+
+	t.Run("WrapsSdeMessageOn412", func(tt *testing.T) {
+		orig := errors.New("operation failed: &{412 [] precondition failed on kms key}")
+		got := classifyMigrationPollError(orig)
+		if !assert.NotNil(tt, got) {
+			return
+		}
+		assert.Contains(tt, got.Error(), "precondition failed on kms key")
+		assert.Contains(tt, got.Error(), "(type: CustomError, retryable: false)")
+	})
+
+	t.Run("WrapsSdeMessageOn499", func(tt *testing.T) {
+		orig := errors.New("operation failed: &{499 [] client closed request}")
+		got := classifyMigrationPollError(orig)
+		if !assert.NotNil(tt, got) {
+			return
+		}
+		assert.Contains(tt, got.Error(), "client closed request")
+	})
+
+	t.Run("HandlesFloatFormattedCode", func(tt *testing.T) {
+		// StatusV1Beta.Code is float64 and %v may render it as "400" or "400.0".
+		orig := errors.New("operation failed: &{400.0 [] bad request}")
+		got := classifyMigrationPollError(orig)
+		if !assert.NotNil(tt, got) {
+			return
+		}
+		assert.Contains(tt, got.Error(), "bad request")
+	})
+
+	t.Run("UsesFallbackMessageWhenSdeMessageIsEmpty", func(tt *testing.T) {
+		orig := errors.New("operation failed: &{400 [] }")
+		got := classifyMigrationPollError(orig)
+		if !assert.NotNil(tt, got) {
+			return
+		}
+		assert.Contains(tt, got.Error(), "SDE reported a 4xx client error during CMEK migration")
+	})
+
+	t.Run("TrimsWhitespaceAroundSdeMessage", func(tt *testing.T) {
+		orig := errors.New("operation failed: &{400 []   space-padded message   }")
+		got := classifyMigrationPollError(orig)
+		if !assert.NotNil(tt, got) {
+			return
+		}
+		assert.Contains(tt, got.Error(), "space-padded message")
+	})
+
+	t.Run("WalksErrorChainToFindMatchingStatus", func(tt *testing.T) {
+		inner := errors.New("operation failed: &{400 [] deep sde error}")
+		outer := &opaqueErrWrapper{msg: "opaque-outer", inner: inner}
+		got := classifyMigrationPollError(outer)
+		if !assert.NotNil(tt, got) {
+			return
+		}
+		assert.Contains(tt, got.Error(), "deep sde error")
+		assert.Contains(tt, got.Error(), "(type: CustomError, retryable: false)")
+	})
+
+	t.Run("ReturnsOriginalWhenChainHasNoSdeShape", func(tt *testing.T) {
+		inner := errors.New("some other inner")
+		outer := &opaqueErrWrapper{msg: "opaque-outer", inner: inner}
+		got := classifyMigrationPollError(outer)
+		assert.Same(tt, outer, got)
+	})
+}
+
+func TestExtractSdeMigrationStatus(t *testing.T) {
+	t.Run("ReturnsOkFalseForUnrelatedError", func(tt *testing.T) {
+		_, _, ok := extractSdeMigrationStatus(errors.New("some other error"))
+		assert.False(tt, ok)
+	})
+
+	t.Run("ExtractsIntegerCodeAndMessage", func(tt *testing.T) {
+		code, msg, ok := extractSdeMigrationStatus(errors.New("operation failed: &{400 [] kms disabled}"))
+		assert.True(tt, ok)
+		assert.Equal(tt, 400, code)
+		assert.Equal(tt, "kms disabled", msg)
+	})
+
+	t.Run("ExtractsFloatCodeAsInt", func(tt *testing.T) {
+		code, _, ok := extractSdeMigrationStatus(errors.New("operation failed: &{403.0 [] forbidden}"))
+		assert.True(tt, ok)
+		assert.Equal(tt, 403, code)
+	})
+
+	t.Run("IgnoresDetailsContent", func(tt *testing.T) {
+		code, msg, ok := extractSdeMigrationStatus(errors.New("operation failed: &{404 [something noisy] not found}"))
+		assert.True(tt, ok)
+		assert.Equal(tt, 404, code)
+		assert.Equal(tt, "not found", msg)
+	})
+
+	t.Run("TrimsWhitespaceInMessage", func(tt *testing.T) {
+		_, msg, ok := extractSdeMigrationStatus(errors.New("operation failed: &{409 []   conflict here   }"))
+		assert.True(tt, ok)
+		assert.Equal(tt, "conflict here", msg)
+	})
+
+	t.Run("WalksErrorChain", func(tt *testing.T) {
+		inner := errors.New("operation failed: &{409 [] conflict}")
+		outer := &opaqueErrWrapper{msg: "opaque", inner: inner}
+		code, msg, ok := extractSdeMigrationStatus(outer)
+		assert.True(tt, ok)
+		assert.Equal(tt, 409, code)
+		assert.Equal(tt, "conflict", msg)
+	})
+}

@@ -2,11 +2,15 @@ package kms_activities
 
 import (
 	"context"
+	goErrors "errors"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -64,7 +68,7 @@ func (j *KmsConfigActivity) PollMigrateSdeKmsConfigActivity(ctx context.Context,
 		activity.RecordHeartbeat(ctx, "Polling SDE KMS migration operation status")
 		payload, err := GetResponseforPollCvpOperation(ctx, response.Payload.Name, params.ProjectNumber, params.LocationID)
 		if err != nil {
-			return err
+			return classifyMigrationPollError(err)
 		}
 		response.Payload = payload
 	}
@@ -220,4 +224,55 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 		return temporal.NewNonRetryableApplicationError("Encryption failed for one/some of the volumes", "CmekVolumeMigrationError", errors.New("Volume encryption failure"))
 	}
 	return nil
+}
+
+// sdeMigrationStatusRegex matches the error produced by _pollCvpOperationForWorkflow
+// when CVP's terminal operation carries a non-nil StatusV1Beta, which %v formats
+// as "operation failed: &{<code> [<details>] <message>}".
+var sdeMigrationStatusRegex = regexp.MustCompile(
+	`operation failed: &\{(\d+(?:\.\d+)?)\s+\[[^\]]*\]\s+(.*)\}`,
+)
+
+// classifyMigrationPollError rewraps an SDE-reported HTTP 4xx on the terminal
+// CMEK-migration operation as a non-retryable CustomError (tracking ID
+// ErrKMSMigrationSdeClientError / HTTP 400) so SDE's Message is surfaced
+// verbatim; any other error is returned unchanged.
+func classifyMigrationPollError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	code, sdeMsg, ok := extractSdeMigrationStatus(err)
+	if !ok {
+		return err
+	}
+
+	if code < 400 || code >= 500 {
+		return err
+	}
+
+	msg := strings.TrimSpace(sdeMsg)
+	if msg == "" {
+		msg = "SDE reported a 4xx client error during CMEK migration"
+	}
+
+	return errors2.WrapAsNonRetryableTemporalApplicationError(
+		errors2.NewVCPError(errors2.ErrKMSMigrationSdeClientError, goErrors.New(msg)).
+			WithArgs(msg),
+	)
+}
+
+func extractSdeMigrationStatus(err error) (int, string, bool) {
+	for e := err; e != nil; e = goErrors.Unwrap(e) {
+		matches := sdeMigrationStatusRegex.FindStringSubmatch(e.Error())
+		if len(matches) != 3 {
+			continue
+		}
+		f, parseErr := strconv.ParseFloat(matches[1], 64)
+		if parseErr != nil {
+			continue
+		}
+		return int(f), strings.TrimSpace(matches[2]), true
+	}
+	return 0, "", false
 }

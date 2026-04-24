@@ -929,6 +929,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6070": {
+    "description": "CMEK migration: SDE reported a 4xx client error on the terminal operation",
+    "message": "%s",
+    "retriable": false,
+    "http_code": 400
+  },
   "6073": {
     "description": "Client error during HandleResourceEvent",
     "message": "Client error during HandleResourceEvent",

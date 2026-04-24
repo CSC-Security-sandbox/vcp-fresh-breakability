@@ -68,6 +68,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 			detailedErrorMessage := errMsg.Message
 			if job.TrackingID == vsaerrors.ErrLargeVolumeBackupRestoreValidation || job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSFRFilesMissing ||
 				job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume ||
+				job.TrackingID == vsaerrors.ErrKMSMigrationSdeClientError ||
 				vsaerrors.IsCVPError(job.TrackingID) {
 				detailedErrorMessage = string(job.ErrorDetails)
 			}
@@ -334,6 +335,7 @@ func (h Handler) V1betaInternalDescribeOperation(ctx context.Context, params gcp
 		errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
 		detailedErrorMessage := errMsg.Message
 		if job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume ||
+			job.TrackingID == vsaerrors.ErrKMSMigrationSdeClientError ||
 			vsaerrors.IsCVPError(job.TrackingID) {
 			detailedErrorMessage = string(job.ErrorDetails)
 		}
