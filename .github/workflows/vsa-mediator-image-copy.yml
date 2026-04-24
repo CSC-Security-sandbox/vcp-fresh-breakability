@@ -43,6 +43,8 @@ env:
   GCP_ZONE: 'us-central1-a'
   PULL_VM_PROJECT: 'gcnv-vsa-prod'
   PULL_VM_NAME: 'vsa-pull-image-instance'
+  # Same SA as VLM pull; required to read gs://cot-releases-public from the pull VM (VPC-SC / org policy).
+  COT_IMPERSONATE_SA: 'gcnv-vsa-image-sa@gcnv-vsa-prod.iam.gserviceaccount.com'
 
 jobs:
   resolve-dispatch-inputs:
@@ -106,14 +108,14 @@ jobs:
           fi
           # Support two formats: (1) release-bundle (email-style) or (2) flat
           if jq -e '.release_bucket_prefix != null and (.release_bucket_prefix | type == "string") and (.release_bucket_prefix | length > 0)' "$CONFIG_FILE" >/dev/null 2>&1; then
-            RELEASE_PREFIX=$(jq -r '.release_bucket_prefix // empty' "$CONFIG_FILE")
-            RELEASE_VER=$(jq -r '.release_version // empty' "$CONFIG_FILE")
+            RELEASE_PREFIX=$(jq -r '.release_bucket_prefix // empty' "$CONFIG_FILE" | tr -d '\r')
+            RELEASE_VER=$(jq -r '.release_version // empty' "$CONFIG_FILE" | tr -d '\r')
             [ -z "$RELEASE_PREFIX" ] && { echo "❌ Missing release_bucket_prefix in $CONFIG_FILE"; exit 1; }
             [ -z "$RELEASE_VER" ] && { echo "❌ Missing release_version in $CONFIG_FILE"; exit 1; }
             BUNDLE_NAME="${RELEASE_PREFIX##*/}"
             VERSION="$RELEASE_VER"
-            VSA_IMAGE_NAME=$(jq -r '[.images[]? | select(.name | startswith("x-"))] | .[0].name // empty' "$CONFIG_FILE")
-            MEDIATOR_IMAGE_NAME=$(jq -r '[.images[]? | select(.name | startswith("cvo-mediator"))] | .[0].name // empty' "$CONFIG_FILE")
+            VSA_IMAGE_NAME=$(jq -r '[.images[]? | select(.name | startswith("x-"))] | .[0].name // empty' "$CONFIG_FILE" | tr -d '\r')
+            MEDIATOR_IMAGE_NAME=$(jq -r '[.images[]? | select(.name | startswith("cvo-mediator"))] | .[0].name // empty' "$CONFIG_FILE" | tr -d '\r')
             if [ "$IMAGE_TYPE" = "both" ]; then
               [ -z "$VSA_IMAGE_NAME" ] && { echo "❌ No VSA image in .images[] in $CONFIG_FILE"; exit 1; }
               [ -z "$MEDIATOR_IMAGE_NAME" ] && { echo "❌ No Mediator image in .images[] in $CONFIG_FILE"; exit 1; }
@@ -126,11 +128,11 @@ jobs:
               [ -z "$IMAGE_NAME" ] && { echo "❌ No image found in .images[] for type=$IMAGE_TYPE"; exit 1; }
             fi
             UPGRADE_BUNDLE="$RELEASE_PREFIX"
-            UPGRADE_FILE=$(jq -r '.upgrade_file_path // .gc_nv_image_path // empty' "$CONFIG_FILE")
+            UPGRADE_FILE=$(jq -r '.upgrade_file_path // .gc_nv_image_path // empty' "$CONFIG_FILE" | tr -d '\r')
           else
-            VERSION=$(jq -r '.version // empty' "$CONFIG_FILE")
-            VSA_IMAGE_NAME=$(jq -r '.image_name // empty' "$CONFIG_FILE")
-            MEDIATOR_IMAGE_NAME=$(jq -r '.mediator_image_name // empty' "$CONFIG_FILE")
+            VERSION=$(jq -r '.version // empty' "$CONFIG_FILE" | tr -d '\r')
+            VSA_IMAGE_NAME=$(jq -r '.image_name // empty' "$CONFIG_FILE" | tr -d '\r')
+            MEDIATOR_IMAGE_NAME=$(jq -r '.mediator_image_name // empty' "$CONFIG_FILE" | tr -d '\r')
             if [ "$IMAGE_TYPE" = "both" ]; then
               [ -z "$VSA_IMAGE_NAME" ] && { echo "❌ Config must have image_name (VSA) for copy both"; exit 1; }
               [ -z "$MEDIATOR_IMAGE_NAME" ] && { echo "❌ Config must have mediator_image_name for copy both"; exit 1; }
@@ -144,9 +146,9 @@ jobs:
               IMAGE_NAME="$VSA_IMAGE_NAME"
               echo "📌 Using VSA image: $IMAGE_NAME"
             fi
-            BUNDLE_NAME=$(jq -r '.bundle_name // empty' "$CONFIG_FILE")
-            UPGRADE_BUNDLE=$(jq -r '.upgrade_release_bundle_path // empty' "$CONFIG_FILE")
-            UPGRADE_FILE=$(jq -r '.upgrade_file_path // empty' "$CONFIG_FILE")
+            BUNDLE_NAME=$(jq -r '.bundle_name // empty' "$CONFIG_FILE" | tr -d '\r')
+            UPGRADE_BUNDLE=$(jq -r '.upgrade_release_bundle_path // empty' "$CONFIG_FILE" | tr -d '\r')
+            UPGRADE_FILE=$(jq -r '.upgrade_file_path // empty' "$CONFIG_FILE" | tr -d '\r')
             [ -z "$VERSION" ] && { echo "❌ Missing required key in $CONFIG_FILE: version"; exit 1; }
             [ -z "$IMAGE_NAME" ] && { echo "❌ Missing required key in $CONFIG_FILE: image_name (VSA) or mediator_image_name (Mediator)"; exit 1; }
             [ -z "$BUNDLE_NAME" ] && { echo "❌ Missing required key in $CONFIG_FILE: bundle_name"; exit 1; }
@@ -154,15 +156,15 @@ jobs:
           [ -z "$UPGRADE_BUNDLE" ] && { echo "❌ Missing upgrade_release_bundle_path (or release_bucket_prefix) in $CONFIG_FILE"; exit 1; }
           [ -z "$UPGRADE_FILE" ] && { echo "❌ Missing upgrade_file_path (or gc_nv_image_path) in $CONFIG_FILE"; exit 1; }
           # Optional VLM worker (for push-vlm-worker-image job)
-          VLM_PATH=$(jq -r '.vlm_worker_path // empty' "$CONFIG_FILE")
-          VLM_TAG=$(jq -r '.vlm_worker_tag // empty' "$CONFIG_FILE")
+          VLM_PATH=$(jq -r '.vlm_worker_path // empty' "$CONFIG_FILE" | tr -d '\r')
+          VLM_TAG=$(jq -r '.vlm_worker_tag // empty' "$CONFIG_FILE" | tr -d '\r')
           if [ -n "$VLM_PATH" ] && [ -n "$VLM_TAG" ]; then
             VLM_FULL_PATH="gs://cot-releases-public/$UPGRADE_BUNDLE/$VLM_PATH"
             echo "vlm_worker_tar_gz_path=$VLM_FULL_PATH" >> $GITHUB_OUTPUT
             echo "vlm_worker_tag=$VLM_TAG" >> $GITHUB_OUTPUT
           fi
           # Optional RBAC folder path (relative to upgrade_release_bundle_path); copies gcnvadmin_create_cli + gcnvadmin_create_cli.sha256.b64
-          RBAC_FOLDER=$(jq -r '.rbac_folder_path // empty' "$CONFIG_FILE")
+          RBAC_FOLDER=$(jq -r '.rbac_folder_path // empty' "$CONFIG_FILE" | tr -d '\r')
           if [ -n "$RBAC_FOLDER" ]; then
             echo "rbac_folder_path=$RBAC_FOLDER" >> $GITHUB_OUTPUT
           fi
@@ -1144,6 +1146,8 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -1151,14 +1155,18 @@ jobs:
           service_account: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
       - name: Configure gcloud
         run: |
           gcloud config set compute/region ${GCP_REGION}
           gcloud config set core/disable_prompts true
+          gcloud config set project ${PULL_VM_PROJECT}
       - name: Copy upgrade file to destination bucket
         id: copy-upgrade
         run: |
           set -uo pipefail
+          COT_SH="$GITHUB_WORKSPACE/.github/scripts/cot-gcs-via-pull-vm.sh"
           VERSION="${{ needs.resolve-dispatch-inputs.outputs.version }}"
           DEST_BUCKET="${{ needs.resolve-dispatch-inputs.outputs.destination_bucket }}"
           SOURCE_BUCKET="${{ needs.resolve-dispatch-inputs.outputs.source_bucket }}"
@@ -1183,17 +1191,25 @@ jobs:
             echo -n | gsutil cp - "$DEST_UPGRADE_PREFIX/.keep" 2>/dev/null || true
           fi
           copy_success=false
-          if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then copy_success=true; fi
-          if [ "$copy_success" != "true" ] && [ "$IS_AUTOPUSH" != "true" ]; then
-            SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
-            if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true; fi
-            if gsutil -q stat "$COT_URI" 2>/dev/null; then gsutil cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source from COT"; fi
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            if bash "$COT_SH" stat "$COT_URI"; then copy_success=true; fi
+          else
             if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then copy_success=true; fi
+            if [ "$copy_success" != "true" ]; then
+              SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
+              if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true; fi
+              if bash "$COT_SH" stat "$COT_URI"; then bash "$COT_SH" cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source from COT"; fi
+              if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then copy_success=true; fi
+            fi
           fi
           if [ "$copy_success" != "true" ]; then echo "status=skipped" >> $GITHUB_OUTPUT; exit 0; fi
-          gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            bash "$COT_SH" fetch "$COT_URI" /tmp/upgrade_verify.tgz
+          else
+            gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          fi
           verify_ok=false
-          gsutil cat "$COT_CHECKSUM_URI" 2>/dev/null > /tmp/expected_checksum.txt || true
+          bash "$COT_SH" cat "$COT_CHECKSUM_URI" > /tmp/expected_checksum.txt 2>/dev/null || true
           if [ -s /tmp/expected_checksum.txt ]; then
             EXPECTED=$(grep -oE '[a-fA-F0-9]{64}|[a-fA-F0-9]{32}' /tmp/expected_checksum.txt | head -1)
             if [ -n "$EXPECTED" ]; then
@@ -1219,6 +1235,8 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -1226,14 +1244,18 @@ jobs:
           service_account: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
       - name: Configure gcloud
         run: |
           gcloud config set compute/region ${GCP_REGION}
           gcloud config set core/disable_prompts true
+          gcloud config set project ${PULL_VM_PROJECT}
       - name: Copy RBAC files to destination bucket
         id: copy-rbac
         run: |
           set -uo pipefail
+          COT_SH="$GITHUB_WORKSPACE/.github/scripts/cot-gcs-via-pull-vm.sh"
           VERSION="${{ needs.resolve-dispatch-inputs.outputs.version }}"
           DEST_BUCKET="${{ needs.resolve-dispatch-inputs.outputs.destination_bucket }}"
           SOURCE_BUCKET="${{ needs.resolve-dispatch-inputs.outputs.source_bucket }}"
@@ -1261,16 +1283,16 @@ jobs:
           copy_cli=false
           copy_sha=false
           if [ "$IS_AUTOPUSH" = "true" ]; then
-            if gsutil -q stat "$COT_CLI_URI" 2>/dev/null; then copy_cli=true; fi
-            if gsutil -q stat "$COT_SHA_URI" 2>/dev/null; then copy_sha=true; fi
+            if bash "$COT_SH" stat "$COT_CLI_URI"; then copy_cli=true; fi
+            if bash "$COT_SH" stat "$COT_SHA_URI"; then copy_sha=true; fi
           else
             if gsutil -q stat "$SOURCE_CLI_URI" 2>/dev/null; then copy_cli=true; fi
             if gsutil -q stat "$SOURCE_SHA_URI" 2>/dev/null; then copy_sha=true; fi
-            if [ "$copy_cli" != "true" ] && gsutil -q stat "$COT_CLI_URI" 2>/dev/null; then
-              gsutil cp "$COT_CLI_URI" "$SOURCE_CLI_URI" 2>/dev/null && copy_cli=true || true
+            if [ "$copy_cli" != "true" ] && bash "$COT_SH" stat "$COT_CLI_URI"; then
+              bash "$COT_SH" cp "$COT_CLI_URI" "$SOURCE_CLI_URI" && copy_cli=true || true
             fi
-            if [ "$copy_sha" != "true" ] && gsutil -q stat "$COT_SHA_URI" 2>/dev/null; then
-              gsutil cp "$COT_SHA_URI" "$SOURCE_SHA_URI" 2>/dev/null && copy_sha=true || true
+            if [ "$copy_sha" != "true" ] && bash "$COT_SH" stat "$COT_SHA_URI"; then
+              bash "$COT_SH" cp "$COT_SHA_URI" "$SOURCE_SHA_URI" && copy_sha=true || true
             fi
           fi
           if [ "$copy_cli" != "true" ] || [ "$copy_sha" != "true" ]; then
@@ -1278,10 +1300,16 @@ jobs:
             echo "status=skipped" >> $GITHUB_OUTPUT
             exit 0
           fi
-          SRC_CLI="$COT_CLI_URI"; SRC_SHA="$COT_SHA_URI"
-          if [ "$IS_AUTOPUSH" != "true" ]; then SRC_CLI="$SOURCE_CLI_URI"; SRC_SHA="$SOURCE_SHA_URI"; fi
-          gsutil cp "$SRC_CLI" "$DEST_CLI_URI"
-          gsutil cp "$SRC_SHA" "$DEST_SHA_URI"
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            # Fetch via VM (COT read); upload with WIF — impersonated SA cannot gsutil cp into dest (needs objects.list there).
+            bash "$COT_SH" fetch "$COT_CLI_URI" /tmp/gcnvadmin_create_cli
+            bash "$COT_SH" fetch "$COT_SHA_URI" /tmp/gcnvadmin_create_cli.sha256.b64
+            gsutil cp /tmp/gcnvadmin_create_cli "$DEST_CLI_URI"
+            gsutil cp /tmp/gcnvadmin_create_cli.sha256.b64 "$DEST_SHA_URI"
+          else
+            gsutil cp "$SOURCE_CLI_URI" "$DEST_CLI_URI"
+            gsutil cp "$SOURCE_SHA_URI" "$DEST_SHA_URI"
+          fi
           echo "✅ RBAC files copied to $DEST_RBAC_PREFIX/"
           echo "status=success" >> $GITHUB_OUTPUT
 
@@ -1308,14 +1336,18 @@ jobs:
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
       - name: Configure gcloud
         run: |
           gcloud config set compute/region ${GCP_REGION}
           gcloud config set core/disable_prompts true
+          gcloud config set project ${PULL_VM_PROJECT}
       - name: Check upgrade folder and copy if missing
         id: ensure-upgrade
         run: |
           set -uo pipefail
+          COT_SH="$GITHUB_WORKSPACE/.github/scripts/cot-gcs-via-pull-vm.sh"
           VERSION="${{ needs.parse-version-file.outputs.version }}"
           DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
           SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
@@ -1346,19 +1378,23 @@ jobs:
             echo -n | gsutil cp - "$DEST_UPGRADE_PREFIX/.keep" 2>/dev/null || true
           fi
           copy_success=false
-          if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
-            copy_success=true
-          fi
-          if [ "$copy_success" != "true" ] && [ "$IS_AUTOPUSH" != "true" ]; then
-            SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
-            if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
-              echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true
-            fi
-            if gsutil -q stat "$COT_URI" 2>/dev/null; then
-              gsutil cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
-            fi
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            if bash "$COT_SH" stat "$COT_URI"; then copy_success=true; fi
+          else
             if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
               copy_success=true
+            fi
+            if [ "$copy_success" != "true" ]; then
+              SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
+              if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
+                echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true
+              fi
+              if bash "$COT_SH" stat "$COT_URI"; then
+                bash "$COT_SH" cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
+              fi
+              if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+                copy_success=true
+              fi
             fi
           fi
           if [ "$copy_success" != "true" ]; then
@@ -1366,9 +1402,13 @@ jobs:
             echo "status=skipped" >> $GITHUB_OUTPUT
             exit 0
           fi
-          gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            bash "$COT_SH" fetch "$COT_URI" /tmp/upgrade_verify.tgz
+          else
+            gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          fi
           verify_ok=false
-          gsutil cat "$COT_CHECKSUM_URI" 2>/dev/null > /tmp/expected_checksum.txt || true
+          bash "$COT_SH" cat "$COT_CHECKSUM_URI" > /tmp/expected_checksum.txt 2>/dev/null || true
           if [ -s /tmp/expected_checksum.txt ]; then
             EXPECTED=$(grep -oE '[a-fA-F0-9]{64}|[a-fA-F0-9]{32}' /tmp/expected_checksum.txt | head -1)
             if [ -n "$EXPECTED" ]; then
@@ -1404,6 +1444,8 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -1411,14 +1453,18 @@ jobs:
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
       - name: Configure gcloud
         run: |
           gcloud config set compute/region ${GCP_REGION}
           gcloud config set core/disable_prompts true
+          gcloud config set project ${PULL_VM_PROJECT}
       - name: Check RBAC folder and copy if missing
         id: ensure-rbac
         run: |
           set -uo pipefail
+          COT_SH="$GITHUB_WORKSPACE/.github/scripts/cot-gcs-via-pull-vm.sh"
           VERSION="${{ needs.parse-version-file.outputs.version }}"
           DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
           SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
@@ -1447,16 +1493,16 @@ jobs:
           copy_cli=false
           copy_sha=false
           if [ "$IS_AUTOPUSH" = "true" ]; then
-            if gsutil -q stat "$COT_CLI_URI" 2>/dev/null; then copy_cli=true; fi
-            if gsutil -q stat "$COT_SHA_URI" 2>/dev/null; then copy_sha=true; fi
+            if bash "$COT_SH" stat "$COT_CLI_URI"; then copy_cli=true; fi
+            if bash "$COT_SH" stat "$COT_SHA_URI"; then copy_sha=true; fi
           else
             if gsutil -q stat "$SOURCE_CLI_URI" 2>/dev/null; then copy_cli=true; fi
             if gsutil -q stat "$SOURCE_SHA_URI" 2>/dev/null; then copy_sha=true; fi
-            if [ "$copy_cli" != "true" ] && gsutil -q stat "$COT_CLI_URI" 2>/dev/null; then
-              gsutil cp "$COT_CLI_URI" "$SOURCE_CLI_URI" 2>/dev/null && copy_cli=true || true
+            if [ "$copy_cli" != "true" ] && bash "$COT_SH" stat "$COT_CLI_URI"; then
+              bash "$COT_SH" cp "$COT_CLI_URI" "$SOURCE_CLI_URI" && copy_cli=true || true
             fi
-            if [ "$copy_sha" != "true" ] && gsutil -q stat "$COT_SHA_URI" 2>/dev/null; then
-              gsutil cp "$COT_SHA_URI" "$SOURCE_SHA_URI" 2>/dev/null && copy_sha=true || true
+            if [ "$copy_sha" != "true" ] && bash "$COT_SH" stat "$COT_SHA_URI"; then
+              bash "$COT_SH" cp "$COT_SHA_URI" "$SOURCE_SHA_URI" && copy_sha=true || true
             fi
           fi
           if [ "$copy_cli" != "true" ] || [ "$copy_sha" != "true" ]; then
@@ -1464,10 +1510,15 @@ jobs:
             echo "status=skipped" >> $GITHUB_OUTPUT
             exit 0
           fi
-          SRC_CLI="$COT_CLI_URI"; SRC_SHA="$COT_SHA_URI"
-          if [ "$IS_AUTOPUSH" != "true" ]; then SRC_CLI="$SOURCE_CLI_URI"; SRC_SHA="$SOURCE_SHA_URI"; fi
-          gsutil cp "$SRC_CLI" "$DEST_CLI_URI"
-          gsutil cp "$SRC_SHA" "$DEST_SHA_URI"
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            bash "$COT_SH" fetch "$COT_CLI_URI" /tmp/gcnvadmin_create_cli
+            bash "$COT_SH" fetch "$COT_SHA_URI" /tmp/gcnvadmin_create_cli.sha256.b64
+            gsutil cp /tmp/gcnvadmin_create_cli "$DEST_CLI_URI"
+            gsutil cp /tmp/gcnvadmin_create_cli.sha256.b64 "$DEST_SHA_URI"
+          else
+            gsutil cp "$SOURCE_CLI_URI" "$DEST_CLI_URI"
+            gsutil cp "$SOURCE_SHA_URI" "$DEST_SHA_URI"
+          fi
           echo "✅ RBAC files copied to $DEST_RBAC_PREFIX/"
           echo "status=success" >> $GITHUB_OUTPUT
 

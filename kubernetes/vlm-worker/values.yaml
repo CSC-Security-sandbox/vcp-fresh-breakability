@@ -82,7 +82,10 @@ workerConfig:
   # Encryption key must be a 32-byte (256-bit) string for AES-256.
   vsaVlmEncryptionKey: "" # Should be the same as in the vcp-worker values.yaml.
   gceMetadataHost: ""
-  enableGlobalGcpClients: "true"
+  # When "true", VLM may reuse singleton GCP API clients; access tokens expire (~30–60m) and
+  # Compute calls can fail with ACCESS_TOKEN_EXPIRED until pods restart. Prefer "false" so
+  # credentials refresh for long-running workers (see vlm-worker ConfigMap ENABLE_GLOBAL_GCP_CLIENTS).
+  enableGlobalGcpClients: "false"
   useVmReservations: "true"
 
 #Enabling or Disabling Secret Manager for Microservice Secrets

@@ -42,6 +42,7 @@ env:
   GCP_ZONE: 'us-central1-a'
   PULL_VM_PROJECT: 'gcnv-vsa-prod'
   PULL_VM_NAME: 'vsa-pull-image-instance'
+  COT_IMPERSONATE_SA: 'gcnv-vsa-image-sa@gcnv-vsa-prod.iam.gserviceaccount.com'
 
 jobs:
   parse-version-file:
@@ -630,11 +631,14 @@ jobs:
       
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
       
       - name: Configure gcloud
         run: |
           gcloud config set compute/region ${GCP_REGION}
           gcloud config set core/disable_prompts true
+          gcloud config set project ${PULL_VM_PROJECT}
       
       - name: Determine source URI
         id: determine-source
@@ -794,6 +798,7 @@ jobs:
         if: inputs.upgrade_release_bundle_path != '' && inputs.upgrade_file_path != ''
         run: |
           set -uo pipefail
+          COT_SH="$GITHUB_WORKSPACE/.github/scripts/cot-gcs-via-pull-vm.sh"
           
           VERSION="${{ needs.parse-version-file.outputs.version }}"
           DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
@@ -837,7 +842,9 @@ jobs:
           
           # 3) Resolve source: try current source, then for staging/prod populate from COT and retry
           copy_success=false
-          if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            if bash "$COT_SH" stat "$COT_URI"; then copy_success=true; fi
+          elif gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
             copy_success=true
           fi
           if [ "$copy_success" != "true" ]; then
@@ -849,8 +856,8 @@ jobs:
               if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
                 echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true
               fi
-              if gsutil -q stat "$COT_URI" 2>/dev/null; then
-                gsutil cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
+              if bash "$COT_SH" stat "$COT_URI"; then
+                bash "$COT_SH" cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
               fi
               if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
                 copy_success=true
@@ -892,11 +899,15 @@ jobs:
           fi
           
           # 4) Download file from source to temp for checksum verification
-          gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            bash "$COT_SH" fetch "$COT_URI" /tmp/upgrade_verify.tgz
+          else
+            gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          fi
           
           # 5) Checksum verification (COT cot.checksum.ONTAP-*.txt): detect algorithm by length (MD5=32, SHA256=64)
           verify_ok=false
-          gsutil cat "$COT_CHECKSUM_URI" 2>/dev/null > /tmp/expected_checksum.txt || true
+          bash "$COT_SH" cat "$COT_CHECKSUM_URI" > /tmp/expected_checksum.txt 2>/dev/null || true
           if [ -s /tmp/expected_checksum.txt ]; then
             EXPECTED=$(grep -oE '[a-fA-F0-9]{64}|[a-fA-F0-9]{32}' /tmp/expected_checksum.txt | head -1)
             if [ -n "$EXPECTED" ]; then
@@ -968,14 +979,18 @@ jobs:
           service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
       - name: Configure gcloud
         run: |
           gcloud config set compute/region ${GCP_REGION}
           gcloud config set core/disable_prompts true
+          gcloud config set project ${PULL_VM_PROJECT}
       - name: Check upgrade folder and copy if missing
         id: ensure-upgrade
         run: |
           set -uo pipefail
+          COT_SH="$GITHUB_WORKSPACE/.github/scripts/cot-gcs-via-pull-vm.sh"
           VERSION="${{ needs.parse-version-file.outputs.version }}"
           DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
           SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
@@ -1006,19 +1021,23 @@ jobs:
             echo -n | gsutil cp - "$DEST_UPGRADE_PREFIX/.keep" 2>/dev/null || true
           fi
           copy_success=false
-          if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
-            copy_success=true
-          fi
-          if [ "$copy_success" != "true" ] && [ "$IS_AUTOPUSH" != "true" ]; then
-            SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
-            if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
-              echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true
-            fi
-            if gsutil -q stat "$COT_URI" 2>/dev/null; then
-              gsutil cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
-            fi
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            if bash "$COT_SH" stat "$COT_URI"; then copy_success=true; fi
+          else
             if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
               copy_success=true
+            fi
+            if [ "$copy_success" != "true" ]; then
+              SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
+              if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
+                echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true
+              fi
+              if bash "$COT_SH" stat "$COT_URI"; then
+                bash "$COT_SH" cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
+              fi
+              if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+                copy_success=true
+              fi
             fi
           fi
           if [ "$copy_success" != "true" ]; then
@@ -1026,9 +1045,13 @@ jobs:
             echo "status=skipped" >> $GITHUB_OUTPUT
             exit 0
           fi
-          gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            bash "$COT_SH" fetch "$COT_URI" /tmp/upgrade_verify.tgz
+          else
+            gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          fi
           verify_ok=false
-          gsutil cat "$COT_CHECKSUM_URI" 2>/dev/null > /tmp/expected_checksum.txt || true
+          bash "$COT_SH" cat "$COT_CHECKSUM_URI" > /tmp/expected_checksum.txt 2>/dev/null || true
           if [ -s /tmp/expected_checksum.txt ]; then
             EXPECTED=$(grep -oE '[a-fA-F0-9]{64}|[a-fA-F0-9]{32}' /tmp/expected_checksum.txt | head -1)
             if [ -n "$EXPECTED" ]; then

@@ -94,6 +94,8 @@ spec:
               value: "6"
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
+            - name: ENABLE_GLOBAL_GCP_CLIENTS
+              value: "false"
         - name: vlm-worker-patch
           image: ghcr.io/vcp-vsa-control-plane/temporal-vlm:R9.17.1x_7855269
           env:
@@ -117,6 +119,8 @@ spec:
               value: "6"
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
+            - name: ENABLE_GLOBAL_GCP_CLIENTS
+              value: "false"
         - name: vlm-worker-files
           image: ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:R9.18.1x_8073152
           env:
@@ -140,5 +144,7 @@ spec:
               value: "6"
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
+            - name: ENABLE_GLOBAL_GCP_CLIENTS
+              value: "false"
       imagePullSecrets:
         - name: ghcr-secret
