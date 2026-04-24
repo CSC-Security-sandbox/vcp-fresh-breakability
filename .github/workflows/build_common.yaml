@@ -483,13 +483,29 @@ jobs:
           fi
           echo "No existing release found for ${TAG} (HTTP ${HTTP_CODE}), creating..."
 
-          # Try to create the release
-          if gh release create -R "https://github.com/${REPO}" \
+          # Try to create the release with auto-generated notes
+          CREATE_OUTPUT=$(gh release create -R "https://github.com/${REPO}" \
               --generate-notes \
               ${{ inputs.pre_release && '--prerelease' || '' }} \
               "${TAG}" \
-              --target "${{ inputs.pr_base_branch }}"; then
+              --target "${{ inputs.pr_base_branch }}" 2>&1) && CREATE_RC=0 || CREATE_RC=$?
+
+          if [ "$CREATE_RC" = "0" ]; then
             echo "Successfully created release ${TAG}"
+          elif echo "$CREATE_OUTPUT" | grep -qi "body is too long"; then
+            # Auto-generated notes exceeded 125000-char limit; retry without notes
+            echo "Auto-generated notes exceeded GitHub size limit, retrying without notes..."
+            RELEASE_BODY="Release ${TAG} (auto-generated notes omitted: too many commits since last release)."
+            if gh release create -R "https://github.com/${REPO}" \
+                --notes "${RELEASE_BODY}" \
+                ${{ inputs.pre_release && '--prerelease' || '' }} \
+                "${TAG}" \
+                --target "${{ inputs.pr_base_branch }}"; then
+              echo "Successfully created release ${TAG} (without auto-generated notes)"
+            else
+              echo "Failed to create release ${TAG} on retry"
+              exit 1
+            fi
           else
             # Double-check if it was created by a concurrent build
             RETRY_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -501,6 +517,7 @@ jobs:
               exit 0
             else
               echo "Failed to create release ${TAG}"
+              echo "Error output: $CREATE_OUTPUT"
               exit 1
             fi
           fi
