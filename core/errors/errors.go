@@ -178,6 +178,7 @@ const (
 	ErrSplitCloneNoSpace               = 5062
 	ErrSplitCloneJobKilled             = 5063
 	ErrSplitCloneJobFailed             = 5064
+	ErrSplitInitiationFailed           = 5065
 
 	// Unclassified ONTAP errors per domain (fallback when no rule matches)
 	ErrLDAPUnclassified     = 5101

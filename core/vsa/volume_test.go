@@ -4477,7 +4477,7 @@ func TestInitiateSplitVolume(t *testing.T) {
 		assert.Contains(t, err.Error(), "client error")
 	})
 
-	t.Run("WhenVolumeModifyFails_ReturnsWrappedError", func(t *testing.T) {
+	t.Run("WhenVolumeModifyFails_ReturnsError", func(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Storage").Return(mockStorage)
@@ -4488,12 +4488,14 @@ func TestInitiateSplitVolume(t *testing.T) {
 			return mockClient, nil
 		}
 
-		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("modify failed"))
+		modifyErr := errors.New("modify failed")
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, modifyErr)
 
 		rc := &OntapRestProvider{}
 		jobUUID, err := rc.InitiateSplitVolume("vol-uuid")
 		assert.Error(t, err)
 		assert.Equal(t, "", jobUUID)
+		assert.Same(t, modifyErr, err)
 		mockStorage.AssertExpectations(t)
 	})
 

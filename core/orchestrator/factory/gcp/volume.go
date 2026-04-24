@@ -3861,7 +3861,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 	ontapJobUUID, err := provider.InitiateSplitVolume(volume.VolumeAttributes.ExternalUUID)
 	if err != nil {
 		logger.Errorf("Failed to initiate split for volume %s in ONTAP: %v", volume.Name, err)
-		return nil, "", err
+		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrSplitInitiationFailed, err)
 	}
 	// Mark split as initiated so the defer knows ONTAP data movement has begun.
 	splitInitiated = true

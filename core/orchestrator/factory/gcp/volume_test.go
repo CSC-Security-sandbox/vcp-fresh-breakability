@@ -37013,8 +37013,10 @@ func TestSplitStartVolume_InitiateSplitVolumeFails_OntapError(t *testing.T) {
 
 	_, _, err = _splitStartVolume(ctx, store, nil, params)
 	assert.Error(t, err)
-	// The error is an ONTAP-range error from InitiateSplitVolume.
-	assert.True(t, isOntapError(err))
+	wrappedErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(t, wrappedErr)
+	assert.Equal(t, vsaerrors.ErrSplitInitiationFailed, wrappedErr.TrackingID)
+	assert.True(t, errors2.Is(err, ontapErr)) // original error preserved via Unwrap
 	mockProvider.AssertExpectations(t)
 }
 
@@ -37116,7 +37118,10 @@ func TestSplitStartVolume_InitiateSplitVolumeFails_NonOntapError(t *testing.T) {
 
 	_, _, err = _splitStartVolume(ctx, store, nil, params)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "network timeout")
+	wrappedErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(t, wrappedErr)
+	assert.Equal(t, vsaerrors.ErrSplitInitiationFailed, wrappedErr.TrackingID)
+	assert.True(t, errors2.Is(err, nonOntapErr))
 	mockProvider.AssertExpectations(t)
 }
 

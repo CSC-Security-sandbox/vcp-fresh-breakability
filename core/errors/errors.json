@@ -755,6 +755,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "5065": {
+    "description": "Clone split initiation failed in ONTAP",
+    "message": "Clone split initiation failed in the backend. Please retry the split operation.",
+    "retriable": false,
+    "http_code": 500
+  },
   "5101": {
     "description": "Unclassified LDAP error",
     "message": "An error occurred during LDAP configuration. Please verify your settings and try again.",

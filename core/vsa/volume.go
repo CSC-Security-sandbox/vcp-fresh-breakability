@@ -590,7 +590,7 @@ func (rc *OntapRestProvider) InitiateSplitVolume(volumeUUID string) (string, err
 	}
 	success, job, err := client.Storage().VolumeModify(volumeModifyParams)
 	if err != nil {
-		return "", vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+		return "", err
 	}
 	if success || job == nil {
 		// ONTAP completed synchronously or returned no job — treat as success with no job UUID.
