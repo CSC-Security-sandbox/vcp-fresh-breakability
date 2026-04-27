@@ -110,6 +110,12 @@ on:
       GCP_ontap_proxy_HELM_URL:
         description: "URL of the ontap-proxy chart in GCP"
         value: ${{ jobs.build_and_publish.outputs.GCP_ontap_proxy_HELM_URL }}
+      GHCR_oci_proxy_URL:
+        description: "URL of the oci-proxy image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_oci_proxy_URL }}
+      GHCR_oci_proxy_HELM_URL:
+        description: "URL of the oci-proxy chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_oci_proxy_HELM_URL }}
       GHCR_vcp_worker_BINARY_URL:
         description: "URL of the vcp-worker binary OCI artifact in GHCR"
         value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_worker_BINARY_URL }}
@@ -166,6 +172,8 @@ jobs:
       GHCR_ontap_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_ontap-proxy-chart_HELM_URL }}
       GCP_ontap_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_ontap-proxy-chart_HELM_URL }}
       GHCR_vcp_worker_BINARY_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_BINARY_URL }}
+      GHCR_oci_proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-proxy_URL }}
+      GHCR_oci_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-proxy_HELM_URL }}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -230,6 +238,7 @@ jobs:
           ALL_DIGESTS_EXIST=1
           IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           for IMAGE in "${IMAGES[@]}"; do
+              [[ "$IMAGE" == "oci-proxy" ]] && continue
               gcpDigest=$(docker inspect "$IMAGE:${{ inputs.tag }}" | jq -r '.[] | .RepoDigests[] | select(contains("-docker.pkg.dev"))')
               echo "gcp digest is $gcpDigest"
               if [[ -n "$gcpDigest" ]]; then
@@ -266,7 +275,20 @@ jobs:
           IMAGE_PATH: ${{ vars.AR_IMAGE_PATH }}
           IMAGES_TAG: ${{ inputs.tag }}
           GCP_REGION: ${{ vars.AR_GCP_REGION }}
-        run: vsacictl images push "${{ inputs.images_to_build }}" 
+        shell: bash -e {0}
+        run: |
+          IMAGES_TO_PUSH=$(echo "${{ inputs.images_to_build }}" | tr ',' '\n' | grep -v '^oci-proxy$' | tr '\n' ',' | sed 's/,$//')
+          if [[ -n "$IMAGES_TO_PUSH" ]]; then
+            vsacictl images push "$IMAGES_TO_PUSH"
+          fi
+
+      - name: Push oci-proxy image to GHCR only
+        env:
+          GHCR_ORG: vcp-vsa-control-plane
+          IMAGE_PATH: ${{ vars.AR_IMAGE_PATH }}
+          IMAGES_TAG: ${{ inputs.tag }}
+        run: vsacictl images push "oci-proxy" --registry ghcr
+        shell: bash -e {0}
 
       - name: Get image digest via GitHub API
         id: get-digest
@@ -278,6 +300,7 @@ jobs:
           token_value=$(echo "$token" | jq -r '.token')
           
           IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
+          IMAGES+=("oci-proxy")
           for IMAGE in "${IMAGES[@]}"; do
             # Retrieve the manifest digest from Docker-Content-Digest header instead of config digest.
             # Cosign v3 requires the manifest digest for signing operations.
@@ -298,6 +321,7 @@ jobs:
         run: |
           IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           for IMAGE in "${IMAGES[@]}"; do
+            [[ "$IMAGE" == "oci-proxy" ]] && continue
             DIGEST=$(gcloud artifacts docker images describe ${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }} \
               --format="value(image_summary.digest)")
     
@@ -317,6 +341,7 @@ jobs:
           IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           
           for IMAGE in "${IMAGES[@]}"; do
+            [[ "$IMAGE" == "oci-proxy" ]] && continue
             # Sign GHCR image
             ghcr_digest=$(printenv "${IMAGE}-digest")
             echo "Signing GHCR image: ${IMAGE}@${ghcr_digest}"
@@ -333,6 +358,14 @@ jobs:
               echo "Warning: No GCP artifact URL found for ${IMAGE}"
             fi
           done
+        shell: bash -e {0}
+
+      - name: Sign oci-proxy image (GHCR only)
+        run: |
+          ghcr_digest=$(printenv "oci-proxy-digest")
+          echo "Signing GHCR image: oci-proxy@${ghcr_digest}"
+          COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/oci-proxy@$ghcr_digest --tlog-upload=false
+          cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/oci-proxy@$ghcr_digest --insecure-ignore-tlog=true
         shell: bash -e {0}
 
       - name: Push vcp-worker binary as OCI artifact to GHCR
@@ -399,7 +432,7 @@ jobs:
       - name: Package Helm Charts
         if: ${{ inputs.push_charts }}
         run: |
-          charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker ontap-proxy )
+          charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker ontap-proxy OCI/oci-proxy )
           # Only include temporal chart when building from main branch to prevent
           # release branches from overwriting the current temporal tag with older code
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
@@ -432,6 +465,10 @@ jobs:
           for CHART in ./helm-packages/*.tgz; do
             if grep -q "temporal" <<< "${CHART}" ; then
               helm push $CHART oci://${{ vars.AR_TEMPORAL_HELM_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_TEMPORAL_HELM_REPO}}
+              continue
+            fi
+            if grep -q "oci-proxy" <<< "${CHART}" ; then
+              echo "Skipping GCP AR push for oci-proxy chart (GHCR only)"
               continue
             fi
             helm push $CHART oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_HELM_PATH}}
@@ -569,13 +606,17 @@ jobs:
           IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           for IMAGE in "${IMAGES[@]}"; do
             echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
-            echo "GCP_${IMAGE}_URL=${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            if [[ "$IMAGE" != "oci-proxy" ]]; then
+              echo "GCP_${IMAGE}_URL=${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            fi
           done
+          echo "GHCR_oci-proxy_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/oci-proxy:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           CHARTS=("vsa-control-plane" "vcp-worker-chart" "vsa-harvest-otel" "vlm-worker" "ontap-proxy")
           for CHART in "${CHARTS[@]}"; do
             echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
             echo "GCP_${CHART}_HELM_URL=oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_HELM_PATH }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           done
+          echo "GHCR_oci-proxy_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}/oci-proxy:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           echo "GHCR_vcp-worker_BINARY_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_BINARY_PATH }}/vcp-worker:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           
 
