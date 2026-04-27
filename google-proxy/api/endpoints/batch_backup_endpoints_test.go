@@ -102,7 +102,7 @@ func TestV1betaBatchListBackups_Auth(t *testing.T) {
 			"Authorization": []string{"invalid-jwt-token"},
 		})
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"deadbeef-1111-1111-1111-111111111111"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(ctx, req, params)
@@ -120,7 +120,7 @@ func TestV1betaBatchListBackups_Auth(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"deadbeef-1111-1111-1111-111111111111"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(context.Background(), req, params)
@@ -143,7 +143,7 @@ func TestV1betaBatchListBackups_Validation(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"deadbeef-1111-1111-1111-111111111111"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -163,7 +163,7 @@ func TestV1betaBatchListBackups_Validation(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"deadbeef-1111-1111-1111-111111111111"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "invalid location!"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -233,6 +233,55 @@ func TestV1betaBatchListBackups_Validation(t *testing.T) {
 		require.True(tt, ok)
 		assert.Contains(tt, badReq.Message, "at most")
 	})
+
+	t.Run("MalformedUUID_ReturnsBadRequestBeforeFetching", func(tt *testing.T) {
+		withBackupEnabled(tt)
+		restore := stubParseRegionAndZone()
+		defer restore()
+		restoreAuth := stubBatchAuth(true)
+		defer restoreAuth()
+
+		// The orchestrator must never be called when the request fails UUID
+		// format validation; an unset mock would error out if it were.
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
+		handler := &Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{
+			"10000000-0000-0000-0000-000000000001",
+			"not-a-uuid",
+		}}
+		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
+
+		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
+		require.NoError(tt, err)
+		badReq, ok := res.(*gcpgenserver.V1betaBatchListBackupsBadRequest)
+		require.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		// The message must call out the offending index in the original request
+		// (1 here) and embed the UUID regex so clients know what to fix.
+		assert.Contains(tt, badReq.Message, "backupUUIDs.1 in body should match")
+		assert.Contains(tt, badReq.Message, "[a-fA-F0-9]{8}")
+	})
+
+	t.Run("EmptyStringUUID_ReturnsBadRequest", func(tt *testing.T) {
+		withBackupEnabled(tt)
+		restore := stubParseRegionAndZone()
+		defer restore()
+		restoreAuth := stubBatchAuth(true)
+		defer restoreAuth()
+
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
+		handler := &Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{""}}
+		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
+
+		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
+		require.NoError(tt, err)
+		badReq, ok := res.(*gcpgenserver.V1betaBatchListBackupsBadRequest)
+		require.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "backupUUIDs.0 in body should match")
+	})
 }
 
 func toString(i int) string {
@@ -264,11 +313,11 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		b := makeVCPBackup("bk-1", "resource-1", coremodels.LifeCycleStateAvailable)
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1"}).
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", coremodels.LifeCycleStateAvailable)
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001"}).
 			Return([]*datamodel.Backup{b}, nil)
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{
 			LocationId: "us-east4",
 			Fields: []gcpgenserver.V1betaBatchListBackupsFieldsItem{
@@ -282,11 +331,11 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		require.True(tt, ok)
 		require.Len(tt, okRes.Backups, 1)
 		got := okRes.Backups[0]
-		assert.Equal(tt, "bk-1", got.BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", got.BackupId.Value)
 		assert.Equal(tt, "resource-1", got.ResourceId.Value)
-		assert.Equal(tt, "vol-bk-1", got.VolumeId.Value)
+		assert.Equal(tt, "vol-10000000-0000-0000-0000-000000000001", got.VolumeId.Value)
 		assert.Equal(tt, int64(1024), got.VolumeUsageBytes.Value)
-		assert.Equal(tt, "bv-bk-1", got.BackupVaultId.Value)
+		assert.Equal(tt, "bv-10000000-0000-0000-0000-000000000001", got.BackupVaultId.Value)
 		assert.Equal(tt, gcpgenserver.BatchBackupV1betaStateREADY, got.State.Value)
 		assert.False(tt, got.Description.Set, "description not requested, must be stripped")
 	})
@@ -302,11 +351,11 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		b := makeVCPBackup("bk-1", "resource-1", coremodels.LifeCycleStateAvailable)
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1"}).
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", coremodels.LifeCycleStateAvailable)
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001"}).
 			Return([]*datamodel.Backup{b}, nil)
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -314,7 +363,7 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		okRes, ok := res.(*gcpgenserver.V1betaBatchListBackupsOK)
 		require.True(tt, ok)
 		require.Len(tt, okRes.Backups, 1)
-		assert.Equal(tt, "bk-1", okRes.Backups[0].BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", okRes.Backups[0].BackupId.Value)
 		assert.False(tt, okRes.Backups[0].ResourceId.Set)
 		assert.False(tt, okRes.Backups[0].State.Set)
 	})
@@ -329,10 +378,10 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"uuid-1"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"deadbeef-1111-1111-1111-111111111111"}).
 			Return(nil, errors.New("database error"))
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"deadbeef-1111-1111-1111-111111111111"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -353,14 +402,14 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		// Datastore returns rows in a different order than the request. The response must still
 		// match request order so positional consumers see stable indexing across all modes.
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1", "bk-2", "bk-3"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002", "30000000-0000-0000-0000-000000000003"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("bk-3", "r3", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("bk-1", "r1", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("bk-2", "r2", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("30000000-0000-0000-0000-000000000003", "r3", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", coremodels.LifeCycleStateAvailable),
 			}, nil)
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1", "bk-2", "bk-3"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002", "30000000-0000-0000-0000-000000000003"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -368,9 +417,9 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		okRes, ok := res.(*gcpgenserver.V1betaBatchListBackupsOK)
 		require.True(tt, ok)
 		require.Len(tt, okRes.Backups, 3)
-		assert.Equal(tt, "bk-1", okRes.Backups[0].BackupId.Value)
-		assert.Equal(tt, "bk-2", okRes.Backups[1].BackupId.Value)
-		assert.Equal(tt, "bk-3", okRes.Backups[2].BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", okRes.Backups[0].BackupId.Value)
+		assert.Equal(tt, "20000000-0000-0000-0000-000000000002", okRes.Backups[1].BackupId.Value)
+		assert.Equal(tt, "30000000-0000-0000-0000-000000000003", okRes.Backups[2].BackupId.Value)
 	})
 
 	t.Run("DuplicateUUIDs_AreDeduplicatedBeforeFetch", func(tt *testing.T) {
@@ -384,13 +433,13 @@ func TestV1betaBatchListBackups_VCPOnly(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 		// Expect the deduplicated list only.
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1", "bk-2"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("bk-1", "r1", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("bk-2", "r2", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", coremodels.LifeCycleStateAvailable),
 			}, nil)
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1", "bk-1", "bk-2"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001", "10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -418,19 +467,19 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 		// CVP returns rows for both UUIDs; VCP also returns the first one.
 		// Post-merge we expect the VCP-owned row for bk-1 and the CVP row for cvp-only.
 		restoreCVP := stubFetchBatchBackupsFromCVP([]gcpgenserver.BatchBackupV1beta{
-			makeCVPBatchBackupModel("bk-1", "cvp-version-should-be-overridden"),
-			makeCVPBatchBackupModel("cvp-only", "cvp-only-res"),
+			makeCVPBatchBackupModel("10000000-0000-0000-0000-000000000001", "cvp-version-should-be-overridden"),
+			makeCVPBatchBackupModel("c0000000-0000-0000-0000-cccccccccccc", "cvp-only-res"),
 		}, nil)
 		defer restoreCVP()
 
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1", "cvp-only"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001", "c0000000-0000-0000-0000-cccccccccccc"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("bk-1", "vcp-res", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "vcp-res", coremodels.LifeCycleStateAvailable),
 			}, nil)
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1", "cvp-only"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001", "c0000000-0000-0000-0000-cccccccccccc"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{
 			LocationId: "us-east4",
 			Fields:     []gcpgenserver.V1betaBatchListBackupsFieldsItem{"resourceId"},
@@ -443,9 +492,9 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 		require.Len(tt, okRes.Backups, 2)
 
 		// Ordered by the request UUID order.
-		assert.Equal(tt, "bk-1", okRes.Backups[0].BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", okRes.Backups[0].BackupId.Value)
 		assert.Equal(tt, "vcp-res", okRes.Backups[0].ResourceId.Value, "VCP data must win on merge")
-		assert.Equal(tt, "cvp-only", okRes.Backups[1].BackupId.Value)
+		assert.Equal(tt, "c0000000-0000-0000-0000-cccccccccccc", okRes.Backups[1].BackupId.Value)
 		assert.Equal(tt, "cvp-only-res", okRes.Backups[1].ResourceId.Value)
 	})
 
@@ -459,16 +508,16 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 		defer func() { cvp.CVP_HOST = "" }()
 
 		restoreCVP := stubFetchBatchBackupsFromCVP([]gcpgenserver.BatchBackupV1beta{
-			makeCVPBatchBackupModel("bk-1", "cvp-res"),
+			makeCVPBatchBackupModel("10000000-0000-0000-0000-000000000001", "cvp-res"),
 		}, nil)
 		defer restoreCVP()
 
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001"}).
 			Return(nil, errors.New("VCP database error"))
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{
 			LocationId: "us-east4",
 			Fields:     []gcpgenserver.V1betaBatchListBackupsFieldsItem{"resourceId"},
@@ -479,7 +528,7 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 		okRes, ok := res.(*gcpgenserver.V1betaBatchListBackupsOK)
 		require.True(tt, ok)
 		require.Len(tt, okRes.Backups, 1)
-		assert.Equal(tt, "bk-1", okRes.Backups[0].BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", okRes.Backups[0].BackupId.Value)
 		assert.Equal(tt, "cvp-res", okRes.Backups[0].ResourceId.Value)
 	})
 
@@ -497,12 +546,12 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("bk-1", "vcp-res", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "vcp-res", coremodels.LifeCycleStateAvailable),
 			}, nil)
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{
 			LocationId: "us-east4",
 			Fields:     []gcpgenserver.V1betaBatchListBackupsFieldsItem{"resourceId"},
@@ -530,10 +579,10 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001"}).
 			Return(nil, errors.New("VCP down"))
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -558,14 +607,14 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"bk-1", "bk-2", "bk-3"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002", "30000000-0000-0000-0000-000000000003"}).
 			Return([]*datamodel.Backup{
-				makeVCPBackup("bk-3", "r3", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("bk-1", "r1", coremodels.LifeCycleStateAvailable),
-				makeVCPBackup("bk-2", "r2", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("30000000-0000-0000-0000-000000000003", "r3", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("10000000-0000-0000-0000-000000000001", "r1", coremodels.LifeCycleStateAvailable),
+				makeVCPBackup("20000000-0000-0000-0000-000000000002", "r2", coremodels.LifeCycleStateAvailable),
 			}, nil)
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"bk-1", "bk-2", "bk-3"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002", "30000000-0000-0000-0000-000000000003"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -574,9 +623,9 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 		require.True(tt, ok)
 		require.NotNil(tt, okRes.Backups, "Backups slice must be non-nil so the encoder emits \"backups\": [...]")
 		require.Len(tt, okRes.Backups, 3)
-		assert.Equal(tt, "bk-1", okRes.Backups[0].BackupId.Value)
-		assert.Equal(tt, "bk-2", okRes.Backups[1].BackupId.Value)
-		assert.Equal(tt, "bk-3", okRes.Backups[2].BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", okRes.Backups[0].BackupId.Value)
+		assert.Equal(tt, "20000000-0000-0000-0000-000000000002", okRes.Backups[1].BackupId.Value)
+		assert.Equal(tt, "30000000-0000-0000-0000-000000000003", okRes.Backups[2].BackupId.Value)
 	})
 
 	t.Run("BothReturnEmpty_ReturnsEmptyArray", func(tt *testing.T) {
@@ -593,10 +642,10 @@ func TestV1betaBatchListBackups_Parallel(t *testing.T) {
 
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
-		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"nonexistent"}).
+		mockOrch.On("GetBackupsByUUIDs", mock.Anything, []string{"f0000000-0000-0000-0000-ffffffffffff"}).
 			Return([]*datamodel.Backup{}, nil)
 
-		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"nonexistent"}}
+		req := &gcpgenserver.BatchBackupUUIDListV1beta{BackupUUIDs: []string{"f0000000-0000-0000-0000-ffffffffffff"}}
 		params := gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackups(authContext(), req, params)
@@ -653,21 +702,21 @@ func TestMapBackupStateToBatchState(t *testing.T) {
 }
 
 func TestConvertBackupToBatchBackup_FieldMaskRemovesUnrequested(t *testing.T) {
-	b := makeVCPBackup("bk-1", "resource-1", coremodels.LifeCycleStateAvailable)
+	b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "resource-1", coremodels.LifeCycleStateAvailable)
 	fieldSet := map[string]bool{"resourceId": true, "volumeId": true}
 
 	out := convertBackupToBatchBackup(b, fieldSet)
 
-	assert.Equal(t, "bk-1", out.BackupId.Value)
+	assert.Equal(t, "10000000-0000-0000-0000-000000000001", out.BackupId.Value)
 	assert.Equal(t, "resource-1", out.ResourceId.Value)
-	assert.Equal(t, "vol-bk-1", out.VolumeId.Value)
+	assert.Equal(t, "vol-10000000-0000-0000-0000-000000000001", out.VolumeId.Value)
 	assert.False(t, out.Description.Set)
 	assert.False(t, out.VolumeUsageBytes.Set)
 	assert.False(t, out.BackupVaultId.Set)
 }
 
 func TestApplyBatchBackupFieldQuery_MissingRequestedFieldsEmittedAsNull(t *testing.T) {
-	bp := gcpgenserver.BatchBackupV1beta{BackupId: gcpgenserver.NewOptString("bk-1")}
+	bp := gcpgenserver.BatchBackupV1beta{BackupId: gcpgenserver.NewOptString("10000000-0000-0000-0000-000000000001")}
 	applyBatchBackupFieldQuery(&bp, map[string]bool{
 		"resourceId":               true,
 		"description":              true,
@@ -691,7 +740,7 @@ func TestApplyBatchBackupFieldQuery_MissingRequestedFieldsEmittedAsNull(t *testi
 	assert.Contains(t, js, `"created":null`)
 	assert.Contains(t, js, `"enforcedRetentionEndTime":null`)
 	// backupId is always preserved and carries the real value.
-	assert.Contains(t, js, `"backupId":"bk-1"`)
+	assert.Contains(t, js, `"backupId":"10000000-0000-0000-0000-000000000001"`)
 	// Non-requested fields must be omitted entirely.
 	assert.NotContains(t, js, `"volumeId"`)
 	assert.NotContains(t, js, `"backupType"`)
@@ -711,7 +760,7 @@ func TestIndexBatchBackupsByUUID_SkipsUnsetIDs(t *testing.T) {
 
 func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 	t.Run("WithChildAssets_Emitted", func(tt *testing.T) {
-		b := makeVCPBackup("bk-1", "res-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", coremodels.LifeCycleStateAvailable)
 		b.AssetMetadata = &datamodel.AssetMetadata{
 			ChildAssets: []datamodel.ChildAsset{
 				{AssetType: "TABLE", AssetNames: []string{"orders", "users"}},
@@ -726,7 +775,7 @@ func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 	})
 
 	t.Run("AssetMetadataNil_FieldRequested_EmitsEmptyObject", func(tt *testing.T) {
-		b := makeVCPBackup("bk-1", "res-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", coremodels.LifeCycleStateAvailable)
 		b.AssetMetadata = nil
 
 		out := convertBackupToBatchBackup(b, map[string]bool{"assetLocationMetadata": true})
@@ -736,7 +785,7 @@ func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 	})
 
 	t.Run("AssetMetadataPresentWithEmptyChildren_StillEmitted", func(tt *testing.T) {
-		b := makeVCPBackup("bk-1", "res-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", coremodels.LifeCycleStateAvailable)
 		b.AssetMetadata = &datamodel.AssetMetadata{ChildAssets: nil}
 
 		out := convertBackupToBatchBackup(b, map[string]bool{"assetLocationMetadata": true})
@@ -744,7 +793,7 @@ func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 	})
 
 	t.Run("FieldNotRequested_Omitted", func(tt *testing.T) {
-		b := makeVCPBackup("bk-1", "res-1", coremodels.LifeCycleStateAvailable)
+		b := makeVCPBackup("10000000-0000-0000-0000-000000000001", "res-1", coremodels.LifeCycleStateAvailable)
 		b.AssetMetadata = &datamodel.AssetMetadata{
 			ChildAssets: []datamodel.ChildAsset{{AssetType: "TABLE"}},
 		}
@@ -757,7 +806,7 @@ func TestConvertBackupToBatchBackup_AssetLocationMetadata(t *testing.T) {
 func TestConvertCVPBatchBackupToGCPBatchBackup_CopiesAssetLocationMetadata(t *testing.T) {
 	assetType := "storage.googleapis.com/Bucket"
 	cvpRow := &cvpmodels.BatchBackupV1beta{
-		BackupID: "bk-1",
+		BackupID: "10000000-0000-0000-0000-000000000001",
 		AssetLocationMetadata: &cvpmodels.AssetLocationMetadataV2{
 			ChildAssets: []*cvpmodels.ChildAssetV2{
 				{
@@ -950,7 +999,7 @@ func TestConvertCVPBatchBackupToGCPBatchBackup_BranchCoverage(t *testing.T) {
 		bkRegion := "us-east1"
 
 		p := &cvpmodels.BatchBackupV1beta{
-			BackupID:                 "bk-1",
+			BackupID:                 "10000000-0000-0000-0000-000000000001",
 			Created:                  &created,
 			VolumeUsageBytes:         &volUsage,
 			BackupType:               &bType,
@@ -972,7 +1021,7 @@ func TestConvertCVPBatchBackupToGCPBatchBackup_BranchCoverage(t *testing.T) {
 
 		out := convertCVPBatchBackupToGCPBatchBackup(p)
 
-		assert.Equal(tt, "bk-1", out.BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", out.BackupId.Value)
 		assert.Equal(tt, time.Time(created), out.Created.Value)
 		assert.Equal(tt, volUsage, out.VolumeUsageBytes.Value)
 		assert.Equal(tt, gcpgenserver.BatchBackupV1betaBackupType(bType), out.BackupType.Value)
@@ -1030,7 +1079,7 @@ func TestConvertCVPBatchBackupToGCPBatchBackup_BranchCoverage(t *testing.T) {
 func TestApplyBatchBackupFieldQuery_NilFieldSet(t *testing.T) {
 	// Pre-populate every field; applyBatchBackupFieldQuery(nil) must reset them all except BackupId.
 	bp := gcpgenserver.BatchBackupV1beta{
-		BackupId:                 gcpgenserver.NewOptString("bk-1"),
+		BackupId:                 gcpgenserver.NewOptString("10000000-0000-0000-0000-000000000001"),
 		Created:                  gcpgenserver.NewOptNilDateTime(time.Now()),
 		VolumeUsageBytes:         gcpgenserver.NewOptNilInt64(1),
 		BackupType:               gcpgenserver.NewOptNilBatchBackupV1betaBackupType("MANUAL"),
@@ -1054,7 +1103,7 @@ func TestApplyBatchBackupFieldQuery_NilFieldSet(t *testing.T) {
 	applyBatchBackupFieldQuery(&bp, nil)
 
 	assert.True(t, bp.BackupId.Set, "backupId must always survive")
-	assert.Equal(t, "bk-1", bp.BackupId.Value)
+	assert.Equal(t, "10000000-0000-0000-0000-000000000001", bp.BackupId.Value)
 	assert.False(t, bp.Created.Set)
 	assert.False(t, bp.VolumeUsageBytes.Set)
 	assert.False(t, bp.BackupType.Set)
@@ -1087,7 +1136,7 @@ func TestFetchBatchBackupsFromCVP(t *testing.T) {
 
 		resp := &cvpBatch.V1betaBatchListBackupsOK{
 			Payload: &cvpBatch.V1betaBatchListBackupsOKBody{
-				Backups: []*cvpmodels.BatchBackupV1beta{{BackupID: "bk-1"}},
+				Backups: []*cvpmodels.BatchBackupV1beta{{BackupID: "10000000-0000-0000-0000-000000000001"}},
 			},
 		}
 		// Match on the constructed params so we assert location, uuids, fields, and correlation ID
@@ -1098,7 +1147,7 @@ func TestFetchBatchBackupsFromCVP(t *testing.T) {
 				return false
 			}
 			if p.Body == nil || len(p.Body.BackupUUIDs) != 2 ||
-				p.Body.BackupUUIDs[0] != "bk-1" || p.Body.BackupUUIDs[1] != "bk-2" {
+				p.Body.BackupUUIDs[0] != "10000000-0000-0000-0000-000000000001" || p.Body.BackupUUIDs[1] != "20000000-0000-0000-0000-000000000002" {
 				return false
 			}
 			if len(p.Fields) != 2 || p.Fields[0] != "resourceId" || p.Fields[1] != "state" {
@@ -1116,10 +1165,10 @@ func TestFetchBatchBackupsFromCVP(t *testing.T) {
 			Fields:         []gcpgenserver.V1betaBatchListBackupsFieldsItem{"resourceId", "state"},
 			XCorrelationID: gcpgenserver.NewOptString("corr-42"),
 		}
-		out, err := fetchBatchBackupsFromCVP(ctx, []string{"bk-1", "bk-2"}, params, batchBackupFieldsAsSet(params.Fields))
+		out, err := fetchBatchBackupsFromCVP(ctx, []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002"}, params, batchBackupFieldsAsSet(params.Fields))
 		require.NoError(tt, err)
 		require.Len(tt, out, 1)
-		assert.Equal(tt, "bk-1", out[0].BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", out[0].BackupId.Value)
 	})
 
 	t.Run("CVPError_Wrapped", func(tt *testing.T) {
@@ -1129,7 +1178,7 @@ func TestFetchBatchBackupsFromCVP(t *testing.T) {
 
 		mockBatch.On("V1betaBatchListBackups", mock.Anything).Return(nil, errors.New("connection refused"))
 
-		out, err := fetchBatchBackupsFromCVP(context.Background(), []string{"bk-1"},
+		out, err := fetchBatchBackupsFromCVP(context.Background(), []string{"10000000-0000-0000-0000-000000000001"},
 			gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}, nil)
 
 		assert.Nil(tt, out)
@@ -1146,7 +1195,7 @@ func TestFetchBatchBackupsFromCVP(t *testing.T) {
 		mockBatch.On("V1betaBatchListBackups", mock.Anything).
 			Return(&cvpBatch.V1betaBatchListBackupsOK{Payload: nil}, nil)
 
-		out, err := fetchBatchBackupsFromCVP(context.Background(), []string{"bk-1"},
+		out, err := fetchBatchBackupsFromCVP(context.Background(), []string{"10000000-0000-0000-0000-000000000001"},
 			gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}, nil)
 
 		require.NoError(tt, err)
@@ -1163,19 +1212,19 @@ func TestFetchBatchBackupsFromCVP(t *testing.T) {
 			&cvpBatch.V1betaBatchListBackupsOK{
 				Payload: &cvpBatch.V1betaBatchListBackupsOKBody{
 					Backups: []*cvpmodels.BatchBackupV1beta{
-						{BackupID: "bk-1"},
+						{BackupID: "10000000-0000-0000-0000-000000000001"},
 						nil,
-						{BackupID: "bk-2"},
+						{BackupID: "20000000-0000-0000-0000-000000000002"},
 					},
 				},
 			}, nil)
 
-		out, err := fetchBatchBackupsFromCVP(context.Background(), []string{"bk-1", "bk-2"},
+		out, err := fetchBatchBackupsFromCVP(context.Background(), []string{"10000000-0000-0000-0000-000000000001", "20000000-0000-0000-0000-000000000002"},
 			gcpgenserver.V1betaBatchListBackupsParams{LocationId: "us-east4"}, nil)
 
 		require.NoError(tt, err)
 		require.Len(tt, out, 2, "nil row must be skipped without collapsing the other rows")
-		assert.Equal(tt, "bk-1", out[0].BackupId.Value)
-		assert.Equal(tt, "bk-2", out[1].BackupId.Value)
+		assert.Equal(tt, "10000000-0000-0000-0000-000000000001", out[0].BackupId.Value)
+		assert.Equal(tt, "20000000-0000-0000-0000-000000000002", out[1].BackupId.Value)
 	})
 }

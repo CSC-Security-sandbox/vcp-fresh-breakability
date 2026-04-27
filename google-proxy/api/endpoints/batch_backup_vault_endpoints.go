@@ -44,14 +44,15 @@ func (h Handler) V1betaBatchListBackupVaults(ctx context.Context, req *gcpgenser
 		}, nil
 	}
 
-	if len(req.BackupVaultUUIDs) == 0 {
+	if req == nil || len(req.BackupVaultUUIDs) == 0 {
 		return &gcpgenserver.V1betaBatchListBackupVaultsBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "backupVaultUUIDs is required and must have at least 1 item",
 		}, nil
 	}
 
-	if len(req.BackupVaultUUIDs) > env.MaxBatchBackupVaultUUIDs {
+	uuids := DeduplicateSlice(req.BackupVaultUUIDs)
+	if len(uuids) > env.MaxBatchBackupVaultUUIDs {
 		return &gcpgenserver.V1betaBatchListBackupVaultsBadRequest{
 			Code: http.StatusBadRequest,
 			Message: fmt.Sprintf("backupVaultUUIDs in body should have at most %d items",
@@ -59,13 +60,20 @@ func (h Handler) V1betaBatchListBackupVaults(ctx context.Context, req *gcpgenser
 		}, nil
 	}
 
+	if msg := validateUUIDList(req.BackupVaultUUIDs, "backupVaultUUIDs"); msg != "" {
+		return &gcpgenserver.V1betaBatchListBackupVaultsBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: msg,
+		}, nil
+	}
+
 	fieldSet := buildBVFieldSet(params.Fields)
 
 	if cvp.CVP_HOST == "" {
-		return h.batchListBackupVaultsVCPOnly(ctx, req.BackupVaultUUIDs, fieldSet)
+		return h.batchListBackupVaultsVCPOnly(ctx, uuids, fieldSet)
 	}
 
-	return h.batchListBackupVaultsParallel(ctx, req.BackupVaultUUIDs, params, fieldSet)
+	return h.batchListBackupVaultsParallel(ctx, uuids, params, fieldSet)
 }
 
 func (h Handler) batchListBackupVaultsVCPOnly(ctx context.Context, uuids []string, fieldSet map[string]bool) (gcpgenserver.V1betaBatchListBackupVaultsRes, error) {

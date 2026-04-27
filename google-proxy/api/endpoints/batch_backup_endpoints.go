@@ -70,6 +70,17 @@ func (h Handler) V1betaBatchListBackups(ctx context.Context, req *gcpgenserver.B
 		}, nil
 	}
 
+	// Reject malformed UUIDs up front so we don't hit the VCP DB or CVP for
+	// inputs that can never match a real backup. Validation runs against the
+	// original (pre-dedup) list so the offending index in the message matches
+	// what the caller sent.
+	if msg := validateUUIDList(req.BackupUUIDs, "backupUUIDs"); msg != "" {
+		return &gcpgenserver.V1betaBatchListBackupsBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: msg,
+		}, nil
+	}
+
 	fieldSet := batchBackupFieldsAsSet(params.Fields)
 
 	if cvp.CVP_HOST == "" {

@@ -9720,6 +9720,9 @@ components:
           type: array
           items:
             type: string
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            minLength: 36
+            maxLength: 36
           description: List of backup vault UUIDs to return
     BatchBackupVault_v1beta:
       type: object
@@ -9870,6 +9873,9 @@ components:
           type: array
           items:
             type: string
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            minLength: 36
+            maxLength: 36
           description: List of backup UUIDs to return
     BatchBackup_v1beta:
       type: object

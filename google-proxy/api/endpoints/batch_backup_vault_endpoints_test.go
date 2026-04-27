@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -81,7 +82,7 @@ func TestV1betaBatchListBackupVaults_Auth(t *testing.T) {
 			"Authorization": []string{"invalid-jwt-token"},
 		})
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackupVaults(ctx, req, params)
@@ -100,7 +101,7 @@ func TestV1betaBatchListBackupVaults_Auth(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := context.Background()
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackupVaults(ctx, req, params)
@@ -125,7 +126,7 @@ func TestV1betaBatchListBackupVaults_Validation(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "invalid location!"}
 
 		res, err := handler.V1betaBatchListBackupVaults(authContext(), req, params)
@@ -162,9 +163,9 @@ func TestV1betaBatchListBackupVaults_Validation(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := &Handler{Orchestrator: mockOrch}
 
-		uuids := make([]string, 1001)
+		uuids := make([]string, env.MaxBatchBackupVaultUUIDs+1)
 		for i := range uuids {
-			uuids[i] = "uuid"
+			uuids[i] = "uuid-" + time.Now().Format("150405.000000000") + "-" + toString(i)
 		}
 		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: uuids}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
@@ -174,6 +175,53 @@ func TestV1betaBatchListBackupVaults_Validation(t *testing.T) {
 		badReq, ok := res.(*gcpgenserver.V1betaBatchListBackupVaultsBadRequest)
 		assert.True(tt, ok)
 		assert.Contains(tt, badReq.Message, "at most")
+	})
+
+	t.Run("MalformedUUID_ReturnsBadRequestBeforeFetching", func(tt *testing.T) {
+		restore := stubParseRegionAndZone()
+		defer restore()
+		restoreAuth := stubBatchAuth(true)
+		defer restoreAuth()
+
+		// The orchestrator must never be called when the request fails UUID
+		// format validation; an unset mock would error out if it were.
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
+		handler := &Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{
+			"11111111-1111-1111-1111-111111111111",
+			"not-a-uuid",
+		}}
+		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
+
+		res, err := handler.V1betaBatchListBackupVaults(authContext(), req, params)
+		require.NoError(tt, err)
+		badReq, ok := res.(*gcpgenserver.V1betaBatchListBackupVaultsBadRequest)
+		require.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		// The message must call out the offending index in the original request
+		// (1 here) and embed the UUID regex so clients know what to fix.
+		assert.Contains(tt, badReq.Message, "backupVaultUUIDs.1 in body should match")
+		assert.Contains(tt, badReq.Message, "[a-fA-F0-9]{8}")
+	})
+
+	t.Run("EmptyStringUUID_ReturnsBadRequest", func(tt *testing.T) {
+		restore := stubParseRegionAndZone()
+		defer restore()
+		restoreAuth := stubBatchAuth(true)
+		defer restoreAuth()
+
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
+		handler := &Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{""}}
+		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
+
+		res, err := handler.V1betaBatchListBackupVaults(authContext(), req, params)
+		require.NoError(tt, err)
+		badReq, ok := res.(*gcpgenserver.V1betaBatchListBackupVaultsBadRequest)
+		require.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "backupVaultUUIDs.0 in body should match")
 	})
 }
 
@@ -193,11 +241,11 @@ func TestV1betaBatchListBackupVaults_VCPOnly(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		bv := makeVCPBackupVault("bv-1", "my-vault", "READY")
-		mockOrch.On("GetMultipleBackupVaults", ctx, []string{"bv-1"}).
+		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "my-vault", "READY")
+		mockOrch.On("GetMultipleBackupVaults", ctx, []string{"11111111-1111-1111-1111-111111111111"}).
 			Return([]*models.BackupVaultV1beta{bv}, nil)
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bv-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"11111111-1111-1111-1111-111111111111"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{
 			LocationId: "us-east4",
 			Fields: []gcpgenserver.V1betaBatchListBackupVaultsFieldsItem{
@@ -212,7 +260,7 @@ func TestV1betaBatchListBackupVaults_VCPOnly(t *testing.T) {
 		require.True(tt, ok)
 		require.Len(tt, okRes.BackupVaults, 1)
 		assert.True(tt, okRes.BackupVaults[0].BackupVaultId.Set, "backupVaultId must always be present")
-		assert.Equal(tt, "bv-1", okRes.BackupVaults[0].BackupVaultId.Value)
+		assert.Equal(tt, "11111111-1111-1111-1111-111111111111", okRes.BackupVaults[0].BackupVaultId.Value)
 		assert.Equal(tt, "my-vault", okRes.BackupVaults[0].ResourceId.Value)
 		assert.Equal(tt, gcpgenserver.BatchBackupVaultV1betaStateREADY, okRes.BackupVaults[0].State.Value)
 		assert.False(tt, okRes.BackupVaults[0].Description.Set, "not requested")
@@ -229,10 +277,10 @@ func TestV1betaBatchListBackupVaults_VCPOnly(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		mockOrch.On("GetMultipleBackupVaults", ctx, []string{"uuid-1"}).
+		mockOrch.On("GetMultipleBackupVaults", ctx, []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}).
 			Return(nil, errors.New("database error"))
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackupVaults(ctx, req, params)
@@ -252,11 +300,11 @@ func TestV1betaBatchListBackupVaults_VCPOnly(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		bv := makeVCPBackupVault("bv-1", "my-vault", "READY")
-		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"bv-1"}).
+		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "my-vault", "READY")
+		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"11111111-1111-1111-1111-111111111111"}).
 			Return([]*models.BackupVaultV1beta{bv}, nil)
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bv-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"11111111-1111-1111-1111-111111111111"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackupVaults(ctx, req, params)
@@ -264,7 +312,7 @@ func TestV1betaBatchListBackupVaults_VCPOnly(t *testing.T) {
 		okRes, ok := res.(*gcpgenserver.V1betaBatchListBackupVaultsOK)
 		require.True(tt, ok)
 		require.Len(tt, okRes.BackupVaults, 1)
-		assert.Equal(tt, "bv-1", okRes.BackupVaults[0].BackupVaultId.Value)
+		assert.Equal(tt, "11111111-1111-1111-1111-111111111111", okRes.BackupVaults[0].BackupVaultId.Value)
 		assert.False(tt, okRes.BackupVaults[0].ResourceId.Set)
 		assert.False(tt, okRes.BackupVaults[0].State.Set)
 	})
@@ -280,15 +328,15 @@ func TestV1betaBatchListBackupVaults_VCPOnly(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		activeBV := makeVCPBackupVault("bv-active", "active-vault", "READY")
+		activeBV := makeVCPBackupVault("44444444-4444-4444-4444-444444444444", "active-vault", "READY")
 		deletedAt := time.Now()
-		deletedBV := makeVCPBackupVault("bv-deleted", "deleted-vault", "DELETED")
+		deletedBV := makeVCPBackupVault("55555555-5555-5555-5555-555555555555", "deleted-vault", "DELETED")
 		deletedBV.DeletedAt = &deletedAt
 
-		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"bv-active", "bv-deleted"}).
+		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"44444444-4444-4444-4444-444444444444", "55555555-5555-5555-5555-555555555555"}).
 			Return([]*models.BackupVaultV1beta{activeBV, deletedBV}, nil)
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bv-active", "bv-deleted"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"44444444-4444-4444-4444-444444444444", "55555555-5555-5555-5555-555555555555"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackupVaults(ctx, req, params)
@@ -296,7 +344,7 @@ func TestV1betaBatchListBackupVaults_VCPOnly(t *testing.T) {
 		okRes, ok := res.(*gcpgenserver.V1betaBatchListBackupVaultsOK)
 		require.True(tt, ok)
 		require.Len(tt, okRes.BackupVaults, 1, "deleted backup vault must be filtered out")
-		assert.Equal(tt, "bv-active", okRes.BackupVaults[0].BackupVaultId.Value)
+		assert.Equal(tt, "44444444-4444-4444-4444-444444444444", okRes.BackupVaults[0].BackupVaultId.Value)
 	})
 }
 
@@ -313,7 +361,7 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 		cvp.CVP_HOST = "http://cvp-host"
 		defer func() { cvp.CVP_HOST = "" }()
 
-		cvpBV := makeCVPBatchBackupVault("sde-bv-1", "sde-vault", "READY")
+		cvpBV := makeCVPBatchBackupVault("99999999-9999-9999-9999-999999999999", "sde-vault", "READY")
 		restoreCVP := stubCVPBackupVaultFetch([]gcpgenserver.BatchBackupVaultV1beta{cvpBV}, nil)
 		defer restoreCVP()
 
@@ -321,11 +369,11 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		vcpBV := makeVCPBackupVault("vcp-bv-1", "vcp-vault", "READY")
-		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"vcp-bv-1", "sde-bv-1"}).
+		vcpBV := makeVCPBackupVault("88888888-8888-8888-8888-888888888888", "vcp-vault", "READY")
+		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"88888888-8888-8888-8888-888888888888", "99999999-9999-9999-9999-999999999999"}).
 			Return([]*models.BackupVaultV1beta{vcpBV}, nil)
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"vcp-bv-1", "sde-bv-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"88888888-8888-8888-8888-888888888888", "99999999-9999-9999-9999-999999999999"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{
 			LocationId: "us-east4",
 			Fields: []gcpgenserver.V1betaBatchListBackupVaultsFieldsItem{
@@ -357,7 +405,7 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 		cvp.CVP_HOST = "http://cvp-host"
 		defer func() { cvp.CVP_HOST = "" }()
 
-		cvpBV := makeCVPBatchBackupVault("sde-bv-1", "sde-vault", "READY")
+		cvpBV := makeCVPBatchBackupVault("99999999-9999-9999-9999-999999999999", "sde-vault", "READY")
 		restoreCVP := stubCVPBackupVaultFetch([]gcpgenserver.BatchBackupVaultV1beta{cvpBV}, nil)
 		defer restoreCVP()
 
@@ -365,10 +413,10 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"uuid-1"}).
+		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}).
 			Return(nil, errors.New("VCP database error"))
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackupVaults(ctx, req, params)
@@ -376,7 +424,7 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 		okRes, ok := res.(*gcpgenserver.V1betaBatchListBackupVaultsOK)
 		require.True(tt, ok)
 		require.Len(tt, okRes.BackupVaults, 1)
-		assert.Equal(tt, "sde-bv-1", okRes.BackupVaults[0].BackupVaultId.Value)
+		assert.Equal(tt, "99999999-9999-9999-9999-999999999999", okRes.BackupVaults[0].BackupVaultId.Value)
 	})
 
 	t.Run("VCPSucceeds_SDEFails_ReturnsVCPOnly", func(tt *testing.T) {
@@ -394,11 +442,11 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		vcpBV := makeVCPBackupVault("vcp-bv-1", "vcp-vault", "READY")
-		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"vcp-bv-1"}).
+		vcpBV := makeVCPBackupVault("88888888-8888-8888-8888-888888888888", "vcp-vault", "READY")
+		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"88888888-8888-8888-8888-888888888888"}).
 			Return([]*models.BackupVaultV1beta{vcpBV}, nil)
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"vcp-bv-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"88888888-8888-8888-8888-888888888888"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{
 			LocationId: "us-east4",
 			Fields:     []gcpgenserver.V1betaBatchListBackupVaultsFieldsItem{gcpgenserver.V1betaBatchListBackupVaultsFieldsItem("resourceId")},
@@ -410,7 +458,7 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 		require.True(tt, ok)
 		require.Len(tt, okRes.BackupVaults, 1)
 		assert.True(tt, okRes.BackupVaults[0].BackupVaultId.Set, "backupVaultId must always be present")
-		assert.Equal(tt, "vcp-bv-1", okRes.BackupVaults[0].BackupVaultId.Value)
+		assert.Equal(tt, "88888888-8888-8888-8888-888888888888", okRes.BackupVaults[0].BackupVaultId.Value)
 		assert.Equal(tt, "vcp-vault", okRes.BackupVaults[0].ResourceId.Value)
 	})
 
@@ -429,10 +477,10 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 
-		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"uuid-1"}).
+		mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}).
 			Return(nil, errors.New("VCP down"))
 
-		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"uuid-1"}}
+		req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}}
 		params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
 
 		res, err := handler.V1betaBatchListBackupVaults(ctx, req, params)
@@ -447,7 +495,7 @@ func TestV1betaBatchListBackupVaults_Parallel(t *testing.T) {
 // ============================================================
 
 func TestConvertBackupVaultToBatchBackupVault_UnknownStateDefaultsToStateUnspecified(t *testing.T) {
-	bv := makeVCPBackupVault("bv-x", "res", "NOT_A_VALID_STATE")
+	bv := makeVCPBackupVault("33333333-3333-3333-3333-333333333333", "res", "NOT_A_VALID_STATE")
 	fieldSet := map[string]bool{"state": true}
 	bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
 	require.True(t, bp.State.Set)
@@ -517,7 +565,7 @@ func TestV1betaBatchListBackupVaults_Dedup_VCPPriority(t *testing.T) {
 	cvp.CVP_HOST = "http://cvp-host"
 	defer func() { cvp.CVP_HOST = "" }()
 
-	cvpBV := makeCVPBatchBackupVault("shared-uuid", "cvp-name", "READY")
+	cvpBV := makeCVPBatchBackupVault("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "cvp-name", "READY")
 	restoreCVP := stubCVPBackupVaultFetch([]gcpgenserver.BatchBackupVaultV1beta{cvpBV}, nil)
 	defer restoreCVP()
 
@@ -525,11 +573,11 @@ func TestV1betaBatchListBackupVaults_Dedup_VCPPriority(t *testing.T) {
 	handler := &Handler{Orchestrator: mockOrch}
 	ctx := authContext()
 
-	vcpBV := makeVCPBackupVault("shared-uuid", "vcp-name", "READY")
-	mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"shared-uuid"}).
+	vcpBV := makeVCPBackupVault("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "vcp-name", "READY")
+	mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}).
 		Return([]*models.BackupVaultV1beta{vcpBV}, nil)
 
-	req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"shared-uuid"}}
+	req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}}
 	params := gcpgenserver.V1betaBatchListBackupVaultsParams{
 		LocationId: "us-east4",
 		Fields:     []gcpgenserver.V1betaBatchListBackupVaultsFieldsItem{"resourceId"},
@@ -625,7 +673,7 @@ func TestConvertBackupVault_InRegion_NullsCrossRegionFields(t *testing.T) {
 // ============================================================
 
 func TestConvertBackupVault_EncryptionState_DefaultUnspecified(t *testing.T) {
-	bv := makeVCPBackupVault("bv-1", "vault", "READY")
+	bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
 	fieldSet := map[string]bool{"encryptionState": true}
 	bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
 
@@ -634,7 +682,7 @@ func TestConvertBackupVault_EncryptionState_DefaultUnspecified(t *testing.T) {
 }
 
 func TestConvertBackupVault_EncryptionState_RealValue(t *testing.T) {
-	bv := makeVCPBackupVault("bv-1", "vault", "READY")
+	bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
 	enc := "ENCRYPTION_STATE_COMPLETED"
 	bv.EncryptionState = &enc
 	fieldSet := map[string]bool{"encryptionState": true}
@@ -649,7 +697,7 @@ func TestConvertBackupVault_EncryptionState_RealValue(t *testing.T) {
 // ============================================================
 
 func TestConvertBackupVault_CmekAttributes(t *testing.T) {
-	bv := makeVCPBackupVault("bv-1", "vault", "READY")
+	bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
 	bv.KmsConfigResourcePath = nillable.GetStringPtr("projects/p/locations/l/kmsConfigs/k")
 	bv.BackupsPrimaryKeyVersion = nillable.GetStringPtr("projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1")
 	enc := "ENCRYPTION_STATE_COMPLETED"
@@ -673,7 +721,7 @@ func TestConvertBackupVault_CmekAttributes(t *testing.T) {
 
 func TestConvertBackupVault_CrossProjectVault(t *testing.T) {
 	t.Run("CrossProject_True", func(tt *testing.T) {
-		bv := makeVCPBackupVault("bv-1", "vault", "READY")
+		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
 		bv.ServiceType = models.ServiceTypeCrossProject
 		fieldSet := map[string]bool{"crossProjectVault": true}
 		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
@@ -683,7 +731,7 @@ func TestConvertBackupVault_CrossProjectVault(t *testing.T) {
 	})
 
 	t.Run("GCNV_Null", func(tt *testing.T) {
-		bv := makeVCPBackupVault("bv-1", "vault", "READY")
+		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
 		bv.ServiceType = models.ServiceTypeGCNV
 		fieldSet := map[string]bool{"crossProjectVault": true}
 		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
@@ -697,7 +745,7 @@ func TestConvertBackupVault_CrossProjectVault(t *testing.T) {
 // ============================================================
 
 func TestConvertBackupVault_RetentionPolicy_OnlyTrueBooleans(t *testing.T) {
-	bv := makeVCPBackupVault("bv-1", "vault", "READY")
+	bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
 	bv.BackupRetentionPolicy = models.BackupRetentionPolicyparams{
 		IsDailyBackupImmutable:                 true,
 		IsWeeklyBackupImmutable:                false,
@@ -720,7 +768,7 @@ func TestConvertBackupVault_RetentionPolicy_OnlyTrueBooleans(t *testing.T) {
 }
 
 func TestConvertBackupVault_RetentionPolicy_NilDuration_DefaultsToZero(t *testing.T) {
-	bv := makeVCPBackupVault("bv-1", "vault", "READY")
+	bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
 	bv.BackupRetentionPolicy = models.BackupRetentionPolicyparams{}
 	fieldSet := map[string]bool{"backupRetentionPolicy": true}
 	bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
@@ -757,9 +805,9 @@ func TestConvertCVPBackupVault_RetentionPolicy_OnlyTrueBooleans(t *testing.T) {
 	p := &cvpmodels.BatchBackupVaultV1beta{
 		BackupVaultID: "cvp-1",
 		BackupRetentionPolicy: &cvpmodels.BackupRetentionPolicyV1beta{
-			DailyBackupImmutable:              true,
-			WeeklyBackupImmutable:             false,
-			ManualBackupImmutable:             true,
+			DailyBackupImmutable:               true,
+			WeeklyBackupImmutable:              false,
+			ManualBackupImmutable:              true,
 			BackupMinimumEnforcedRetentionDays: &days,
 		},
 	}
@@ -822,12 +870,12 @@ func TestExtractRegionFromResourcePath(t *testing.T) {
 
 func TestApplyBatchBVFieldSelection_NilFieldSet_ResetsAll(t *testing.T) {
 	bp := gcpgenserver.BatchBackupVaultV1beta{
-		BackupVaultId:          gcpgenserver.NewOptString("bv-1"),
-		ResourceId:             gcpgenserver.NewOptNilString("res"),
-		Description:            gcpgenserver.NewOptNilString("desc"),
-		SourceRegion:           gcpgenserver.NewOptNilString("us-east4"),
-		EncryptionState:        gcpgenserver.NewOptNilBatchBackupVaultV1betaEncryptionState(gcpgenserver.BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED),
-		BackupRetentionPolicy:  gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{}),
+		BackupVaultId:         gcpgenserver.NewOptString("11111111-1111-1111-1111-111111111111"),
+		ResourceId:            gcpgenserver.NewOptNilString("res"),
+		Description:           gcpgenserver.NewOptNilString("desc"),
+		SourceRegion:          gcpgenserver.NewOptNilString("us-east4"),
+		EncryptionState:       gcpgenserver.NewOptNilBatchBackupVaultV1betaEncryptionState(gcpgenserver.BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED),
+		BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{}),
 	}
 	applyBatchBVFieldSelection(&bp, nil)
 
@@ -841,21 +889,21 @@ func TestApplyBatchBVFieldSelection_NilFieldSet_ResetsAll(t *testing.T) {
 
 func TestApplyBatchBVFieldSelection_AllFieldsRequested(t *testing.T) {
 	bp := gcpgenserver.BatchBackupVaultV1beta{
-		BackupVaultId:          gcpgenserver.NewOptString("bv-1"),
-		ResourceId:             gcpgenserver.NewOptNilString("res"),
-		Description:            gcpgenserver.NewOptNilString("desc"),
-		State:                  gcpgenserver.NewOptNilBatchBackupVaultV1betaState(gcpgenserver.BatchBackupVaultV1betaStateREADY),
-		StateDetails:           gcpgenserver.NewOptNilString("ok"),
-		BackupVaultType:        gcpgenserver.NewOptNilBatchBackupVaultV1betaBackupVaultType("IN_REGION"),
-		SourceRegion:           gcpgenserver.NewOptNilString("us-east4"),
-		BackupRegion:           gcpgenserver.NewOptNilString("us-central1"),
-		SourceBackupVault:      gcpgenserver.NewOptNilString("projects/p/locations/l/backupVaults/bv"),
-		DestinationBackupVault: gcpgenserver.NewOptNilString("projects/p/locations/l2/backupVaults/bv2"),
-		KmsConfigResourcePath:  gcpgenserver.NewOptNilString("kms-path"),
+		BackupVaultId:            gcpgenserver.NewOptString("11111111-1111-1111-1111-111111111111"),
+		ResourceId:               gcpgenserver.NewOptNilString("res"),
+		Description:              gcpgenserver.NewOptNilString("desc"),
+		State:                    gcpgenserver.NewOptNilBatchBackupVaultV1betaState(gcpgenserver.BatchBackupVaultV1betaStateREADY),
+		StateDetails:             gcpgenserver.NewOptNilString("ok"),
+		BackupVaultType:          gcpgenserver.NewOptNilBatchBackupVaultV1betaBackupVaultType("IN_REGION"),
+		SourceRegion:             gcpgenserver.NewOptNilString("us-east4"),
+		BackupRegion:             gcpgenserver.NewOptNilString("us-central1"),
+		SourceBackupVault:        gcpgenserver.NewOptNilString("projects/p/locations/l/backupVaults/bv"),
+		DestinationBackupVault:   gcpgenserver.NewOptNilString("projects/p/locations/l2/backupVaults/bv2"),
+		KmsConfigResourcePath:    gcpgenserver.NewOptNilString("kms-path"),
 		BackupsPrimaryKeyVersion: gcpgenserver.NewOptNilString("key-v1"),
-		EncryptionState:        gcpgenserver.NewOptNilBatchBackupVaultV1betaEncryptionState(gcpgenserver.BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED),
-		BackupRetentionPolicy:  gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{}),
-		CrossProjectVault:      gcpgenserver.NewOptNilBool(true),
+		EncryptionState:          gcpgenserver.NewOptNilBatchBackupVaultV1betaEncryptionState(gcpgenserver.BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED),
+		BackupRetentionPolicy:    gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{}),
+		CrossProjectVault:        gcpgenserver.NewOptNilBool(true),
 	}
 	fieldSet := map[string]bool{
 		"resourceId": true, "description": true, "createdAt": true,
@@ -887,7 +935,7 @@ func TestApplyBatchBVFieldSelection_AllFieldsRequested(t *testing.T) {
 
 func TestApplyBatchBVFieldSelection_SpecificFields(t *testing.T) {
 	bp := gcpgenserver.BatchBackupVaultV1beta{
-		BackupVaultId: gcpgenserver.NewOptString("bv-1"),
+		BackupVaultId: gcpgenserver.NewOptString("11111111-1111-1111-1111-111111111111"),
 		ResourceId:    gcpgenserver.NewOptNilString("res"),
 		Description:   gcpgenserver.NewOptNilString("desc"),
 		SourceRegion:  gcpgenserver.NewOptNilString("us-east4"),
@@ -952,11 +1000,11 @@ func TestBuildBVFieldSet(t *testing.T) {
 // ============================================================
 
 func TestConvertBackupVault_NilFieldSet_ReturnsOnlyBackupVaultId(t *testing.T) {
-	bv := makeVCPBackupVault("bv-1", "my-vault", "READY")
+	bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "my-vault", "READY")
 	bp := convertBackupVaultToBatchBackupVault(bv, nil)
 
 	assert.True(t, bp.BackupVaultId.Set)
-	assert.Equal(t, "bv-1", bp.BackupVaultId.Value)
+	assert.Equal(t, "11111111-1111-1111-1111-111111111111", bp.BackupVaultId.Value)
 	assert.False(t, bp.ResourceId.Set)
 	assert.False(t, bp.Description.Set)
 	assert.False(t, bp.State.Set)
@@ -969,13 +1017,13 @@ func TestConvertBackupVault_NilFieldSet_ReturnsOnlyBackupVaultId(t *testing.T) {
 // ============================================================
 
 func TestConvertBackupVault_NilBackupVaultType(t *testing.T) {
-	bv := makeVCPBackupVault("bv-1", "vault", "READY")
+	bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
 	bv.BackupVaultType = nil
 	fieldSet := map[string]bool{
-		"backupVaultType":    true,
-		"sourceRegion":       true,
-		"crossProjectVault":  true,
-		"encryptionState":    true,
+		"backupVaultType":   true,
+		"sourceRegion":      true,
+		"crossProjectVault": true,
+		"encryptionState":   true,
 	}
 	bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
 
@@ -995,14 +1043,14 @@ func TestConvertBackupVault_CrossRegion_NilCrossRegionName(t *testing.T) {
 	src := "us-central1"
 	br := "us-east4"
 	bv := &models.BackupVaultV1beta{
-		BackupVaultID:         "cr-nil",
-		Name:                  "vault",
-		LifeCycleState:        "READY",
-		BackupVaultType:       &vaultType,
-		SourceRegion:          &src,
-		BackupRegion:          &br,
-		AccountName:           "my-project",
-		CreatedAt:             time.Now(),
+		BackupVaultID:   "cr-nil",
+		Name:            "vault",
+		LifeCycleState:  "READY",
+		BackupVaultType: &vaultType,
+		SourceRegion:    &src,
+		BackupRegion:    &br,
+		AccountName:     "my-project",
+		CreatedAt:       time.Now(),
 	}
 	fieldSet := map[string]bool{
 		"sourceBackupVault":      true,
@@ -1039,21 +1087,21 @@ func TestConvertCVPBackupVault_AllFields(t *testing.T) {
 	cvpCreatedAt := strfmt.DateTime(now)
 
 	p := &cvpmodels.BatchBackupVaultV1beta{
-		BackupVaultID:          "cvp-full",
-		ResourceID:             &desc,
-		Description:            &desc,
-		CreatedAt:              &cvpCreatedAt,
-		State:                  &state,
-		StateDetails:           &stateDetails,
-		BackupVaultType:        &vaultType,
-		SourceRegion:           &srcRegion,
-		BackupRegion:           &bkRegion,
-		SourceBackupVault:      &srcBV,
-		DestinationBackupVault: &dstBV,
-		KmsConfigResourcePath:  &kms,
+		BackupVaultID:            "cvp-full",
+		ResourceID:               &desc,
+		Description:              &desc,
+		CreatedAt:                &cvpCreatedAt,
+		State:                    &state,
+		StateDetails:             &stateDetails,
+		BackupVaultType:          &vaultType,
+		SourceRegion:             &srcRegion,
+		BackupRegion:             &bkRegion,
+		SourceBackupVault:        &srcBV,
+		DestinationBackupVault:   &dstBV,
+		KmsConfigResourcePath:    &kms,
 		BackupsPrimaryKeyVersion: &keyVer,
-		EncryptionState:        &enc,
-		CrossProjectVault:      &crossProject,
+		EncryptionState:          &enc,
+		CrossProjectVault:        &crossProject,
 	}
 	bp := convertCVPBatchBackupVaultToGCPBatchBackupVault(p)
 
@@ -1109,7 +1157,7 @@ func TestConvertCVPBackupVault_RetentionPolicy_NilDays(t *testing.T) {
 
 func TestConvertBackupVault_AllFieldsPopulated(t *testing.T) {
 	bv := makeCrossRegionVCPBackupVault(
-		"bv-full", "my-vault", "my-project",
+		"77777777-7777-7777-7777-777777777777", "my-vault", "my-project",
 		"us-central1", "us-east4",
 		"projects/my-project/locations/us-east4/backupVaults/peer-vault",
 	)
@@ -1142,7 +1190,7 @@ func TestConvertBackupVault_AllFieldsPopulated(t *testing.T) {
 	}
 	bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
 
-	assert.Equal(t, "bv-full", bp.BackupVaultId.Value)
+	assert.Equal(t, "77777777-7777-7777-7777-777777777777", bp.BackupVaultId.Value)
 	assert.Equal(t, "my-vault", bp.ResourceId.Value)
 	assert.Equal(t, "full vault", bp.Description.Value)
 	assert.True(t, bp.CreatedAt.Set)
@@ -1181,11 +1229,11 @@ func TestV1betaBatchListBackupVaults_NilVaultInResults(t *testing.T) {
 	handler := &Handler{Orchestrator: mockOrch}
 	ctx := authContext()
 
-	bv := makeVCPBackupVault("bv-1", "vault", "READY")
-	mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"bv-1", "bv-missing"}).
+	bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
+	mockOrch.On("GetMultipleBackupVaults", mock.Anything, []string{"11111111-1111-1111-1111-111111111111", "66666666-6666-6666-6666-666666666666"}).
 		Return([]*models.BackupVaultV1beta{bv, nil}, nil)
 
-	req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"bv-1", "bv-missing"}}
+	req := &gcpgenserver.BatchBackupVaultUUIDListV1beta{BackupVaultUUIDs: []string{"11111111-1111-1111-1111-111111111111", "66666666-6666-6666-6666-666666666666"}}
 	params := gcpgenserver.V1betaBatchListBackupVaultsParams{LocationId: "us-east4"}
 
 	res, err := handler.V1betaBatchListBackupVaults(ctx, req, params)
@@ -1193,5 +1241,5 @@ func TestV1betaBatchListBackupVaults_NilVaultInResults(t *testing.T) {
 	okRes, ok := res.(*gcpgenserver.V1betaBatchListBackupVaultsOK)
 	require.True(t, ok)
 	require.Len(t, okRes.BackupVaults, 1, "nil vaults should be filtered")
-	assert.Equal(t, "bv-1", okRes.BackupVaults[0].BackupVaultId.Value)
+	assert.Equal(t, "11111111-1111-1111-1111-111111111111", okRes.BackupVaults[0].BackupVaultId.Value)
 }
