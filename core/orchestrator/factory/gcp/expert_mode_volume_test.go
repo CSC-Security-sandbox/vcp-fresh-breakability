@@ -5292,7 +5292,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5327,7 +5327,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 		}
 		createdJob := &datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
@@ -5368,7 +5368,7 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 		}
 		createdJob := &datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
@@ -5422,8 +5422,8 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "ext-volume-uuid",
 			Name:         "expert-vol",
-			State:        models.LifeCycleStateREADY,
-			Style:        models.LifeCycleStateAvailableDetails,
+			State:        models.LifeCycleStateAvailable,
+			Style:        "flexvol",
 			PoolID:       pool.ID,
 			AccountID:    account.ID,
 		}
@@ -5629,7 +5629,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "emv-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     models.LifeCycleStateAvailable,
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5661,7 +5661,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "emv-uuid"},
-			State:     models.LifeCycleStateREADY,
+			State:     models.LifeCycleStateAvailable,
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -5694,7 +5694,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		originalGetOrCreateAccount := getOrCreateAccount
@@ -5727,7 +5727,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
@@ -5762,7 +5762,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
@@ -5800,7 +5800,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
@@ -5837,7 +5837,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
@@ -5877,7 +5877,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
@@ -5920,7 +5920,7 @@ func TestSfrOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: vendorIDSameRegion},
 		}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10}}
@@ -6507,6 +6507,161 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 		assert.Nil(tt, configs[0].BackupVaultPath)
 		assert.Nil(tt, configs[0].BackupPolicyPath)
 	})
+
+	t.Run("Success_WithScheduledBackupEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		scheduledBackupEnabled := true
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-1",
+				ExternalUUID: "vol-sched-backup",
+				BackupConfig: &datamodel.DataProtection{
+					ScheduledBackupEnabled: &scheduledBackupEnabled,
+				},
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 1)
+		assert.Equal(tt, "vol-sched-backup", configs[0].VolumeResourceID)
+		assert.NotNil(tt, configs[0].ScheduledBackupEnabled)
+		assert.True(tt, *configs[0].ScheduledBackupEnabled)
+		assert.Nil(tt, configs[0].BackupChainBytes)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithBackupChainBytes", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		chainBytes := int64(1073741824) // 1 GiB
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-chain",
+				ExternalUUID: "vol-chain",
+				BackupConfig: &datamodel.DataProtection{
+					BackupChainBytes: &chainBytes,
+				},
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 1)
+		assert.Equal(tt, "vol-chain", configs[0].VolumeResourceID)
+		assert.NotNil(tt, configs[0].BackupChainBytes)
+		assert.Equal(tt, int64(1073741824), *configs[0].BackupChainBytes)
+		assert.Nil(tt, configs[0].ScheduledBackupEnabled)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithAllNewFields", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		scheduledBackupEnabled := true
+		chainBytes := int64(2147483648) // 2 GiB
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-full",
+				ExternalUUID: "vol-full",
+				BackupConfig: &datamodel.DataProtection{
+					BackupVaultID:          "vault-uuid-1",
+					BackupPolicyID:         "policy-uuid-1",
+					ScheduledBackupEnabled: &scheduledBackupEnabled,
+					BackupChainBytes:       &chainBytes,
+				},
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{
+			{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "my-vault"},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{
+			{BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"}, Name: "my-policy"},
+		}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 1)
+		assert.Equal(tt, "vol-full", configs[0].VolumeResourceID)
+		assert.NotNil(tt, configs[0].BackupVaultPath)
+		assert.NotNil(tt, configs[0].BackupPolicyPath)
+		assert.NotNil(tt, configs[0].ScheduledBackupEnabled)
+		assert.True(tt, *configs[0].ScheduledBackupEnabled)
+		assert.NotNil(tt, configs[0].BackupChainBytes)
+		assert.Equal(tt, int64(2147483648), *configs[0].BackupChainBytes)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_NewFieldsNilWhenBackupConfigIsNil", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-nil-config",
+				ExternalUUID: "vol-nil-config",
+				BackupConfig: nil,
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 1)
+		assert.Equal(tt, "vol-nil-config", configs[0].VolumeResourceID)
+		assert.Nil(tt, configs[0].ScheduledBackupEnabled)
+		assert.Nil(tt, configs[0].BackupChainBytes)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 // TestExpertModeVolumeToVolumeForSFR covers the unexported expertModeVolumeToVolumeForSFR helper.
@@ -6717,7 +6872,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6753,7 +6908,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6789,7 +6944,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6823,7 +6978,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6863,7 +7018,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6905,7 +7060,7 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
+			State:        models.LifeCycleStateAvailable,
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6949,8 +7104,8 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
-			Style:        models.LifeCycleStateAvailableDetails,
+			State:        models.LifeCycleStateAvailable,
+			Style:        "flexvol",
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{
@@ -6995,8 +7150,8 @@ func TestSFROntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
 			ExternalUUID: "volume-uuid",
-			State:        models.LifeCycleStateREADY,
-			Style:        models.LifeCycleStateAvailableDetails,
+			State:        models.LifeCycleStateAvailable,
+			Style:        "flexvol",
 			Pool:         &datamodel.Pool{VendorID: "/projects/p/locations/us-east4/pools/pool1"},
 		}
 		params := &commonparams.RestoreOntapModeBackupParams{

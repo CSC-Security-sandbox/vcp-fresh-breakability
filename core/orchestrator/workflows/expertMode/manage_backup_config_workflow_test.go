@@ -1383,12 +1383,12 @@ func TestManageBackupConfigWorkflow(t *testing.T) {
 
 // TestManageBackupConfigWorkflow_StateManagement covers the volume-state lifecycle
 // introduced by the "follow update-volume style" changes:
-//   - step 8 (explicit READY on success)
-//   - defer (READY on failure only)
+//   - step 8 (explicit AVAILABLE on success)
+//   - defer (AVAILABLE on failure only)
 func TestManageBackupConfigWorkflow_StateManagement(t *testing.T) {
-	t.Run("Success_UpdateExpertModeVolumeStateInDB_CalledWithREADY", func(tt *testing.T) {
+	t.Run("Success_UpdateExpertModeVolumeStateInDB_CalledWithAVAILABLE", func(tt *testing.T) {
 		// Verify that on the success path, UpdateExpertModeVolumeStateInDB is called
-		// with the volume UUID and LifeCycleStateREADY (step 8).
+		// with the volume UUID and LifeCycleStateAvailable (step 8).
 		env, mockStorage := newManageBackupConfigTestEnv(tt)
 		commonActivity, updateActivity, expertModeActivity := registerCoreActivities(env, mockStorage)
 
@@ -1410,7 +1410,7 @@ func TestManageBackupConfigWorkflow_StateManagement(t *testing.T) {
 			Return(nil)
 		// Capture the arguments to assert UUID and state.
 		env.OnActivity(expertModeActivity.UpdateExpertModeVolumeStateInDB,
-			mock.Anything, "vol-uuid", models.LifeCycleStateREADY).
+			mock.Anything, "vol-uuid", models.LifeCycleStateAvailable).
 			Return(nil)
 
 		env.ExecuteWorkflow(ManageBackupConfigWorkflow, baseVolume(), baseParams())
@@ -1459,9 +1459,9 @@ func TestManageBackupConfigWorkflow_StateManagement(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("Failure_DeferRestoresVolumeToREADY_WhenActivityFails", func(tt *testing.T) {
+	t.Run("Failure_DeferRestoresVolumeToAvailable_WhenActivityFails", func(tt *testing.T) {
 		// When an activity fails mid-workflow, the defer (err != nil branch) must call
-		// UpdateExpertModeVolumeStateInDB with READY.
+		// UpdateExpertModeVolumeStateInDB with AVAILABLE.
 		env, mockStorage := newManageBackupConfigTestEnv(tt)
 		commonActivity, updateActivity, expertModeActivity := registerCoreActivities(env, mockStorage)
 
@@ -1484,7 +1484,7 @@ func TestManageBackupConfigWorkflow_StateManagement(t *testing.T) {
 			Return(assert.AnError)
 		// Defer must call UpdateExpertModeVolumeStateInDB with READY.
 		env.OnActivity(expertModeActivity.UpdateExpertModeVolumeStateInDB,
-			mock.Anything, "vol-uuid", models.LifeCycleStateREADY).
+			mock.Anything, "vol-uuid", models.LifeCycleStateAvailable).
 			Return(nil)
 
 		env.ExecuteWorkflow(ManageBackupConfigWorkflow, baseVolume(), baseParams())

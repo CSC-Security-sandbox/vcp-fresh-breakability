@@ -3655,10 +3655,10 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			QuotaInBytes: 0,
 		}
 
-	err = _validateCreateVolumeParams(ctx, store, params, poolView)
-	assert.Error(tt, err, "Should return error for regular capacity volume with quota below minimum")
-	assert.Contains(tt, err.Error(), "Invalid volume capacity", "Error should mention invalid volume capacity")
-	assert.Contains(tt, err.Error(), "Must be between", "Error should mention the valid range")
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.Error(tt, err, "Should return error for regular capacity volume with quota below minimum")
+		assert.Contains(tt, err.Error(), "Invalid volume capacity", "Error should mention invalid volume capacity")
+		assert.Contains(tt, err.Error(), "Must be between", "Error should mention the valid range")
 	})
 
 	t.Run("RestoreFromSnapshot_BlockedWhenParentVolumeIsSplitting", func(tt *testing.T) {
@@ -23370,13 +23370,13 @@ func TestRevertVolume(t *testing.T) {
 		}
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-idx"},
-			Name:      "test_volume_idx",
-			AccountID: account.ID,
-			PoolID:    pool.ID,
-			Pool:      pool,
-			Account:   account,
-			State:     models.LifeCycleStateReverting,
+			BaseModel:        datamodel.BaseModel{UUID: "test-volume-uuid-idx"},
+			Name:             "test_volume_idx",
+			AccountID:        account.ID,
+			PoolID:           pool.ID,
+			Pool:             pool,
+			Account:          account,
+			State:            models.LifeCycleStateReverting,
 			VolumeAttributes: &datamodel.VolumeAttributes{IsDataProtection: false},
 		}
 		err = store.DB().Create(volume).Error
@@ -30886,7 +30886,7 @@ func TestRestoreOntapModeBackup(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel:        datamodel.BaseModel{UUID: "volume-uuid"},
 			ExternalUUID:     "ext-uuid",
-			State:            models.LifeCycleStateREADY,
+			State:            models.LifeCycleStateAvailable,
 			Pool:             pool,
 			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{Protocols: []string{"NFS"}},
 		}

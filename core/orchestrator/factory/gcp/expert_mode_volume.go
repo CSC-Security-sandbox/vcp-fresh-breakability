@@ -373,7 +373,7 @@ func sfrOntapModeBackup(ctx context.Context, se database.Storage, temporal clien
 
 	// Check runs at restore start only. If a previous restore failed and left state in ERROR/RESTORING,
 	// this check fails and blocks starting a new restore until state is corrected (e.g. by defer in SFR workflow).
-	if expertModeVolume.State != models.LifeCycleStateREADY {
+	if expertModeVolume.State != models.LifeCycleStateAvailable && expertModeVolume.State != models.LifeCycleStateREADY {
 		return "", customerrors.NewUserInputValidationErr("Volume is not available")
 	}
 
@@ -487,7 +487,6 @@ func sfrOntapModeBackup(ctx context.Context, se database.Storage, temporal clien
 		workflows.RestoreFilesFromBackupWorkflow,
 		workflowengine.GetSFRWorkflowTimeout(),
 		sfrParams,
-		backup,
 		volumeForWorkflow,
 	)
 	if err != nil {
@@ -522,7 +521,7 @@ func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal c
 		return "", err
 	}
 
-	if expertModeVolume.State != models.LifeCycleStateREADY {
+	if expertModeVolume.State != models.LifeCycleStateAvailable {
 		return "", customerrors.NewUserInputValidationErr("Volume is not available")
 	}
 
@@ -1235,6 +1234,11 @@ func (o *GCPOrchestrator) GetBackupConfigsForPool(ctx context.Context, poolID st
 			} else {
 				logger.Error("Backup policy not found for volume", "volumeName", vol.Name, "backupPolicyID", vol.BackupConfig.BackupPolicyID)
 			}
+		}
+
+		if vol.BackupConfig != nil {
+			config.ScheduledBackupEnabled = vol.BackupConfig.ScheduledBackupEnabled
+			config.BackupChainBytes = vol.BackupConfig.BackupChainBytes
 		}
 
 		backupConfigs = append(backupConfigs, config)

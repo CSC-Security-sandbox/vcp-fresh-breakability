@@ -13,6 +13,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -2736,4 +2737,187 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirror
 	// Verify that the workflow processed through to completion
 	assert.Contains(s.T(), jobStatusCalls, "PROCESSING")
 	assert.Contains(s.T(), jobStatusCalls, "DONE")
+}
+
+// TestRestoreBackupWorkflow_ExpertModeRestore_Success covers line 432:
+// when IsExpertModeRestore=true the workflow calls UpdateExpertModeVolumeStateInDB
+// instead of FinaliseRestoredVolume to mark the volume Available.
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_ExpertModeRestore_Success() {
+	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
+	params.IsExpertModeRestore = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
+	volumeUpdateActivity := &activities.VolumeUpdateActivity{}
+	expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
+
+	s.env.RegisterActivity(commonActivity)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(volumeCreateActivity)
+	s.env.RegisterActivity(volumeUpdateActivity)
+	s.env.RegisterActivity(backupActivity.GenerateObjectStoreNameForRestore)
+	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	s.env.RegisterActivity(backupActivity.UpdateBackupRestoreCount)
+	s.env.RegisterActivity(backupActivity.DeleteSnapmirror)
+	s.env.RegisterActivity(backupActivity.GetSnapmirror)
+	s.env.RegisterActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity)
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	// Expert mode rollback uses UpdateExpertModeVolumeStateInDB, not UpdateVolumeStateInDB
+	s.env.RegisterActivity(expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB)
+
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(backupActivity.GenerateObjectStoreNameForRestore, mock.Anything, mock.Anything, mock.Anything).Return("test-obj-store-abcd", nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).Return("test-dest-path", nil)
+	s.env.OnActivity(activities.GetBucketDetailsFromBackup, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{BucketName: "test-bucket"}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{}, nil)
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapmirror, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
+			},
+			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapshotName: "test-backup",
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "test-snapmirror-uuid",
+			},
+			TransferStatus:    activities.SmStatusSuccess,
+			SmSourcePath:      "test-source-path",
+			SmDestinationPath: "test-destination-path",
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
+	healthy := true
+	s.env.OnActivity(backupActivity.GetSnapmirror, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+		UUID:    "test-snapmirror-uuid",
+		Healthy: &healthy,
+	}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	// Line 432: expert mode path calls UpdateExpertModeVolumeStateInDB with LifeCycleStateAvailable
+	s.env.OnActivity(expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, mock.Anything, volume.UUID, models.LifeCycleStateAvailable).Return(nil)
+	// Rollback (on failure) also resolves via UpdateExpertModeVolumeStateInDB; mark Maybe so it is optional on success
+	s.env.OnActivity(expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnWorkflow(WaitForONTAPJob, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+// TestRestoreBackupWorkflow_ExpertModeRestore_UpdateStateFails covers the error branch
+// immediately after line 432: when UpdateExpertModeVolumeStateInDB returns an error
+// the workflow should fail and surface that error.
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_ExpertModeRestore_UpdateStateFails() {
+	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
+	params.IsExpertModeRestore = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
+	volumeUpdateActivity := &activities.VolumeUpdateActivity{}
+	expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
+
+	s.env.RegisterActivity(commonActivity)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(volumeCreateActivity)
+	s.env.RegisterActivity(volumeUpdateActivity)
+	s.env.RegisterActivity(backupActivity.GenerateObjectStoreNameForRestore)
+	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	s.env.RegisterActivity(backupActivity.UpdateBackupRestoreCount)
+	s.env.RegisterActivity(backupActivity.DeleteSnapmirror)
+	s.env.RegisterActivity(backupActivity.GetSnapmirror)
+	s.env.RegisterActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity)
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB)
+
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(backupActivity.GenerateObjectStoreNameForRestore, mock.Anything, mock.Anything, mock.Anything).Return("test-obj-store-abcd", nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).Return("test-dest-path", nil)
+	s.env.OnActivity(activities.GetBucketDetailsFromBackup, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{BucketName: "test-bucket"}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{}, nil)
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapmirror, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
+			},
+			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapshotName: "test-backup",
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "test-snapmirror-uuid",
+			},
+			TransferStatus:    activities.SmStatusSuccess,
+			SmSourcePath:      "test-source-path",
+			SmDestinationPath: "test-destination-path",
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
+	healthy := true
+	s.env.OnActivity(backupActivity.GetSnapmirror, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+		UUID:    "test-snapmirror-uuid",
+		Healthy: &healthy,
+	}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	// Line 432: UpdateExpertModeVolumeStateInDB returns an error, triggering the failure path (lines 436-438)
+	updateStateErr := temporal.NewNonRetryableApplicationError("update expert mode volume state failed", "UpdateStateFailed", nil)
+	s.env.OnActivity(expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything).Return(updateStateErr)
+	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnWorkflow(WaitForONTAPJob, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "update expert mode volume state failed")
 }

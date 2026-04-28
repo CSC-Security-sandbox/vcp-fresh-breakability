@@ -139,7 +139,7 @@ func (wf *restoreForOntapModeVolumeWorkflow) Run(ctx workflow.Context, args ...i
 	defer func() {
 		// Only restore volume to READY on failure (rollback). On success, RestoreBackupWorkflow sets READY when the actual restore completes.
 		if retErr != nil {
-			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil); err2 != nil {
+			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil); err2 != nil {
 				log.Errorf("Failed to restore expert mode volume state to READY: %v", err2)
 			}
 		}

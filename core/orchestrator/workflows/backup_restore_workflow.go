@@ -429,7 +429,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	volume := backupActivitiesContext.BackupWorkflowInit.Volume
 	if createVolumeParams.IsExpertModeRestore {
 		expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
-		err = workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil)
 	} else {
 		err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, volume).Get(ctx, nil)
 	}

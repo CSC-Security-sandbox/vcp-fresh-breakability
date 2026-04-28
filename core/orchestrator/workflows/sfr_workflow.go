@@ -191,8 +191,8 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		}
 		if params.IsExpertModeRestore {
 			expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
-			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil); err2 != nil {
-				log.Errorf("Failed to restore expert mode volume state to READY: %v", err2)
+			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil); err2 != nil {
+				log.Errorf("Failed to restore expert mode volume state to AVAILABLE: %v", err2)
 			}
 		} else {
 			if err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil); err2 != nil {

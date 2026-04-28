@@ -4,9 +4,11 @@ import "time"
 
 // VolumeBackupConfig represents the backup configuration for an expert mode volume
 type ExpertModeVolumeBackupConfig struct {
-	VolumeResourceID string  // Volume name
-	BackupVaultPath  *string // e.g. projects/{project}/locations/{location}/backupVaults/{id}
-	BackupPolicyPath *string // e.g. projects/{project}/locations/{location}/backupPolicies/{id}
+	VolumeResourceID       string  // Volume name
+	BackupVaultPath        *string // e.g. projects/{project}/locations/{location}/backupVaults/{id}
+	BackupPolicyPath       *string // e.g. projects/{project}/locations/{location}/backupPolicies/{id}
+	ScheduledBackupEnabled *bool   // Whether scheduled backup is enabled for this volume
+	BackupChainBytes       *int64  // Size of the backup chain in bytes
 }
 
 // Backup describes a backup in the cloud volumes model

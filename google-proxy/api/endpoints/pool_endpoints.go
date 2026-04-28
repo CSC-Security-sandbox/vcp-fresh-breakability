@@ -620,13 +620,19 @@ func (h Handler) V1betaGetBackupConfigsForPool(ctx context.Context, params gcpge
 			VolumeId: gcpgenserver.NewOptString(config.VolumeResourceID),
 		}
 
-		if config.BackupVaultPath != nil || config.BackupPolicyPath != nil {
+		if config.BackupVaultPath != nil || config.BackupPolicyPath != nil || config.ScheduledBackupEnabled != nil || config.BackupChainBytes != nil {
 			bc := gcpgenserver.BackupConfigV1beta{}
 			if config.BackupVaultPath != nil {
 				bc.BackupVaultId = gcpgenserver.NewOptNilString(*config.BackupVaultPath)
 			}
 			if config.BackupPolicyPath != nil {
 				bc.BackupPolicyId = gcpgenserver.NewOptNilString(*config.BackupPolicyPath)
+			}
+			if config.ScheduledBackupEnabled != nil {
+				bc.ScheduledBackupEnabled = gcpgenserver.NewOptNilBool(*config.ScheduledBackupEnabled)
+			}
+			if config.BackupChainBytes != nil {
+				bc.BackupChainBytes = gcpgenserver.NewOptNilInt64(*config.BackupChainBytes)
 			}
 			apiConfig.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(bc)
 		}

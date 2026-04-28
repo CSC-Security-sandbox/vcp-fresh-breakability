@@ -110,8 +110,8 @@ func (wf *manageBackupConfigWorkflow) Run(ctx workflow.Context, args ...interfac
 	defer func() {
 		if err != nil {
 			if restoreErr := workflow.ExecuteActivity(ctx, expertModeActivity.UpdateExpertModeVolumeStateInDB,
-				volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil); restoreErr != nil {
-				log.Errorf("Failed to restore expert mode volume %s state to READY after failure: %v", volume.UUID, restoreErr)
+				volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil); restoreErr != nil {
+				log.Errorf("Failed to restore expert mode volume %s state to AVAILABLE after failure: %v", volume.UUID, restoreErr)
 			}
 		}
 	}()
@@ -321,11 +321,11 @@ func (wf *manageBackupConfigWorkflow) Run(ctx workflow.Context, args ...interfac
 		}
 	}
 
-	// Restore volume state to READY on success (the defer only runs on failure).
+	// Restore volume state to AVAILABLE on success (the defer only runs on failure).
 	err = workflow.ExecuteActivity(ctx, expertModeActivity.UpdateExpertModeVolumeStateInDB,
-		volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil)
+		volume.UUID, models.LifeCycleStateAvailable).Get(ctx, nil)
 	if err != nil {
-		log.Errorf("Failed to update expert mode volume %s state to READY: %v", volume.UUID, err)
+		log.Errorf("Failed to update expert mode volume %s state to AVAILABLE: %v", volume.UUID, err)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
