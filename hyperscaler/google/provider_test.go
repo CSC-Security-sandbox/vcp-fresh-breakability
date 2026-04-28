@@ -3411,6 +3411,164 @@ func TestAttachOrUpdateRolesForServiceAccounts(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
 	})
+
+	t.Run("WhenSetIamPolicy409ConflictThenRetriesAndSucceeds", func(tt *testing.T) {
+		defer testReset(tt)
+		iamPolicyConflictBackoff = func(int) time.Duration { return time.Millisecond }
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag:     "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{},
+		}
+
+		setPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "new-etag",
+		}
+
+		setCallCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, _ := json.Marshal(getPolicyResp)
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				setCallCount++
+				if setCallCount <= 2 {
+					rw.Header().Set("Content-Type", "application/json")
+					rw.WriteHeader(http.StatusConflict)
+					errResp := &googleapi.Error{
+						Code:    http.StatusConflict,
+						Message: "There were concurrent policy changes. Please retry the whole read-modify-write with exponential backoff., aborted",
+					}
+					_ = json.NewEncoder(rw).Encode(map[string]interface{}{
+						"error": map[string]interface{}{
+							"code":    errResp.Code,
+							"message": errResp.Message,
+							"status":  "ABORTED",
+						},
+					})
+					return
+				}
+				response, _ := json.Marshal(setPolicyResp)
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		assert.NoError(tt, err)
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/editor"}
+		err = gService.AttachOrUpdateRolesForServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 3, setCallCount, "Expected 3 setIamPolicy calls (2 conflicts + 1 success)")
+	})
+
+	t.Run("WhenSetIamPolicy409ConflictExhaustsRetries", func(tt *testing.T) {
+		defer testReset(tt)
+		iamPolicyConflictBackoff = func(int) time.Duration { return time.Millisecond }
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag:     "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, _ := json.Marshal(getPolicyResp)
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				rw.Header().Set("Content-Type", "application/json")
+				rw.WriteHeader(http.StatusConflict)
+				_ = json.NewEncoder(rw).Encode(map[string]interface{}{
+					"error": map[string]interface{}{
+						"code":    http.StatusConflict,
+						"message": "concurrent policy changes, aborted",
+						"status":  "ABORTED",
+					},
+				})
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		assert.NoError(tt, err)
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/editor"}
+		err = gService.AttachOrUpdateRolesForServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.NotNil(tt, err)
+		assert.IsType(tt, &vsaerrors.CustomError{}, err)
+	})
+
+	t.Run("WhenSetIamPolicyNonRetryableErrorDoesNotRetry", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag:     "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{},
+		}
+
+		setCallCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, _ := json.Marshal(getPolicyResp)
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				setCallCount++
+				rw.WriteHeader(http.StatusForbidden)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		assert.NoError(tt, err)
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/editor"}
+		err = gService.AttachOrUpdateRolesForServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, 1, setCallCount, "Non-retryable error should not cause retry")
+	})
 }
 
 func TestRemoveRolesFromServiceAccounts(t *testing.T) {
@@ -3994,6 +4152,244 @@ func TestRemoveRolesFromServiceAccounts(t *testing.T) {
 		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
 		assert.Nil(tt, err)
 		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
+	})
+
+	t.Run("WhenSetIamPolicy409ConflictThenRetriesAndSucceeds", func(tt *testing.T) {
+		defer testReset(tt)
+		iamPolicyConflictBackoff = func(int) time.Duration { return time.Millisecond }
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		setPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "new-etag",
+		}
+
+		setCallCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, _ := json.Marshal(getPolicyResp)
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				setCallCount++
+				if setCallCount <= 2 {
+					rw.Header().Set("Content-Type", "application/json")
+					rw.WriteHeader(http.StatusConflict)
+					_ = json.NewEncoder(rw).Encode(map[string]interface{}{
+						"error": map[string]interface{}{
+							"code":    http.StatusConflict,
+							"message": "concurrent policy changes, aborted",
+							"status":  "ABORTED",
+						},
+					})
+					return
+				}
+				response, _ := json.Marshal(setPolicyResp)
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		assert.NoError(tt, err)
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 3, setCallCount, "Expected 3 setIamPolicy calls (2 conflicts + 1 success)")
+	})
+
+	t.Run("WhenSetIamPolicy409ConflictExhaustsRetries", func(tt *testing.T) {
+		defer testReset(tt)
+		iamPolicyConflictBackoff = func(int) time.Duration { return time.Millisecond }
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role:    "roles/storage.admin",
+					Members: []string{"serviceAccount:" + serviceAccountEmail},
+				},
+			},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, _ := json.Marshal(getPolicyResp)
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				rw.Header().Set("Content-Type", "application/json")
+				rw.WriteHeader(http.StatusConflict)
+				_ = json.NewEncoder(rw).Encode(map[string]interface{}{
+					"error": map[string]interface{}{
+						"code":    http.StatusConflict,
+						"message": "concurrent policy changes, aborted",
+						"status":  "ABORTED",
+					},
+				})
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		assert.NoError(tt, err)
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.NotNil(tt, err)
+		assert.IsType(tt, &vsaerrors.CustomError{}, err)
+	})
+
+	t.Run("WhenSetIamPolicyNonRetryableErrorDoesNotRetry", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role:    "roles/storage.admin",
+					Members: []string{"serviceAccount:" + serviceAccountEmail},
+				},
+			},
+		}
+
+		setCallCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, _ := json.Marshal(getPolicyResp)
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				setCallCount++
+				rw.WriteHeader(http.StatusForbidden)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		assert.NoError(tt, err)
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, 1, setCallCount, "Non-retryable error should not cause retry")
+	})
+}
+
+func TestIamPolicyConflictBackoff(t *testing.T) {
+	t.Run("ReturnsBackoffWithinExpectedRange", func(tt *testing.T) {
+		for attempt := 0; attempt < 5; attempt++ {
+			d := _iamPolicyConflictBackoff(attempt)
+			expectedBase := iamPolicyConflictBaseBackoff * time.Duration(1<<uint(attempt))
+			if expectedBase > iamPolicyConflictMaxBackoff {
+				expectedBase = iamPolicyConflictMaxBackoff
+			}
+			maxExpected := expectedBase + time.Duration(iamPolicyConflictMaxJitter)*time.Millisecond
+			assert.GreaterOrEqual(tt, d, expectedBase, "attempt %d: backoff should be >= base", attempt)
+			assert.LessOrEqual(tt, d, maxExpected, "attempt %d: backoff should be <= base+jitter", attempt)
+		}
+	})
+
+	t.Run("CapsAtMaxBackoff", func(tt *testing.T) {
+		d := _iamPolicyConflictBackoff(10)
+		maxExpected := iamPolicyConflictMaxBackoff + time.Duration(iamPolicyConflictMaxJitter)*time.Millisecond
+		assert.LessOrEqual(tt, d, maxExpected)
+	})
+}
+
+func TestUnwrapErr(t *testing.T) {
+	t.Run("UnwrapsCustomError", func(tt *testing.T) {
+		origErr := fmt.Errorf("original error")
+		wrapped := vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, origErr)
+		result := unwrapErr(wrapped)
+		assert.Equal(tt, origErr, result)
+	})
+
+	t.Run("ReturnsNonCustomErrorAsIs", func(tt *testing.T) {
+		plainErr := fmt.Errorf("plain error")
+		result := unwrapErr(plainErr)
+		assert.Equal(tt, plainErr, result)
+	})
+
+	t.Run("ReturnsCustomErrorWithNilOriginal", func(tt *testing.T) {
+		wrapped := vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, nil)
+		result := unwrapErr(wrapped)
+		assert.Equal(tt, wrapped, result)
+	})
+}
+
+func TestSleepWithContext(t *testing.T) {
+	t.Run("ReturnsNilOnNormalSleep", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		gService := &GcpServices{
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		err := gService.sleepWithContext(time.Millisecond, "test-project")
+		assert.Nil(tt, err)
+	})
+
+	t.Run("ReturnsErrorOnCancelledContext", func(tt *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, log.Fields{})
+		cancel()
+		gService := &GcpServices{
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		err := gService.sleepWithContext(10*time.Second, "test-project")
+		assert.ErrorIs(tt, err, context.Canceled)
 	})
 }
 

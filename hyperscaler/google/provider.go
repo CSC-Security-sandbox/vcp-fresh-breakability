@@ -40,6 +40,43 @@ import (
 
 const INACTIVE = "INACTIVE"
 
+const (
+	iamPolicyConflictMaxAttempts = 6
+	iamPolicyConflictBaseBackoff = 1 * time.Second
+	iamPolicyConflictMaxBackoff  = 5 * time.Second
+	iamPolicyConflictMaxJitter   = 500
+)
+
+var iamPolicyConflictBackoff = _iamPolicyConflictBackoff
+
+func _iamPolicyConflictBackoff(attempt int) time.Duration {
+	return retryutils.ExponentialBackoffWithJitter(attempt, iamPolicyConflictBaseBackoff, iamPolicyConflictMaxBackoff, iamPolicyConflictMaxJitter)
+}
+
+func unwrapErr(err error) error {
+	var customErr *vsaerrors.CustomError
+	if errors.As(err, &customErr) && customErr.OriginalErr != nil {
+		return customErr.OriginalErr
+	}
+	return err
+}
+
+func (gcpService *GcpServices) sleepWithContext(d time.Duration, projectID string) error {
+	ctx := gcpService.GetContext()
+	timer := time.NewTimer(d)
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		if !timer.Stop() {
+			<-timer.C
+		}
+		gcpService.GetLogger().Warnf("Context cancelled while waiting to retry SetIamPolicy for project %s: %v",
+			projectID, ctx.Err())
+		return ctx.Err()
+	}
+}
+
 func init() {
 	// Override initialization functions if mock path is set
 	if VSAMockPath != "" {
@@ -1154,6 +1191,30 @@ func (gcpService *GcpServices) GetServiceAccount(projectID, email string) (*hype
 }
 
 func (gcpService *GcpServices) AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error {
+	var lastErr error
+	for attempt := 0; attempt < iamPolicyConflictMaxAttempts; attempt++ {
+		lastErr = gcpService.attachOrUpdateRolesReadModifyWrite(roles, serviceAccountEmail, projectID)
+		if lastErr == nil {
+			return nil
+		}
+		if !retryutils.IsRetryableIAMPolicyError(lastErr) {
+			return lastErr
+		}
+		if attempt < iamPolicyConflictMaxAttempts-1 {
+			backoff := iamPolicyConflictBackoff(attempt)
+			gcpService.GetLogger().Warnf("IAM policy conflict on SetIamPolicy for project %s (attempt %d/%d), retrying in %v: %v",
+				projectID, attempt+1, iamPolicyConflictMaxAttempts, backoff, unwrapErr(lastErr))
+			if err := gcpService.sleepWithContext(backoff, projectID); err != nil {
+				return err
+			}
+		}
+	}
+	gcpService.GetLogger().Errorf("IAM policy conflict retries exhausted for project %s after %d attempts: %v",
+		projectID, iamPolicyConflictMaxAttempts, unwrapErr(lastErr))
+	return lastErr
+}
+
+func (gcpService *GcpServices) attachOrUpdateRolesReadModifyWrite(roles []string, serviceAccountEmail, projectID string) error {
 	policy, err := gcpService.getProjectIamPolicy(projectID)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
@@ -1193,6 +1254,30 @@ func (gcpService *GcpServices) GetServiceAccountRoles(serviceAccountEmail, proje
 
 // RemoveRolesFromServiceAccounts removes specified roles from a service account
 func (gcpService *GcpServices) RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail, projectID string) error {
+	var lastErr error
+	for attempt := 0; attempt < iamPolicyConflictMaxAttempts; attempt++ {
+		lastErr = gcpService.removeRolesReadModifyWrite(roles, serviceAccountEmail, projectID)
+		if lastErr == nil {
+			return nil
+		}
+		if !retryutils.IsRetryableIAMPolicyError(lastErr) {
+			return lastErr
+		}
+		if attempt < iamPolicyConflictMaxAttempts-1 {
+			backoff := iamPolicyConflictBackoff(attempt)
+			gcpService.GetLogger().Warnf("IAM policy conflict on SetIamPolicy for project %s (attempt %d/%d), retrying in %v: %v",
+				projectID, attempt+1, iamPolicyConflictMaxAttempts, backoff, unwrapErr(lastErr))
+			if err := gcpService.sleepWithContext(backoff, projectID); err != nil {
+				return err
+			}
+		}
+	}
+	gcpService.GetLogger().Errorf("IAM policy conflict retries exhausted for project %s after %d attempts: %v",
+		projectID, iamPolicyConflictMaxAttempts, unwrapErr(lastErr))
+	return lastErr
+}
+
+func (gcpService *GcpServices) removeRolesReadModifyWrite(roles []string, serviceAccountEmail, projectID string) error {
 	policy, err := gcpService.getProjectIamPolicy(projectID)
 	if err != nil {
 		return err
@@ -1204,11 +1289,9 @@ func (gcpService *GcpServices) RemoveRolesFromServiceAccounts(roles []string, se
 		rolesToRemove[role] = true
 	}
 
-	// Remove the service account from the specified roles
 	var updatedBindings []*projectsManagement.Binding
 	for _, binding := range policy.Bindings {
 		if rolesToRemove[binding.Role] {
-			// Remove the service account from this role's members
 			var updatedMembers []string
 			for _, member := range binding.Members {
 				if !strings.EqualFold(strings.ToLower(member), strings.ToLower(currentSvcAccountMember)) {
@@ -1216,16 +1299,13 @@ func (gcpService *GcpServices) RemoveRolesFromServiceAccounts(roles []string, se
 				}
 			}
 
-			// Only keep the binding if there are still members
 			if len(updatedMembers) > 0 {
 				updatedBindings = append(updatedBindings, &projectsManagement.Binding{
 					Role:    binding.Role,
 					Members: updatedMembers,
 				})
 			}
-			// If no members left, we don't add the binding (effectively removing the role)
 		} else {
-			// Keep other bindings unchanged
 			updatedBindings = append(updatedBindings, binding)
 		}
 	}

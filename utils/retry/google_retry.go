@@ -80,6 +80,26 @@ func RetryDoWithTimeout(ctx context.Context, timeout, wait time.Duration, caller
 	return fmt.Errorf("'%s' retry timeout", caller)
 }
 
+// IsRetryableIAMPolicyError checks whether the error is a retryable IAM policy
+// conflict (HTTP 409 + "aborted"). This is specifically for the read-modify-write
+// retry loop around SetIamPolicy, distinct from the general shouldRetry which
+// handles broader transient errors for Temporal/DB retries.
+func IsRetryableIAMPolicyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var customErr *errors2.CustomError
+	if errors.As(err, &customErr) && customErr.OriginalErr != nil {
+		return IsRetryableIAMPolicyError(customErr.OriginalErr)
+	}
+	var gerr *googleapi.Error
+	if errors.As(err, &gerr) {
+		return gerr.Code == http.StatusConflict &&
+			strings.Contains(strings.ToLower(gerr.Error()), "aborted")
+	}
+	return false
+}
+
 func shouldRetry(err error) bool {
 	var customErr *errors2.CustomError
 	if errors.As(err, &customErr) {

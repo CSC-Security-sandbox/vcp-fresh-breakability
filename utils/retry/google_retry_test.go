@@ -338,3 +338,77 @@ func TestShouldRetry(t *testing.T) {
 		}
 	})
 }
+
+func TestIsRetryableIAMPolicyError(t *testing.T) {
+	t.Run("ReturnsFalseForNil", func(tt *testing.T) {
+		assert.False(tt, IsRetryableIAMPolicyError(nil))
+	})
+
+	t.Run("ReturnsTrueFor409WithAborted", func(tt *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "There were concurrent policy changes. Please retry the whole read-modify-write with exponential backoff. The request's ETag did not match the current policy's ETag., aborted",
+		}
+		assert.True(tt, IsRetryableIAMPolicyError(err))
+	})
+
+	t.Run("ReturnsTrueFor409WithAbortedCaseInsensitive", func(tt *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "Policy update ABORTED due to concurrent modification",
+		}
+		assert.True(tt, IsRetryableIAMPolicyError(err))
+	})
+
+	t.Run("ReturnsFalseFor409WithoutAborted", func(tt *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "Resource already exists",
+		}
+		assert.False(tt, IsRetryableIAMPolicyError(err))
+	})
+
+	t.Run("ReturnsFalseForNon409GoogleError", func(tt *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusInternalServerError,
+			Message: "Internal server error",
+		}
+		assert.False(tt, IsRetryableIAMPolicyError(err))
+	})
+
+	t.Run("ReturnsFalseForGenericError", func(tt *testing.T) {
+		err := errors.New("some generic error")
+		assert.False(tt, IsRetryableIAMPolicyError(err))
+	})
+
+	t.Run("UnwrapsCustomErrorToFind409Aborted", func(tt *testing.T) {
+		googleErr := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "concurrent policy changes, aborted",
+		}
+		customErr := errors2.NewVCPError(errors2.ErrGCPResourceProvisionError, googleErr)
+		assert.True(tt, IsRetryableIAMPolicyError(customErr))
+	})
+
+	t.Run("UnwrapsCustomErrorReturnsFalseForNon409", func(tt *testing.T) {
+		googleErr := &googleapi.Error{
+			Code:    http.StatusForbidden,
+			Message: "Permission denied",
+		}
+		customErr := errors2.NewVCPError(errors2.ErrGCPResourceProvisionError, googleErr)
+		assert.False(tt, IsRetryableIAMPolicyError(customErr))
+	})
+
+	t.Run("ReturnsFalseForCustomErrorWithNilOriginal", func(tt *testing.T) {
+		customErr := errors2.NewVCPError(errors2.ErrGCPResourceProvisionError, nil)
+		assert.False(tt, IsRetryableIAMPolicyError(customErr))
+	})
+
+	t.Run("ReturnsTrueForRealWorldError", func(tt *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: `googleapi: Error 409: There were concurrent policy changes. Please retry the whole read-modify-write with exponential backoff. The request's ETag '\007\006DB\211\n\231\330' did not match the current policy's ETag '\007\006DB\211*\010\207'., aborted`,
+		}
+		assert.True(tt, IsRetryableIAMPolicyError(err))
+	})
+}
