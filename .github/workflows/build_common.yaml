@@ -618,6 +618,7 @@ jobs:
             --clobber \
             -R https://github.com/${{ github.repository }}
           echo "Uploaded ${BINARIES[*]} binaries, checksums, and manifest to release ${{ inputs.tag }}"
+        shell: bash -e {0}
         env:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
 
