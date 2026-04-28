@@ -79,6 +79,17 @@ func (h Handler) V1betaBatchListBackupPolicies(ctx context.Context, req *gcpgens
 		}, nil
 	}
 
+	// Reject malformed UUIDs up front so we don't hit the VCP DB or CVP for
+	// inputs that can never match a real backup policy. Validation runs against the
+	// original (pre-dedup) list so the offending index in the message matches
+	// what the caller sent.
+	if msg := validateUUIDList(req.BackupPolicyUUIDs, "backupPolicyUUIDs"); msg != "" {
+		return &gcpgenserver.V1betaBatchListBackupPoliciesBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: msg,
+		}, nil
+	}
+
 	// When ?fields= is omitted, behave like CVP: minimal rows (backupPolicyId only) and do not send a field mask to CVP.
 	fieldSet := buildBackupPolicyFieldSet(params.Fields)
 

@@ -340,6 +340,37 @@ func TestV1betaBatchListBackupPolicies_RequestValidationAndAuth(t *testing.T) {
 		require.True(t, ok)
 		assert.Contains(t, bad.Message, "at most")
 	})
+
+	t.Run("MalformedUUID_ReturnsBadRequestBeforeFetching", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		h := Handler{Orchestrator: mockOrch}
+		ctx := authContext()
+		req := &gcpgenserver.BatchBackupPolicyUUIDListV1beta{BackupPolicyUUIDs: []string{
+			"11111111-1111-4111-8111-111111111111",
+			"not-a-uuid",
+		}}
+		params := gcpgenserver.V1betaBatchListBackupPoliciesParams{LocationId: "us-east4"}
+		res, err := h.V1betaBatchListBackupPolicies(ctx, req, params)
+		require.NoError(t, err)
+		bad, ok := res.(*gcpgenserver.V1betaBatchListBackupPoliciesBadRequest)
+		require.True(t, ok)
+		assert.Equal(t, float64(http.StatusBadRequest), bad.Code)
+		assert.Contains(t, bad.Message, "backupPolicyUUIDs.1 in body should match")
+		assert.Contains(t, bad.Message, "[a-fA-F0-9]{8}")
+		mockOrch.AssertNotCalled(t, "GetBackupPoliciesByUUIDs", mock.Anything, mock.Anything)
+	})
+
+	t.Run("EmptyStringUUID_ReturnsBadRequest", func(t *testing.T) {
+		h := Handler{Orchestrator: factory.NewMockOrchestratorFactory(t)}
+		ctx := authContext()
+		req := &gcpgenserver.BatchBackupPolicyUUIDListV1beta{BackupPolicyUUIDs: []string{""}}
+		params := gcpgenserver.V1betaBatchListBackupPoliciesParams{LocationId: "us-east4"}
+		res, err := h.V1betaBatchListBackupPolicies(ctx, req, params)
+		require.NoError(t, err)
+		bad, ok := res.(*gcpgenserver.V1betaBatchListBackupPoliciesBadRequest)
+		require.True(t, ok)
+		assert.Contains(t, bad.Message, "backupPolicyUUIDs.0 in body should match")
+	})
 }
 
 func TestV1betaBatchListBackupPolicies_VCPOnly_OrchestratorError(t *testing.T) {

@@ -1380,6 +1380,14 @@ func TestIsBatchAuthPath(t *testing.T) {
 		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/kmsConfigs"))
 	})
 
+	t.Run("batch backupVaults path", func(tt *testing.T) {
+		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/backupVaults"))
+	})
+
+	t.Run("batch backupPolicies path", func(tt *testing.T) {
+		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/backupPolicies"))
+	})
+
 	t.Run("other batch resources are not matched", func(tt *testing.T) {
 		assert.False(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/unknownResource"))
 	})

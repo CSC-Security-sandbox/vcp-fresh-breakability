@@ -3141,10 +3141,10 @@ func (s *BatchBackupPolicyUUIDListV1beta) Validate() error {
 		for i, elem := range s.BackupPolicyUUIDs {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    0,
-					MinLengthSet: false,
-					MaxLength:    0,
-					MaxLengthSet: false,
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
 					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
