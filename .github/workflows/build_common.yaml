@@ -119,6 +119,9 @@ on:
       GHCR_vcp_worker_BINARY_URL:
         description: "URL of the vcp-worker binary OCI artifact in GHCR"
         value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_worker_BINARY_URL }}
+      GHCR_oci_proxy_BINARY_URL:
+        description: "URL of the oci-proxy binary OCI artifact in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_oci_proxy_BINARY_URL }}
     secrets:
       GHVSA_PAT:
         required: true
@@ -172,8 +175,11 @@ jobs:
       GHCR_ontap_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_ontap-proxy-chart_HELM_URL }}
       GCP_ontap_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_ontap-proxy-chart_HELM_URL }}
       GHCR_vcp_worker_BINARY_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_BINARY_URL }}
+      GHCR_oci_proxy_BINARY_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-proxy_BINARY_URL }}
       GHCR_oci_proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-proxy_URL }}
       GHCR_oci_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-proxy_HELM_URL }}
+    env:
+      RELEASE_BINARIES: "vcp-worker oci-proxy"
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -225,11 +231,14 @@ jobs:
           make vcp-cloudrun-deployer-linux-image imageVersion=${{ inputs.tag }}
         shell: bash -e {0}
 
-      - name: Generate vcp-worker binary checksum
+      - name: Generate binary checksums
         run: |
           cd artifacts
-          sha256sum vcp-worker > vcp-worker.sha256
-          echo "SHA256 (vcp-worker): $(cat vcp-worker.sha256)"
+          IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
+          for BINARY in "${BINARIES[@]}"; do
+            sha256sum "$BINARY" > "${BINARY}.sha256"
+            echo "SHA256 (${BINARY}): $(cat "${BINARY}.sha256")"
+          done
         shell: bash -e {0}
 
       - name: Check if digest exists in the gcloud or not
@@ -368,33 +377,33 @@ jobs:
           cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/oci-proxy@$ghcr_digest --insecure-ignore-tlog=true
         shell: bash -e {0}
 
-      - name: Push vcp-worker binary as OCI artifact to GHCR
+      - name: Push and sign binary OCI artifacts to GHCR
         if: ${{ inputs.create_release }}
         env:
           GHCR_ORG: vcp-vsa-control-plane
           BINARY_PATH: ${{ vars.AR_BINARY_PATH }}
           IMAGES_TAG: ${{ inputs.tag }}
         run: |
-          ARTIFACT_REF="ghcr.io/${GHCR_ORG}/${BINARY_PATH}/vcp-worker:${IMAGES_TAG}"
-          echo "Pushing binary: artifacts/vcp-worker -> ${ARTIFACT_REF}"
-          oras push "$ARTIFACT_REF" \
-            --artifact-type "application/vnd.netapp.vcp.binary.v1" \
-            "artifacts/vcp-worker:application/octet-stream" \
-            "artifacts/vcp-worker.sha256:text/plain"
-          echo "Pushed ${ARTIFACT_REF}"
-        shell: bash -e {0}
+          IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
+          for BINARY in "${BINARIES[@]}"; do
+            ARTIFACT_REF="ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}:${IMAGES_TAG}"
+            echo "Pushing binary: artifacts/${BINARY} -> ${ARTIFACT_REF}"
+            oras push "$ARTIFACT_REF" \
+              --artifact-type "application/vnd.netapp.vcp.binary.v1" \
+              "artifacts/${BINARY}:application/octet-stream" \
+              "artifacts/${BINARY}.sha256:text/plain"
+            echo "Pushed ${ARTIFACT_REF}"
 
-      - name: Sign vcp-worker binary OCI artifact
-        if: ${{ inputs.create_release }}
-        env:
-          GHCR_ORG: vcp-vsa-control-plane
-          BINARY_PATH: ${{ vars.AR_BINARY_PATH }}
-        run: |
-          ARTIFACT_REF="ghcr.io/${GHCR_ORG}/${BINARY_PATH}/vcp-worker:${{ inputs.tag }}"
-          DIGEST=$(oras resolve "$ARTIFACT_REF")
-          echo "Signing binary artifact: vcp-worker@${DIGEST}"
-          COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/vcp-worker@${DIGEST}" --tlog-upload=false
-          cosign verify --key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/vcp-worker@${DIGEST}" --insecure-ignore-tlog=true
+            DIGEST=$(oras resolve "$ARTIFACT_REF")
+            if [ -z "$DIGEST" ]; then
+              echo "Error: Failed to resolve digest for ${BINARY} binary OCI artifact"
+              exit 1
+            fi
+            echo "Signing binary artifact: ${BINARY}@${DIGEST}"
+            COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}@${DIGEST}" --tlog-upload=false
+            cosign verify --key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}@${DIGEST}" --insecure-ignore-tlog=true
+            echo "Signed and verified ${BINARY}"
+          done
         shell: bash -e {0}
 
       - name: Helm Login to Artifact Registry
@@ -483,19 +492,28 @@ jobs:
           BINARY_PATH: ${{ vars.AR_BINARY_PATH }}
         run: |
           MANIFEST="artifacts/release-manifest.json"
-          SHA=$(awk '{print $1}' "artifacts/vcp-worker.sha256")
-          DIGEST=$(oras resolve "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/vcp-worker:${IMAGES_TAG}")
-          if [ -z "$DIGEST" ]; then
-            echo "Error: Failed to resolve digest for vcp-worker binary OCI artifact"
-            exit 1
-          fi
+          IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
+          BINARIES_JSON="[]"
+          for BINARY in "${BINARIES[@]}"; do
+            SHA=$(awk '{print $1}' "artifacts/${BINARY}.sha256")
+            GHCR_OCI="ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}:${IMAGES_TAG}"
+            DIGEST=$(oras resolve "$GHCR_OCI")
+            if [ -z "$DIGEST" ]; then
+              echo "Error: Failed to resolve digest for ${BINARY} binary OCI artifact"
+              exit 1
+            fi
+            BINARIES_JSON=$(echo "$BINARIES_JSON" | jq \
+              --arg name "$BINARY" \
+              --arg sha "$SHA" \
+              --arg ghcr_oci "$GHCR_OCI" \
+              --arg digest "$DIGEST" \
+              '. + [{"name":$name,"sha256":$sha,"ghcr_oci":$ghcr_oci,"digest":$digest}]')
+          done
           jq -n \
             --arg version "$IMAGES_TAG" \
             --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg sha "$SHA" \
-            --arg ghcr_oci "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/vcp-worker:${IMAGES_TAG}" \
-            --arg digest "$DIGEST" \
-            '{"version":$version,"generated_at":$generated_at,"artifacts":{"binaries":[{"name":"vcp-worker","sha256":$sha,"ghcr_oci":$ghcr_oci,"digest":$digest}]}}' \
+            --argjson binaries "$BINARIES_JSON" \
+            '{"version":$version,"generated_at":$generated_at,"artifacts":{"binaries":$binaries}}' \
             > "$MANIFEST"
           echo "Release manifest:"
           cat "$MANIFEST"
@@ -586,16 +604,20 @@ jobs:
           newTag: ${{ inputs.tag }}
           prBaseBranch: ${{ inputs.pr_base_branch }}
 
-      - name: Upload vcp-worker binary assets to release
+      - name: Upload binary assets to release
         if: ${{ inputs.create_release }}
         run: |
+          IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
+          ASSETS=()
+          for BINARY in "${BINARIES[@]}"; do
+            ASSETS+=("artifacts/${BINARY}" "artifacts/${BINARY}.sha256")
+          done
+          ASSETS+=("artifacts/release-manifest.json")
           gh release upload "${{ inputs.tag }}" \
-            "artifacts/vcp-worker" \
-            "artifacts/vcp-worker.sha256" \
-            "artifacts/release-manifest.json" \
+            "${ASSETS[@]}" \
             --clobber \
             -R https://github.com/${{ github.repository }}
-          echo "Uploaded vcp-worker binary, checksum, and manifest to release ${{ inputs.tag }}"
+          echo "Uploaded ${BINARIES[*]} binaries, checksums, and manifest to release ${{ inputs.tag }}"
         env:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
 
@@ -618,6 +640,7 @@ jobs:
           done
           echo "GHCR_oci-proxy_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}/oci-proxy:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           echo "GHCR_vcp-worker_BINARY_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_BINARY_PATH }}/vcp-worker:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          echo "GHCR_oci-proxy_BINARY_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_BINARY_PATH }}/oci-proxy:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           
 
   black_duck_scan_repo:
