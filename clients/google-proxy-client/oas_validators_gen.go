@@ -13958,6 +13958,8 @@ func (s V1betaBatchListBackupVaultsFieldsItem) Validate() error {
 		return nil
 	case "crossProjectVault":
 		return nil
+	case "tenantProject":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

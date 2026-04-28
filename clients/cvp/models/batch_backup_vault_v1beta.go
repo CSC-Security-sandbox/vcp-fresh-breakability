@@ -110,6 +110,11 @@ type BatchBackupVaultV1beta struct {
 	//
 	// Details about the current lifecycle state
 	StateDetails *string `json:"stateDetails"`
+
+	// tenantProject
+	//
+	// Details about the tenant project of the crossProjectVault
+	TenantProject *string `json:"tenantProject"`
 }
 
 // Validate validates this batch backup vault v1beta

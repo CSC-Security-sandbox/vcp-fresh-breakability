@@ -522,6 +522,7 @@ func TestEnsureRequestedBVFieldsPresent_SetsUnsetFieldsToNull(t *testing.T) {
 		"backupsPrimaryKeyVersion": true,
 		"kmsConfigResourcePath":    true,
 		"crossProjectVault":        true,
+		"tenantProject":            true,
 	}
 
 	ensureRequestedBVFieldsPresent(&bp, fieldSet)
@@ -538,6 +539,7 @@ func TestEnsureRequestedBVFieldsPresent_SetsUnsetFieldsToNull(t *testing.T) {
 	assert.True(t, bp.BackupsPrimaryKeyVersion.Set && bp.BackupsPrimaryKeyVersion.Null)
 	assert.True(t, bp.KmsConfigResourcePath.Set && bp.KmsConfigResourcePath.Null)
 	assert.True(t, bp.CrossProjectVault.Set && bp.CrossProjectVault.Null)
+	assert.True(t, bp.TenantProject.Set && bp.TenantProject.Null)
 	assert.Equal(t, gcpgenserver.BatchBackupVaultV1betaStateSTATEUNSPECIFIED, bp.State.Value)
 	assert.Equal(t, gcpgenserver.BatchBackupVaultV1betaBackupVaultTypeTYPEUNSPECIFIED, bp.BackupVaultType.Value)
 	assert.Equal(t, gcpgenserver.BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED, bp.EncryptionState.Value)
@@ -740,6 +742,38 @@ func TestConvertBackupVault_CrossProjectVault(t *testing.T) {
 	})
 }
 
+func TestConvertBackupVault_TenantProject(t *testing.T) {
+	t.Run("CrossProject_WithTenantProject_PopulatesValue", func(tt *testing.T) {
+		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
+		bv.ServiceType = models.ServiceTypeCrossProject
+		bv.TenantProject = nillable.GetStringPtr("596181058421")
+		fieldSet := map[string]bool{"crossProjectVault": true, "tenantProject": true}
+		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
+		assert.True(tt, bp.TenantProject.Set)
+		assert.False(tt, bp.TenantProject.Null)
+		assert.Equal(tt, "596181058421", bp.TenantProject.Value)
+	})
+
+	t.Run("CrossProject_WithoutTenantProject_IsNull", func(tt *testing.T) {
+		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
+		bv.ServiceType = models.ServiceTypeCrossProject
+		fieldSet := map[string]bool{"crossProjectVault": true, "tenantProject": true}
+		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
+		assert.True(tt, bp.TenantProject.Set)
+		assert.True(tt, bp.TenantProject.Null)
+	})
+
+	t.Run("GCNV_TenantProjectIsNull", func(tt *testing.T) {
+		bv := makeVCPBackupVault("11111111-1111-1111-1111-111111111111", "vault", "READY")
+		bv.ServiceType = models.ServiceTypeGCNV
+		bv.TenantProject = nillable.GetStringPtr("596181058421")
+		fieldSet := map[string]bool{"crossProjectVault": true, "tenantProject": true}
+		bp := convertBackupVaultToBatchBackupVault(bv, fieldSet)
+		assert.True(tt, bp.TenantProject.Set)
+		assert.True(tt, bp.TenantProject.Null, "non-CrossProject vaults should have null tenantProject")
+	})
+}
+
 // ============================================================
 // BackupRetentionPolicy Tests
 // ============================================================
@@ -839,6 +873,44 @@ func TestConvertCVPBackupVault_CrossProjectVault_True(t *testing.T) {
 	assert.True(t, bp.CrossProjectVault.Set)
 	assert.False(t, bp.CrossProjectVault.Null)
 	assert.True(t, bp.CrossProjectVault.Value)
+}
+
+func TestConvertCVPBackupVault_TenantProject(t *testing.T) {
+	t.Run("CrossProject_WithTenantProject_ForwardsValue", func(tt *testing.T) {
+		crossProject := true
+		tenant := "596181058421"
+		p := &cvpmodels.BatchBackupVaultV1beta{
+			BackupVaultID:     "cvp-1",
+			CrossProjectVault: &crossProject,
+			TenantProject:     &tenant,
+		}
+		bp := convertCVPBatchBackupVaultToGCPBatchBackupVault(p)
+		assert.True(tt, bp.TenantProject.Set)
+		assert.False(tt, bp.TenantProject.Null)
+		assert.Equal(tt, "596181058421", bp.TenantProject.Value)
+	})
+
+	t.Run("NotCrossProject_TenantProjectIsNull", func(tt *testing.T) {
+		tenant := "596181058421"
+		p := &cvpmodels.BatchBackupVaultV1beta{
+			BackupVaultID: "cvp-1",
+			TenantProject: &tenant,
+		}
+		bp := convertCVPBatchBackupVaultToGCPBatchBackupVault(p)
+		assert.True(tt, bp.TenantProject.Set)
+		assert.True(tt, bp.TenantProject.Null, "tenantProject should be null when not a cross-project vault")
+	})
+
+	t.Run("CrossProject_NilTenantProject_IsNull", func(tt *testing.T) {
+		crossProject := true
+		p := &cvpmodels.BatchBackupVaultV1beta{
+			BackupVaultID:     "cvp-1",
+			CrossProjectVault: &crossProject,
+		}
+		bp := convertCVPBatchBackupVaultToGCPBatchBackupVault(p)
+		assert.True(tt, bp.TenantProject.Set)
+		assert.True(tt, bp.TenantProject.Null)
+	})
 }
 
 // ============================================================

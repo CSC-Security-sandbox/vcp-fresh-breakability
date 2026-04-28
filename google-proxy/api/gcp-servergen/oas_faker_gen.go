@@ -1777,6 +1777,11 @@ func (s *BatchBackupVaultV1beta) SetFake() {
 			s.CrossProjectVault.SetFake()
 		}
 	}
+	{
+		{
+			s.TenantProject.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

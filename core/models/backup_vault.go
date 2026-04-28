@@ -52,4 +52,5 @@ type BackupVaultV1beta struct {
 	EncryptionState            *string
 	BackupsPrimaryKeyVersion   *string
 	ServiceType                string
+	TenantProject              *string
 }

@@ -434,6 +434,10 @@ func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.Back
 		res.EncryptionState = bv.CmekAttributes.EncryptionState
 		res.BackupsPrimaryKeyVersion = bv.CmekAttributes.BackupsPrimaryKeyVersion
 	}
+	if bv.ServiceType == models.ServiceTypeCrossProject && len(bv.BucketDetails) > 0 &&
+		bv.BucketDetails[0] != nil && bv.BucketDetails[0].TenantProjectNumber != "" {
+		res.TenantProject = nillable.GetStringPtr(bv.BucketDetails[0].TenantProjectNumber)
+	}
 	if bv.BackupVaultType == CrossRegionBackupType && bv.CrossRegionBackupVaultName != nil {
 		// Extract cross-region backup vault region from its name to determine whether it is the source or destination vault
 		// Source region stores cross-region backup vault name of the destination vault, and destination region stores cross-region backup vault name of the source vault

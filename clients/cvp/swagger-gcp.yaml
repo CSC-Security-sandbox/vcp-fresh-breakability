@@ -7358,6 +7358,7 @@ paths:
               - "backupsPrimaryKeyVersion"
               - "kmsConfigResourcePath"
               - "crossProjectVault"
+              - "tenantProject"
         - name: body
           in: body
           required: true
@@ -15538,12 +15539,19 @@ definitions:
         description: Details about the current lifecycle state
         example: Available for use
       crossProjectVault:
-          title: crossProjectVault
-          type: boolean
-          readOnly: true
-          description: Indicates if the backup vault is a cross-project vault
-          x-nullable: true
-          x-omitempty: false
+        title: crossProjectVault
+        type: boolean
+        readOnly: true
+        description: Indicates if the backup vault is a cross-project vault
+        x-nullable: true
+        x-omitempty: false
+      tenantProject:
+        title: tenantProject
+        type: string
+        x-omitempty: false
+        x-nullable: true
+        description: Details about the tenant project of the crossProjectVault
+        example: "123456789012"
   BatchBackup_v1beta:
     type: object
     title: Backup

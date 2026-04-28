@@ -4,10 +4,12 @@ package database
 
 import (
 	context "context"
-	time "time"
 
 	mock "github.com/stretchr/testify/mock"
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+
+	time "time"
+
 	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 )
 
@@ -127,65 +129,6 @@ func (_c *MockDataStore_AreBackupsInProgressForVolume_Call) Return(_a0 bool, _a1
 }
 
 func (_c *MockDataStore_AreBackupsInProgressForVolume_Call) RunAndReturn(run func(context.Context, string, []string, *time.Time) (bool, error)) *MockDataStore_AreBackupsInProgressForVolume_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetEarliestCreatingBackupTime provides a mock function with given fields: ctx, volumeUUID
-func (_m *MockDataStore) GetEarliestCreatingBackupTime(ctx context.Context, volumeUUID string) (*time.Time, error) {
-	ret := _m.Called(ctx, volumeUUID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetEarliestCreatingBackupTime")
-	}
-
-	var r0 *time.Time
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*time.Time, error)); ok {
-		return rf(ctx, volumeUUID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *time.Time); ok {
-		r0 = rf(ctx, volumeUUID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*time.Time)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, volumeUUID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_GetEarliestCreatingBackupTime_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEarliestCreatingBackupTime'
-type MockDataStore_GetEarliestCreatingBackupTime_Call struct {
-	*mock.Call
-}
-
-// GetEarliestCreatingBackupTime is a helper method to define mock.On call
-//   - ctx context.Context
-//   - volumeUUID string
-func (_e *MockDataStore_Expecter) GetEarliestCreatingBackupTime(ctx interface{}, volumeUUID interface{}) *MockDataStore_GetEarliestCreatingBackupTime_Call {
-	return &MockDataStore_GetEarliestCreatingBackupTime_Call{Call: _e.mock.On("GetEarliestCreatingBackupTime", ctx, volumeUUID)}
-}
-
-func (_c *MockDataStore_GetEarliestCreatingBackupTime_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_GetEarliestCreatingBackupTime_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_GetEarliestCreatingBackupTime_Call) Return(_a0 *time.Time, _a1 error) *MockDataStore_GetEarliestCreatingBackupTime_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_GetEarliestCreatingBackupTime_Call) RunAndReturn(run func(context.Context, string) (*time.Time, error)) *MockDataStore_GetEarliestCreatingBackupTime_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -7716,6 +7659,65 @@ func (_c *MockDataStore_GetDistinctBackupVaultIDsByVolumeUUID_Call) Return(_a0 [
 }
 
 func (_c *MockDataStore_GetDistinctBackupVaultIDsByVolumeUUID_Call) RunAndReturn(run func(context.Context, string) ([]int64, error)) *MockDataStore_GetDistinctBackupVaultIDsByVolumeUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetEarliestCreatingBackupTime provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockDataStore) GetEarliestCreatingBackupTime(ctx context.Context, volumeUUID string) (*time.Time, error) {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEarliestCreatingBackupTime")
+	}
+
+	var r0 *time.Time
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*time.Time, error)); ok {
+		return rf(ctx, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *time.Time); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*time.Time)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetEarliestCreatingBackupTime_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEarliestCreatingBackupTime'
+type MockDataStore_GetEarliestCreatingBackupTime_Call struct {
+	*mock.Call
+}
+
+// GetEarliestCreatingBackupTime is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockDataStore_Expecter) GetEarliestCreatingBackupTime(ctx interface{}, volumeUUID interface{}) *MockDataStore_GetEarliestCreatingBackupTime_Call {
+	return &MockDataStore_GetEarliestCreatingBackupTime_Call{Call: _e.mock.On("GetEarliestCreatingBackupTime", ctx, volumeUUID)}
+}
+
+func (_c *MockDataStore_GetEarliestCreatingBackupTime_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_GetEarliestCreatingBackupTime_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetEarliestCreatingBackupTime_Call) Return(_a0 *time.Time, _a1 error) *MockDataStore_GetEarliestCreatingBackupTime_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetEarliestCreatingBackupTime_Call) RunAndReturn(run func(context.Context, string) (*time.Time, error)) *MockDataStore_GetEarliestCreatingBackupTime_Call {
 	_c.Call.Return(run)
 	return _c
 }

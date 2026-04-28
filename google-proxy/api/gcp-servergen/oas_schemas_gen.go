@@ -4463,6 +4463,8 @@ type BatchBackupVaultV1beta struct {
 	StateDetails OptNilString `json:"stateDetails"`
 	// Indicates if the backup vault is a cross-project vault.
 	CrossProjectVault OptNilBool `json:"crossProjectVault"`
+	// Details about the tenant project of the crossProjectVault.
+	TenantProject OptNilString `json:"tenantProject"`
 }
 
 // GetBackupVaultId returns the value of BackupVaultId.
@@ -4545,6 +4547,11 @@ func (s *BatchBackupVaultV1beta) GetCrossProjectVault() OptNilBool {
 	return s.CrossProjectVault
 }
 
+// GetTenantProject returns the value of TenantProject.
+func (s *BatchBackupVaultV1beta) GetTenantProject() OptNilString {
+	return s.TenantProject
+}
+
 // SetBackupVaultId sets the value of BackupVaultId.
 func (s *BatchBackupVaultV1beta) SetBackupVaultId(val OptString) {
 	s.BackupVaultId = val
@@ -4623,6 +4630,11 @@ func (s *BatchBackupVaultV1beta) SetStateDetails(val OptNilString) {
 // SetCrossProjectVault sets the value of CrossProjectVault.
 func (s *BatchBackupVaultV1beta) SetCrossProjectVault(val OptNilBool) {
 	s.CrossProjectVault = val
+}
+
+// SetTenantProject sets the value of TenantProject.
+func (s *BatchBackupVaultV1beta) SetTenantProject(val OptNilString) {
+	s.TenantProject = val
 }
 
 // Type of the backup vault.
@@ -29749,6 +29761,7 @@ const (
 	V1betaBatchListBackupVaultsFieldsItemBackupsPrimaryKeyVersion V1betaBatchListBackupVaultsFieldsItem = "backupsPrimaryKeyVersion"
 	V1betaBatchListBackupVaultsFieldsItemKmsConfigResourcePath    V1betaBatchListBackupVaultsFieldsItem = "kmsConfigResourcePath"
 	V1betaBatchListBackupVaultsFieldsItemCrossProjectVault        V1betaBatchListBackupVaultsFieldsItem = "crossProjectVault"
+	V1betaBatchListBackupVaultsFieldsItemTenantProject            V1betaBatchListBackupVaultsFieldsItem = "tenantProject"
 )
 
 // AllValues returns all V1betaBatchListBackupVaultsFieldsItem values.
@@ -29770,6 +29783,7 @@ func (V1betaBatchListBackupVaultsFieldsItem) AllValues() []V1betaBatchListBackup
 		V1betaBatchListBackupVaultsFieldsItemBackupsPrimaryKeyVersion,
 		V1betaBatchListBackupVaultsFieldsItemKmsConfigResourcePath,
 		V1betaBatchListBackupVaultsFieldsItemCrossProjectVault,
+		V1betaBatchListBackupVaultsFieldsItemTenantProject,
 	}
 }
 
@@ -29807,6 +29821,8 @@ func (s V1betaBatchListBackupVaultsFieldsItem) MarshalText() ([]byte, error) {
 	case V1betaBatchListBackupVaultsFieldsItemKmsConfigResourcePath:
 		return []byte(s), nil
 	case V1betaBatchListBackupVaultsFieldsItemCrossProjectVault:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemTenantProject:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -29863,6 +29879,9 @@ func (s *V1betaBatchListBackupVaultsFieldsItem) UnmarshalText(data []byte) error
 		return nil
 	case V1betaBatchListBackupVaultsFieldsItemCrossProjectVault:
 		*s = V1betaBatchListBackupVaultsFieldsItemCrossProjectVault
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemTenantProject:
+		*s = V1betaBatchListBackupVaultsFieldsItemTenantProject
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

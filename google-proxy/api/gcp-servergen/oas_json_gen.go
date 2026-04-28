@@ -7970,9 +7970,15 @@ func (s *BatchBackupVaultV1beta) encodeFields(e *jx.Encoder) {
 			s.CrossProjectVault.Encode(e)
 		}
 	}
+	{
+		if s.TenantProject.Set {
+			e.FieldStart("tenantProject")
+			s.TenantProject.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBatchBackupVaultV1beta = [16]string{
+var jsonFieldsNameOfBatchBackupVaultV1beta = [17]string{
 	0:  "backupVaultId",
 	1:  "resourceId",
 	2:  "description",
@@ -7989,6 +7995,7 @@ var jsonFieldsNameOfBatchBackupVaultV1beta = [16]string{
 	13: "state",
 	14: "stateDetails",
 	15: "crossProjectVault",
+	16: "tenantProject",
 }
 
 // Decode decodes BatchBackupVaultV1beta from json.
@@ -8159,6 +8166,16 @@ func (s *BatchBackupVaultV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"crossProjectVault\"")
+			}
+		case "tenantProject":
+			if err := func() error {
+				s.TenantProject.Reset()
+				if err := s.TenantProject.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tenantProject\"")
 			}
 		default:
 			return d.Skip()

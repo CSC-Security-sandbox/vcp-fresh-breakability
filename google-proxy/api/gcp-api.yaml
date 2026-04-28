@@ -8446,6 +8446,7 @@ paths:
                 - backupsPrimaryKeyVersion
                 - kmsConfigResourcePath
                 - crossProjectVault
+                - tenantProject
       requestBody:
         description: A list of backup vault UUIDs to return.
         content:
@@ -9862,6 +9863,13 @@ components:
           description: Indicates if the backup vault is a cross-project vault
           nullable: true
           x-omitempty: false
+        tenantProject:
+          title: tenantProject
+          type: string
+          x-omitempty: false
+          nullable: true
+          description: Details about the tenant project of the crossProjectVault
+          example: "123456789012"
     BatchBackupUUIDList_v1beta:
       type: object
       title: BatchBackupUUIDList

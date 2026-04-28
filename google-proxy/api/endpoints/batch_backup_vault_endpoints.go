@@ -276,8 +276,14 @@ func convertBackupVaultToBatchBackupVault(bv *models.BackupVaultV1beta, fieldSet
 
 	if bv.ServiceType == models.ServiceTypeCrossProject {
 		bp.CrossProjectVault = gcpgenserver.NewOptNilBool(true)
+		if bv.TenantProject != nil && *bv.TenantProject != "" {
+			bp.TenantProject = gcpgenserver.NewOptNilString(*bv.TenantProject)
+		} else {
+			bp.TenantProject.SetToNull()
+		}
 	} else {
 		bp.CrossProjectVault.SetToNull()
+		bp.TenantProject.SetToNull()
 	}
 
 	retPolicy := gcpgenserver.BackupRetentionPolicyV1beta{}
@@ -361,6 +367,11 @@ func convertCVPBatchBackupVaultToGCPBatchBackupVault(p *cvpmodels.BatchBackupVau
 		bp.CrossProjectVault = gcpgenserver.NewOptNilBool(*p.CrossProjectVault)
 	} else {
 		bp.CrossProjectVault.SetToNull()
+	}
+	if p.CrossProjectVault != nil && *p.CrossProjectVault && p.TenantProject != nil && *p.TenantProject != "" {
+		bp.TenantProject = gcpgenserver.NewOptNilString(*p.TenantProject)
+	} else {
+		bp.TenantProject.SetToNull()
 	}
 	if p.BackupRetentionPolicy != nil {
 		retPolicy := gcpgenserver.BackupRetentionPolicyV1beta{}
@@ -472,6 +483,9 @@ func ensureRequestedBVFieldsPresent(bp *gcpgenserver.BatchBackupVaultV1beta, fie
 	if fieldSet["crossProjectVault"] && !bp.CrossProjectVault.Set {
 		bp.CrossProjectVault.SetToNull()
 	}
+	if fieldSet["tenantProject"] && !bp.TenantProject.Set {
+		bp.TenantProject.SetToNull()
+	}
 }
 
 func applyBatchBVFieldSelection(bp *gcpgenserver.BatchBackupVaultV1beta, fieldSet map[string]bool) {
@@ -491,6 +505,7 @@ func applyBatchBVFieldSelection(bp *gcpgenserver.BatchBackupVaultV1beta, fieldSe
 		bp.EncryptionState.Reset()
 		bp.BackupRetentionPolicy.Reset()
 		bp.CrossProjectVault.Reset()
+		bp.TenantProject.Reset()
 		return
 	}
 
@@ -538,6 +553,9 @@ func applyBatchBVFieldSelection(bp *gcpgenserver.BatchBackupVaultV1beta, fieldSe
 	}
 	if !fieldSet["crossProjectVault"] {
 		bp.CrossProjectVault.Reset()
+	}
+	if !fieldSet["tenantProject"] {
+		bp.TenantProject.Reset()
 	}
 
 	ensureRequestedBVFieldsPresent(bp, fieldSet)

@@ -263,6 +263,62 @@ func Test_convertDatastoreBackupVaultToModel_CrossRegionDestinationVaultWhenCRLo
 	assert.Equal(t, fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", accountName, backupRegion, vaultName), *result.DestinationBackupVault)
 }
 
+func Test_convertDatastoreBackupVaultToModel_TenantProject(t *testing.T) {
+	t.Run("CrossProjectVault_PopulatesTenantProjectFromBucketDetails", func(tt *testing.T) {
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:      "bv",
+			ServiceType: models.ServiceTypeCrossProject,
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{TenantProjectNumber: "596181058421"},
+			},
+		}
+		result := _convertDatastoreBackupVaultToModel(bv)
+		assert.NotNil(tt, result.TenantProject)
+		assert.Equal(tt, "596181058421", *result.TenantProject)
+	})
+
+	t.Run("NonCrossProjectVault_TenantProjectIsNil", func(tt *testing.T) {
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:      "bv",
+			ServiceType: models.ServiceTypeGCNV,
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{TenantProjectNumber: "596181058421"},
+			},
+		}
+		result := _convertDatastoreBackupVaultToModel(bv)
+		assert.Nil(tt, result.TenantProject)
+	})
+
+	t.Run("CrossProjectVault_NoBucketDetails_TenantProjectIsNil", func(tt *testing.T) {
+		bv := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:        "bv",
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		result := _convertDatastoreBackupVaultToModel(bv)
+		assert.Nil(tt, result.TenantProject)
+	})
+
+	t.Run("CrossProjectVault_EmptyTenantProjectNumber_TenantProjectIsNil", func(tt *testing.T) {
+		bv := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:        "bv",
+			ServiceType: models.ServiceTypeCrossProject,
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{TenantProjectNumber: ""},
+			},
+		}
+		result := _convertDatastoreBackupVaultToModel(bv)
+		assert.Nil(tt, result.TenantProject)
+	})
+}
+
 func TestGetBackupVaultByNameAndOwnerIDReturnsBackupVault(tt *testing.T) {
 	tt.Run("WhenBackupVaultExists", func(tt *testing.T) {
 		mockLogger := log.NewLogger()
