@@ -117,6 +117,10 @@ func main() {
 		return workflowClient.GetTemporalClient(), nil
 	}
 
+	if err := workflows.LaunchHarvestRefreshIfNeeded(ctx, cfg, dbCon, workflowClient.GetTemporalClient(), logger); err != nil {
+		logger.Error("Failed to launch harvest refresh workflow", "error", err.Error())
+	}
+
 	// Create GCP proxy server and inject required dependencies
 	orch := factory.GetOrchestratorForProvider(dbCon, workflowClient.GetTemporalClient())
 	newHandler := &api.Handler{Orchestrator: orch} // inject the orchestrator into the handler

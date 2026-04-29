@@ -166,6 +166,7 @@ dbConnectRetryBaseDelayMs: 500
 dbConnectRetryMaxDelayMs: 30000
 replicaCount: 1
 enableBackgroundTasks: true
+refreshHarvestOnUpgrade: false
 enableJSwapVersionCheck: true
 requiredTakeoverReasons:
   - "disabled"

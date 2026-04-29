@@ -127,6 +127,7 @@ global:
     snapshotApiSyncMode: "false"
     enableJobResourceUuidIndex: "true"
     maxAppConsistentSnapshotCount: "10"
+    refreshHarvestOnUpgrade: "false"
     # Make sure to update the regionNumberMap if new regions are added. In both Google proxy and vcp-worker-chart
     regionNumberMap:
       africa-south1: "01"

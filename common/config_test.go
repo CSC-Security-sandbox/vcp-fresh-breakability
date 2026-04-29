@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -41,7 +42,11 @@ func TestLoadConfig(t *testing.T) {
 		err := cmd.Run()
 
 		if exitError, ok := err.(*exec.ExitError); ok {
-			assert.Equal(t, 1, exitError.ExitCode())
+			waitStatus, ok := exitError.Sys().(syscall.WaitStatus)
+			if !ok {
+				t.Fatal("Expected syscall.WaitStatus from process exit")
+			}
+			assert.Equal(t, 1, waitStatus.ExitStatus())
 		} else {
 			t.Fatal("Expected exit code 1, but process didn't exit")
 		}
@@ -249,6 +254,46 @@ func TestLoadConfig_MetricsDBEnvVars(t *testing.T) {
 	_ = os.Unsetenv("METRICS_DB_MAX_OPEN_CONNS")
 	_ = os.Unsetenv("METRICS_DB_MAX_IDLE_CONNS")
 	_ = os.Unsetenv("METRICS_DB_CONN_MAX_LIFETIME")
+}
+
+func TestLoadConfig_RefreshHarvestOnUpgrade(t *testing.T) {
+	t.Run("DefaultValueIsFalse", func(t *testing.T) {
+		_ = os.Setenv("LOCAL_REGION", "us-central1")
+		defer func() {
+			_ = os.Unsetenv("LOCAL_REGION")
+			_ = os.Unsetenv("REFRESH_HARVEST_ON_UPGRADE")
+		}()
+
+		cfg := LoadConfig()
+		assert.NotNil(t, cfg)
+		assert.False(t, cfg.RefreshHarvestOnUpgrade, "REFRESH_HARVEST_ON_UPGRADE defaults to false")
+	})
+
+	t.Run("DisabledWhenEnvVarFalse", func(t *testing.T) {
+		_ = os.Setenv("LOCAL_REGION", "us-central1")
+		_ = os.Setenv("REFRESH_HARVEST_ON_UPGRADE", "false")
+		defer func() {
+			_ = os.Unsetenv("LOCAL_REGION")
+			_ = os.Unsetenv("REFRESH_HARVEST_ON_UPGRADE")
+		}()
+
+		cfg := LoadConfig()
+		assert.NotNil(t, cfg)
+		assert.False(t, cfg.RefreshHarvestOnUpgrade)
+	})
+
+	t.Run("EnabledWhenEnvVarTrue", func(t *testing.T) {
+		_ = os.Setenv("LOCAL_REGION", "us-central1")
+		_ = os.Setenv("REFRESH_HARVEST_ON_UPGRADE", "true")
+		defer func() {
+			_ = os.Unsetenv("LOCAL_REGION")
+			_ = os.Unsetenv("REFRESH_HARVEST_ON_UPGRADE")
+		}()
+
+		cfg := LoadConfig()
+		assert.NotNil(t, cfg)
+		assert.True(t, cfg.RefreshHarvestOnUpgrade)
+	})
 }
 
 func TestLoadConfig_SnapshotAPISyncMode(t *testing.T) {

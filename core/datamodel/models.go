@@ -1150,6 +1150,13 @@ type AdminJobSpec struct {
 	State          string `gorm:"column:state"`
 }
 
+// AppConfig is a reusable key-value store for operational state.
+type AppConfig struct {
+	BaseModel
+	Key   string `gorm:"column:key;uniqueIndex;not null"`
+	Value string `gorm:"column:value;not null"`
+}
+
 type HarvestConfig struct {
 	PORT                string
 	SERVICE_CONTROL_URL string

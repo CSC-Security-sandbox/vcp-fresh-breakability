@@ -20845,6 +20845,113 @@ func (_c *MockDataStore_VerifyVolumeOwnership_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GetAppConfig provides a mock function with given fields: ctx, key
+func (_m *MockDataStore) GetAppConfig(ctx context.Context, key string) (*datamodel.AppConfig, error) {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAppConfig")
+	}
+
+	var r0 *datamodel.AppConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.AppConfig, error)); ok {
+		return rf(ctx, key)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AppConfig); ok {
+		r0 = rf(ctx, key)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AppConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetAppConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAppConfig'
+type MockDataStore_GetAppConfig_Call struct {
+	*mock.Call
+}
+
+// GetAppConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockDataStore_Expecter) GetAppConfig(ctx interface{}, key interface{}) *MockDataStore_GetAppConfig_Call {
+	return &MockDataStore_GetAppConfig_Call{Call: _e.mock.On("GetAppConfig", ctx, key)}
+}
+
+func (_c *MockDataStore_GetAppConfig_Call) Run(run func(ctx context.Context, key string)) *MockDataStore_GetAppConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetAppConfig_Call) Return(_a0 *datamodel.AppConfig, _a1 error) *MockDataStore_GetAppConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetAppConfig_Call) RunAndReturn(run func(context.Context, string) (*datamodel.AppConfig, error)) *MockDataStore_GetAppConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpsertAppConfig provides a mock function with given fields: ctx, key, value
+func (_m *MockDataStore) UpsertAppConfig(ctx context.Context, key string, value string) error {
+	ret := _m.Called(ctx, key, value)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpsertAppConfig")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, key, value)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpsertAppConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertAppConfig'
+type MockDataStore_UpsertAppConfig_Call struct {
+	*mock.Call
+}
+
+// UpsertAppConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - value string
+func (_e *MockDataStore_Expecter) UpsertAppConfig(ctx interface{}, key interface{}, value interface{}) *MockDataStore_UpsertAppConfig_Call {
+	return &MockDataStore_UpsertAppConfig_Call{Call: _e.mock.On("UpsertAppConfig", ctx, key, value)}
+}
+
+func (_c *MockDataStore_UpsertAppConfig_Call) Run(run func(ctx context.Context, key string, value string)) *MockDataStore_UpsertAppConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpsertAppConfig_Call) Return(_a0 error) *MockDataStore_UpsertAppConfig_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpsertAppConfig_Call) RunAndReturn(run func(context.Context, string, string) error) *MockDataStore_UpsertAppConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockDataStore creates a new instance of MockDataStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockDataStore(t interface {

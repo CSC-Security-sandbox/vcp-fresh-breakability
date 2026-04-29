@@ -49,7 +49,7 @@ func TestHarvestUpgradeTestSuite(t *testing.T) {
 
 func (s *HarvestUpgradeTestSuite) TestHarvestPollerUpgradeWorkFlow_Success() {
 	// Arrange
-	params := &harvestNodesRefreshParams{}
+	params := &HarvestPollerUpgradeParams{}
 	mockStorage := database.NewMockStorage(s.T())
 	harvestRefreshActivity := &activities.HarvestNodesRefreshActivity{SE: mockStorage}
 	s.env.RegisterActivity(harvestRefreshActivity)
@@ -75,7 +75,7 @@ func (s *HarvestUpgradeTestSuite) TestHarvestPollerUpgradeWorkFlow_Success() {
 
 func (s *HarvestUpgradeTestSuite) TestHarvestPollerUpgradeWorkFlow_GetNodeGroupMapsError() {
 	// Arrange
-	params := &harvestNodesRefreshParams{}
+	params := &HarvestPollerUpgradeParams{}
 	mockStorage := database.NewMockStorage(s.T())
 	harvestRefreshActivity := &activities.HarvestNodesRefreshActivity{SE: mockStorage}
 	s.env.RegisterActivity(harvestRefreshActivity)
@@ -98,7 +98,7 @@ func (s *HarvestUpgradeTestSuite) TestHarvestPollerUpgradeWorkFlow_GetNodeGroupM
 
 func (s *HarvestUpgradeTestSuite) TestHarvestPollerUpgradeWorkFlow_EmptyNodeGroupMaps() {
 	// Arrange
-	params := &harvestNodesRefreshParams{}
+	params := &HarvestPollerUpgradeParams{}
 	mockStorage := database.NewMockStorage(s.T())
 	harvestRefreshActivity := &activities.HarvestNodesRefreshActivity{SE: mockStorage}
 	s.env.RegisterActivity(harvestRefreshActivity)
@@ -117,7 +117,7 @@ func (s *HarvestUpgradeTestSuite) TestHarvestPollerUpgradeWorkFlow_EmptyNodeGrou
 
 func (s *HarvestUpgradeTestSuite) TestHarvestPollerUpgradeWorkFlow_RefreshHarvestNodesError() {
 	// Arrange
-	params := &harvestNodesRefreshParams{}
+	params := &HarvestPollerUpgradeParams{}
 	mockStorage := database.NewMockStorage(s.T())
 	harvestRefreshActivity := &activities.HarvestNodesRefreshActivity{SE: mockStorage}
 	s.env.RegisterActivity(harvestRefreshActivity)

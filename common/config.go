@@ -81,6 +81,9 @@ type Config struct {
 
 	EnableBackgroundTask bool
 
+	// Trigger HarvestPollerUpgradeWorkFlow when the embedded harvest template version changes
+	RefreshHarvestOnUpgrade bool
+
 	// Snapshot creation mode: true for sync, false for async (default: false/async)
 	SnapshotAPISyncMode bool
 
@@ -118,6 +121,7 @@ func LoadConfig() *Config {
 	refreshAdminJobSpecs := env.GetBool("REFRESH_ADMIN_JOB_SPECS", true)
 	updateBackupSchedules := env.GetBool("UPDATE_BACKUP_SCHEDULES", true)
 	enableBackgroundTask := env.GetBool("ENABLE_BACKGROUND_TASKS", true)
+	refreshHarvestOnUpgrade := env.GetBool("REFRESH_HARVEST_ON_UPGRADE", false)
 	snapshotAPISyncMode := env.GetBool("SNAPSHOT_API_SYNC_MODE", false)
 	syncSnapshotOntapJobPollTimeoutSeconds := env.GetInt("SYNC_SNAPSHOT_ONTAP_JOB_POLL_TIMEOUT_SECONDS", 40)
 	syncSnapshotOntapJobPollIntervalSeconds := env.GetInt("SYNC_SNAPSHOT_ONTAP_JOB_POLL_INTERVAL_SECONDS", 2)
@@ -182,6 +186,7 @@ func LoadConfig() *Config {
 		RefreshAdminJobSpecs:                    refreshAdminJobSpecs,
 		UpdateBackupSchedules:                   updateBackupSchedules,
 		EnableBackgroundTask:                    enableBackgroundTask,
+		RefreshHarvestOnUpgrade:                 refreshHarvestOnUpgrade,
 		SnapshotAPISyncMode:                     snapshotAPISyncMode,
 		SyncSnapshotOntapJobPollTimeoutSeconds:  syncSnapshotOntapJobPollTimeoutSeconds,
 		SyncSnapshotOntapJobPollIntervalSeconds: syncSnapshotOntapJobPollIntervalSeconds,

@@ -17,8 +17,12 @@ var (
 	refreshURL = fmt.Sprintf("%s://%s/config/refresh", harvestRestProtocol, harvestHost)
 )
 
-type harvestNodesRefreshParams struct {
+// HarvestPollerUpgradeParams is the workflow input for HarvestPollerUpgradeWorkFlow (empty; reserved for future use).
+type HarvestPollerUpgradeParams struct {
 }
+
+// HarvestPollerUpgradeWorkflowID is the stable Temporal workflow ID for harvest template / poller refresh.
+const HarvestPollerUpgradeWorkflowID = "harvest-poller-upgrade"
 
 type harvestNodesRefreshWorkFlow struct {
 	BaseWorkflow
@@ -29,7 +33,7 @@ type harvestNodesRefreshWorkFlow struct {
 var _ WorkflowInterface = &harvestNodesRefreshWorkFlow{}
 
 // HarvestPollerUpgradeWorkFlow is a Temporal workflow that refreshes the harvest pollers
-func HarvestPollerUpgradeWorkFlow(ctx workflow.Context, params *harvestNodesRefreshParams) error {
+func HarvestPollerUpgradeWorkFlow(ctx workflow.Context, params *HarvestPollerUpgradeParams) error {
 	wf := new(harvestNodesRefreshWorkFlow)
 	err := wf.Setup(ctx, params)
 	if err != nil {
@@ -48,9 +52,9 @@ func HarvestPollerUpgradeWorkFlow(ctx workflow.Context, params *harvestNodesRefr
 func (wf *harvestNodesRefreshWorkFlow) Setup(ctx workflow.Context, input interface{}) error {
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
-	_, ok := input.(*harvestNodesRefreshParams)
+	_, ok := input.(*HarvestPollerUpgradeParams)
 	if !ok {
-		return errors.New("unable to type cast input as harvestNodesRefreshParams")
+		return errors.New("unable to type cast input as HarvestPollerUpgradeParams")
 	}
 	wf.CustomerID = ""
 	wf.Status = WorkflowStatusCreated

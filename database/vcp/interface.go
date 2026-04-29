@@ -451,6 +451,8 @@ type (
 		GetActiveExpertModeVolumesCountByAccountID(ctx context.Context, accountID int64) (int64, error)
 		GetEligibleExpertModeVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error)
 		GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error)
+		GetAppConfig(ctx context.Context, key string) (*datamodel.AppConfig, error)
+		UpsertAppConfig(ctx context.Context, key, value string) error
 
 		// AddressRange
 		CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error)

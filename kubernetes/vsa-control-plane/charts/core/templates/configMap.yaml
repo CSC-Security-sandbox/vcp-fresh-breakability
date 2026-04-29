@@ -38,3 +38,4 @@ data:
     METRICS_DB_USER: {{ printf "%s@%s.iam" .Values.serviceAccountName $projectId | quote }}
     {{- end }}
     CLOUD_SQL_IAM_AUTH_ENABLED: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
+    REFRESH_HARVEST_ON_UPGRADE: {{ .Values.refreshHarvestOnUpgrade | default false | quote }}

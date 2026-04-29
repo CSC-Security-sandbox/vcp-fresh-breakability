@@ -5624,6 +5624,37 @@ func (re *retryEngine) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Cont
 	return var0, err
 }
 
+func (re *retryEngine) GetAppConfig(ctx context.Context, key string) (*datamodel.AppConfig, error) {
+	var var0 *datamodel.AppConfig
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetAppConfig(ctx, key)
+		if err != nil {
+			re.logError("GetAppConfig", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) UpsertAppConfig(ctx context.Context, key, value string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpsertAppConfig(ctx, key, value)
+		if err != nil {
+			re.logError("UpsertAppConfig", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
 	var var0 *datamodel.AddressRange
 	err := retry.Do(func(attempt int) (bool, error) {

@@ -1776,6 +1776,14 @@ func (s *PersistenceStore) GetExpertModeBackupsByVolumeExternalUUID(ctx context.
 	return s.dataStore.GetExpertModeBackupsByVolumeExternalUUID(ctx, volumeExternalUUID)
 }
 
+func (s *PersistenceStore) GetAppConfig(ctx context.Context, key string) (*datamodel.AppConfig, error) {
+	return s.dataStore.GetAppConfig(ctx, key)
+}
+
+func (s *PersistenceStore) UpsertAppConfig(ctx context.Context, key, value string) error {
+	return s.dataStore.UpsertAppConfig(ctx, key, value)
+}
+
 func (s *PersistenceStore) GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error) {
 	return s.dataStore.GetMultipleVolumesWithExpertMode(ctx, conditions)
 }
