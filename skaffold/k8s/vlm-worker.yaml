@@ -122,7 +122,7 @@ spec:
             - name: ENABLE_GLOBAL_GCP_CLIENTS
               value: "false"
         - name: vlm-worker-files
-          image: ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:R9.18.1x_8073152
+          image: ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:R9.18.1x_8083481
           env:
             - name: PROVIDER
               value: "gcp"
