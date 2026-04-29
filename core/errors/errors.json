@@ -761,6 +761,18 @@
     "retriable": false,
     "http_code": 500
   },
+  "5066": {
+    "description": "Clone split Job failed because the ONTAP split job doesn't exist",
+    "message": "Clone split Job failed: the ONTAP split job doesn't exist.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5067": {
+    "description": "Clone split failed because of invalid ONTAP job uuid.",
+    "message": "Clone split job failed: invalid ONTAP job uuid.",
+    "retriable": false,
+    "http_code": 400
+  },
   "5101": {
     "description": "Unclassified LDAP error",
     "message": "An error occurred during LDAP configuration. Please verify your settings and try again.",

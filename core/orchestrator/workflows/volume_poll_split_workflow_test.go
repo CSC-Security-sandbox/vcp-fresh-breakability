@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/sdk/converter"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )
@@ -188,35 +190,70 @@ func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_OntapJobFail
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_OntapJobActivityError() {
+// Test_VolumePollSplitWorkflow_GetONTAPJobActivityError_ContinueAsNew verifies that
+// when GetOntapJob fails with a WHITELISTED retryable error (TimeoutErr with the
+// expected message substring), the workflow returns a ContinueAsNewError and skips
+// the cleanup defer / UpdateJobStatus(ERROR).
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_GetONTAPJobActivityError_ContinueAsNew() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-getjob-can"
+	s.env.RegisterActivity(&commonActivity)
+	// PROCESSING succeeds; ERROR must NOT be called (ContinueAsNew skips it).
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	// Whitelisted retryable error -> ContinueAsNew.
+	retryableErr := temporal.NewApplicationErrorWithCause(
+		"Retries exhausted when attempting to reach the storage server",
+		"TimeoutErr",
+		nil,
+	)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(nil, retryableErr)
+	// UpdateCloneParentStateInDB must NOT be called (defer skips on ContinueAsNew).
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.True(s.T(), workflow.IsContinueAsNewError(s.env.GetWorkflowError()),
+		"expected ContinueAsNewError, got: %v", s.env.GetWorkflowError())
+}
+
+// Test_VolumePollSplitWorkflow_GetOntapJob_NonRetryableError_Fails verifies that
+// when GetOntapJob fails with an error NOT on the retryable whitelist, the workflow
+// propagates the error (no ContinueAsNew), runs the cleanup defer to mark the clone
+// as ErrorInSplitting, and updates the job status to ERROR.
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_GetOntapJob_NonRetryableError_Fails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
-	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
-
 	volume := testSplitVolume()
 	node := testSplitNode()
-	ontapJobUUID := "ontap-job-uuid-789"
-
+	ontapJobUUID := "ontap-job-uuid-non-retryable"
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
-	s.env.RegisterActivity(&volumeSplitActivity)
-
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
-
-	// GetOntapJob activity itself errors
-	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(nil, errors.New("failed to reach ONTAP"))
-
+	// Non-whitelisted ApplicationError (wrong Type AND wrong message).
+	nonRetryableErr := temporal.NewApplicationErrorWithCause(
+		"connection refused",
+		"NetworkErr",
+		nil,
+	)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(nil, nonRetryableErr)
+	// PROCESSING + ERROR must both be called (no ContinueAsNew short-circuit).
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
+	// Defer must reconcile clone state because the workflow is genuinely failing.
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB,
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
-
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.False(s.T(), workflow.IsContinueAsNewError(err),
+		"non-retryable error must not trigger ContinueAsNew, got: %v", err)
 }
 
+// Test_VolumePollSplitWorkflow_UpdateJobStatusProcessingError verifies that
+// when UpdateJobStatus(PROCESSING) fails, the workflow returns a ContinueAsNewError
 func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateJobStatusProcessingError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -225,16 +262,18 @@ func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateJobSta
 	node := testSplitNode()
 
 	s.env.RegisterActivity(&commonActivity)
+	// UpdateJobStatus(PROCESSING) fails → workflow ContinueAsNew before Run() executes.
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(errors.New("failed to update job status"))
 
-	// Fail on UpdateJobStatus PROCESSING
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
-
-	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, "")
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, "ontap-job-uuid-proc-can")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.True(s.T(), workflow.IsContinueAsNewError(s.env.GetWorkflowError()))
 }
 
+// Test_VolumePollSplitWorkflow_UpdateJobStatusDoneError verifies that when
+// Run() succeeds but the final UpdateJobStatus(DONE) fails, the workflow returns ContinueAsNewError
 func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateJobStatusDoneError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -251,16 +290,86 @@ func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateJobSta
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once() // PROCESSING
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
+	// PROCESSING succeeds, DONE fails.
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update DONE"))
+
+	// Run() succeeded → defer reconciles clone state, snapshot cleanup runs.
 	s.env.OnActivity(volumeSplitActivity.CleanupSplitSnapshot, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	// When UpdateJobStatus for DONE fails, the workflow logs the error but still completes successfully (returns nil)
-	assert.NoError(s.T(), s.env.GetWorkflowError())
+	assert.True(s.T(), workflow.IsContinueAsNewError(s.env.GetWorkflowError()))
+}
+
+// Test_VolumePollSplitWorkflow_GetOntapJob_NotFound_DoesNotContinueAsNew verifies that
+// when GetOntapJob returns an error whose message contains "entry doesn't exist",
+// ClassifyGetONTAPJobError marks it as permanent and the workflow fails terminally
+// rather than ContinueAsNew.
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_GetOntapJob_NotFound_DoesNotContinueAsNew() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "11111111-2222-3333-4444-555555555555"
+
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&volumeCreateActivity)
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
+
+	// ONTAP REST body text for error code 9895936.
+	notFoundErr := errors.New(`[GET /cluster/jobs/{uuid}][404] job_get default {"error":{"code":"9895936","message":"entry not found"}}`)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(nil, notFoundErr)
+
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.False(s.T(), workflow.IsContinueAsNewError(err),
+		"NotFound must not trigger ContinueAsNew, got: %v", err)
+}
+
+// Test_VolumePollSplitWorkflow_GetOntapJob_InvalidUUID_DoesNotContinueAsNew verifies that
+// when GetOntapJob returns the ONTAP REST validation error for a malformed UUID, the
+// workflow classifies it as permanent and fails terminally rather than ContinueAsNew.
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_GetOntapJob_InvalidUUID_DoesNotContinueAsNew() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "00000000-0000-0000-0000-00000000000" // one char short — malformed
+
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&volumeCreateActivity)
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
+
+	invalidErr := errors.New(`"00000000-0000-0000-0000-00000000000" is an invalid value for field "uuid" (<UUID>)`)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(nil, invalidErr)
+
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.False(s.T(), workflow.IsContinueAsNewError(err),
+		"invalid UUID must not trigger ContinueAsNew, got: %v", err)
 }
 
 func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_SetupError() {
@@ -664,6 +773,124 @@ func TestClassifyONTAPSplitError_JobKilled(t *testing.T) {
 	assert.Contains(t, ontapMsg, "split job was killed")
 }
 
+// TestClassifyGetONTAPJobError_NotFound covers the "entry doesn't exist" branch.
+func TestClassifyGetONTAPJobError_NotFound(t *testing.T) {
+	err := errors.New(`{"error":{"code":"9895936","message":"entry not found"}}`)
+	userErr, permanent := ClassifyGetONTAPJobError(err)
+
+	assert.True(t, permanent)
+	assert.NotNil(t, userErr)
+	assert.Equal(t, vsaerrors.ErrONTAPJobNotFound, userErr.TrackingID)
+}
+
+// TestClassifyGetONTAPJobError_InvalidUUID covers the malformed-UUID branch.
+func TestClassifyGetONTAPJobError_InvalidUUID(t *testing.T) {
+	err := errors.New(`"bad-uuid" is an invalid value for field "uuid" (<UUID>)`)
+	userErr, permanent := ClassifyGetONTAPJobError(err)
+
+	assert.True(t, permanent)
+	assert.NotNil(t, userErr)
+	assert.Equal(t, vsaerrors.ErrONTAPJobInvalidUUID, userErr.TrackingID)
+}
+
+// TestClassifyGetONTAPJobError_Transient verifies a generic activity error falls through
+// and is NOT classified as permanent — the caller should ContinueAsNew for these.
+func TestClassifyGetONTAPJobError_Transient(t *testing.T) {
+	err := errors.New("dial tcp 10.0.0.1:443: i/o timeout")
+	userErr, permanent := ClassifyGetONTAPJobError(err)
+
+	assert.False(t, permanent)
+	assert.Nil(t, userErr)
+}
+
+// TestIsRetryableError_TimeoutErr covers the happy-path whitelist hit: Type and
+// message both match the first retryableErrors entry.
+func TestIsRetryableError_TimeoutErr(t *testing.T) {
+	err := temporal.NewApplicationErrorWithCause(
+		"Retries exhausted when attempting to reach the storage server",
+		"TimeoutErr",
+		nil,
+	)
+	assert.True(t, IsRetryableError(err))
+}
+
+// TestIsRetryableError_UnknownError covers an ApplicationError whose Type and
+// message are both unrelated to the whitelist.
+func TestIsRetryableError_UnknownError(t *testing.T) {
+	err := temporal.NewApplicationErrorWithCause(
+		"some random error",
+		"RandomErr",
+		nil,
+	)
+	assert.False(t, IsRetryableError(err))
+}
+
+// TestIsRetryableError_Nil covers the nil guard.
+func TestIsRetryableError_Nil(t *testing.T) {
+	assert.False(t, IsRetryableError(nil))
+}
+
+// TestIsRetryableError_NonApplicationError covers the errors.As false branch:
+// a plain Go error (not a temporal.ApplicationError) must not be retryable.
+func TestIsRetryableError_NonApplicationError(t *testing.T) {
+	assert.False(t, IsRetryableError(errors.New("failed to reach ONTAP")))
+}
+
+// TestIsRetryableError_TimeoutErrType_WrongMessage covers the case where the
+// error Type matches the whitelist entry but the message does not contain the
+// expected substring -> still not retryable.
+func TestIsRetryableError_TimeoutErrType_WrongMessage(t *testing.T) {
+	err := temporal.NewApplicationErrorWithCause(
+		"some unrelated timeout message",
+		"TimeoutErr",
+		nil,
+	)
+	assert.False(t, IsRetryableError(err))
+}
+
+// TestIsRetryableError_CorrectMessage_WrongType covers the case where the
+// message contains the whitelisted substring but the Type does not match.
+func TestIsRetryableError_CorrectMessage_WrongType(t *testing.T) {
+	err := temporal.NewApplicationErrorWithCause(
+		"Retries exhausted when attempting to reach the storage server",
+		"SomeOtherErr",
+		nil,
+	)
+	assert.False(t, IsRetryableError(err))
+}
+
+// TestIsRetryableError_CaseInsensitiveMessage verifies that message matching
+// is case-insensitive (strings.ToLower on both sides inside IsRetryableError).
+func TestIsRetryableError_CaseInsensitiveMessage(t *testing.T) {
+	err := temporal.NewApplicationErrorWithCause(
+		"RETRIES EXHAUSTED WHEN ATTEMPTING TO REACH THE STORAGE SERVER",
+		"TimeoutErr",
+		nil,
+	)
+	assert.True(t, IsRetryableError(err))
+}
+
+// TestIsRetryableError_WrappedError verifies that errors.As correctly unwraps
+// a wrapped ApplicationError so it still matches the whitelist.
+func TestIsRetryableError_WrappedError(t *testing.T) {
+	inner := temporal.NewApplicationErrorWithCause(
+		"Retries exhausted when attempting to reach the storage server",
+		"TimeoutErr",
+		nil,
+	)
+	wrapped := fmt.Errorf("poll failed: %w", inner)
+	assert.True(t, IsRetryableError(wrapped))
+}
+
+// TestRetryableErrors_NoWildcardEntry is a static guardrail: no entry in the
+// whitelist may have BOTH ErrorType and MessageContains empty, because that
+// would make every error retryable.
+func TestRetryableErrors_NoWildcardEntry(t *testing.T) {
+	for i, e := range retryableErrors {
+		assert.Falsef(t, e.ErrorType == "" && e.MessageContains == "",
+			"retryableErrors[%d] is a wildcard-wildcard entry", i)
+	}
+}
 func TestVolumePollSplitUnitTestSuite(t *testing.T) {
 	suite.Run(t, new(VolumePollSplitUnitTestSuite))
 }

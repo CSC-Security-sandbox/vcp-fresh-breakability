@@ -1,7 +1,9 @@
 package workflows
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -23,8 +25,28 @@ type volumePollSplitWorkflow struct {
 	BaseWorkflow
 }
 
+// retryableErrorEntry defines a single retryable error pattern.
+// Match is done by error type AND/OR message substring.
+type retryableErrorEntry struct {
+	// ErrorType matches temporal ApplicationError.Type()
+	// Empty string means "don't match on type"
+	ErrorType string
+	// MessageContains matches if error message contains this substring (case-insensitive)
+	// Empty string means "don't match on message"
+	MessageContains string
+}
+
 // Enforcing the WorkflowInterface on volumePollSplitWorkflow
 var _ WorkflowInterface = &volumePollSplitWorkflow{}
+
+// retryableErrors defines the retryable errors in this workflow
+// To add a new retryable error, simply add an entry here.
+var retryableErrors = []retryableErrorEntry{
+	{
+		ErrorType:       "TimeoutErr",
+		MessageContains: "Retries exhausted when attempting to reach the storage server",
+	},
+}
 
 // VolumePollSplitWorkflow polls the ONTAP split job that was already initiated synchronously
 // by _splitStartVolume, then cleans up the clone snapshot once the split succeeds.
@@ -49,8 +71,8 @@ func VolumePollSplitWorkflow(ctx workflow.Context, volume *datamodel.Volume, nod
 	volumeWf.Status = WorkflowStatusRunning
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		log.Errorf("Failed to update job status to Processing for VolumePollSplitWorkflow: %v", err)
-		return err
+		log.Errorf("Failed to update job status to Processing for VolumePollSplitWorkflow, continuing as new:%v", err)
+		return workflow.NewContinueAsNewError(ctx, VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 	}
 
 	_, errRun := volumeWf.Run(ctx, volume, node, ontapJobUUID)
@@ -73,7 +95,8 @@ func VolumePollSplitWorkflow(ctx workflow.Context, volume *datamodel.Volume, nod
 	volumeWf.Status = WorkflowStatusCompleted
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	if err != nil {
-		log.Errorf("Failed to update job status to Done for VolumePollSplitWorkflow: %v", err)
+		log.Errorf("Failed to update job status to Done for VolumePollSplitWorkflow, continuing as new:  %v", err)
+		return workflow.NewContinueAsNewError(ctx, VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 	}
 	return nil
 }
@@ -211,6 +234,22 @@ func ClassifyONTAPSplitError(ontapMessage, ontapCode string, clonesSharedBytes u
 	}
 }
 
+// ClassifyGetONTAPJobError  converts a failure from the GetOntapJob activity into a
+// permanent user-facing CustomError when the error is terminal (bad/unknown UUID).
+//
+//   - message  "entry not found"                     → ErrONTAPJobNotFound   (job UUID not found)
+//   - message "is an invalid value for field ... <UUID>" → ErrONTAPJobInvalidUUID (malformed UUID)
+func ClassifyGetONTAPJobError(err error) (userErr *vsaerrors.CustomError, permanent bool) {
+	msg := err.Error()
+	if strings.Contains(msg, "entry not found") {
+		return vsaerrors.NewVCPError(vsaerrors.ErrONTAPJobNotFound, err), true
+	}
+	if strings.Contains(msg, "is an invalid value for field") && strings.Contains(msg, "<UUID>") {
+		return vsaerrors.NewVCPError(vsaerrors.ErrONTAPJobInvalidUUID, err), true
+	}
+	return nil, false
+}
+
 // classifyONTAPSplitError is the unexported alias used within this package.
 func classifyONTAPSplitError(ontapMessage, ontapCode string, clonesSharedBytes uint64) (userErr *vsaerrors.CustomError, ontapMsg string) {
 	return ClassifyONTAPSplitError(ontapMessage, ontapCode, clonesSharedBytes)
@@ -263,6 +302,16 @@ func pollONTAPSplitJobInternal(ctx workflow.Context, volume *datamodel.Volume, n
 		var job *vsa.OntapJob
 		err := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetOntapJob, ontapJobUUID, node).Get(ctx, &job)
 		if err != nil {
+			if classifiedErr, terminalFailure := ClassifyGetONTAPJobError(err); terminalFailure {
+				log.Errorf("GetOntapJob terminal failure for job %s on volume %s: %v", ontapJobUUID, volume.Name, classifiedErr)
+				return classifiedErr
+			}
+			// Check whitelist — only retry on known retryable errors
+			if IsRetryableError(err) {
+				log.Warnf("GetOntapJob retryable error for job %s on volume %s: %v — triggering ContinueAsNew",
+					ontapJobUUID, volume.Name, err)
+				return workflow.NewContinueAsNewError(ctx, VolumePollSplitWorkflow, volume, node, ontapJobUUID)
+			}
 			return err
 		}
 
@@ -287,4 +336,30 @@ func pollONTAPSplitJobInternal(ctx workflow.Context, volume *datamodel.Volume, n
 			return fmt.Errorf("failed to sleep while waiting for ONTAP split job %s: %w", ontapJobUUID, err)
 		}
 	}
+}
+
+// IsRetryableError checks whether the given error matches any entry
+// in the retryable errors whitelist.
+// Returns true  → ContinueAsNew (retry the workflow)
+// Returns false → treat as non-retryable (fail or propagate)
+func IsRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var appErr *temporal.ApplicationError
+	if !errors.As(err, &appErr) {
+		// Not an ApplicationError — not retryable by default
+		return false
+	}
+	errType := appErr.Type()
+	errMsg := strings.ToLower(appErr.Message())
+	for _, entry := range retryableErrors {
+		typeMatch := entry.ErrorType == "" || entry.ErrorType == errType
+		msgMatch := entry.MessageContains == "" || strings.Contains(errMsg, strings.ToLower(entry.MessageContains))
+		// Both conditions must be true (empty = wildcard)
+		if typeMatch && msgMatch {
+			return true
+		}
+	}
+	return false
 }
