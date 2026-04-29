@@ -31,6 +31,7 @@ data:
   READINESS_PROBE_FAILURE_THRESHOLD: "{{ index .Values "readinessProbe" "failureThreshold" }}"
   READINESS_PROBE_PERIOD_SECONDS: "{{ index .Values "readinessProbe" "periodSeconds" }}"
   HYPERSCALER: "{{ index .Values "hyperScaler" }}"
+  OCI_ONTAP_ADMIN_PASSWORD: "{{ index .Values "ociOntapAdminPassword" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

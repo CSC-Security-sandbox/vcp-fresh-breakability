@@ -8,7 +8,7 @@ serviceAccountName: oci-proxy
 replicaCount: 1
 
 localRegion: "us-ashburn-1"
-runMigrationOnStart: false
+runMigrationOnStart: true
 temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
 proxyClientTransportSchema: "https"
 loggerLevel: "info"
@@ -20,6 +20,7 @@ createPoolWorkflowTimeoutMinutes: "150"
 updatePoolWorkflowTimeoutMinutes: "150"
 waitForTemporalEnabled: false
 hyperScaler: "oci"
+ociOntapAdminPassword: ""
 
 # Global for image registry (standalone chart)
 global:

@@ -94,6 +94,11 @@ data:
   OCI_VSA_FLEX_MEMORY_IN_GBS: {{ $.Values.workerConfig.ociVsaFlexMemoryInGBs | quote }}
   OCI_MEDIATOR_INSTANCE_TYPE: {{ $.Values.workerConfig.ociMediatorInstanceType | quote }}
   SECRET_URI: {{ $.Values.workerConfig.secretUri | quote }}
+  OCI_RESOURCE_PRINCIPAL_REGION: {{ $.Values.workerConfig.ociResourcePrincipalRegion | quote }}
+  OCI_RESOURCE_PRINCIPAL_VERSION: {{ $.Values.workerConfig.ociResourcePrincipalVersion | quote }}
+  OCI_EXPERT_MODE_PASSWORD: {{ $.Values.workerConfig.ociExpertModePassword | quote }}
+  OCI_ONTAP_ADMIN_PASSWORD: {{ $.Values.workerConfig.ociOntapAdminPassword | quote }}
+
 
 ---
 {{- end }}
