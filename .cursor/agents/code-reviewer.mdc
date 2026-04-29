@@ -55,6 +55,27 @@ gh pr view <N> --json title,body,headRefName,baseRefName
 
 ---
 
+## Step 1b — Swagger spec review (conditional)
+
+After gathering context, check if any swagger/OpenAPI spec files changed:
+
+```bash
+git diff --name-only <base>...<branch> -- '*.yaml' '*.yml' '*.json' | grep -iE '(swagger|openapi|api-spec|api\.yaml|api\.json)'
+# Also explicitly check the default spec location:
+git diff --name-only <base>...<branch> -- 'doc/swagger.yaml'
+```
+
+If **any swagger/OpenAPI spec files changed**, invoke the swagger review skill **before** proceeding to code review:
+
+1. Read `.cursor/skills/swagger-review/SKILL.md` in full.
+2. Follow the skill's instructions with the changed spec file as the target (default: `doc/swagger.yaml`).
+3. Include the swagger review report as a dedicated **"Swagger / API Spec Review"** section in the final report (between the Overview and the CRITICAL Issues sections).
+4. Count swagger findings separately — do not mix them into the Go code severity table.
+
+If no swagger files changed, skip this step entirely.
+
+---
+
 ## Step 2 — Read review standards
 
 Read these files to build the subagent prompt:
@@ -168,6 +189,14 @@ Collect all subagent JSON findings. Deduplicate by file+line+title. Sort by seve
 ## Overview
 
 <2-4 sentence summary of what this branch does and overall assessment.>
+
+---
+
+## Swagger / API Spec Review
+
+> _(Omit this section if no swagger/OpenAPI spec files changed.)_
+
+<Paste the swagger review report here — executive summary, findings table, metrics, and top priorities from the swagger-review skill output.>
 
 ---
 
