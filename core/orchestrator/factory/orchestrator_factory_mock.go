@@ -1497,6 +1497,63 @@ func (_c *MockOrchestratorFactory_CreateSnapshot_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// CreateSvm provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CreateSvm(ctx context.Context, params *common.CreateSvmParams) (string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSvm")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateSvmParams) (string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateSvmParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateSvmParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateSvm_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSvm'
+type MockOrchestratorFactory_CreateSvm_Call struct {
+	*mock.Call
+}
+
+// CreateSvm is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.CreateSvmParams
+func (_e *MockOrchestratorFactory_Expecter) CreateSvm(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateSvm_Call {
+	return &MockOrchestratorFactory_CreateSvm_Call{Call: _e.mock.On("CreateSvm", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CreateSvm_Call) Run(run func(ctx context.Context, params *common.CreateSvmParams)) *MockOrchestratorFactory_CreateSvm_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.CreateSvmParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateSvm_Call) Return(operationID string, err error) *MockOrchestratorFactory_CreateSvm_Call {
+	_c.Call.Return(operationID, err)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateSvm_Call) RunAndReturn(run func(context.Context, *common.CreateSvmParams) (string, error)) *MockOrchestratorFactory_CreateSvm_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateVolume provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateVolume(ctx context.Context, params *common.CreateVolumeParams) (*models.Volume, string, error) {
 	ret := _m.Called(ctx, params)
@@ -2861,6 +2918,63 @@ func (_c *MockOrchestratorFactory_DeleteSnapshot_Call) Return(_a0 *models.Snapsh
 }
 
 func (_c *MockOrchestratorFactory_DeleteSnapshot_Call) RunAndReturn(run func(context.Context, *common.DeleteSnapshotParams) (*models.Snapshot, string, error)) *MockOrchestratorFactory_DeleteSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteSvm provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteSvm(ctx context.Context, params *common.DeleteSvmParams) (string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSvm")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteSvmParams) (string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteSvmParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteSvmParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_DeleteSvm_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSvm'
+type MockOrchestratorFactory_DeleteSvm_Call struct {
+	*mock.Call
+}
+
+// DeleteSvm is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.DeleteSvmParams
+func (_e *MockOrchestratorFactory_Expecter) DeleteSvm(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteSvm_Call {
+	return &MockOrchestratorFactory_DeleteSvm_Call{Call: _e.mock.On("DeleteSvm", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteSvm_Call) Run(run func(ctx context.Context, params *common.DeleteSvmParams)) *MockOrchestratorFactory_DeleteSvm_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.DeleteSvmParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteSvm_Call) Return(operationID string, err error) *MockOrchestratorFactory_DeleteSvm_Call {
+	_c.Call.Return(operationID, err)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteSvm_Call) RunAndReturn(run func(context.Context, *common.DeleteSvmParams) (string, error)) *MockOrchestratorFactory_DeleteSvm_Call {
 	_c.Call.Return(run)
 	return _c
 }

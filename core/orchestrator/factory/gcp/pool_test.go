@@ -8467,3 +8467,17 @@ func TestDeletePool_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestGCPOrchestrator_CreateSvm_ReturnsNotImplemented(t *testing.T) {
+	orch := &GCPOrchestrator{}
+	_, err := orch.CreateSvm(context.Background(), &common.CreateSvmParams{})
+	assert.Error(t, err)
+	assert.True(t, errors.IsNotImplementedYetErr(err))
+}
+
+func TestGCPOrchestrator_DeleteSvm_ReturnsNotImplemented(t *testing.T) {
+	orch := &GCPOrchestrator{}
+	_, err := orch.DeleteSvm(context.Background(), &common.DeleteSvmParams{})
+	assert.Error(t, err)
+	assert.True(t, errors.IsNotImplementedYetErr(err))
+}

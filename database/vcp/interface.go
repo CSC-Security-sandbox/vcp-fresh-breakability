@@ -170,6 +170,7 @@ type (
 		CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error)
 
 		CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
+		CreateSvmInCreatingState(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
 		GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error)
 		GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error)
 		UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error)
@@ -179,6 +180,7 @@ type (
 		ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error)
 		GetSvmByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.Svm, error)
 		GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error)
+		GetSvmByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (*datamodel.Svm, error)
 
 		CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)
 		GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)

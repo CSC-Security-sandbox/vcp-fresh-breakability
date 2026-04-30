@@ -1813,6 +1813,22 @@ func (re *retryEngine) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*data
 	return var0, err
 }
 
+func (re *retryEngine) CreateSvmInCreatingState(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	var var0 *datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateSvmInCreatingState(ctx, svm)
+		if err != nil {
+			re.logError("CreateSvmInCreatingState", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error) {
 	var var0 []*datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1947,6 +1963,22 @@ func (re *retryEngine) GetSvmByExternalUUID(ctx context.Context, externalUUID st
 		var0, err = re.dataStore.GetSvmByExternalUUID(ctx, externalUUID, poolID)
 		if err != nil {
 			re.logError("GetSvmByExternalUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetSvmByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (*datamodel.Svm, error) {
+	var var0 *datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSvmByExternalIdentifier(ctx, externalIdentifier, accountID)
+		if err != nil {
+			re.logError("GetSvmByExternalIdentifier", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

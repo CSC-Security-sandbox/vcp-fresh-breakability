@@ -159,6 +159,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	params := args[0].(*common.CreatePoolParams)
 	pool := args[1].(*datamodel.Pool)
 	poolActivity := &activities.PoolActivity{}
+	svmActivity := &activities.SvmActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams(params.LargeCapacity)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -576,7 +577,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	svmName := ""
-	err = workflow.ExecuteActivity(ctx, poolActivity.AllocateSVMName, dbPool).Get(ctx, &svmName)
+	err = workflow.ExecuteActivity(ctx, svmActivity.AllocateSVMName, dbPool).Get(ctx, &svmName)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -596,7 +597,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	svm := &datamodel.Svm{}
-	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SaveSVMAndLifData, dbPool, createSVMResponse.VLMConfig, svmName).Get(dbHbCtx, svm)
+	err = workflow.ExecuteActivity(dbHbCtx, svmActivity.SaveSVMAndLifData, dbPool, createSVMResponse.VLMConfig, svmName).Get(dbHbCtx, svm)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -606,7 +607,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	// Create QoS policy and apply it to the SVM if qos type is auto
 	if pool.QosType == utils.QosTypeAuto {
-		err = workflow.ExecuteActivity(ctx, poolActivity.CreateQoSPolicyAndApplyToSVM, dbPool, svm, node).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, svmActivity.CreateQoSPolicyAndApplyToSVM, dbPool, svm, node).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -857,6 +858,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	pool := args[1].(*datamodel.Pool)
 	autoScalingParams := args[2].(*common.AutoPoolScalingParams)
 	poolActivity := &activities.PoolActivity{}
+	svmActivity := &activities.SvmActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams(pool.LargeCapacity)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -965,7 +967,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// qosType transition: auto → manual
 	if updatePoolParams.QosType == utils.QosTypeManual && dbPool.QosType == utils.QosTypeAuto {
-		if customErr := runPoolQosTypeTransitionAutoToManual(ctx, dbHbCtx, wf, rollbackManager, poolActivity, dbPool, updatePoolParams, pool); customErr != nil {
+		if customErr := runPoolQosTypeTransitionAutoToManual(ctx, dbHbCtx, wf, rollbackManager, poolActivity, svmActivity, dbPool, updatePoolParams, pool); customErr != nil {
 			err = customErr // ensure defer runs ExecuteRollback (e.g. restore QPG on vserver)
 			return nil, customErr
 		}
@@ -974,7 +976,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// qosType transition: manual → auto
 	if updatePoolParams.QosType == utils.QosTypeAuto && dbPool.QosType == utils.QosTypeManual {
-		if customErr := runPoolQosTypeTransitionManualToAuto(ctx, dbHbCtx, wf, rollbackManager, poolActivity, dbPool, updatePoolParams, pool); customErr != nil {
+		if customErr := runPoolQosTypeTransitionManualToAuto(ctx, dbHbCtx, wf, rollbackManager, poolActivity, svmActivity, dbPool, updatePoolParams, pool); customErr != nil {
 			err = customErr
 			return nil, customErr
 		}
@@ -1090,7 +1092,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Execute QoS modification before deployment update if scaling down
 	if !isScalingUp {
 		wf.Logger.Info("Scaling down detected - modifying QoS policy first")
-		err = workflow.ExecuteActivity(ctx, poolActivity.ModifyQoSPolicyAndApplyToSVM, dbPool, node, updatePoolParams).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, svmActivity.ModifyQoSPolicyAndApplyToSVM, dbPool, node, updatePoolParams).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1140,7 +1142,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Execute QoS modification after deployment update if scaling up
 	if isScalingUp {
 		wf.Logger.Info("Scaling up detected - modifying QoS policy after deployment update")
-		err = workflow.ExecuteActivity(ctx, poolActivity.ModifyQoSPolicyAndApplyToSVM, dbPool, node, updatePoolParams).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, svmActivity.ModifyQoSPolicyAndApplyToSVM, dbPool, node, updatePoolParams).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -2378,6 +2380,7 @@ func runPoolQosTypeTransitionAutoToManual(
 	wf *updatePoolWorkflow,
 	rollbackManager *common.RollbackManager,
 	poolActivity *activities.PoolActivity,
+	svmActivity *activities.SvmActivity,
 	dbPool *datamodel.Pool,
 	updatePoolParams *common.UpdatePoolParams,
 	pool *datamodel.Pool,
@@ -2410,14 +2413,14 @@ func runPoolQosTypeTransitionAutoToManual(
 
 	// 2. Remove QPG from vserver
 	wf.Logger.Info("qosType auto→manual: removing QPG from vserver")
-	if err := workflow.ExecuteActivity(ctx, poolActivity.RemoveQoSPolicyFromSVM, dbPool, node).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(ctx, svmActivity.RemoveQoSPolicyFromSVM, dbPool, node).Get(ctx, nil); err != nil {
 		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
 		return ConvertToVSAError(err)
 	}
 	// Rollback must re-apply QPG; use immutable snapshot with QosType=auto so ModifyQoSPolicyAndApplyToSVM does not skip
 	rollbackPoolSnapshot := *dbPool
 	rollbackPoolSnapshot.QosType = utils.QosTypeAuto
-	rollbackManager.AddActivity(poolActivity.ModifyQoSPolicyAndApplyToSVM, &rollbackPoolSnapshot, node, rollbackParamsForAuto)
+	rollbackManager.AddActivity(svmActivity.ModifyQoSPolicyAndApplyToSVM, &rollbackPoolSnapshot, node, rollbackParamsForAuto)
 
 	// 2b. Delete any existing QoS policy with the transition name (idempotent create: leftover from previous run)
 	// TransitionVPGNameFromPoolName is defined in pool_vpg_helpers.go.
@@ -2502,6 +2505,7 @@ func runPoolQosTypeTransitionManualToAuto(
 	wf *updatePoolWorkflow,
 	rollbackManager *common.RollbackManager,
 	poolActivity *activities.PoolActivity,
+	svmActivity *activities.SvmActivity,
 	dbPool *datamodel.Pool,
 	updatePoolParams *common.UpdatePoolParams,
 	pool *datamodel.Pool,
@@ -2613,11 +2617,11 @@ func runPoolQosTypeTransitionManualToAuto(
 	// Pass pool with QosType=auto so ModifyQoSPolicyAndApplyToSVM does not early-return for manual pools
 	poolForSVM := *dbPool
 	poolForSVM.QosType = utils.QosTypeAuto
-	if err := workflow.ExecuteActivity(ctx, poolActivity.ModifyQoSPolicyAndApplyToSVM, &poolForSVM, node, paramsForApply).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(ctx, svmActivity.ModifyQoSPolicyAndApplyToSVM, &poolForSVM, node, paramsForApply).Get(ctx, nil); err != nil {
 		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
 		return ConvertToVSAError(err)
 	}
-	rollbackManager.AddActivity(poolActivity.RemoveQoSPolicyFromSVM, &poolForSVM, node)
+	rollbackManager.AddActivity(svmActivity.RemoveQoSPolicyFromSVM, &poolForSVM, node)
 
 	// 8. Apply all applicable update params (description, labels, size, auto-tiering, throughput, iops) so they are persisted with the pool
 	applyUpdatePoolParamsToDbPool(dbPool, updatePoolParams)

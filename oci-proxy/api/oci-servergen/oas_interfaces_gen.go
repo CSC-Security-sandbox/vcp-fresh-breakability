@@ -5,8 +5,16 @@ type CreatePoolRes interface {
 	createPoolRes()
 }
 
+type CreateSvmByPoolRes interface {
+	createSvmByPoolRes()
+}
+
 type DeletePoolRes interface {
 	deletePoolRes()
+}
+
+type DeleteSvmRes interface {
+	deleteSvmRes()
 }
 
 type GetHealthRes interface {

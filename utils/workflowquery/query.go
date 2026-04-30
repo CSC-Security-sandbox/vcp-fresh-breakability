@@ -57,6 +57,19 @@ type OCICreatePoolMetadata struct {
 	Vms []OCICreatePoolVMMetadata `json:"vms,omitempty"`
 }
 
+type OCICreateSVMLifMetadata struct {
+	Name      string   `json:"name"`
+	IP        string   `json:"ipAddress"`
+	Node      string   `json:"node"`
+	Protocols []string `json:"protocols"`
+}
+
+type OCICreateSVMMetadata struct {
+	Name    string                    `json:"name"`
+	SvmOCID string                    `json:"svmOCID"`
+	Lifs    []OCICreateSVMLifMetadata `json:"lifs,omitempty"`
+}
+
 type WorkflowStatus string
 
 const (
@@ -71,7 +84,8 @@ type Result struct {
 	Status       WorkflowStatus         `json:"status"`
 	WorkflowType string                 `json:"workflow_type,omitempty"`
 	Error        *WorkflowError         `json:"error,omitempty"`
-	Metadata     *OCICreatePoolMetadata `json:"metadata,omitempty"`
+	PoolMetadata *OCICreatePoolMetadata `json:"poolMetadata,omitempty"`
+	SvmMetadata  *OCICreateSVMMetadata  `json:"svmMetadata,omitempty"`
 }
 
 // Query returns the workflow status result for the given workflow ID (and optional run ID).
@@ -109,7 +123,7 @@ func queryWithClient(ctx context.Context, c temporalQuerier, workflowID, runID s
 	case WorkflowStatusFailed, WorkflowStatusTimedOut:
 		out.Error = getWorkflowFailureReason(ctx, svc, temporalNamespace, workflowID, runID)
 	case WorkflowStatusCompleted:
-		out.Metadata = getWorkflowInputMetadata(ctx, svc, temporalNamespace, workflowID, runID)
+		out.PoolMetadata, out.SvmMetadata = getCompletedWorkflowMetadata(ctx, svc, temporalNamespace, workflowID, runID)
 	}
 	return out, nil
 }
@@ -131,13 +145,16 @@ func normalizedStatus(s enums.WorkflowExecutionStatus) WorkflowStatus {
 	}
 }
 
-func getWorkflowInputMetadata(ctx context.Context, svc historyFetcher, namespace, workflowID, runID string) *OCICreatePoolMetadata {
+// getCompletedWorkflowMetadata inspects Temporal history events of a completed
+// workflow and returns pool metadata, SVM metadata, or both nils depending on
+// the workflow type.
+func getCompletedWorkflowMetadata(ctx context.Context, svc historyFetcher, namespace, workflowID, runID string) (*OCICreatePoolMetadata, *OCICreateSVMMetadata) {
 	allEvents, err := fetchAllHistory(ctx, svc, namespace, workflowID, runID)
 	if err != nil || len(allEvents) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	var meta *OCICreatePoolMetadata
+	var poolMeta *OCICreatePoolMetadata
 	var parentWorkflowType string
 
 	for _, ev := range allEvents {
@@ -151,24 +168,48 @@ func getWorkflowInputMetadata(ctx context.Context, svc historyFetcher, namespace
 			}
 		}
 
-		// Capture the vlm.CreateVSAClusterDeploymentWorkflow child result only when parent is OCICreatePoolWorkflow
 		if parentWorkflowType == "OCICreatePoolWorkflow" && ev.EventType == enums.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED {
 			a := ev.GetChildWorkflowExecutionCompletedEventAttributes()
 			if a == nil || a.GetWorkflowType() == nil {
 				continue
 			}
-			childType := a.GetWorkflowType().GetName()
-			if childType != "vlm.CreateVSAClusterDeploymentWorkflow" {
+			if a.GetWorkflowType().GetName() != "vlm.CreateVSAClusterDeploymentWorkflow" {
 				continue
 			}
 			if a.GetResult() != nil && len(a.GetResult().GetPayloads()) > 0 {
 				if childMeta := vsaClusterChildMetadataFromPayloads(a.GetResult().GetPayloads()); childMeta != nil {
-					meta = childMeta
+					poolMeta = childMeta
 				}
 			}
 		}
+
+		if parentWorkflowType == "OCICreateSVMWorkflow" && ev.EventType == enums.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED {
+			a := ev.GetWorkflowExecutionCompletedEventAttributes()
+			if a == nil || a.GetResult() == nil {
+				continue
+			}
+			if svmMeta := svmResultFromPayloads(a.GetResult().GetPayloads()); svmMeta != nil {
+				return nil, svmMeta
+			}
+		}
 	}
-	return meta
+	return poolMeta, nil
+}
+
+// svmResultFromPayloads deserializes the OCICreateSVMWorkflow result into SVM metadata.
+func svmResultFromPayloads(payloads []*commonpb.Payload) *OCICreateSVMMetadata {
+	data := payloadDataJSONBytes(payloads)
+	if len(data) == 0 {
+		return nil
+	}
+	var meta OCICreateSVMMetadata
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return nil
+	}
+	if meta.Name == "" && meta.SvmOCID == "" {
+		return nil
+	}
+	return &meta
 }
 
 func fetchAllHistory(ctx context.Context, svc historyFetcher, namespace, workflowID, runID string) ([]*historypb.HistoryEvent, error) {

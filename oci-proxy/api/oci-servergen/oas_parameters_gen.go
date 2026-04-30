@@ -122,6 +122,168 @@ func decodeCreatePoolParams(args [0]string, argsEscaped bool, r *http.Request) (
 	return params, nil
 }
 
+// CreateSvmByPoolParams is parameters of createSvmByPool operation.
+type CreateSvmByPoolParams struct {
+	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
+	// the response.
+	// When provided, use the same value when contacting support.
+	OpcRequestID OptString
+	// Tenant OCID for the request context.
+	TenancyOcid string
+	// Pool OCID path parameter.
+	PoolOCID string
+}
+
+func unpackCreateSvmByPoolParams(packed middleware.Parameters) (params CreateSvmByPoolParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "Opc-Request-Id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.OpcRequestID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "Tenancy-Ocid",
+			In:   "header",
+		}
+		params.TenancyOcid = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "poolOCID",
+			In:   "path",
+		}
+		params.PoolOCID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeCreateSvmByPoolParams(args [1]string, argsEscaped bool, r *http.Request) (params CreateSvmByPoolParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: Opc-Request-Id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "Opc-Request-Id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotOpcRequestIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotOpcRequestIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "Opc-Request-Id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode header: Tenancy-Ocid.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "Tenancy-Ocid",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.TenancyOcid = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "Tenancy-Ocid",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode path: poolOCID.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "poolOCID",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.PoolOCID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "poolOCID",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // DeletePoolParams is parameters of deletePool operation.
 type DeletePoolParams struct {
 	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
@@ -277,6 +439,222 @@ func decodeDeletePoolParams(args [1]string, argsEscaped bool, r *http.Request) (
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "poolOCID",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// DeleteSvmParams is parameters of deleteSvm operation.
+type DeleteSvmParams struct {
+	// Optional correlation ID for the request. If omitted, the server generates one and returns it in
+	// the response.
+	// When provided, use the same value when contacting support.
+	OpcRequestID OptString
+	// Tenant OCID for the request context.
+	TenancyOcid string
+	// Pool OCID path parameter.
+	PoolOCID string
+	// SVM OCID path parameter.
+	SvmOCID string
+}
+
+func unpackDeleteSvmParams(packed middleware.Parameters) (params DeleteSvmParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "Opc-Request-Id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.OpcRequestID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "Tenancy-Ocid",
+			In:   "header",
+		}
+		params.TenancyOcid = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "poolOCID",
+			In:   "path",
+		}
+		params.PoolOCID = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "svmOCID",
+			In:   "path",
+		}
+		params.SvmOCID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeDeleteSvmParams(args [2]string, argsEscaped bool, r *http.Request) (params DeleteSvmParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: Opc-Request-Id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "Opc-Request-Id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotOpcRequestIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotOpcRequestIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.OpcRequestID.SetTo(paramsDotOpcRequestIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "Opc-Request-Id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode header: Tenancy-Ocid.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "Tenancy-Ocid",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.TenancyOcid = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "Tenancy-Ocid",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode path: poolOCID.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "poolOCID",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.PoolOCID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "poolOCID",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: svmOCID.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "svmOCID",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.SvmOCID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "svmOCID",
 			In:   "path",
 			Err:  err,
 		}

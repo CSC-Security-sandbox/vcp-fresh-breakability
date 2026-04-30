@@ -40,7 +40,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	args := [1]string{}
+	args := [2]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -121,16 +121,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						}
 
 						// Param: "poolOCID"
-						// Leaf parameter, slashes are prohibited
+						// Match until "/"
 						idx := strings.IndexByte(elem, '/')
-						if idx >= 0 {
-							break
+						if idx < 0 {
+							idx = len(elem)
 						}
-						args[0] = elem
-						elem = ""
+						args[0] = elem[:idx]
+						elem = elem[idx:]
 
 						if len(elem) == 0 {
-							// Leaf node.
 							switch r.Method {
 							case "DELETE":
 								s.handleDeletePoolRequest([1]string{
@@ -141,6 +140,63 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							}
 
 							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/svms"
+
+							if l := len("/svms"); len(elem) >= l && elem[0:l] == "/svms" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "POST":
+									s.handleCreateSvmByPoolRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "svmOCID"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[1] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "DELETE":
+										s.handleDeleteSvmRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "DELETE")
+									}
+
+									return
+								}
+
+							}
+
 						}
 
 					}
@@ -192,7 +248,7 @@ type Route struct {
 	operationID string
 	pathPattern string
 	count       int
-	args        [1]string
+	args        [2]string
 }
 
 // Name returns ogen operation name.
@@ -340,16 +396,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						}
 
 						// Param: "poolOCID"
-						// Leaf parameter, slashes are prohibited
+						// Match until "/"
 						idx := strings.IndexByte(elem, '/')
-						if idx >= 0 {
-							break
+						if idx < 0 {
+							idx = len(elem)
 						}
-						args[0] = elem
-						elem = ""
+						args[0] = elem[:idx]
+						elem = elem[idx:]
 
 						if len(elem) == 0 {
-							// Leaf node.
 							switch method {
 							case "DELETE":
 								r.name = DeletePoolOperation
@@ -362,6 +417,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							default:
 								return
 							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/svms"
+
+							if l := len("/svms"); len(elem) >= l && elem[0:l] == "/svms" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch method {
+								case "POST":
+									r.name = CreateSvmByPoolOperation
+									r.summary = "Create SVM"
+									r.operationID = "createSvmByPool"
+									r.pathPattern = "/v1beta/pools/{poolOCID}/svms"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "svmOCID"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[1] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "DELETE":
+										r.name = DeleteSvmOperation
+										r.summary = "Delete SVM"
+										r.operationID = "deleteSvm"
+										r.pathPattern = "/v1beta/pools/{poolOCID}/svms/{svmOCID}"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+
 						}
 
 					}

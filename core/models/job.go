@@ -55,6 +55,8 @@ const (
 	JobTypeUpdateLargePool JobType = "UPDATE_LARGE_POOL"
 	JobTypeDeletePool      JobType = "DELETE_POOL"
 	JobTypeDeleteLargePool JobType = "DELETE_LARGE_POOL"
+	JobTypeCreateSvm       JobType = "CREATE_SVM"
+	JobTypeDeleteSvm       JobType = "DELETE_SVM"
 
 	// We will use a single workflow for FC volume creation and it will handle creating/completing these jobs.
 	// These 3 jobs are used to keep consistency with PO workflow/expectations.

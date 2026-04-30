@@ -224,9 +224,9 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 		}
 		resp.Error = ociserver.NewOptWorkflowStatusError(workflowErr)
 	}
-	if res.Metadata != nil {
-		vms := make([]ociserver.OCICreatePoolWorkflowVM, 0, len(res.Metadata.Vms))
-		for _, vm := range res.Metadata.Vms {
+	if res.PoolMetadata != nil {
+		vms := make([]ociserver.OCICreatePoolWorkflowVM, 0, len(res.PoolMetadata.Vms))
+		for _, vm := range res.PoolMetadata.Vms {
 			vms = append(vms, ociserver.OCICreatePoolWorkflowVM{
 				Name:            vm.Name,
 				SerialNumber:    vm.SerialNumber,
@@ -235,10 +235,32 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 				NodeIP:          vm.NodeIP,
 			})
 		}
-		resp.Metadata = ociserver.NewOptOCICreatePoolWorkflowMetadata(
+		resp.PoolMetadata = ociserver.NewOptOCICreatePoolWorkflowMetadata(
 			ociserver.OCICreatePoolWorkflowMetadata{
 				Vms:         vms,
 				Credentials: ociserver.OCICreatePoolWorkflowCredentials{},
+			},
+		)
+	}
+	if res.SvmMetadata != nil {
+		lifs := make([]ociserver.SvmLif, 0, len(res.SvmMetadata.Lifs))
+		for _, l := range res.SvmMetadata.Lifs {
+			protocols := make([]ociserver.SvmLifProtocolsItem, 0, len(l.Protocols))
+			for _, p := range l.Protocols {
+				protocols = append(protocols, ociserver.SvmLifProtocolsItem(p))
+			}
+			lifs = append(lifs, ociserver.SvmLif{
+				Name:      ociserver.NewOptString(l.Name),
+				IpAddress: ociserver.NewOptString(l.IP),
+				Node:      ociserver.NewOptString(l.Node),
+				Protocols: protocols,
+			})
+		}
+		resp.SvmMetadata = ociserver.NewOptOCICreateSVMWorkflowMetadata(
+			ociserver.OCICreateSVMWorkflowMetadata{
+				Name:    ociserver.NewOptString(res.SvmMetadata.Name),
+				SvmOCID: ociserver.NewOptString(res.SvmMetadata.SvmOCID),
+				Lifs:    lifs,
 			},
 		)
 	}

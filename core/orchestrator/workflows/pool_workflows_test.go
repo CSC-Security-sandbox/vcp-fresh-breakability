@@ -399,6 +399,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 	env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
@@ -572,6 +573,7 @@ func TestCreatePoolWorkflow_ValidateImageDigestFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -696,6 +698,7 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -915,6 +918,7 @@ func TestCreatePoolWorkflowWithManualQoS(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -1096,6 +1100,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -1400,6 +1405,7 @@ func TestCreatePoolWorkflow_CreateDeleteDataSubnetJobFailure(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	adSyncActivity := &active_directory_activities.ActiveDirectorySyncActivity{}
 	env.RegisterActivity(adSyncActivity)
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -1486,6 +1492,7 @@ func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -1571,6 +1578,7 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -1666,6 +1674,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -1840,6 +1849,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 
 		// Mock child workflow activities
@@ -2036,6 +2046,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.PSCActivity{})
 
 		// Mock child workflow activities
@@ -2218,6 +2229,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 		// Set up test data
 		params := &common.CreatePoolParams{
@@ -2310,6 +2322,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 		// Set up test data
 		params := &common.CreatePoolParams{
@@ -2403,6 +2416,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 		// Set up test data
 		params := &common.CreatePoolParams{
@@ -2503,6 +2517,7 @@ func TestConfigureNetworkWorkflow_Success(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	defer func() {
 		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
@@ -2575,6 +2590,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 
 		defer func() {
 			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
@@ -2642,6 +2658,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 
 		defer func() {
 			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
@@ -2709,6 +2726,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 
 		defer func() {
 			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
@@ -2906,6 +2924,7 @@ func TestReleasePSCEndpointWorkflow_FetchTenantProjectSuccess(t *testing.T) {
 	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(pscActivity)
 
 	defer func() {
@@ -2971,6 +2990,7 @@ func TestReleasePSCEndpointWorkflow_FetchTenantProjectFailure(t *testing.T) {
 	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(pscActivity)
 
 	// Mock FindTenancyProject to return an error
@@ -3053,6 +3073,7 @@ func TestConfigurePSCEndpointWorkflow_Success(t *testing.T) {
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	// Mock child workflow activities
 	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
@@ -3150,6 +3171,7 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	// Setup test input data for update workflow.
@@ -3298,6 +3320,7 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	// Setup test input data for update workflow.
@@ -3381,6 +3404,7 @@ func TestUpdatePoolWorkflowNoVLM_UsesDeepCopyForDbPool(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	initialDescription := "initial-description"
@@ -3457,6 +3481,7 @@ func TestUpdatePoolWorkflow_DeepCopyPoolFailure_ReturnsError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	origDeepCopyPoolFn := deepCopyPoolFn
 	deepCopyPoolFn = func(pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -3521,6 +3546,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_RunsTransitionAndSucceeds(t *tes
 
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -3600,6 +3626,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_WithMultipleVolumes_Succeeds(t *
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -3686,6 +3713,7 @@ func TestUpdatePoolWorkflow_QosTypeManualToAuto_RunsTransitionAndSucceeds(t *tes
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -3761,6 +3789,7 @@ func TestUpdatePoolWorkflow_QosTypeManualToAuto_WithMultipleVolumes_Succeeds(t *
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -3851,6 +3880,7 @@ func TestUpdatePoolWorkflow_QosTypeUnchanged_DoesNotRunTransition(t *testing.T) 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -3921,6 +3951,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_RemoveQoSFails_WorkflowFails(t *
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -3982,6 +4013,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_FailAfterCreateVPG_RollbackReapp
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -4053,6 +4085,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_FailAfterAssignVolume_RollbackUn
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -4131,6 +4164,7 @@ func TestUpdatePoolWorkflow_QosTypeManualToAuto_FailAfterUnassign_RollbackReassi
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
@@ -4221,6 +4255,7 @@ func TestUpdatePoolWorkflow_ExpertModeEnableAutoTiering(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	poolSize := uint64(2 * 1024 * 1024 * 1024 * 1024) // 2 TB
 	bucketName := "us-central1-test-pool-uuid"
@@ -4385,6 +4420,7 @@ func TestUpdatePoolWorkflowNoVLM_ExpertModeWithoutAutoTiering(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	poolSize := uint64(2 * 1024 * 1024 * 1024 * 1024) // 2 TB
 
@@ -4475,6 +4511,7 @@ func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -4608,6 +4645,7 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -4731,6 +4769,7 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	// Setup test input data for update workflow.
@@ -4882,6 +4921,7 @@ func TestUpdatePoolWorkflow_ADSyncFailsWhenActiveDirectoryNil(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	params := &common.UpdatePoolParams{
@@ -4975,6 +5015,7 @@ func TestUpdatePoolWorkflow_WithActiveDirectorySync_SucceedsWhenMissingInVCP(t *
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	params := &common.UpdatePoolParams{
@@ -5102,6 +5143,7 @@ func TestUpdatePoolWorkflowFailsOnJobInErrorState(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -5194,6 +5236,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 	// Register child workflows with mock implementations
 	env.RegisterWorkflowWithOptions(
@@ -5311,6 +5354,7 @@ func TestDeletePoolWorkflowFailsOnJobInErrorState(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
@@ -5388,6 +5432,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
@@ -5492,6 +5537,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
@@ -5594,6 +5640,7 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
@@ -5694,6 +5741,7 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
@@ -5795,6 +5843,7 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
@@ -5909,6 +5958,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
@@ -5987,6 +6037,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
@@ -6068,6 +6119,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
@@ -6145,6 +6197,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
@@ -6244,6 +6297,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 
 	// Mock child workflow activities
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{}).Maybe()
 	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
@@ -6339,6 +6393,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
@@ -6477,6 +6532,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -6627,6 +6683,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -6791,6 +6848,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -6941,6 +6999,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -7003,6 +7062,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -7064,6 +7124,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -7124,6 +7185,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -7193,6 +7255,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -7357,6 +7420,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -7520,6 +7584,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -7896,6 +7961,7 @@ func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
 	env.SetHeader(mockHeader)
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -7971,6 +8037,7 @@ func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
 	env.SetHeader(mockHeader)
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -8057,6 +8124,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -8227,6 +8295,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -8396,6 +8465,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -8550,6 +8620,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -8700,6 +8771,7 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -8848,6 +8920,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -9009,6 +9082,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -9172,6 +9246,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -9338,6 +9413,7 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -9417,6 +9493,7 @@ func TestPoolDataSubnetWorkFlow_UpdateOperation(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -9477,6 +9554,7 @@ func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -9545,6 +9623,7 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -9923,6 +10002,7 @@ func TestPoolDataSubnetWorkFlow_ExistingSubnet1(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -9982,6 +10062,7 @@ func TestPoolDataSubnetWorkFlow_GetAvailableSubnetError1(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -10044,6 +10125,7 @@ func TestPoolDataSubnetWorkFlow_GetCreateDataSubnetOpError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -10102,6 +10184,7 @@ func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation1(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -10160,6 +10243,7 @@ func TestPoolDataSubnetWorkFlow_WaitFails(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -10226,6 +10310,7 @@ func TestPoolDataSubnetWorkFlow_GetSubnet(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -10295,6 +10380,7 @@ func TestPoolDataSubnetWorkFlow_GetTenancyInfo(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -10365,6 +10451,7 @@ func TestPoolDataSubnetWorkFlow_UpdatePoolSubnet(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -10436,6 +10523,7 @@ func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(commonActivity)
 
@@ -10512,6 +10600,7 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
@@ -10592,6 +10681,7 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType_GetPoolError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
@@ -10646,6 +10736,7 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType_ReleaseDataSubnetOpError(t *tes
 	mockStorage := database.NewMockStorage(t)
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
@@ -11862,6 +11953,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -12064,6 +12156,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 
 	// Mock child workflow activities
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{}).Maybe()
 	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
@@ -12197,6 +12290,7 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 	// For rollback, the workflow will execute with DELETE operation, but we'll handle it via activity mocks
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -12303,6 +12397,7 @@ func TestCreatePoolWorkflow_PopulateRetryPolicyParamsError(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.BackupActivity{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	params := &common.CreatePoolParams{
 		Name:                    "test-pool",
@@ -12376,6 +12471,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	params := &common.CreatePoolParams{
 		Name:                    "test-pool",
@@ -12487,6 +12583,7 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	params := &common.CreatePoolParams{
 		Name:                    "test-pool",
@@ -12643,6 +12740,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 			env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 			env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 			env.RegisterActivity(&activities.PoolActivity{})
+			env.RegisterActivity(&activities.SvmActivity{})
 			env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 			params := &common.DeletePoolParams{
@@ -13239,6 +13337,7 @@ func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceSuccess(t *testing.T)
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	// Mock VLM client
 	mockVLMClient := new(vlm.MockVlmWorkflowClient)
@@ -13407,6 +13506,7 @@ func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceFalse(t *testing.T) {
 
 			mockStorage := database.NewMockStorage(t)
 			env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+			env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 			// Mock VLM client
 			mockVLMClient := new(vlm.MockVlmWorkflowClient)
@@ -13510,6 +13610,7 @@ func TestSyncPoolComplianceForPoolWorkflow_GetBucketComplianceError(t *testing.T
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	// Mock VLM client
 	mockVLMClient := new(vlm.MockVlmWorkflowClient)
@@ -13590,6 +13691,7 @@ func TestSyncPoolComplianceForPoolWorkflow_EmptyBucketName(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	// Mock VLM client
 	mockVLMClient := new(vlm.MockVlmWorkflowClient)
@@ -13718,6 +13820,7 @@ func TestSyncPoolComplianceForPoolWorkflow_AutoTieringDisabled(t *testing.T) {
 
 			mockStorage := database.NewMockStorage(t)
 			env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+			env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 			// Mock VLM client
 			mockVLMClient := new(vlm.MockVlmWorkflowClient)
@@ -13879,6 +13982,7 @@ func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceLogicalAND(t *testing
 
 			mockStorage := database.NewMockStorage(t)
 			env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+			env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 			// Mock VLM client
 			mockVLMClient := new(vlm.MockVlmWorkflowClient)
@@ -15199,6 +15303,7 @@ func TestCreatePoolWorkflow_BuildInfo_StandardProtocol(t *testing.T) {
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -15306,6 +15411,7 @@ func TestCreatePoolWorkflow_BuildInfo_FilesProtocol(t *testing.T) {
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
@@ -16132,6 +16238,7 @@ func TestCreatePoolWorkflow_CancellationAtValidateImageDigest(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -16211,6 +16318,7 @@ func TestCreatePoolWorkflow_CancellationHandlerIsCancelled(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -16291,6 +16399,7 @@ func TestCreatePoolWorkflow_CancellationAtFindTenancyProject(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -16366,6 +16475,7 @@ func TestCreatePoolWorkflow_CancellationAtSubnetWorkflow(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -16445,6 +16555,7 @@ func TestCreatePoolWorkflow_CancellationAtSavePoolWithClusterDetails(t *testing.
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -16525,6 +16636,7 @@ func TestCreatePoolWorkflow_CancellationAtNetworkConfiguration(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -17470,6 +17582,7 @@ func TestCreatePoolWorkflow_CancellationAtCreateAutoTierBucket(t *testing.T) {
 	)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 
 	params := &common.CreatePoolParams{
 		Name:                    "test-pool",
@@ -17563,6 +17676,7 @@ func TestCreatePoolWorkflow_CancellationAtCreateOnTapCredentials(t *testing.T) {
 	)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	params := &common.CreatePoolParams{
 		Name:                    "test-pool",
@@ -17658,6 +17772,7 @@ func TestCreatePoolWorkflow_CancellationAfterValidateImageDigest(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
@@ -17717,6 +17832,7 @@ func TestCreatePoolWorkflow_CancellationBeforeSavePoolWithClusterDetails(t *test
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
@@ -17781,6 +17897,7 @@ func TestDeletePoolWorkflow_HandleCancellationError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -17864,6 +17981,7 @@ func TestDeletePoolWorkflow_HandleCancellationCreateJobNotFound(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -17947,6 +18065,7 @@ func TestDeletePoolWorkflow_HandleCancellationWorkflowNotRunning(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -18037,6 +18156,7 @@ func TestDeletePoolWorkflow_HandleCancellationSendSignalError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -18130,6 +18250,7 @@ func TestDeletePoolWorkflow_HandleCancellationTimeout(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -18223,6 +18344,7 @@ func TestDeletePoolWorkflow_DeleteServiceAccountError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -18295,6 +18417,7 @@ func TestDeletePoolWorkflow_DataSubnetSequentialPollerError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -18372,6 +18495,7 @@ func TestCreatePoolWorkflow_CancellationAtSavePoolWithClusterDetailsAfterSubnet(
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -18437,6 +18561,7 @@ func TestDeletePoolWorkflow_HandleCancellationLogsCreateJobFound(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
@@ -18536,6 +18661,7 @@ func TestCreatePoolWorkflow_CancellationAtValidateImageDigestFlag(t *testing.T) 
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Set ValidateImageDigestFlag to true to test line 213
@@ -18623,6 +18749,7 @@ func TestDeletePoolWorkflow_HandleCancellationErrorAtLine1204(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 
@@ -18713,6 +18840,7 @@ func TestDeletePoolWorkflow_DeleteServiceAccountErrorAtLine1279(t *testing.T) {
 	}()
 
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 
@@ -18799,6 +18927,7 @@ func TestDeletePoolWorkflow_DataSubnetSequentialPollerErrorAtLine1307(t *testing
 	}()
 
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.CancellationActivity{})
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 
@@ -18895,6 +19024,7 @@ func TestCreatePoolWorkflow_CancellationAtIdentifyVMs(t *testing.T) {
 	)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	params := &common.CreatePoolParams{
 		Name:                    "test-pool",
@@ -19015,6 +19145,7 @@ func TestCreatePoolWorkflow_PropagatesClusterNameFromIdentifyVMs(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 	env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
@@ -19135,6 +19266,7 @@ func TestCreatePoolWorkflow_DoesNotOverwriteClusterNameWhenIdentifyVMsReturnsEmp
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 	env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
@@ -19246,6 +19378,7 @@ func TestCreatePoolWorkflow_CancellationAfterFirstSavePoolWithClusterDetails(t *
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -19466,6 +19599,7 @@ func TestDeletePoolWorkflow_InvokesDeleteAllPoolVPGs_WhenManualQoS(t *testing.T)
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *unRegisterNodeFromHarvestFarmParams) error { return nil }, workflow.RegisterOptions{Name: "UnRegisterNodeFromHarvestFarmWorkflow"})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool) error { return nil }, workflow.RegisterOptions{Name: "ReleasePSCEndpointWorkflow"})
@@ -19535,6 +19669,7 @@ func TestDeletePoolWorkflow_VPGDeleteFailure_DoesNotFailWorkflow(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.SvmActivity{})
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *unRegisterNodeFromHarvestFarmParams) error { return nil }, workflow.RegisterOptions{Name: "UnRegisterNodeFromHarvestFarmWorkflow"})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool) error { return nil }, workflow.RegisterOptions{Name: "ReleasePSCEndpointWorkflow"})

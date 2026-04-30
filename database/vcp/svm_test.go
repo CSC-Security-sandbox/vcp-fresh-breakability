@@ -335,6 +335,141 @@ func TestCreateSVM(t *testing.T) {
 		assert.True(tt, errors.As(err, &vcpErr), "Expected a CustomError")
 		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "no such table")
 	})
+
+	// CreateSVM is now responsible for finalizing rows that were pre-allocated in
+	// CREATING state by the OCI flow's CreateSvmInCreatingState step. A second call
+	// to CreateSVM (with VLM-derived SvmDetails) must upgrade the row to READY in
+	// place rather than returning a conflict.
+	t.Run("UpgradesCreatingRowToReady", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Step 1: pre-allocate row in CREATING (mirrors the OCI workflow's first DB step).
+		preallocated, err := store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
+			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID,
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateCreating, preallocated.State)
+
+		// Step 2: CreateSVM is invoked again with VLM-derived fields populated. This
+		// must upgrade the existing row in place rather than fail with conflict.
+		finalized, err := store.CreateSVM(context.Background(), &datamodel.Svm{
+			Name:                  "svm-1",
+			AccountID:             account.ID,
+			PoolID:                pool.ID,
+			SvmExternalIdentifier: "ocid1.svm..a",
+			SvmDetails:            &datamodel.SvmDetails{ExternalUUID: "ext-uuid", IPSpace: "Default"},
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateREADY, finalized.State)
+		assert.Equal(tt, models.LifeCycleStateAvailableDetails, finalized.StateDetails)
+		assert.Equal(tt, "ocid1.svm..a", finalized.SvmExternalIdentifier)
+		if assert.NotNil(tt, finalized.SvmDetails) {
+			assert.Equal(tt, "ext-uuid", finalized.SvmDetails.ExternalUUID)
+		}
+		// Same row (idempotent UUID).
+		assert.Equal(tt, preallocated.UUID, finalized.UUID)
+	})
+
+	// Temporal retry: an already-READY row must be returned idempotently rather
+	// than producing a conflict, so a worker crash between row finalization and
+	// activity completion does not strand the workflow.
+	t.Run("ReturnsExistingRowWhenAlreadyReady", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		first, err := store.CreateSVM(context.Background(), &datamodel.Svm{
+			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID,
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateREADY, first.State)
+
+		second, err := store.CreateSVM(context.Background(), &datamodel.Svm{
+			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID,
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, first.UUID, second.UUID, "retry should return the same row")
+	})
+}
+
+func TestCreateSvmInCreatingState(t *testing.T) {
+	t.Run("InsertsRowInCreatingState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		svm, err := store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
+			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID, SvmExternalIdentifier: "ocid1.svm..a",
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateCreating, svm.State)
+		assert.Equal(tt, models.LifeCycleStateCreatingDetails, svm.StateDetails)
+		assert.Equal(tt, "ocid1.svm..a", svm.SvmExternalIdentifier)
+		assert.NotEmpty(tt, svm.UUID)
+	})
+
+	// Idempotent on Temporal retry: must return the existing row instead of
+	// erroring (which is the key behavioural difference from CreateSVM's strict
+	// conflict-when-state-unknown branch).
+	t.Run("IdempotentReturnsExistingRowOnRetry", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		first, err := store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
+			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID,
+		})
+		assert.NoError(tt, err)
+
+		second, err := store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
+			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID,
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, first.UUID, second.UUID)
+		assert.Equal(tt, models.LifeCycleStateCreating, second.State)
+	})
 }
 
 func TestDeleteSVM(t *testing.T) {
@@ -776,6 +911,112 @@ func TestListSvmsWithAccountId(t *testing.T) {
 		svms, err := store.ListSvmsWithAccountId(context.Background(), 1)
 		assert.Error(tt, err)
 		assert.Nil(tt, svms)
+	})
+}
+
+func TestGetSvmByExternalIdentifier(t *testing.T) {
+	const externalID = "ocid1.svm.oc1..aaaa"
+
+	t.Run("WhenSvmExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel:             datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:                  "test_svm",
+			SvmExternalIdentifier: externalID,
+			AccountID:             account.ID,
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		got, err := store.GetSvmByExternalIdentifier(context.Background(), externalID, account.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, got)
+		assert.Equal(tt, svm.UUID, got.UUID)
+	})
+
+	t.Run("WhenSoftDeleted_ReturnsNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel:             datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:                  "test_svm",
+			SvmExternalIdentifier: externalID,
+			AccountID:             account.ID,
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		svm.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+		assert.NoError(tt, store.db.GORM().Unscoped().Save(svm).Error)
+
+		got, err := store.GetSvmByExternalIdentifier(context.Background(), externalID, account.ID)
+		assert.Error(tt, err)
+		assert.Nil(tt, got)
+	})
+
+	t.Run("WhenAccountMismatch_ReturnsNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel:             datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:                  "test_svm",
+			SvmExternalIdentifier: externalID,
+			AccountID:             account.ID,
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		got, err := store.GetSvmByExternalIdentifier(context.Background(), externalID, 9999)
+		assert.Error(tt, err)
+		assert.Nil(tt, got)
+	})
+
+	t.Run("WhenSvmDoesNotExist_ReturnsNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		got, err := store.GetSvmByExternalIdentifier(context.Background(), externalID, 1)
+		assert.Error(tt, err)
+		assert.Nil(tt, got)
 	})
 }
 

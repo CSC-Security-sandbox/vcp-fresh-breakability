@@ -72,6 +72,29 @@ type OciAdminPassword struct {
 	Version int64
 }
 
+// CreateSvmParams describes parameters for creating an SVM in an existing pool (cluster).
+// PoolOCID identifies the pool and SvmExternalIdentifier identifies the target SVM resource.
+// AccountName is the tenancy/compartment OCID (OCI); used to scope pool lookup to a single account.
+type CreateSvmParams struct {
+	AccountName           string   // Tenancy/compartment OCID (same semantics as CreatePoolParams.AccountName)
+	PoolOCID              string   // Pool/cluster where the SVM will be created (used to resolve pool)
+	SvmExternalIdentifier string   // External identifier for the target SVM resource
+	Name                  string   // SVM name (required)
+	IPSpace               string   // ONTAP ipspace name (default: Default)
+	EnableIscsi           bool     // Enable iSCSI (data LIFs for block)
+	EnableNfs             bool     // Enable NFS (data LIFs for file)
+	Ips                   []string // Optional IPs for data LIFs; if set, count must match required data LIFs
+	SvmAdminPassword      *OciAdminPassword
+}
+
+// DeleteSvmParams describes parameters for deleting an SVM from an existing pool (cluster).
+type DeleteSvmParams struct {
+	PoolOCID    string // Pool OCID (required for OCI pool-scoped delete)
+	AccountName string // Account/tenancy OCID (used for account-scoped SVM lookup)
+	SvmID       string // SVM OCID
+	Force       bool   // Force delete even if dependent resources exist
+}
+
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool
 type CustomPerformanceParams struct {
 	Enabled         bool

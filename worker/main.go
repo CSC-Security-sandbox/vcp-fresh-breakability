@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
@@ -20,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
+	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
@@ -258,12 +258,16 @@ func RegisterOCICustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon 
 	// Register OCI workflows
 	worker.RegisterWorkflow(ociworkflows.OCICreatePoolWorkflow)
 	worker.RegisterWorkflow(ociworkflows.OCIDeletePoolWorkflow)
+	worker.RegisterWorkflow(ociworkflows.OCICreateSVMWorkflow)
+	worker.RegisterWorkflow(ociworkflows.OCIDeleteSVMWorkflow)
 
 	// Register activities used by OCI workflows
 	// CommonActivities is needed for UpdateJobStatus and EnsureJobState (used by BaseWorkflow)
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
-	// PoolActivity is needed for pool operations (SaveVSANodeDetails, AllocateSVMName, SaveSVMAndLifData, UpdatePoolState, GetPool, DeletePoolResources)
+	// PoolActivity is needed for pool operations (SaveVSANodeDetails, UpdatePoolState, GetPool, DeletePoolResources)
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
+	// SvmActivity is needed for SVM operations (AllocateSVMName, SaveSVMAndLifData, QoS policy, expert mode credentials)
+	worker.RegisterActivity(&activities.SvmActivity{SE: dbcon})
 	// CancellationActivity is needed for workflow cancellation support
 	worker.RegisterActivity(activities.NewCancellationActivity(temporal))
 }
@@ -378,6 +382,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.SvmActivity{SE: dbcon})
 	worker.RegisterActivity(&expertmodeactivities.RBACUpdateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.PSCActivity{SE: dbcon})
 	worker.RegisterActivity(activities.NewCancellationActivity(temporal))
@@ -535,6 +540,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.AutoTierSyncActivity{SE: conn})
 	worker.RegisterActivity(&activities.WFLastExecutionActivity{TemporalClient: temporal})
 	worker.RegisterActivity(&activities.PoolActivity{SE: conn})
+	worker.RegisterActivity(&activities.SvmActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeSplitActivity{SE: conn, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&backgroundactivities.SyncBackupZiZsActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.EligibilityStringActivity{SE: conn, Scheduler: temporalScheduler})

@@ -91,6 +91,56 @@ func (s *CreatePoolRequest) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *CreateSvmAcceptedResponse) SetFake() {
+	{
+		{
+			s.Status = "string"
+		}
+	}
+	{
+		{
+			s.WorkflowId = "string"
+		}
+	}
+	{
+		{
+			s.SvmOCID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *CreateSvmRequest) SetFake() {
+	{
+		{
+			s.SvmOCID = "string"
+		}
+	}
+	{
+		{
+			s.Name = "string"
+		}
+	}
+	{
+		{
+			s.SvmAdminPassword.SetFake()
+		}
+	}
+	{
+		{
+			s.Ips = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.Ips = append(s.Ips, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *DeletePoolAcceptedResponse) SetFake() {
 	{
 		{
@@ -105,6 +155,34 @@ func (s *DeletePoolAcceptedResponse) SetFake() {
 	{
 		{
 			s.PoolOCID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *DeleteSvmAcceptedResponse) SetFake() {
+	{
+		{
+			s.Status = "string"
+		}
+	}
+	{
+		{
+			s.WorkflowId = "string"
+		}
+	}
+	{
+		{
+			s.SvmOCID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *DeleteSvmReq) SetFake() {
+	{
+		{
+			s.Force.SetFake()
 		}
 	}
 }
@@ -151,7 +229,12 @@ func (s *GetWorkflowStatusResponse) SetFake() {
 	}
 	{
 		{
-			s.Metadata.SetFake()
+			s.PoolMetadata.SetFake()
+		}
+	}
+	{
+		{
+			s.SvmMetadata.SetFake()
 		}
 	}
 }
@@ -230,6 +313,32 @@ func (s *OCICreatePoolWorkflowVM) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OCICreateSVMWorkflowMetadata) SetFake() {
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.SvmOCID.SetFake()
+		}
+	}
+	{
+		{
+			s.Lifs = nil
+			for i := 0; i < 0; i++ {
+				var elem SvmLif
+				{
+					elem.SetFake()
+				}
+				s.Lifs = append(s.Lifs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *OCIOCIDVersionRef) SetFake() {
 	{
 		{
@@ -244,8 +353,35 @@ func (s *OCIOCIDVersionRef) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptBool) SetFake() {
+	var elem bool
+	{
+		elem = true
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptDeleteSvmReq) SetFake() {
+	var elem DeleteSvmReq
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptOCICreatePoolWorkflowMetadata) SetFake() {
 	var elem OCICreatePoolWorkflowMetadata
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptOCICreateSVMWorkflowMetadata) SetFake() {
+	var elem OCICreateSVMWorkflowMetadata
 	{
 		elem.SetFake()
 	}
@@ -280,6 +416,61 @@ func (s *PoolOperationErrorResponse) SetFake() {
 	{
 		{
 			s.PoolOCID = "string"
+		}
+	}
+	{
+		{
+			s.ErrorMessage = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SvmLif) SetFake() {
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.IpAddress.SetFake()
+		}
+	}
+	{
+		{
+			s.Node.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocols = nil
+			for i := 0; i < 0; i++ {
+				var elem SvmLifProtocolsItem
+				{
+					elem.SetFake()
+				}
+				s.Protocols = append(s.Protocols, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SvmLifProtocolsItem) SetFake() {
+	*s = SvmLifProtocolsItemIscsi
+}
+
+// SetFake set fake values.
+func (s *SvmOperationErrorResponse) SetFake() {
+	{
+		{
+			s.Status = "string"
+		}
+	}
+	{
+		{
+			s.SvmOCID = "string"
 		}
 	}
 	{

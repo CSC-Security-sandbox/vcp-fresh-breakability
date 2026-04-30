@@ -303,12 +303,13 @@ func TestGetWorkflowInputMetadata_OCIPoolChildResult(t *testing.T) {
 		},
 	}
 	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
-	meta := getWorkflowInputMetadata(ctx, f, "ns", "wf", "run")
-	require.NotNil(t, meta)
-	require.NotEmpty(t, meta.Vms)
-	require.Equal(t, "FsnIdocnv-vm-01", meta.Vms[0].Name)
-	require.Equal(t, "1234501", meta.Vms[0].SerialNumber)
-	require.Equal(t, "150.136.212.147", meta.Vms[0].VSAManagementIP)
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.NotNil(t, poolMeta)
+	require.Nil(t, svmMeta)
+	require.NotEmpty(t, poolMeta.Vms)
+	require.Equal(t, "FsnIdocnv-vm-01", poolMeta.Vms[0].Name)
+	require.Equal(t, "1234501", poolMeta.Vms[0].SerialNumber)
+	require.Equal(t, "150.136.212.147", poolMeta.Vms[0].VSAManagementIP)
 }
 
 func TestGetWorkflowInputMetadata_WrongParentOrChildSkipped(t *testing.T) {
@@ -336,8 +337,104 @@ func TestGetWorkflowInputMetadata_WrongParentOrChildSkipped(t *testing.T) {
 		},
 	}
 	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
-	meta := getWorkflowInputMetadata(ctx, f, "ns", "wf", "run")
-	require.Nil(t, meta, "no metadata keys when parent is not OCICreatePoolWorkflow and child branch is skipped")
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.Nil(t, poolMeta, "no metadata keys when parent is not OCICreatePoolWorkflow and child branch is skipped")
+	require.Nil(t, svmMeta)
+}
+
+func TestSvmResultFromPayloads(t *testing.T) {
+	t.Parallel()
+	t.Run("nil payloads returns nil", func(t *testing.T) {
+		t.Parallel()
+		require.Nil(t, svmResultFromPayloads(nil))
+	})
+	t.Run("empty payloads returns nil", func(t *testing.T) {
+		t.Parallel()
+		require.Nil(t, svmResultFromPayloads([]*commonpb.Payload{}))
+	})
+	t.Run("invalid JSON returns nil", func(t *testing.T) {
+		t.Parallel()
+		require.Nil(t, svmResultFromPayloads([]*commonpb.Payload{{Data: []byte("not-json")}}))
+	})
+	t.Run("empty name and svmOCID returns nil", func(t *testing.T) {
+		t.Parallel()
+		raw, err := json.Marshal(map[string]string{"other": "field"})
+		require.NoError(t, err)
+		require.Nil(t, svmResultFromPayloads([]*commonpb.Payload{{Data: raw}}))
+	})
+	t.Run("valid metadata returns correct struct", func(t *testing.T) {
+		t.Parallel()
+		input := OCICreateSVMMetadata{
+			Name:    "svm1",
+			SvmOCID: "ocid1.svm",
+			Lifs: []OCICreateSVMLifMetadata{
+				{Name: "lif1", IP: "10.0.0.1", Node: "node1", Protocols: []string{"nfs", "cifs", "s3"}},
+			},
+		}
+		raw, err := json.Marshal(input)
+		require.NoError(t, err)
+		got := svmResultFromPayloads([]*commonpb.Payload{{Data: raw}})
+		require.NotNil(t, got)
+		require.Equal(t, "svm1", got.Name)
+		require.Equal(t, "ocid1.svm", got.SvmOCID)
+		require.Len(t, got.Lifs, 1)
+		require.Equal(t, "lif1", got.Lifs[0].Name)
+		require.Equal(t, "10.0.0.1", got.Lifs[0].IP)
+		require.Equal(t, "node1", got.Lifs[0].Node)
+		require.Equal(t, []string{"nfs", "cifs", "s3"}, got.Lifs[0].Protocols)
+	})
+}
+
+func TestGetCompletedWorkflowMetadata_SVMWorkflow(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	svmResult := OCICreateSVMMetadata{
+		Name:    "svm1",
+		SvmOCID: "ocid1.svm",
+		Lifs: []OCICreateSVMLifMetadata{
+			{Name: "lif1", IP: "10.0.0.1", Node: "node1", Protocols: []string{"nfs", "cifs", "s3"}},
+		},
+	}
+	raw, err := json.Marshal(svmResult)
+	require.NoError(t, err)
+	events := []*historypb.HistoryEvent{
+		{
+			EventType: enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
+				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "OCICreateSVMWorkflow"},
+				},
+			},
+		},
+		{
+			EventType: enums.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionCompletedEventAttributes{
+				WorkflowExecutionCompletedEventAttributes: &historypb.WorkflowExecutionCompletedEventAttributes{
+					Result: &commonpb.Payloads{Payloads: []*commonpb.Payload{{Data: raw}}},
+				},
+			},
+		},
+	}
+	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.Nil(t, poolMeta)
+	require.NotNil(t, svmMeta)
+	require.Equal(t, "svm1", svmMeta.Name)
+	require.Equal(t, "ocid1.svm", svmMeta.SvmOCID)
+	require.Len(t, svmMeta.Lifs, 1)
+	require.Equal(t, "lif1", svmMeta.Lifs[0].Name)
+	require.Equal(t, "10.0.0.1", svmMeta.Lifs[0].IP)
+	require.Equal(t, "node1", svmMeta.Lifs[0].Node)
+	require.Equal(t, []string{"nfs", "cifs", "s3"}, svmMeta.Lifs[0].Protocols)
+}
+
+func TestGetCompletedWorkflowMetadata_HistoryError(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := &fakeHistoryFetcher{err: errors.New("history unavailable")}
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.Nil(t, poolMeta)
+	require.Nil(t, svmMeta)
 }
 
 type fakeTemporalQuerier struct {
@@ -447,9 +544,9 @@ func TestQueryWithClient_CompletedSetsWorkflowTypeAndMetadata(t *testing.T) {
 	require.Equal(t, "OCICreatePoolWorkflow", res.WorkflowType)
 	require.Nil(t, res.Error)
 	require.Equal(t, "test-ns", hf.lastNamespace)
-	require.NotNil(t, res.Metadata)
-	require.NotEmpty(t, res.Metadata.Vms)
-	require.Equal(t, "single-vm", res.Metadata.Vms[0].Name)
+	require.NotNil(t, res.PoolMetadata)
+	require.NotEmpty(t, res.PoolMetadata.Vms)
+	require.Equal(t, "single-vm", res.PoolMetadata.Vms[0].Name)
 }
 
 func TestQueryWithClient_FailedIncludesError(t *testing.T) {

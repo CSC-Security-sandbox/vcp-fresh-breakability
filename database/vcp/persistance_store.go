@@ -777,6 +777,10 @@ func (s *PersistenceStore) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*
 	return s.dataStore.CreateSVM(ctx, svm)
 }
 
+func (s *PersistenceStore) CreateSvmInCreatingState(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	return s.dataStore.CreateSvmInCreatingState(ctx, svm)
+}
+
 func (s *PersistenceStore) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error) {
 	return s.dataStore.GetSvmsByPoolID(ctx, poolID)
 }
@@ -987,6 +991,10 @@ func (s *PersistenceStore) GetSvmByNameAndPoolID(ctx context.Context, name strin
 
 func (s *PersistenceStore) GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error) {
 	return s.dataStore.GetSvmByExternalUUID(ctx, externalUUID, poolID)
+}
+
+func (s *PersistenceStore) GetSvmByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (*datamodel.Svm, error) {
+	return s.dataStore.GetSvmByExternalIdentifier(ctx, externalIdentifier, accountID)
 }
 
 func (s *PersistenceStore) CreateKmsConfig(ctx context.Context, kmsConfigParams *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {

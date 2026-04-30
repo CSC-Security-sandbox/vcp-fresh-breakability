@@ -3,6 +3,8 @@
 package ociserver
 
 import (
+	"fmt"
+
 	"github.com/go-faster/errors"
 	"github.com/ogen-go/ogen/validate"
 )
@@ -83,7 +85,7 @@ func (s *GetWorkflowStatusResponse) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if value, ok := s.Metadata.Get(); ok {
+		if value, ok := s.PoolMetadata.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
 					return err
@@ -96,7 +98,25 @@ func (s *GetWorkflowStatusResponse) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "metadata",
+			Name:  "poolMetadata",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.SvmMetadata.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "svmMetadata",
 			Error: err,
 		})
 	}
@@ -143,6 +163,43 @@ func (s *OCICreatePoolWorkflowMetadata) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "vms",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *OCICreateSVMWorkflowMetadata) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Lifs {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "lifs",
 			Error: err,
 		})
 	}
@@ -288,4 +345,58 @@ func (s *StandardError500Headers) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *SvmLif) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Protocols {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "protocols",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s SvmLifProtocolsItem) Validate() error {
+	switch s {
+	case "iscsi":
+		return nil
+	case "nvme":
+		return nil
+	case "nfs":
+		return nil
+	case "cifs":
+		return nil
+	case "s3":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }

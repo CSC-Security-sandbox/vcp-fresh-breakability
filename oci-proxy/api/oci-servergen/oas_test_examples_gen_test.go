@@ -97,6 +97,88 @@ func TestCreatePoolRequest_Examples(t *testing.T) {
 		})
 	}
 }
+func TestCreateSvmAcceptedResponse_EncodeDecode(t *testing.T) {
+	var typ CreateSvmAcceptedResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 CreateSvmAcceptedResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestCreateSvmAcceptedResponse_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"status\":\"in_progress\",\"svmOCID\":\"ocid1.svm.oc1..example\",\"workflowId\":\"ad134355-08ad-cfd1-a728-b62c3cf754a5\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ CreateSvmAcceptedResponse
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 CreateSvmAcceptedResponse
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestCreateSvmRequest_EncodeDecode(t *testing.T) {
+	var typ CreateSvmRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 CreateSvmRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestCreateSvmRequest_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"Ips\":[],\"Name\":\"my-svm\",\"svmAdminPassword\":{\"ocid\":\"ocid1.secret.oc1..example\",\"version\":\"1\"},\"svmOCID\":\"ocid1.svm.oc1..example\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ CreateSvmRequest
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 CreateSvmRequest
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestDeletePoolAcceptedResponse_EncodeDecode(t *testing.T) {
 	var typ DeletePoolAcceptedResponse
 	typ.SetFake()
@@ -134,6 +216,88 @@ func TestDeletePoolAcceptedResponse_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 DeletePoolAcceptedResponse
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestDeleteSvmAcceptedResponse_EncodeDecode(t *testing.T) {
+	var typ DeleteSvmAcceptedResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 DeleteSvmAcceptedResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestDeleteSvmAcceptedResponse_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"status\":\"in_progress\",\"svmOCID\":\"ocid1.svm.oc1..example\",\"workflowId\":\"ad134355-08ad-cfd1-a728-b62c3cf754a5\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ DeleteSvmAcceptedResponse
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 DeleteSvmAcceptedResponse
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestDeleteSvmReq_EncodeDecode(t *testing.T) {
+	var typ DeleteSvmReq
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 DeleteSvmReq
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestDeleteSvmReq_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"force\":false}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ DeleteSvmReq
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 DeleteSvmReq
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -251,6 +415,18 @@ func TestOCICreatePoolWorkflowVM_EncodeDecode(t *testing.T) {
 	var typ2 OCICreatePoolWorkflowVM
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestOCICreateSVMWorkflowMetadata_EncodeDecode(t *testing.T) {
+	var typ OCICreateSVMWorkflowMetadata
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 OCICreateSVMWorkflowMetadata
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestOCIOCIDVersionRef_EncodeDecode(t *testing.T) {
 	var typ OCIOCIDVersionRef
 	typ.SetFake()
@@ -273,6 +449,42 @@ func TestPoolOperationErrorResponse_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 PoolOperationErrorResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSvmLif_EncodeDecode(t *testing.T) {
+	var typ SvmLif
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SvmLif
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSvmLifProtocolsItem_EncodeDecode(t *testing.T) {
+	var typ SvmLifProtocolsItem
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SvmLifProtocolsItem
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSvmOperationErrorResponse_EncodeDecode(t *testing.T) {
+	var typ SvmOperationErrorResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SvmOperationErrorResponse
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestWorkflowStatusError_EncodeDecode(t *testing.T) {

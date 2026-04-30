@@ -253,6 +253,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 
 	// Check if NAS LIF needs to be configured
 	poolActivity := &activities.PoolActivity{}
+	svmActivity := &activities.SvmActivity{}
 	var vlmConfig *vlm.VLMConfig
 	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, dbVolume.Pool).Get(ctx, &vlmConfig)
 	if err != nil {
@@ -343,7 +344,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 				vlmConfig = &modifySVMResponse.VLMConfig
 			}
 
-			err = workflow.ExecuteActivity(ctx, poolActivity.SaveSVMAndLifData, dbVolume.Pool, vlmConfig, dbVolume.Svm.Name).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, svmActivity.SaveSVMAndLifData, dbVolume.Pool, vlmConfig, dbVolume.Svm.Name).Get(ctx, nil)
 			if err != nil {
 				log.Error("failed to save SVM and LIFs to database", "error", err)
 				return nil, WrapErrorForChildWorkflow(err)

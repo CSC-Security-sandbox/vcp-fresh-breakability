@@ -4517,6 +4517,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Firewa
 	// Test PreFileVolumeWorkflow when firewalls already exist (lines 260, 262)
 	mockStorage := database.NewMockStorage(s.T())
 	poolActivity := activities.PoolActivity{SE: mockStorage}
+	svmActivity := activities.SvmActivity{SE: mockStorage}
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -4524,7 +4525,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Firewa
 	s.env.RegisterActivity(poolActivity.HasNasLifInVLMConfig)
 	s.env.RegisterActivity(poolActivity.SetupNasFirewalls)
 	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
-	s.env.RegisterActivity(poolActivity.SaveSVMAndLifData)
+	s.env.RegisterActivity(svmActivity.SaveSVMAndLifData)
 	s.env.RegisterActivity(poolActivity.MarshalVLMConfig)
 	s.env.RegisterActivity(poolActivity.UpdatePoolFields)
 
@@ -4566,7 +4567,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Firewa
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
 	s.env.OnActivity(poolActivity.SetupNasFirewalls, mock.Anything, "test-project", "test-network").Return(emptyFirewallOps, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
-	s.env.OnActivity(poolActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), nil)
+	s.env.OnActivity(svmActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), nil)
 	// Mock MarshalVLMConfig - return a simple JSON string representation
 	s.env.OnActivity(poolActivity.MarshalVLMConfig, mock.Anything, mock.Anything).Return(`{"deployment":{"devFlags":{"enableIlbSupport":true}}}`, nil)
 
@@ -4687,6 +4688,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Marsha
 	// Test PreFileVolumeWorkflow when marshaling VLMConfig fails (lines 293-294)
 	mockStorage := database.NewMockStorage(s.T())
 	poolActivity := activities.PoolActivity{SE: mockStorage}
+	svmActivity := activities.SvmActivity{SE: mockStorage}
 	s.env.RegisterActivity(poolActivity.ParseVlmConfig)
 	s.env.RegisterActivity(poolActivity.HasNasLifInVLMConfig)
 	s.env.RegisterActivity(poolActivity.SetupNasFirewalls)
@@ -4730,7 +4732,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Marsha
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
 	s.env.OnActivity(poolActivity.SetupNasFirewalls, mock.Anything, "test-project", "test-network").Return(emptyFirewallOps, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
-	s.env.OnActivity(poolActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), nil)
+	s.env.OnActivity(svmActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), nil)
 	// Mock MarshalVLMConfig - return a simple JSON string representation
 	s.env.OnActivity(poolActivity.MarshalVLMConfig, mock.Anything, mock.Anything).Return(`{"deployment":{"devFlags":{"enableIlbSupport":true}}}`, nil)
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: database.NewMockStorage(s.T())}
@@ -4764,6 +4766,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_SaveSV
 	// Test PreFileVolumeWorkflow when SaveSVMAndLifData fails
 	mockStorage := database.NewMockStorage(s.T())
 	poolActivity := activities.PoolActivity{SE: mockStorage}
+	svmActivity := activities.SvmActivity{SE: mockStorage}
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -4771,7 +4774,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_SaveSV
 	s.env.RegisterActivity(poolActivity.HasNasLifInVLMConfig)
 	s.env.RegisterActivity(poolActivity.SetupNasFirewalls)
 	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
-	s.env.RegisterActivity(poolActivity.SaveSVMAndLifData)
+	s.env.RegisterActivity(svmActivity.SaveSVMAndLifData)
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{
@@ -4836,7 +4839,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_SaveSV
 		vlm.NewVSAClientWorkflowManager = originalNewVSAClientWorkflowManager
 	}()
 
-	s.env.OnActivity(poolActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), saveSVM_And_LIF_Data_Failure)
+	s.env.OnActivity(svmActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), saveSVM_And_LIF_Data_Failure)
 
 	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, &models.Node{})
 
@@ -4854,6 +4857,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Update
 	// Test PreFileVolumeWorkflow when UpdatePoolFields fails (lines 298-301, 303)
 	mockStorage := database.NewMockStorage(s.T())
 	poolActivity := activities.PoolActivity{SE: mockStorage}
+	svmActivity := activities.SvmActivity{SE: mockStorage}
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -4861,7 +4865,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Update
 	s.env.RegisterActivity(poolActivity.HasNasLifInVLMConfig)
 	s.env.RegisterActivity(poolActivity.SetupNasFirewalls)
 	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
-	s.env.RegisterActivity(poolActivity.SaveSVMAndLifData)
+	s.env.RegisterActivity(svmActivity.SaveSVMAndLifData)
 	s.env.RegisterActivity(poolActivity.MarshalVLMConfig)
 	s.env.RegisterActivity(poolActivity.UpdatePoolFields)
 
@@ -4911,7 +4915,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Update
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
 	s.env.OnActivity(poolActivity.SetupNasFirewalls, mock.Anything, "test-project", "test-network").Return(emptyFirewallOps, nil)
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
-	s.env.OnActivity(poolActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), nil)
+	s.env.OnActivity(svmActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), nil)
 	// Mock MarshalVLMConfig - return a simple JSON string representation
 	s.env.OnActivity(poolActivity.MarshalVLMConfig, mock.Anything, mock.Anything).Return(`{"deployment":{"devFlags":{"enableIlbSupport":true}}}`, nil)
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: database.NewMockStorage(s.T())}
@@ -4953,6 +4957,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Succes
 	// Test PreFileVolumeWorkflow when NAS infrastructure setup succeeds (lines 306-309, 311)
 	mockStorage := database.NewMockStorage(s.T())
 	poolActivity := activities.PoolActivity{SE: mockStorage}
+	svmActivity := activities.SvmActivity{SE: mockStorage}
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -4960,7 +4965,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Succes
 	s.env.RegisterActivity(poolActivity.HasNasLifInVLMConfig)
 	s.env.RegisterActivity(poolActivity.SetupNasFirewalls)
 	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
-	s.env.RegisterActivity(poolActivity.SaveSVMAndLifData)
+	s.env.RegisterActivity(svmActivity.SaveSVMAndLifData)
 	s.env.RegisterActivity(poolActivity.MarshalVLMConfig)
 	s.env.RegisterActivity(poolActivity.UpdatePoolFields)
 
@@ -5008,7 +5013,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Succes
 	s.env.OnWorkflow(WaitForGCPNetworkOperationStatusWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
-	s.env.OnActivity(poolActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), nil)
+	s.env.OnActivity(svmActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), nil)
 	// Mock MarshalVLMConfig - return a simple JSON string representation
 	s.env.OnActivity(poolActivity.MarshalVLMConfig, mock.Anything, mock.Anything).Return(`{"deployment":{"devFlags":{"enableIlbSupport":true}}}`, nil)
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: database.NewMockStorage(s.T())}

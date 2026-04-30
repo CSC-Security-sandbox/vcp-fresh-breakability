@@ -2365,6 +2365,65 @@ func (_c *MockDataStore_CreateSVM_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
+// CreateSvmInCreatingState provides a mock function with given fields: ctx, svm
+func (_m *MockDataStore) CreateSvmInCreatingState(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, svm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSvmInCreatingState")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)); ok {
+		return rf(ctx, svm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) *datamodel.Svm); ok {
+		r0 = rf(ctx, svm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Svm) error); ok {
+		r1 = rf(ctx, svm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateSvmInCreatingState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSvmInCreatingState'
+type MockDataStore_CreateSvmInCreatingState_Call struct {
+	*mock.Call
+}
+
+// CreateSvmInCreatingState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svm *datamodel.Svm
+func (_e *MockDataStore_Expecter) CreateSvmInCreatingState(ctx interface{}, svm interface{}) *MockDataStore_CreateSvmInCreatingState_Call {
+	return &MockDataStore_CreateSvmInCreatingState_Call{Call: _e.mock.On("CreateSvmInCreatingState", ctx, svm)}
+}
+
+func (_c *MockDataStore_CreateSvmInCreatingState_Call) Run(run func(ctx context.Context, svm *datamodel.Svm)) *MockDataStore_CreateSvmInCreatingState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Svm))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateSvmInCreatingState_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockDataStore_CreateSvmInCreatingState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateSvmInCreatingState_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)) *MockDataStore_CreateSvmInCreatingState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSfrMetadata provides a mock function with given fields: ctx, sfrMetadata
 func (_m *MockDataStore) CreateSfrMetadata(ctx context.Context, sfrMetadata *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error) {
 	ret := _m.Called(ctx, sfrMetadata)
@@ -12091,6 +12150,66 @@ func (_c *MockDataStore_GetSoftDeleteAccount_Call) Return(_a0 *datamodel.Account
 }
 
 func (_c *MockDataStore_GetSoftDeleteAccount_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Account, error)) *MockDataStore_GetSoftDeleteAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSvmByExternalIdentifier provides a mock function with given fields: ctx, externalIdentifier, accountID
+func (_m *MockDataStore) GetSvmByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, externalIdentifier, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSvmByExternalIdentifier")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.Svm, error)); ok {
+		return rf(ctx, externalIdentifier, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.Svm); ok {
+		r0 = rf(ctx, externalIdentifier, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, externalIdentifier, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetSvmByExternalIdentifier_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSvmByExternalIdentifier'
+type MockDataStore_GetSvmByExternalIdentifier_Call struct {
+	*mock.Call
+}
+
+// GetSvmByExternalIdentifier is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalIdentifier string
+//   - accountID int64
+func (_e *MockDataStore_Expecter) GetSvmByExternalIdentifier(ctx interface{}, externalIdentifier interface{}, accountID interface{}) *MockDataStore_GetSvmByExternalIdentifier_Call {
+	return &MockDataStore_GetSvmByExternalIdentifier_Call{Call: _e.mock.On("GetSvmByExternalIdentifier", ctx, externalIdentifier, accountID)}
+}
+
+func (_c *MockDataStore_GetSvmByExternalIdentifier_Call) Run(run func(ctx context.Context, externalIdentifier string, accountID int64)) *MockDataStore_GetSvmByExternalIdentifier_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetSvmByExternalIdentifier_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockDataStore_GetSvmByExternalIdentifier_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetSvmByExternalIdentifier_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.Svm, error)) *MockDataStore_GetSvmByExternalIdentifier_Call {
 	_c.Call.Return(run)
 	return _c
 }

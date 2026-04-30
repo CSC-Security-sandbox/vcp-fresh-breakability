@@ -55,8 +55,8 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 	// with details [trackingID, originalErrMsg] so that ExtractCustomError can recover the tracking ID.
 	ontap409ConflictErr := temporal.NewApplicationError(
 		"Error while configuring KMS: A key manager is already configured for this SVM", // message from errorMap[ErrKMSAlreadyExistsEKM]
-		"CustomError",                       // type used by WrapAsTemporalApplicationError
-		errorcore.ErrKMSAlreadyExistsEKM,    // detail 1: tracking ID (6065)
+		"CustomError",                    // type used by WrapAsTemporalApplicationError
+		errorcore.ErrKMSAlreadyExistsEKM, // detail 1: tracking ID (6065)
 		"Failed to configure Google Cloud Key Management Service for SVM because a key manager has already been configured for this SVM.", // detail 2: original ONTAP error
 	)
 	t.Run("WhenUpdateJobReturnsError", func(tt *testing.T) {
@@ -191,6 +191,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
@@ -222,6 +223,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 
 		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
@@ -260,6 +262,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Describe VSA Kms Config failed", "error", nil))
@@ -286,6 +289,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
@@ -322,6 +326,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
@@ -359,6 +364,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
@@ -397,6 +403,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
 		poolsInAccount = append(poolsInAccount, &pool1)
@@ -437,6 +444,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 
 		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: models.LifeCycleStateError}
 		pool3 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool3"}, State: models.LifeCycleStateCreating, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
@@ -475,6 +483,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
@@ -522,6 +531,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -575,6 +585,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -629,6 +640,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -684,6 +696,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -740,6 +753,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -800,6 +814,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -861,6 +876,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -923,6 +939,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -986,6 +1003,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -1050,6 +1068,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -1114,6 +1133,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -1183,6 +1203,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -1247,6 +1268,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -1317,6 +1339,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -1384,6 +1407,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
 		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
@@ -1490,6 +1514,7 @@ func TestValidateKmsConfigForMigration(t *testing.T) { // Generated using GitHub
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.SvmActivity{})
 
 		migrateParams := &common.MigrateKmsConfigParams{
 			Name:          "test-pool",

@@ -85,7 +85,64 @@ func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm)
 		logger.Errorf("Error while checking if svm exists: %v", err1)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
 	}
-	return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("svm already exists"))
+
+	switch dbSvm.State {
+	case models.LifeCycleStateCreating:
+		// Row was pre-allocated by CreateSvmInCreatingState; finalize it now that
+		// VLMConfig-derived fields are available.
+		dbSvm.SvmDetails = svm.SvmDetails
+		if svm.SvmExternalIdentifier != "" {
+			dbSvm.SvmExternalIdentifier = svm.SvmExternalIdentifier
+		}
+		dbSvm.UpdatedAt = time.Now()
+		dbSvm.State = models.LifeCycleStateREADY
+		dbSvm.StateDetails = models.LifeCycleStateAvailableDetails
+		if err = tx.Save(&dbSvm).Error; err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+		return &dbSvm, nil
+	case models.LifeCycleStateREADY:
+		// Idempotent retry: row already finalized.
+		return &dbSvm, nil
+	default:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("svm already exists"))
+	}
+}
+
+// CreateSvmInCreatingState pre-allocates an SVM row in CREATING state, used by the
+// OCI create flow to make the SVM visible to customers for the entire create lifecycle.
+// Idempotent: returns the existing row on retry rather than erroring on conflict.
+func (d *DataStoreRepository) CreateSvmInCreatingState(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	var dbSvm datamodel.Svm
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	err1 := tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
+	if errors.Is(err1, gorm.ErrRecordNotFound) {
+		svm.UUID = utils.RandomUUID()
+		svm.CreatedAt = time.Now()
+		svm.UpdatedAt = svm.CreatedAt
+		svm.State = models.LifeCycleStateCreating
+		svm.StateDetails = models.LifeCycleStateCreatingDetails
+
+		err = tx.Create(svm).Error
+		if err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
+		}
+		err = tx.Where("account_id = ?", svm.AccountID).Where("name = ?", svm.Name).Where("pool_id = ?", svm.PoolID).First(&dbSvm).Error
+		if err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		}
+		return &dbSvm, nil
+	} else if err1 != nil {
+		logger.Errorf("Error while checking if svm exists: %v", err1)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
+	}
+	return &dbSvm, nil
 }
 
 func (d *DataStoreRepository) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
@@ -284,6 +341,20 @@ func (d *DataStoreRepository) GetSvmByExternalUUID(ctx context.Context, external
 	db := d.db.GORM().WithContext(ctx)
 	svm := &datamodel.Svm{}
 	err := db.Where("pool_id = ? AND svm_details ->> 'external_uuid' = ?", poolID, externalUUID).
+		First(&svm).Error
+	if err != nil {
+		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "svm", nil)
+	}
+	return svm, nil
+}
+
+// GetSvmByExternalIdentifier retrieves a non-deleted SVM by its top-level external identifier (e.g. SVM OCID),
+// scoped to the given account for tenant isolation. The svm_external_identifier column has a unique index,
+// so this is a single indexed row read; soft-deleted rows are excluded by the default GORM scope.
+func (d *DataStoreRepository) GetSvmByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (*datamodel.Svm, error) {
+	db := d.db.GORM().WithContext(ctx)
+	svm := &datamodel.Svm{}
+	err := db.Where("account_id = ? AND svm_external_identifier = ?", accountID, externalIdentifier).
 		First(&svm).Error
 	if err != nil {
 		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "svm", nil)

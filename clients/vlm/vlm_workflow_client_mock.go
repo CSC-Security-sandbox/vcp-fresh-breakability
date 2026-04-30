@@ -291,6 +291,65 @@ func (_c *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call) RunAndReturn(ru
 	return _c
 }
 
+// DeleteVSASVM provides a mock function with given fields: ctx, deleteSVMRequest
+func (_m *MockVlmWorkflowClient) DeleteVSASVM(ctx internal.Context, deleteSVMRequest *DeleteSVMRequest) (*DeleteSVMResponse, error) {
+	ret := _m.Called(ctx, deleteSVMRequest)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVSASVM")
+	}
+
+	var r0 *DeleteSVMResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *DeleteSVMRequest) (*DeleteSVMResponse, error)); ok {
+		return rf(ctx, deleteSVMRequest)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *DeleteSVMRequest) *DeleteSVMResponse); ok {
+		r0 = rf(ctx, deleteSVMRequest)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*DeleteSVMResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(internal.Context, *DeleteSVMRequest) error); ok {
+		r1 = rf(ctx, deleteSVMRequest)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockVlmWorkflowClient_DeleteVSASVM_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteVSASVM'
+type MockVlmWorkflowClient_DeleteVSASVM_Call struct {
+	*mock.Call
+}
+
+// DeleteVSASVM is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - deleteSVMRequest *DeleteSVMRequest
+func (_e *MockVlmWorkflowClient_Expecter) DeleteVSASVM(ctx interface{}, deleteSVMRequest interface{}) *MockVlmWorkflowClient_DeleteVSASVM_Call {
+	return &MockVlmWorkflowClient_DeleteVSASVM_Call{Call: _e.mock.On("DeleteVSASVM", ctx, deleteSVMRequest)}
+}
+
+func (_c *MockVlmWorkflowClient_DeleteVSASVM_Call) Run(run func(ctx internal.Context, deleteSVMRequest *DeleteSVMRequest)) *MockVlmWorkflowClient_DeleteVSASVM_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*DeleteSVMRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_DeleteVSASVM_Call) Return(_a0 *DeleteSVMResponse, _a1 error) *MockVlmWorkflowClient_DeleteVSASVM_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_DeleteVSASVM_Call) RunAndReturn(run func(internal.Context, *DeleteSVMRequest) (*DeleteSVMResponse, error)) *MockVlmWorkflowClient_DeleteVSASVM_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetClusterZiZsDetails provides a mock function with given fields: ctx, req
 func (_m *MockVlmWorkflowClient) GetClusterZiZsDetails(ctx internal.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error) {
 	ret := _m.Called(ctx, req)

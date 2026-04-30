@@ -355,7 +355,7 @@ func TestGetWorkflow(t *testing.T) {
 			return workflowquery.Result{
 				Status:       workflowquery.WorkflowStatusCompleted,
 				WorkflowType: "OCICreatePoolWorkflow",
-				Metadata: &workflowquery.OCICreatePoolMetadata{
+				PoolMetadata: &workflowquery.OCICreatePoolMetadata{
 					Vms: []workflowquery.OCICreatePoolVMMetadata{
 						{
 							Name:            "vm-01",
@@ -377,8 +377,8 @@ func TestGetWorkflow(t *testing.T) {
 		assert.True(tt, ok, "response should be *ociserver.GetWorkflowStatusResponseHeaders")
 		assert.Equal(tt, opcWf, headers.OpcRequestID)
 		assert.Equal(tt, "completed", headers.Response.Status)
-		assert.True(tt, headers.Response.Metadata.IsSet())
-		meta, ok := headers.Response.Metadata.Get()
+		assert.True(tt, headers.Response.PoolMetadata.IsSet())
+		meta, ok := headers.Response.PoolMetadata.Get()
 		assert.True(tt, ok)
 		if assert.Len(tt, meta.Vms, 1) {
 			assert.Equal(tt, "vm-01", meta.Vms[0].Name)
@@ -387,6 +387,39 @@ func TestGetWorkflow(t *testing.T) {
 			assert.Equal(tt, "10.0.0.1", meta.Vms[0].InterclusterIP)
 			assert.Equal(tt, "10.0.0.2", meta.Vms[0].NodeIP)
 		}
+	})
+
+	t.Run("GetWorkflow maps SVM metadata when query returns SVM result", func(tt *testing.T) {
+		orig := workflowQueryFn
+		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
+			return workflowquery.Result{
+				Status:       workflowquery.WorkflowStatusCompleted,
+				WorkflowType: "OCICreateSVMWorkflow",
+				SvmMetadata: &workflowquery.OCICreateSVMMetadata{
+					Name:    "svm-1",
+					SvmOCID: "ocid1.svm",
+					Lifs: []workflowquery.OCICreateSVMLifMetadata{
+						{Name: "lif1", IP: "10.0.0.1", Node: "node1", Protocols: []string{"nfs", "cifs", "s3"}},
+					},
+				},
+			}, nil
+		}
+		tt.Cleanup(func() { workflowQueryFn = orig })
+
+		h := Handler{}
+		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-svm"})
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		assert.True(tt, ok)
+		assert.Equal(tt, "completed", headers.Response.Status)
+		assert.True(tt, headers.Response.SvmMetadata.IsSet())
+		svmMeta, ok := headers.Response.SvmMetadata.Get()
+		assert.True(tt, ok)
+		name, _ := svmMeta.Name.Get()
+		assert.Equal(tt, "svm-1", name)
+		svmOCID, _ := svmMeta.SvmOCID.Get()
+		assert.Equal(tt, "ocid1.svm", svmOCID)
+		assert.Len(tt, svmMeta.Lifs, 1)
 	})
 
 	t.Run("mapGetWorkflowQueryError returns 404 for not found error", func(tt *testing.T) {
@@ -410,9 +443,9 @@ func TestDeletePool(t *testing.T) {
 	t.Run("DeletePool returns 202 with OperationV1beta and headers when orchestrator returns in-progress", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(&models.Pool{
-			BaseModel: models.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000", CreatedAt: time.Now(), UpdatedAt: time.Now()},
-			Name:      "mypool",
-			State:     models.LifeCycleStateDeleting,
+			BaseModel:      models.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			Name:           "mypool",
+			State:          models.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-123", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
@@ -431,9 +464,9 @@ func TestDeletePool(t *testing.T) {
 	t.Run("DeletePool returns 204 NoContent when delete completed", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(&models.Pool{
-			BaseModel: models.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000", CreatedAt: time.Now(), UpdatedAt: time.Now()},
-			Name:      "mypool",
-			State:     models.LifeCycleStateDeleted,
+			BaseModel:      models.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			Name:           "mypool",
+			State:          models.LifeCycleStateDeleted,
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-456", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
@@ -449,9 +482,9 @@ func TestDeletePool(t *testing.T) {
 	t.Run("DeletePool echoes opc-request-id when provided", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(&models.Pool{
-			BaseModel: models.BaseModel{UUID: "pool-uuid", CreatedAt: time.Now(), UpdatedAt: time.Now()},
-			Name:      "mypool",
-			State:     models.LifeCycleStateDeleting,
+			BaseModel:      models.BaseModel{UUID: "pool-uuid", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			Name:           "mypool",
+			State:          models.LifeCycleStateDeleting,
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-echo", nil)
 		h := Handler{Orchestrator: mockOrchestrator}

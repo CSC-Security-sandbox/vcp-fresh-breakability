@@ -520,19 +520,20 @@ func (v *VolumeAttributes) Value() (driver.Value, error) {
 
 type Svm struct {
 	BaseModel
-	Name              string           `gorm:"column:name"`
-	Description       string           `gorm:"column:description"`
-	State             string           `gorm:"column:state"`
-	StateDetails      string           `gorm:"column:state_details"`
-	SvmDetails        *SvmDetails      `gorm:"column:svm_details;type:jsonb"`
-	AccountID         int64            `gorm:"column:account_id"`
-	Account           *Account         `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolID            int64            `gorm:"column:pool_id"`
-	Pool              *Pool            `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	KmsConfigID       sql.NullInt64    `json:"kmsConfigID" gorm:"index"`
-	KmsConfig         *KmsConfig       `json:"-" gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	ActiveDirectoryID sql.NullInt64    `gorm:"column:active_directory_id"`
-	ActiveDirectory   *ActiveDirectory `gorm:"ForeignKey:ActiveDirectoryID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Name                  string           `gorm:"column:name"`
+	SvmExternalIdentifier string           `gorm:"column:svm_external_identifier;type:text;uniqueIndex:idx_svms_svm_external_identifier_unique,where:svm_external_identifier <> ''"`
+	Description           string           `gorm:"column:description"`
+	State                 string           `gorm:"column:state"`
+	StateDetails          string           `gorm:"column:state_details"`
+	SvmDetails            *SvmDetails      `gorm:"column:svm_details;type:jsonb"`
+	AccountID             int64            `gorm:"column:account_id"`
+	Account               *Account         `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolID                int64            `gorm:"column:pool_id"`
+	Pool                  *Pool            `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	KmsConfigID           sql.NullInt64    `json:"kmsConfigID" gorm:"index"`
+	KmsConfig             *KmsConfig       `json:"-" gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	ActiveDirectoryID     sql.NullInt64    `gorm:"column:active_directory_id"`
+	ActiveDirectory       *ActiveDirectory `gorm:"ForeignKey:ActiveDirectoryID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 }
 
 type Account struct {

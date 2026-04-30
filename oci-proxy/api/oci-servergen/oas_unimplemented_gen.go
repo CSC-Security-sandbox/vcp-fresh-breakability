@@ -26,6 +26,17 @@ func (UnimplementedHandler) CreatePool(ctx context.Context, req *CreatePoolReque
 	return r, ht.ErrNotImplemented
 }
 
+// CreateSvmByPool implements createSvmByPool operation.
+//
+// Creates a new Storage Virtual Machine (SVM) in the target pool/cluster.
+// The pool is identified by `poolOCID` in the path. The operation is asynchronous.
+// Use the returned workflowId (workRequestId) with the work request tracking API.
+//
+// POST /v1beta/pools/{poolOCID}/svms
+func (UnimplementedHandler) CreateSvmByPool(ctx context.Context, req *CreateSvmRequest, params CreateSvmByPoolParams) (r CreateSvmByPoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // DeletePool implements deletePool operation.
 //
 // Deletes the specified pool and its underlying cluster and associated OCI resources.
@@ -33,6 +44,17 @@ func (UnimplementedHandler) CreatePool(ctx context.Context, req *CreatePoolReque
 //
 // DELETE /v1beta/pools/{poolOCID}
 func (UnimplementedHandler) DeletePool(ctx context.Context, params DeletePoolParams) (r DeletePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeleteSvm implements deleteSvm operation.
+//
+// Deletes a Storage Virtual Machine (SVM) in the pool identified by `poolOCID`.
+// The operation is asynchronous. Use the returned workflowId (workRequestId)
+// with the work request tracking API.
+//
+// DELETE /v1beta/pools/{poolOCID}/svms/{svmOCID}
+func (UnimplementedHandler) DeleteSvm(ctx context.Context, req OptDeleteSvmReq, params DeleteSvmParams) (r DeleteSvmRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

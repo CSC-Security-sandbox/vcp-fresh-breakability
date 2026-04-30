@@ -2,6 +2,10 @@
 
 package ociserver
 
+import (
+	"github.com/go-faster/errors"
+)
+
 // Ref: #/components/schemas/CreatePoolAcceptedResponse
 type CreatePoolAcceptedResponse struct {
 	// Current workflow status for the create operation.
@@ -302,6 +306,197 @@ type CreatePoolUnprocessableEntity PoolOperationErrorResponseHeaders
 
 func (*CreatePoolUnprocessableEntity) createPoolRes() {}
 
+// Ref: #/components/schemas/CreateSvmAcceptedResponse
+type CreateSvmAcceptedResponse struct {
+	// Current workflow status for the create operation.
+	Status string `json:"status"`
+	// Workflow identifier used to poll operation status.
+	WorkflowId string `json:"workflowId"`
+	// SVM OCID for the requested SVM.
+	SvmOCID string `json:"svmOCID"`
+}
+
+// GetStatus returns the value of Status.
+func (s *CreateSvmAcceptedResponse) GetStatus() string {
+	return s.Status
+}
+
+// GetWorkflowId returns the value of WorkflowId.
+func (s *CreateSvmAcceptedResponse) GetWorkflowId() string {
+	return s.WorkflowId
+}
+
+// GetSvmOCID returns the value of SvmOCID.
+func (s *CreateSvmAcceptedResponse) GetSvmOCID() string {
+	return s.SvmOCID
+}
+
+// SetStatus sets the value of Status.
+func (s *CreateSvmAcceptedResponse) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetWorkflowId sets the value of WorkflowId.
+func (s *CreateSvmAcceptedResponse) SetWorkflowId(val string) {
+	s.WorkflowId = val
+}
+
+// SetSvmOCID sets the value of SvmOCID.
+func (s *CreateSvmAcceptedResponse) SetSvmOCID(val string) {
+	s.SvmOCID = val
+}
+
+// CreateSvmAcceptedResponseHeaders wraps CreateSvmAcceptedResponse with response headers.
+type CreateSvmAcceptedResponseHeaders struct {
+	OpcRequestID string
+	Response     CreateSvmAcceptedResponse
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *CreateSvmAcceptedResponseHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *CreateSvmAcceptedResponseHeaders) GetResponse() CreateSvmAcceptedResponse {
+	return s.Response
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *CreateSvmAcceptedResponseHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *CreateSvmAcceptedResponseHeaders) SetResponse(val CreateSvmAcceptedResponse) {
+	s.Response = val
+}
+
+func (*CreateSvmAcceptedResponseHeaders) createSvmByPoolRes() {}
+
+type CreateSvmByPoolBadRequest SvmOperationErrorResponseHeaders
+
+func (*CreateSvmByPoolBadRequest) createSvmByPoolRes() {}
+
+type CreateSvmByPoolConflict SvmOperationErrorResponseHeaders
+
+func (*CreateSvmByPoolConflict) createSvmByPoolRes() {}
+
+type CreateSvmByPoolForbidden SvmOperationErrorResponseHeaders
+
+func (*CreateSvmByPoolForbidden) createSvmByPoolRes() {}
+
+type CreateSvmByPoolInternalServerError SvmOperationErrorResponseHeaders
+
+func (*CreateSvmByPoolInternalServerError) createSvmByPoolRes() {}
+
+type CreateSvmByPoolNotFound SvmOperationErrorResponseHeaders
+
+func (*CreateSvmByPoolNotFound) createSvmByPoolRes() {}
+
+type CreateSvmByPoolTooManyRequests SvmOperationErrorResponseHeaders
+
+func (*CreateSvmByPoolTooManyRequests) createSvmByPoolRes() {}
+
+type CreateSvmByPoolUnauthorized SvmOperationErrorResponseHeaders
+
+func (*CreateSvmByPoolUnauthorized) createSvmByPoolRes() {}
+
+type CreateSvmByPoolUnprocessableEntity SvmOperationErrorResponseHeaders
+
+func (*CreateSvmByPoolUnprocessableEntity) createSvmByPoolRes() {}
+
+// CreateSvmDefaultErrorStatusCodeWithHeaders wraps SvmOperationErrorResponse with status code and response headers.
+type CreateSvmDefaultErrorStatusCodeWithHeaders struct {
+	StatusCode   int
+	OpcRequestID string
+	Response     SvmOperationErrorResponse
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *CreateSvmDefaultErrorStatusCodeWithHeaders) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *CreateSvmDefaultErrorStatusCodeWithHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *CreateSvmDefaultErrorStatusCodeWithHeaders) GetResponse() SvmOperationErrorResponse {
+	return s.Response
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *CreateSvmDefaultErrorStatusCodeWithHeaders) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *CreateSvmDefaultErrorStatusCodeWithHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *CreateSvmDefaultErrorStatusCodeWithHeaders) SetResponse(val SvmOperationErrorResponse) {
+	s.Response = val
+}
+
+func (*CreateSvmDefaultErrorStatusCodeWithHeaders) createSvmByPoolRes() {}
+
+// Ref: #/components/schemas/CreateSvmRequest
+type CreateSvmRequest struct {
+	// OCI SVM resource OCID for the SVM being created.
+	SvmOCID string `json:"svmOCID"`
+	// Requested SVM name.
+	Name string `json:"Name"`
+	// OCI secret reference for the SVM admin password.
+	SvmAdminPassword OCIOCIDVersionRef `json:"svmAdminPassword"`
+	// Optional list of IP addresses for the SVM.
+	Ips []string `json:"Ips"`
+}
+
+// GetSvmOCID returns the value of SvmOCID.
+func (s *CreateSvmRequest) GetSvmOCID() string {
+	return s.SvmOCID
+}
+
+// GetName returns the value of Name.
+func (s *CreateSvmRequest) GetName() string {
+	return s.Name
+}
+
+// GetSvmAdminPassword returns the value of SvmAdminPassword.
+func (s *CreateSvmRequest) GetSvmAdminPassword() OCIOCIDVersionRef {
+	return s.SvmAdminPassword
+}
+
+// GetIps returns the value of Ips.
+func (s *CreateSvmRequest) GetIps() []string {
+	return s.Ips
+}
+
+// SetSvmOCID sets the value of SvmOCID.
+func (s *CreateSvmRequest) SetSvmOCID(val string) {
+	s.SvmOCID = val
+}
+
+// SetName sets the value of Name.
+func (s *CreateSvmRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetSvmAdminPassword sets the value of SvmAdminPassword.
+func (s *CreateSvmRequest) SetSvmAdminPassword(val OCIOCIDVersionRef) {
+	s.SvmAdminPassword = val
+}
+
+// SetIps sets the value of Ips.
+func (s *CreateSvmRequest) SetIps(val []string) {
+	s.Ips = val
+}
+
 // Ref: #/components/schemas/DeletePoolAcceptedResponse
 type DeletePoolAcceptedResponse struct {
 	// Current workflow status for the delete operation.
@@ -453,6 +648,156 @@ func (*DeletePoolTooManyRequests) deletePoolRes() {}
 type DeletePoolUnauthorized PoolOperationErrorResponseHeaders
 
 func (*DeletePoolUnauthorized) deletePoolRes() {}
+
+// Ref: #/components/schemas/DeleteSvmAcceptedResponse
+type DeleteSvmAcceptedResponse struct {
+	// Current workflow status for the delete operation.
+	Status string `json:"status"`
+	// Workflow identifier used to poll operation status.
+	WorkflowId string `json:"workflowId"`
+	// SVM OCID for the requested SVM.
+	SvmOCID string `json:"svmOCID"`
+}
+
+// GetStatus returns the value of Status.
+func (s *DeleteSvmAcceptedResponse) GetStatus() string {
+	return s.Status
+}
+
+// GetWorkflowId returns the value of WorkflowId.
+func (s *DeleteSvmAcceptedResponse) GetWorkflowId() string {
+	return s.WorkflowId
+}
+
+// GetSvmOCID returns the value of SvmOCID.
+func (s *DeleteSvmAcceptedResponse) GetSvmOCID() string {
+	return s.SvmOCID
+}
+
+// SetStatus sets the value of Status.
+func (s *DeleteSvmAcceptedResponse) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetWorkflowId sets the value of WorkflowId.
+func (s *DeleteSvmAcceptedResponse) SetWorkflowId(val string) {
+	s.WorkflowId = val
+}
+
+// SetSvmOCID sets the value of SvmOCID.
+func (s *DeleteSvmAcceptedResponse) SetSvmOCID(val string) {
+	s.SvmOCID = val
+}
+
+// DeleteSvmAcceptedResponseHeaders wraps DeleteSvmAcceptedResponse with response headers.
+type DeleteSvmAcceptedResponseHeaders struct {
+	OpcRequestID string
+	Response     DeleteSvmAcceptedResponse
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *DeleteSvmAcceptedResponseHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *DeleteSvmAcceptedResponseHeaders) GetResponse() DeleteSvmAcceptedResponse {
+	return s.Response
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *DeleteSvmAcceptedResponseHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *DeleteSvmAcceptedResponseHeaders) SetResponse(val DeleteSvmAcceptedResponse) {
+	s.Response = val
+}
+
+func (*DeleteSvmAcceptedResponseHeaders) deleteSvmRes() {}
+
+type DeleteSvmBadRequest SvmOperationErrorResponseHeaders
+
+func (*DeleteSvmBadRequest) deleteSvmRes() {}
+
+type DeleteSvmConflict SvmOperationErrorResponseHeaders
+
+func (*DeleteSvmConflict) deleteSvmRes() {}
+
+// DeleteSvmDefaultErrorStatusCodeWithHeaders wraps SvmOperationErrorResponse with status code and response headers.
+type DeleteSvmDefaultErrorStatusCodeWithHeaders struct {
+	StatusCode   int
+	OpcRequestID string
+	Response     SvmOperationErrorResponse
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *DeleteSvmDefaultErrorStatusCodeWithHeaders) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *DeleteSvmDefaultErrorStatusCodeWithHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *DeleteSvmDefaultErrorStatusCodeWithHeaders) GetResponse() SvmOperationErrorResponse {
+	return s.Response
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *DeleteSvmDefaultErrorStatusCodeWithHeaders) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *DeleteSvmDefaultErrorStatusCodeWithHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *DeleteSvmDefaultErrorStatusCodeWithHeaders) SetResponse(val SvmOperationErrorResponse) {
+	s.Response = val
+}
+
+func (*DeleteSvmDefaultErrorStatusCodeWithHeaders) deleteSvmRes() {}
+
+type DeleteSvmForbidden SvmOperationErrorResponseHeaders
+
+func (*DeleteSvmForbidden) deleteSvmRes() {}
+
+type DeleteSvmInternalServerError SvmOperationErrorResponseHeaders
+
+func (*DeleteSvmInternalServerError) deleteSvmRes() {}
+
+type DeleteSvmNotFound SvmOperationErrorResponseHeaders
+
+func (*DeleteSvmNotFound) deleteSvmRes() {}
+
+type DeleteSvmReq struct {
+	// Force-delete even if dependent resources exist.
+	Force OptBool `json:"force"`
+}
+
+// GetForce returns the value of Force.
+func (s *DeleteSvmReq) GetForce() OptBool {
+	return s.Force
+}
+
+// SetForce sets the value of Force.
+func (s *DeleteSvmReq) SetForce(val OptBool) {
+	s.Force = val
+}
+
+type DeleteSvmTooManyRequests SvmOperationErrorResponseHeaders
+
+func (*DeleteSvmTooManyRequests) deleteSvmRes() {}
+
+type DeleteSvmUnauthorized SvmOperationErrorResponseHeaders
+
+func (*DeleteSvmUnauthorized) deleteSvmRes() {}
 
 // Ref: #/components/schemas/Error
 type Error struct {
@@ -621,7 +966,10 @@ type GetWorkflowStatusResponse struct {
 	Error OptWorkflowStatusError `json:"error"`
 	// Present only when `workflow_type` is `OCICreatePoolWorkflow` and `status` is `completed`.
 	// Omitted for all other workflow types and statuses.
-	Metadata OptOCICreatePoolWorkflowMetadata `json:"metadata"`
+	PoolMetadata OptOCICreatePoolWorkflowMetadata `json:"poolMetadata"`
+	// Present only when `workflow_type` is `OCICreateSVMWorkflow` and `status` is `completed`.
+	// Omitted for all other workflow types and statuses.
+	SvmMetadata OptOCICreateSVMWorkflowMetadata `json:"svmMetadata"`
 }
 
 // GetWorkflowType returns the value of WorkflowType.
@@ -639,9 +987,14 @@ func (s *GetWorkflowStatusResponse) GetError() OptWorkflowStatusError {
 	return s.Error
 }
 
-// GetMetadata returns the value of Metadata.
-func (s *GetWorkflowStatusResponse) GetMetadata() OptOCICreatePoolWorkflowMetadata {
-	return s.Metadata
+// GetPoolMetadata returns the value of PoolMetadata.
+func (s *GetWorkflowStatusResponse) GetPoolMetadata() OptOCICreatePoolWorkflowMetadata {
+	return s.PoolMetadata
+}
+
+// GetSvmMetadata returns the value of SvmMetadata.
+func (s *GetWorkflowStatusResponse) GetSvmMetadata() OptOCICreateSVMWorkflowMetadata {
+	return s.SvmMetadata
 }
 
 // SetWorkflowType sets the value of WorkflowType.
@@ -659,9 +1012,14 @@ func (s *GetWorkflowStatusResponse) SetError(val OptWorkflowStatusError) {
 	s.Error = val
 }
 
-// SetMetadata sets the value of Metadata.
-func (s *GetWorkflowStatusResponse) SetMetadata(val OptOCICreatePoolWorkflowMetadata) {
-	s.Metadata = val
+// SetPoolMetadata sets the value of PoolMetadata.
+func (s *GetWorkflowStatusResponse) SetPoolMetadata(val OptOCICreatePoolWorkflowMetadata) {
+	s.PoolMetadata = val
+}
+
+// SetSvmMetadata sets the value of SvmMetadata.
+func (s *GetWorkflowStatusResponse) SetSvmMetadata(val OptOCICreateSVMWorkflowMetadata) {
+	s.SvmMetadata = val
 }
 
 // GetWorkflowStatusResponseHeaders wraps GetWorkflowStatusResponse with response headers.
@@ -840,6 +1198,47 @@ func (s *OCICreatePoolWorkflowVM) SetNodeIP(val string) {
 	s.NodeIP = val
 }
 
+// SVM metadata returned when an OCICreateSVMWorkflow completes successfully.
+// Ref: #/components/schemas/OCICreateSVMWorkflowMetadata
+type OCICreateSVMWorkflowMetadata struct {
+	// SVM name as registered in ONTAP.
+	Name OptString `json:"name"`
+	// SVM OCID.
+	SvmOCID OptString `json:"svmOCID"`
+	// Logical interfaces created for the SVM.
+	Lifs []SvmLif `json:"lifs"`
+}
+
+// GetName returns the value of Name.
+func (s *OCICreateSVMWorkflowMetadata) GetName() OptString {
+	return s.Name
+}
+
+// GetSvmOCID returns the value of SvmOCID.
+func (s *OCICreateSVMWorkflowMetadata) GetSvmOCID() OptString {
+	return s.SvmOCID
+}
+
+// GetLifs returns the value of Lifs.
+func (s *OCICreateSVMWorkflowMetadata) GetLifs() []SvmLif {
+	return s.Lifs
+}
+
+// SetName sets the value of Name.
+func (s *OCICreateSVMWorkflowMetadata) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetSvmOCID sets the value of SvmOCID.
+func (s *OCICreateSVMWorkflowMetadata) SetSvmOCID(val OptString) {
+	s.SvmOCID = val
+}
+
+// SetLifs sets the value of Lifs.
+func (s *OCICreateSVMWorkflowMetadata) SetLifs(val []SvmLif) {
+	s.Lifs = val
+}
+
 // Ref: #/components/schemas/OCIOCIDVersionRef
 type OCIOCIDVersionRef struct {
 	// OCI resource OCID.
@@ -866,6 +1265,98 @@ func (s *OCIOCIDVersionRef) SetOcid(val string) {
 // SetVersion sets the value of Version.
 func (s *OCIOCIDVersionRef) SetVersion(val string) {
 	s.Version = val
+}
+
+// NewOptBool returns new OptBool with value set to v.
+func NewOptBool(v bool) OptBool {
+	return OptBool{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBool is optional bool.
+type OptBool struct {
+	Value bool
+	Set   bool
+}
+
+// IsSet returns true if OptBool was set.
+func (o OptBool) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBool) Reset() {
+	var v bool
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBool) SetTo(v bool) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBool) Get() (v bool, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDeleteSvmReq returns new OptDeleteSvmReq with value set to v.
+func NewOptDeleteSvmReq(v DeleteSvmReq) OptDeleteSvmReq {
+	return OptDeleteSvmReq{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDeleteSvmReq is optional DeleteSvmReq.
+type OptDeleteSvmReq struct {
+	Value DeleteSvmReq
+	Set   bool
+}
+
+// IsSet returns true if OptDeleteSvmReq was set.
+func (o OptDeleteSvmReq) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDeleteSvmReq) Reset() {
+	var v DeleteSvmReq
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDeleteSvmReq) SetTo(v DeleteSvmReq) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDeleteSvmReq) Get() (v DeleteSvmReq, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDeleteSvmReq) Or(d DeleteSvmReq) DeleteSvmReq {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
 }
 
 // NewOptOCICreatePoolWorkflowMetadata returns new OptOCICreatePoolWorkflowMetadata with value set to v.
@@ -908,6 +1399,52 @@ func (o OptOCICreatePoolWorkflowMetadata) Get() (v OCICreatePoolWorkflowMetadata
 
 // Or returns value if set, or given parameter if does not.
 func (o OptOCICreatePoolWorkflowMetadata) Or(d OCICreatePoolWorkflowMetadata) OCICreatePoolWorkflowMetadata {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOCICreateSVMWorkflowMetadata returns new OptOCICreateSVMWorkflowMetadata with value set to v.
+func NewOptOCICreateSVMWorkflowMetadata(v OCICreateSVMWorkflowMetadata) OptOCICreateSVMWorkflowMetadata {
+	return OptOCICreateSVMWorkflowMetadata{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOCICreateSVMWorkflowMetadata is optional OCICreateSVMWorkflowMetadata.
+type OptOCICreateSVMWorkflowMetadata struct {
+	Value OCICreateSVMWorkflowMetadata
+	Set   bool
+}
+
+// IsSet returns true if OptOCICreateSVMWorkflowMetadata was set.
+func (o OptOCICreateSVMWorkflowMetadata) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOCICreateSVMWorkflowMetadata) Reset() {
+	var v OCICreateSVMWorkflowMetadata
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOCICreateSVMWorkflowMetadata) SetTo(v OCICreateSVMWorkflowMetadata) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOCICreateSVMWorkflowMetadata) Get() (v OCICreateSVMWorkflowMetadata, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOCICreateSVMWorkflowMetadata) Or(d OCICreateSVMWorkflowMetadata) OCICreateSVMWorkflowMetadata {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1239,6 +1776,182 @@ func (s *StandardError500Headers) SetResponse(val Error) {
 }
 
 func (*StandardError500Headers) getHealthRes() {}
+
+// Ref: #/components/schemas/SvmLif
+type SvmLif struct {
+	Name      OptString             `json:"name"`
+	IpAddress OptString             `json:"ipAddress"`
+	Node      OptString             `json:"node"`
+	Protocols []SvmLifProtocolsItem `json:"protocols"`
+}
+
+// GetName returns the value of Name.
+func (s *SvmLif) GetName() OptString {
+	return s.Name
+}
+
+// GetIpAddress returns the value of IpAddress.
+func (s *SvmLif) GetIpAddress() OptString {
+	return s.IpAddress
+}
+
+// GetNode returns the value of Node.
+func (s *SvmLif) GetNode() OptString {
+	return s.Node
+}
+
+// GetProtocols returns the value of Protocols.
+func (s *SvmLif) GetProtocols() []SvmLifProtocolsItem {
+	return s.Protocols
+}
+
+// SetName sets the value of Name.
+func (s *SvmLif) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetIpAddress sets the value of IpAddress.
+func (s *SvmLif) SetIpAddress(val OptString) {
+	s.IpAddress = val
+}
+
+// SetNode sets the value of Node.
+func (s *SvmLif) SetNode(val OptString) {
+	s.Node = val
+}
+
+// SetProtocols sets the value of Protocols.
+func (s *SvmLif) SetProtocols(val []SvmLifProtocolsItem) {
+	s.Protocols = val
+}
+
+type SvmLifProtocolsItem string
+
+const (
+	SvmLifProtocolsItemIscsi SvmLifProtocolsItem = "iscsi"
+	SvmLifProtocolsItemNvme  SvmLifProtocolsItem = "nvme"
+	SvmLifProtocolsItemNfs   SvmLifProtocolsItem = "nfs"
+	SvmLifProtocolsItemCifs  SvmLifProtocolsItem = "cifs"
+	SvmLifProtocolsItemS3    SvmLifProtocolsItem = "s3"
+)
+
+// AllValues returns all SvmLifProtocolsItem values.
+func (SvmLifProtocolsItem) AllValues() []SvmLifProtocolsItem {
+	return []SvmLifProtocolsItem{
+		SvmLifProtocolsItemIscsi,
+		SvmLifProtocolsItemNvme,
+		SvmLifProtocolsItemNfs,
+		SvmLifProtocolsItemCifs,
+		SvmLifProtocolsItemS3,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SvmLifProtocolsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case SvmLifProtocolsItemIscsi:
+		return []byte(s), nil
+	case SvmLifProtocolsItemNvme:
+		return []byte(s), nil
+	case SvmLifProtocolsItemNfs:
+		return []byte(s), nil
+	case SvmLifProtocolsItemCifs:
+		return []byte(s), nil
+	case SvmLifProtocolsItemS3:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SvmLifProtocolsItem) UnmarshalText(data []byte) error {
+	switch SvmLifProtocolsItem(data) {
+	case SvmLifProtocolsItemIscsi:
+		*s = SvmLifProtocolsItemIscsi
+		return nil
+	case SvmLifProtocolsItemNvme:
+		*s = SvmLifProtocolsItemNvme
+		return nil
+	case SvmLifProtocolsItemNfs:
+		*s = SvmLifProtocolsItemNfs
+		return nil
+	case SvmLifProtocolsItemCifs:
+		*s = SvmLifProtocolsItemCifs
+		return nil
+	case SvmLifProtocolsItemS3:
+		*s = SvmLifProtocolsItemS3
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/SvmOperationErrorResponse
+type SvmOperationErrorResponse struct {
+	// Operation status.
+	Status string `json:"status"`
+	// SVM OCID for the request.
+	SvmOCID string `json:"svmOCID"`
+	// Error message for the failed operation.
+	ErrorMessage string `json:"errorMessage"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SvmOperationErrorResponse) GetStatus() string {
+	return s.Status
+}
+
+// GetSvmOCID returns the value of SvmOCID.
+func (s *SvmOperationErrorResponse) GetSvmOCID() string {
+	return s.SvmOCID
+}
+
+// GetErrorMessage returns the value of ErrorMessage.
+func (s *SvmOperationErrorResponse) GetErrorMessage() string {
+	return s.ErrorMessage
+}
+
+// SetStatus sets the value of Status.
+func (s *SvmOperationErrorResponse) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetSvmOCID sets the value of SvmOCID.
+func (s *SvmOperationErrorResponse) SetSvmOCID(val string) {
+	s.SvmOCID = val
+}
+
+// SetErrorMessage sets the value of ErrorMessage.
+func (s *SvmOperationErrorResponse) SetErrorMessage(val string) {
+	s.ErrorMessage = val
+}
+
+// SvmOperationErrorResponseHeaders wraps SvmOperationErrorResponse with response headers.
+type SvmOperationErrorResponseHeaders struct {
+	OpcRequestID string
+	Response     SvmOperationErrorResponse
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *SvmOperationErrorResponseHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *SvmOperationErrorResponseHeaders) GetResponse() SvmOperationErrorResponse {
+	return s.Response
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *SvmOperationErrorResponseHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *SvmOperationErrorResponseHeaders) SetResponse(val SvmOperationErrorResponse) {
+	s.Response = val
+}
 
 // Present when the workflow failed or timed out.
 // Ref: #/components/schemas/WorkflowStatusError

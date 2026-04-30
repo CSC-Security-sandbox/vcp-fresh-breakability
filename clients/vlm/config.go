@@ -24,6 +24,7 @@ const (
 	CreateVSAClusterDeploymentWorkflowName     = "vlm.CreateVSAClusterDeploymentWorkflow"
 	CreateVSASVMWorkflowName                   = "vlm.CreateVSASVMWorkflow"
 	ModifyVSASVMWorkflowName                   = "vlm.ModifyVSASVMWorkflow"
+	DeleteVSASVMWorkflowName                   = "vlm.DeleteVSASVMWorkflow"
 	DeleteVSAClusterDeploymentWorkflowName     = "vlm.DeleteVSAClusterDeploymentWorkflow"
 	UpdateVSAClusterDeploymentWorkflowName     = "vlm.UpdateVSAClusterDeploymentWorkflow"
 	UpgradeVSAClusterDeploymentWorkflowName    = "vlm.UpgradeVSAClusterDeploymentWorkflow"
@@ -70,6 +71,7 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	CreateVSAClusterDeploymentWorkflowName:     30 * time.Minute,
 	CreateVSASVMWorkflowName:                   15 * time.Minute,
 	ModifyVSASVMWorkflowName:                   15 * time.Minute,
+	DeleteVSASVMWorkflowName:                   15 * time.Minute,
 	DeleteVSAClusterDeploymentWorkflowName:     20 * time.Minute,
 	UpdateVSAClusterDeploymentWorkflowName:     120 * time.Minute,
 	UpgradeVSAClusterDeploymentWorkflowName:    300 * time.Minute,
@@ -484,6 +486,15 @@ type CreateSVMResponse struct {
 	VLMConfig VLMConfig `json:"vlm_config"`
 }
 
+type DeleteSVMRequest struct {
+	VLMConfig        VLMConfig        `json:"vlm_config"`
+	Name             string           `json:"name"`              // SVM name
+	OntapCredentials OntapCredentials `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
+}
+
+type DeleteSVMResponse struct {
+	VLMConfig VLMConfig `json:"vlm_config"`
+}
 type ModifySVMRequest struct {
 	VLMConfig        VLMConfig        `json:"vlm_config"`
 	Name             string           `json:"name"`              // SVM name

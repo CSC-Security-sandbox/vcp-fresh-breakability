@@ -18,6 +18,14 @@ type Handler interface {
 	//
 	// POST /v1beta/pools
 	CreatePool(ctx context.Context, req *CreatePoolRequest, params CreatePoolParams) (CreatePoolRes, error)
+	// CreateSvmByPool implements createSvmByPool operation.
+	//
+	// Creates a new Storage Virtual Machine (SVM) in the target pool/cluster.
+	// The pool is identified by `poolOCID` in the path. The operation is asynchronous.
+	// Use the returned workflowId (workRequestId) with the work request tracking API.
+	//
+	// POST /v1beta/pools/{poolOCID}/svms
+	CreateSvmByPool(ctx context.Context, req *CreateSvmRequest, params CreateSvmByPoolParams) (CreateSvmByPoolRes, error)
 	// DeletePool implements deletePool operation.
 	//
 	// Deletes the specified pool and its underlying cluster and associated OCI resources.
@@ -25,6 +33,14 @@ type Handler interface {
 	//
 	// DELETE /v1beta/pools/{poolOCID}
 	DeletePool(ctx context.Context, params DeletePoolParams) (DeletePoolRes, error)
+	// DeleteSvm implements deleteSvm operation.
+	//
+	// Deletes a Storage Virtual Machine (SVM) in the pool identified by `poolOCID`.
+	// The operation is asynchronous. Use the returned workflowId (workRequestId)
+	// with the work request tracking API.
+	//
+	// DELETE /v1beta/pools/{poolOCID}/svms/{svmOCID}
+	DeleteSvm(ctx context.Context, req OptDeleteSvmReq, params DeleteSvmParams) (DeleteSvmRes, error)
 	// GetHealth implements getHealth operation.
 	//
 	// Returns the server health status.

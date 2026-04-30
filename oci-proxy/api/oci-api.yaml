@@ -12,6 +12,8 @@ tags:
     description: Health check
   - name: pools
     description: Pool operations
+  - name: svms
+    description: SVM (Storage Virtual Machine) operations
   - name: workflows
     description: Asynchronous workflow status
 paths:
@@ -270,6 +272,232 @@ paths:
           $ref: '#/components/responses/DeletePoolDefaultError'
       x-codegen-request-body-name: body
 
+  /v1beta/pools/{poolOCID}/svms:
+    post:
+      tags:
+        - svms
+      summary: Create SVM
+      description: |
+        Creates a new Storage Virtual Machine (SVM) in the target pool/cluster.
+        The pool is identified by `poolOCID` in the path. The operation is asynchronous.
+        Use the returned workflowId (workRequestId) with the work request tracking API.
+      operationId: createSvmByPool
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/tenancyOCIDHeader'
+        - $ref: '#/components/parameters/poolOCIDPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSvmRequest'
+            example:
+              svmOCID: "ocid1.svm.oc1..example"
+              Name: "my-svm"
+              svmAdminPassword:
+                ocid: "ocid1.secret.oc1..example"
+                version: "1"
+              Ips: []
+      responses:
+        "202":
+          description: Accepted. SVM creation in progress.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSvmAcceptedResponse'
+              example:
+                status: "in_progress"
+                workflowId: "ad134355-08ad-cfd1-a728-b62c3cf754a5"
+                svmOCID: "ocid1.svm.oc1..example"
+        "400":
+          description: Bad request
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "401":
+          description: Unauthorized
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "403":
+          description: Forbidden
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "404":
+          description: Not found
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "409":
+          description: Conflict
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "422":
+          description: Unprocessable entity
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "429":
+          description: Too many requests
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        default:
+          $ref: '#/components/responses/CreateSvmDefaultError'
+      x-codegen-request-body-name: body
+
+  /v1beta/pools/{poolOCID}/svms/{svmOCID}:
+    delete:
+      tags:
+        - svms
+      summary: Delete SVM
+      description: |
+        Deletes a Storage Virtual Machine (SVM) in the pool identified by `poolOCID`.
+        The operation is asynchronous. Use the returned workflowId (workRequestId)
+        with the work request tracking API.
+      operationId: deleteSvm
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/tenancyOCIDHeader'
+        - $ref: '#/components/parameters/poolOCIDPathParameter'
+        - $ref: '#/components/parameters/svmOCIDPathParameter'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force:
+                  type: boolean
+                  default: false
+                  description: Force-delete even if dependent resources exist.
+            example:
+              force: false
+      responses:
+        "202":
+          description: Accepted. SVM deletion in progress.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSvmAcceptedResponse'
+              example:
+                status: "in_progress"
+                workflowId: "ad134355-08ad-cfd1-a728-b62c3cf754a5"
+                svmOCID: "ocid1.svm.oc1..example"
+        "400":
+          description: Bad request
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "401":
+          description: Unauthorized
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "403":
+          description: Forbidden
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "404":
+          description: Not found
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "409":
+          description: Conflict
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "429":
+          description: Too many requests
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SvmOperationErrorResponse'
+        default:
+          $ref: '#/components/responses/DeleteSvmDefaultError'
+      x-codegen-request-body-name: body
+
   /v1beta/workRequests/{workRequestId}:
     get:
       tags:
@@ -417,6 +645,13 @@ components:
       description: Pool OCID path parameter.
       schema:
         type: string
+    svmOCIDPathParameter:
+      name: svmOCID
+      in: path
+      required: true
+      description: SVM OCID path parameter.
+      schema:
+        type: string
 
   schemas:
     DeletePoolAcceptedResponse:
@@ -453,10 +688,15 @@ components:
           $ref: '#/components/schemas/WorkflowStatusError'
           description: |
             Present when workflow execution has failure details (for example failed or timed out).
-        metadata:
+        poolMetadata:
           $ref: '#/components/schemas/OCICreatePoolWorkflowMetadata'
           description: |
             Present only when `workflow_type` is `OCICreatePoolWorkflow` and `status` is `completed`.
+            Omitted for all other workflow types and statuses.
+        svmMetadata:
+          $ref: '#/components/schemas/OCICreateSVMWorkflowMetadata'
+          description: |
+            Present only when `workflow_type` is `OCICreateSVMWorkflow` and `status` is `completed`.
             Omitted for all other workflow types and statuses.
 
     GetWorkflowErrorResponse:
@@ -482,6 +722,24 @@ components:
         poolOCID:
           type: string
           description: Pool OCID for the request.
+        errorMessage:
+          type: string
+          description: Error message for the failed operation.
+
+    SvmOperationErrorResponse:
+      type: object
+      required:
+        - status
+        - svmOCID
+        - errorMessage
+      properties:
+        status:
+          type: string
+          description: Operation status.
+          example: failed
+        svmOCID:
+          type: string
+          description: SVM OCID for the request.
         errorMessage:
           type: string
           description: Error message for the failed operation.
@@ -569,6 +827,84 @@ components:
           type: string
           description: OCI compartment OCID (scope for the pool). Used for authorization.
 
+    CreateSvmRequest:
+      type: object
+      required:
+        - svmOCID
+        - Name
+        - svmAdminPassword
+      properties:
+        svmOCID:
+          type: string
+          description: OCI SVM resource OCID for the SVM being created.
+        Name:
+          type: string
+          description: Requested SVM name.
+        svmAdminPassword:
+          $ref: '#/components/schemas/OCIOCIDVersionRef'
+          description: OCI secret reference for the SVM admin password.
+        Ips:
+          type: array
+          description: Optional list of IP addresses for the SVM.
+          items:
+            type: string
+
+    CreateSvmAcceptedResponse:
+      type: object
+      required:
+        - status
+        - workflowId
+        - svmOCID
+      properties:
+        status:
+          type: string
+          description: Current workflow status for the create operation.
+          example: in_progress
+        workflowId:
+          type: string
+          description: Workflow identifier used to poll operation status.
+        svmOCID:
+          type: string
+          description: SVM OCID for the requested SVM.
+
+    DeleteSvmAcceptedResponse:
+      type: object
+      required:
+        - status
+        - workflowId
+        - svmOCID
+      properties:
+        status:
+          type: string
+          description: Current workflow status for the delete operation.
+          example: in_progress
+        workflowId:
+          type: string
+          description: Workflow identifier used to poll operation status.
+        svmOCID:
+          type: string
+          description: SVM OCID for the requested SVM.
+
+    SvmLif:
+      type: object
+      properties:
+        name:
+          type: string
+        ipAddress:
+          type: string
+        node:
+          type: string
+        protocols:
+          type: array
+          items:
+            type: string
+            enum:
+              - iscsi
+              - nvme
+              - nfs
+              - cifs
+              - s3
+
 
     WorkflowStatus:
       type: object
@@ -582,7 +918,7 @@ components:
           description: Temporal workflow type name (from workflow execution info).
         error:
           $ref: '#/components/schemas/WorkflowStatusError'
-        metadata:
+        poolMetadata:
           $ref: '#/components/schemas/OCICreatePoolWorkflowMetadata'
           description: |
             Present only when `workflow_type` is `OCICreatePoolWorkflow` and `status` is `completed`.
@@ -650,6 +986,22 @@ components:
         version:
           type: string
           description: Resource version identifier.
+
+    OCICreateSVMWorkflowMetadata:
+      type: object
+      description: SVM metadata returned when an OCICreateSVMWorkflow completes successfully.
+      properties:
+        name:
+          type: string
+          description: SVM name as registered in ONTAP.
+        svmOCID:
+          type: string
+          description: SVM OCID.
+        lifs:
+          type: array
+          description: Logical interfaces created for the SVM.
+          items:
+            $ref: '#/components/schemas/SvmLif'
 
     WorkflowStatusError:
       type: object
@@ -774,6 +1126,24 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PoolOperationErrorResponse'
+    CreateSvmDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SvmOperationErrorResponse'
+    DeleteSvmDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SvmOperationErrorResponse'
     GetWorkflowDefaultError:
       description: Internal server error
       headers:

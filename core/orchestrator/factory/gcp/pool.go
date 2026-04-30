@@ -55,6 +55,16 @@ func (o *GCPOrchestrator) CreatePool(ctx context.Context, params *commonparams.C
 	return createPool(ctx, o.storage, o.temporal, params)
 }
 
+// CreateSvm is not implemented for GCP; use OCI orchestrator for SVM creation.
+func (o *GCPOrchestrator) CreateSvm(ctx context.Context, params *commonparams.CreateSvmParams) (string, error) {
+	return "", customerrors.NewNotImplementedYetErr()
+}
+
+// DeleteSvm is not implemented for GCP; use OCI orchestrator for SVM deletion.
+func (o *GCPOrchestrator) DeleteSvm(ctx context.Context, params *commonparams.DeleteSvmParams) (string, error) {
+	return "", customerrors.NewNotImplementedYetErr()
+}
+
 // createPool creates a new pool and triggers asynchronous creation processes.
 func _createPool(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.CreatePoolParams) (*models.Pool, string, error) {
 	logger := util.GetLogger(ctx)

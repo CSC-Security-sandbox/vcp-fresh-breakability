@@ -71,6 +71,7 @@ type WorkflowRetryPolicy struct {
 type VlmWorkflowClient interface {
 	CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest, taskQueue string) (*CreateVSAClusterDeploymentResponse, error)
 	CreateVSASVM(ctx workflow.Context, createSVMRequest *CreateSVMRequest) (*CreateSVMResponse, error)
+	DeleteVSASVM(ctx workflow.Context, deleteSVMRequest *DeleteSVMRequest) (*DeleteSVMResponse, error)
 	ModifyVSASVMWorkflow(ctx workflow.Context, req *ModifySVMRequest) (*ModifySVMResponse, error)
 	DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error
 	UpdateVSAClusterDeployment(ctx workflow.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error)
@@ -272,6 +273,21 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, createSVMRequest *CreateSVMRequest) (*CreateSVMResponse, error) {
 	logger := util.GetLogger(ctx)
 
+	if createSVMRequest == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("createSVMRequest cannot be nil")))
+	}
+
+	if createSVMRequest.VLMConfig.Deployment.DeploymentID == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("deployment ID is required to create SVM")))
+	}
+
+	if createSVMRequest.Name == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("SVM name is required to create SVM")))
+	}
+
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, err
@@ -322,6 +338,73 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 	}
 
 	return createSVMResponse, nil
+}
+
+func (vlmManager *VSAClientWorkflowManager) DeleteVSASVM(ctx workflow.Context, deleteSVMRequest *DeleteSVMRequest) (*DeleteSVMResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	if deleteSVMRequest == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("deleteSVMRequest cannot be nil")))
+	}
+
+	if deleteSVMRequest.VLMConfig.Deployment.DeploymentID == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("deployment ID is required to delete SVM")))
+	}
+
+	if deleteSVMRequest.Name == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("SVM name is required to delete SVM")))
+	}
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+
+	accountID := deleteSVMRequest.VLMConfig.Deployment.Labels["account_id"]
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[DeleteVSASVMWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	deleteSVMResponse := &DeleteSVMResponse{}
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, deleteSVMRequest.VLMConfig.Deployment.DeploymentID)
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, DeleteVSASVMWorkflowName, deleteSVMRequest).Get(childWorkflowContxt, &deleteSVMResponse)
+	if err != nil {
+		logger.Error("Failed to delete SVM", "error", err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	return deleteSVMResponse, nil
 }
 
 func (vlmManager *VSAClientWorkflowManager) ModifyVSASVMWorkflow(ctx workflow.Context, req *ModifySVMRequest) (*ModifySVMResponse, error) {

@@ -236,6 +236,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	// Proceed directly to pool/volume migration.
 
 	poolActivity := &activities.PoolActivity{}
+	svmActivity := &activities.SvmActivity{}
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var poolsForAccount []*datamodel.Pool
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetPoolsByAccountName, params.AccountName).Get(ctx, &poolsForAccount)
@@ -321,7 +322,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 
 		// Determine Svm for pool
 		svmForPool := datamodel.Svm{}
-		errGetSvm := workflow.ExecuteActivity(ctx, poolActivity.GetSvmForPoolID, pool.ID).Get(ctx, &svmForPool)
+		errGetSvm := workflow.ExecuteActivity(ctx, svmActivity.GetSvmForPoolID, pool.ID).Get(ctx, &svmForPool)
 		if errGetSvm != nil || svmForPool.ID == 0 {
 			poolMigrationInternalError = true
 			kmsWorkflow.Logger.Error(fmt.Sprintf("Failed to get SVM belonging to pool-id %s selected for CMEK migration", strconv.Itoa(int(pool.ID))), log.Fields{"error": errGetSvm})
