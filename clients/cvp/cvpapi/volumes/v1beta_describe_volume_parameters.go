@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewV1betaDescribeVolumeParams creates a new V1betaDescribeVolumeParams object
@@ -61,6 +62,11 @@ for the v1beta describe volume operation typically these are written to a http.R
 */
 type V1betaDescribeVolumeParams struct {
 
+	/*IncludeDeleted
+	  If true, response will include deleted resources
+
+	*/
+	IncludeDeleted bool
 	/*LocationID
 	  The location/region to perform the operation in.
 
@@ -120,6 +126,17 @@ func (o *V1betaDescribeVolumeParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithIncludeDeleted adds the includeDeleted to the v1beta describe volume params
+func (o *V1betaDescribeVolumeParams) WithIncludeDeleted(includeDeleted bool) *V1betaDescribeVolumeParams {
+	o.SetIncludeDeleted(includeDeleted)
+	return o
+}
+
+// SetIncludeDeleted adds the includeDeleted to the v1beta describe volume params
+func (o *V1betaDescribeVolumeParams) SetIncludeDeleted(includeDeleted bool) {
+	o.IncludeDeleted = includeDeleted
+}
+
 // WithLocationID adds the locationID to the v1beta describe volume params
 func (o *V1betaDescribeVolumeParams) WithLocationID(locationID string) *V1betaDescribeVolumeParams {
 	o.SetLocationID(locationID)
@@ -171,6 +188,13 @@ func (o *V1betaDescribeVolumeParams) WriteToRequest(r runtime.ClientRequest, reg
 		return err
 	}
 	var res []error
+
+	// query param includeDeleted
+	qrIncludeDeleted := o.IncludeDeleted
+	qIncludeDeleted := swag.FormatBool(qrIncludeDeleted)
+	if err := r.SetQueryParam("includeDeleted", qIncludeDeleted); err != nil {
+		return err
+	}
 
 	// path param locationId
 	if err := r.SetPathParam("locationId", o.LocationID); err != nil {

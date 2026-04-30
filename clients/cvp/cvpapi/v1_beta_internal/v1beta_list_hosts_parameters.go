@@ -68,7 +68,7 @@ type V1betaListHostsParams struct {
 	*/
 	FirstParty *bool
 	/*IncludeDeleted
-	  If true, response will include deleted hosts
+	  If true, response will include deleted resources
 
 	*/
 	IncludeDeleted bool

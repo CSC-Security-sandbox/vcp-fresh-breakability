@@ -8007,6 +8007,10 @@ func (s *Server) handleV1betaDescribeVolumeRequest(args [3]string, argsEscaped b
 					Name: "volumeId",
 					In:   "path",
 				}: params.VolumeId,
+				{
+					Name: "includeDeleted",
+					In:   "query",
+				}: params.IncludeDeleted,
 			},
 			Raw: r,
 		}

@@ -849,6 +849,7 @@ paths:
         - $ref: '#/parameters/locationIdPathParameter'
         - $ref: '#/parameters/volumeIdPathParameter'
         - $ref: '#/parameters/xCorrelationIdHeader'
+        - $ref: '#/parameters/includeDeletedQueryParameter'
       responses:
         '200':
           description: OK
@@ -7590,7 +7591,7 @@ parameters:
     type: boolean
     required: false
     allowEmptyValue: true
-    description: If true, response will include deleted hosts
+    description: If true, response will include deleted resources
   includeErroredOnlyQueryParameter:
     name: includeErroredOnly
     in: query

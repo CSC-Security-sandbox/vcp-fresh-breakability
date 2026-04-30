@@ -13274,6 +13274,8 @@ type V1betaDescribeVolumeParams struct {
 	XCorrelationID OptString
 	// Uuid v4 used to identify the volume.
 	VolumeId string
+	// If true, response will include deleted resources.
+	IncludeDeleted OptBool
 }
 
 func unpackV1betaDescribeVolumeParams(packed middleware.Parameters) (params V1betaDescribeVolumeParams) {
@@ -13307,10 +13309,20 @@ func unpackV1betaDescribeVolumeParams(packed middleware.Parameters) (params V1be
 		}
 		params.VolumeId = packed[key].(string)
 	}
+	{
+		key := middleware.ParameterKey{
+			Name: "includeDeleted",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.IncludeDeleted = v.(OptBool)
+		}
+	}
 	return params
 }
 
 func decodeV1betaDescribeVolumeParams(args [3]string, argsEscaped bool, r *http.Request) (params V1betaDescribeVolumeParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
 	h := uri.NewHeaderDecoder(r.Header)
 	// Decode path: projectNumber.
 	if err := func() error {
@@ -13531,6 +13543,52 @@ func decodeV1betaDescribeVolumeParams(args [3]string, argsEscaped bool, r *http.
 		return params, &ogenerrors.DecodeParamError{
 			Name: "volumeId",
 			In:   "path",
+			Err:  err,
+		}
+	}
+	// Set default value for query: includeDeleted.
+	{
+		val := bool(false)
+		params.IncludeDeleted.SetTo(val)
+	}
+	// Decode query: includeDeleted.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "includeDeleted",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIncludeDeletedVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIncludeDeletedVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.IncludeDeleted.SetTo(paramsDotIncludeDeletedVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "includeDeleted",
+			In:   "query",
 			Err:  err,
 		}
 	}

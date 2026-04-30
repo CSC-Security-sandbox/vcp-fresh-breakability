@@ -594,6 +594,8 @@ type V1betaDescribeVolumeParams struct {
 	XCorrelationID OptString
 	// Uuid v4 used to identify the volume.
 	VolumeId string
+	// If true, response will include deleted resources.
+	IncludeDeleted OptBool
 }
 
 // V1betaDescribeVolumePerformanceGroupParams is parameters of v1beta_describeVolumePerformanceGroup operation.

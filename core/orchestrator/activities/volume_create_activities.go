@@ -12,7 +12,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
-	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
@@ -1888,33 +1887,23 @@ type BackupRestoreMetadata struct {
 func _fetchVolumeProtocolsFromSDE(ctx context.Context, volumeID string, region string, account *datamodel.Account, cvpClient cvpapi.Cvp, xCorrelationID string) ([]string, error) {
 	logger := util.GetLogger(ctx)
 
-	listRes, err := cvpClient.Volumes.V1betaListVolumes(&volumes.V1betaListVolumesParams{
+	descRes, err := cvpClient.Volumes.V1betaDescribeVolume(&volumes.V1betaDescribeVolumeParams{
 		Context:        ctx,
 		LocationID:     region,
 		ProjectNumber:  account.Name,
+		VolumeID:       volumeID,
 		IncludeDeleted: true,
 		XCorrelationID: &xCorrelationID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch volumes from CVP: %w", err)
+		return nil, fmt.Errorf("failed to describe volume %q in CVP: %w", volumeID, err)
 	}
 
-	if listRes == nil || listRes.Payload == nil || listRes.Payload.Volumes == nil {
-		return nil, fmt.Errorf("CVP ListVolumes returned nil response")
+	if descRes == nil || descRes.Payload == nil {
+		return nil, fmt.Errorf("CVP describe volume returned empty response for volume %q", volumeID)
 	}
 
-	var targetVolume *cvpModels.VolumeV1beta
-	for _, vol := range listRes.Payload.Volumes {
-		if vol != nil && vol.VolumeID == volumeID {
-			targetVolume = vol
-			break
-		}
-	}
-
-	if targetVolume == nil {
-		return nil, fmt.Errorf("volume '%s' not found in CVP even with includeDeleted=true", volumeID)
-	}
-
+	targetVolume := descRes.Payload
 	if len(targetVolume.Protocols) == 0 {
 		return nil, fmt.Errorf("volume '%s' has no protocols in CVP", volumeID)
 	}

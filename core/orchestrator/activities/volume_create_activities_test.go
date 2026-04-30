@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -14710,6 +14711,126 @@ func TestFetchProtocolsForBackup(t *testing.T) {
 		assert.Len(t, result, 1)
 		assert.Equal(t, "NFSV3", result[0])
 	})
+}
+
+// matchingV1betaDescribeVolumeParams asserts the SFR/restore path uses DescribeVolume with
+// includeDeleted and the expected routing fields (VSCP-5809).
+func matchingV1betaDescribeVolumeParams(volumeID, region, projectNumber, correlationID string) func(*volumes.V1betaDescribeVolumeParams) bool {
+	return func(p *volumes.V1betaDescribeVolumeParams) bool {
+		if p == nil {
+			return false
+		}
+		if !p.IncludeDeleted {
+			return false
+		}
+		if p.VolumeID != volumeID || p.LocationID != region || p.ProjectNumber != projectNumber {
+			return false
+		}
+		if p.XCorrelationID == nil || *p.XCorrelationID != correlationID {
+			return false
+		}
+		return true
+	}
+}
+
+func TestFetchVolumeProtocolsFromSDE_Success(t *testing.T) {
+	ctx := context.Background()
+	mockVol := volumes.NewMockClientService(t)
+	mockVol.On("V1betaDescribeVolume", mock.MatchedBy(matchingV1betaDescribeVolumeParams(
+		"vol-uuid-1", "us-west1", "123456789", "corr-id-1",
+	))).Return(&volumes.V1betaDescribeVolumeOK{
+		Payload: &cvpModels.VolumeV1beta{
+			Protocols: []cvpModels.ProtocolsV1beta{
+				cvpModels.ProtocolsV1betaNFSV3,
+				cvpModels.ProtocolsV1betaSMB,
+			},
+		},
+	}, nil)
+
+	cvpClient := cvpapi.Cvp{Volumes: mockVol}
+	account := &datamodel.Account{Name: "123456789"}
+
+	out, err := activities.FetchVolumeProtocolsFromSDE(ctx, "vol-uuid-1", "us-west1", account, cvpClient, "corr-id-1")
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"NFSV3", "SMB"}, out)
+	mockVol.AssertExpectations(t)
+}
+
+func TestFetchVolumeProtocolsFromSDE_V1betaDescribeVolumeError(t *testing.T) {
+	ctx := context.Background()
+	mockVol := volumes.NewMockClientService(t)
+	apiErr := errors.New("cvp unavailable")
+	mockVol.On("V1betaDescribeVolume", mock.MatchedBy(matchingV1betaDescribeVolumeParams(
+		"vol-uuid-1", "europe-west1", "987654321", "corr-2",
+	))).Return(nil, apiErr)
+
+	cvpClient := cvpapi.Cvp{Volumes: mockVol}
+	account := &datamodel.Account{Name: "987654321"}
+
+	out, err := activities.FetchVolumeProtocolsFromSDE(ctx, "vol-uuid-1", "europe-west1", account, cvpClient, "corr-2")
+
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apiErr)
+	assert.Contains(t, err.Error(), `failed to describe volume "vol-uuid-1" in CVP`)
+	mockVol.AssertExpectations(t)
+}
+
+func TestFetchVolumeProtocolsFromSDE_NilOKResponse(t *testing.T) {
+	ctx := context.Background()
+	mockVol := volumes.NewMockClientService(t)
+	mockVol.On("V1betaDescribeVolume", mock.MatchedBy(matchingV1betaDescribeVolumeParams(
+		"vol-uuid-1", "us-central1", "111", "c3",
+	))).Return(nil, nil)
+
+	cvpClient := cvpapi.Cvp{Volumes: mockVol}
+	account := &datamodel.Account{Name: "111"}
+
+	out, err := activities.FetchVolumeProtocolsFromSDE(ctx, "vol-uuid-1", "us-central1", account, cvpClient, "c3")
+
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `CVP describe volume returned empty response for volume "vol-uuid-1"`)
+	mockVol.AssertExpectations(t)
+}
+
+func TestFetchVolumeProtocolsFromSDE_NilPayload(t *testing.T) {
+	ctx := context.Background()
+	mockVol := volumes.NewMockClientService(t)
+	mockVol.On("V1betaDescribeVolume", mock.MatchedBy(matchingV1betaDescribeVolumeParams(
+		"vol-uuid-1", "us-central1", "111", "c3",
+	))).Return(&volumes.V1betaDescribeVolumeOK{Payload: nil}, nil)
+
+	cvpClient := cvpapi.Cvp{Volumes: mockVol}
+	account := &datamodel.Account{Name: "111"}
+
+	out, err := activities.FetchVolumeProtocolsFromSDE(ctx, "vol-uuid-1", "us-central1", account, cvpClient, "c3")
+
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), `CVP describe volume returned empty response for volume "vol-uuid-1"`)
+	mockVol.AssertExpectations(t)
+}
+
+func TestFetchVolumeProtocolsFromSDE_EmptyProtocols(t *testing.T) {
+	ctx := context.Background()
+	mockVol := volumes.NewMockClientService(t)
+	mockVol.On("V1betaDescribeVolume", mock.MatchedBy(matchingV1betaDescribeVolumeParams(
+		"vol-uuid-1", "asia-east1", "222", "c4",
+	))).Return(&volumes.V1betaDescribeVolumeOK{
+		Payload: &cvpModels.VolumeV1beta{Protocols: []cvpModels.ProtocolsV1beta{}},
+	}, nil)
+
+	cvpClient := cvpapi.Cvp{Volumes: mockVol}
+	account := &datamodel.Account{Name: "222"}
+
+	out, err := activities.FetchVolumeProtocolsFromSDE(ctx, "vol-uuid-1", "asia-east1", account, cvpClient, "c4")
+
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume 'vol-uuid-1' has no protocols in CVP")
+	mockVol.AssertExpectations(t)
 }
 
 func TestConvertGoogleProxyBackupToDatamodel(t *testing.T) {
