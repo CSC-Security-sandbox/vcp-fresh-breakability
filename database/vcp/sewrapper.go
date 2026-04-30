@@ -3981,6 +3981,22 @@ func (re *retryEngine) IsLatestBackupInVault(ctx context.Context, backupUUID, vo
 	return var0, err
 }
 
+func (re *retryEngine) IsLatestBackupInVaultAndInEndpoint(ctx context.Context, backupUUID, volumeUUID string, backupVaultID int64, endpointUUID string) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.IsLatestBackupInVaultAndInEndpoint(ctx, backupUUID, volumeUUID, backupVaultID, endpointUUID)
+		if err != nil {
+			re.logError("IsLatestBackupInVaultAndInEndpoint", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -3988,6 +4004,22 @@ func (re *retryEngine) BackupCountByVolumeID(ctx context.Context, volumeUUID str
 		var0, err = re.dataStore.BackupCountByVolumeID(ctx, volumeUUID)
 		if err != nil {
 			re.logError("BackupCountByVolumeID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) BackupCountByVolumeIDVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.BackupCountByVolumeIDVaultAndEndpoint(ctx, volumeUUID, backupVaultID, endpointUUID)
+		if err != nil {
+			re.logError("BackupCountByVolumeIDVaultAndEndpoint", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -4052,6 +4084,22 @@ func (re *retryEngine) GetBackupCountByVolumeAndVault(ctx context.Context, volum
 		var0, err = re.dataStore.GetBackupCountByVolumeAndVault(ctx, volumeUUID, backupVaultID)
 		if err != nil {
 			re.logError("GetBackupCountByVolumeAndVault", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupCountByVolumeVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupCountByVolumeVaultAndEndpoint(ctx, volumeUUID, backupVaultID, endpointUUID)
+		if err != nil {
+			re.logError("GetBackupCountByVolumeVaultAndEndpoint", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

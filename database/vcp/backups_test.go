@@ -2162,6 +2162,267 @@ func TestGetBackupCountByVolumeAndVault_ReturnsErrorWhenDBFails(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestGetBackupCountByVolumeVaultAndEndpoint(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	vault1 := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+		Name:      "vault-1",
+	}
+	err = store.db.Create(vault1).Error()
+	assert.NoError(t, err)
+
+	epA := "endpoint-a"
+	epB := "endpoint-b"
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:     datamodel.BaseModel{UUID: "b1"},
+			VolumeUUID:    "vol-1",
+			BackupVaultID: vault1.ID,
+			State:         models.LifeCycleStateAvailable,
+			Attributes:    &datamodel.BackupAttributes{EndpointUUID: epA},
+		},
+		{
+			BaseModel:     datamodel.BaseModel{UUID: "b2"},
+			VolumeUUID:    "vol-1",
+			BackupVaultID: vault1.ID,
+			State:         models.LifeCycleStateAvailable,
+			Attributes:    &datamodel.BackupAttributes{EndpointUUID: epA},
+		},
+		{
+			BaseModel:     datamodel.BaseModel{UUID: "b3"},
+			VolumeUUID:    "vol-1",
+			BackupVaultID: vault1.ID,
+			State:         models.LifeCycleStateAvailable,
+			Attributes:    &datamodel.BackupAttributes{EndpointUUID: epB},
+		},
+	}
+	for _, b := range backups {
+		err = store.db.Create(b).Error()
+		assert.NoError(t, err)
+	}
+
+	count, err := store.GetBackupCountByVolumeVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, epA)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+
+	count, err = store.GetBackupCountByVolumeVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, epB)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	count, err = store.GetBackupCountByVolumeVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, "nonexistent")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), count)
+
+	// Empty endpoint groups rows with missing or blank endpoint_uuid (not other endpoints).
+	count, err = store.GetBackupCountByVolumeVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, "")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), count)
+
+	err = store.db.Create(&datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: "b-no-ep"},
+		VolumeUUID:    "vol-1",
+		BackupVaultID: vault1.ID,
+		State:         models.LifeCycleStateAvailable,
+		Attributes:    &datamodel.BackupAttributes{BucketName: "b"},
+	}).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(&datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: "b-empty-ep"},
+		VolumeUUID:    "vol-1",
+		BackupVaultID: vault1.ID,
+		State:         models.LifeCycleStateAvailable,
+		Attributes:    &datamodel.BackupAttributes{EndpointUUID: "   "},
+	}).Error()
+	assert.NoError(t, err)
+
+	count, err = store.GetBackupCountByVolumeVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, "")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+}
+
+func TestIsLatestBackupInVaultAndInEndpoint(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	require.NoError(t, ClearInMemoryDB(store.db.GORM()))
+
+	vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault-1"}
+	vault2 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"}, Name: "vault-2"}
+	require.NoError(t, store.db.Create(vault1).Error())
+	require.NoError(t, store.db.Create(vault2).Error())
+
+	const epA = "endpoint-a"
+	const epB = "endpoint-b"
+
+	// Same volume + vault1: two backups on epA (b2 is latest by created_at) and one on epB.
+	// vault2 has b4 on epA — must not influence vault1 results.
+	now := time.Now()
+	b1 := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1, CreatedAt: now.Add(-3 * time.Hour)},
+		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		Attributes: &datamodel.BackupAttributes{EndpointUUID: epA},
+	}
+	b2 := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2, CreatedAt: now.Add(-1 * time.Hour)},
+		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		Attributes: &datamodel.BackupAttributes{EndpointUUID: epA},
+	}
+	b3 := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3, CreatedAt: now.Add(-2 * time.Hour)},
+		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		Attributes: &datamodel.BackupAttributes{EndpointUUID: epB},
+	}
+	b4 := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b4", ID: 4, CreatedAt: now},
+		VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable,
+		Attributes: &datamodel.BackupAttributes{EndpointUUID: epA},
+	}
+	// Error state without delete_initiated must be excluded.
+	b5 := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b5", ID: 5, CreatedAt: now.Add(time.Hour)},
+		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateError,
+		Attributes: &datamodel.BackupAttributes{EndpointUUID: epA, DeleteInitiated: false},
+	}
+	for _, b := range []*datamodel.Backup{b1, b2, b3, b4, b5} {
+		require.NoError(t, store.db.Create(b).Error())
+	}
+
+	t.Run("LatestForVaultAndEndpoint", func(t *testing.T) {
+		isLatest, err := store.IsLatestBackupInVaultAndInEndpoint(context.Background(), "b2", "vol-1", vault1.ID, epA)
+		assert.NoError(t, err)
+		assert.True(t, isLatest)
+	})
+
+	t.Run("NotLatestWithinSameEndpoint", func(t *testing.T) {
+		isLatest, err := store.IsLatestBackupInVaultAndInEndpoint(context.Background(), "b1", "vol-1", vault1.ID, epA)
+		assert.NoError(t, err)
+		assert.False(t, isLatest)
+	})
+
+	t.Run("EndpointScopingIsolatesVaults", func(t *testing.T) {
+		// b3 is the only backup on vault1+epB, so it must be considered latest there.
+		isLatest, err := store.IsLatestBackupInVaultAndInEndpoint(context.Background(), "b3", "vol-1", vault1.ID, epB)
+		assert.NoError(t, err)
+		assert.True(t, isLatest)
+	})
+
+	t.Run("ErrorStateWithoutDeleteInitiatedExcluded", func(t *testing.T) {
+		// b5 is in error+!delete_initiated; b2 must still be considered latest on vault1+epA.
+		isLatest, err := store.IsLatestBackupInVaultAndInEndpoint(context.Background(), "b2", "vol-1", vault1.ID, epA)
+		assert.NoError(t, err)
+		assert.True(t, isLatest)
+	})
+
+	t.Run("EmptyEndpointMatchesMissingOrBlank", func(t *testing.T) {
+		// Insert two backups with no/blank endpoint, plus one with a real endpoint to confirm isolation.
+		require.NoError(t, store.db.Create(&datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "b-no-ep", ID: 10, CreatedAt: now.Add(-30 * time.Minute)},
+			VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{BucketName: "bk"},
+		}).Error())
+		require.NoError(t, store.db.Create(&datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "b-blank-ep", ID: 11, CreatedAt: now.Add(-15 * time.Minute)},
+			VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{EndpointUUID: "   "},
+		}).Error())
+
+		isLatest, err := store.IsLatestBackupInVaultAndInEndpoint(context.Background(), "b-blank-ep", "vol-2", vault1.ID, "")
+		assert.NoError(t, err)
+		assert.True(t, isLatest)
+
+		isLatest, err = store.IsLatestBackupInVaultAndInEndpoint(context.Background(), "b-no-ep", "vol-2", vault1.ID, "")
+		assert.NoError(t, err)
+		assert.False(t, isLatest)
+	})
+
+	t.Run("OnDBFailure", func(t *testing.T) {
+		failDB, err := SetupTestDB()
+		require.NoError(t, err)
+		failStore := NewDataStoreRepository(gormwrapper.New(failDB))
+		sqlDB, err := failStore.db.GORM().DB()
+		require.NoError(t, err)
+		_ = sqlDB.Close()
+
+		isLatest, err := failStore.IsLatestBackupInVaultAndInEndpoint(context.Background(), "b1", "vol-1", vault1.ID, epA)
+		assert.Error(t, err)
+		assert.False(t, isLatest)
+	})
+}
+
+func TestBackupCountByVolumeIDVaultAndEndpoint(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	require.NoError(t, ClearInMemoryDB(store.db.GORM()))
+
+	vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault-1"}
+	require.NoError(t, store.db.Create(vault1).Error())
+
+	const epA = "endpoint-a"
+	const epB = "endpoint-b"
+
+	// Two on vault1+epA (one available, one error → only available counts), one on vault1+epB,
+	// and rows with missing/blank endpoint that the empty-endpoint query must pick up.
+	rows := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
+		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
+		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateError, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
+		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epB}},
+		{BaseModel: datamodel.BaseModel{UUID: "b-no-ep"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{BucketName: "bk"}},
+		{BaseModel: datamodel.BaseModel{UUID: "b-blank-ep"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: "  "}},
+	}
+	for _, r := range rows {
+		require.NoError(t, store.db.Create(r).Error())
+	}
+
+	t.Run("CountsAvailableScopedByEndpointAndExcludesError", func(t *testing.T) {
+		count, err := store.BackupCountByVolumeIDVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, epA)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), count)
+	})
+
+	t.Run("OtherEndpointReturnsOwnCount", func(t *testing.T) {
+		count, err := store.BackupCountByVolumeIDVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, epB)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), count)
+	})
+
+	t.Run("UnknownEndpointReturnsZero", func(t *testing.T) {
+		count, err := store.BackupCountByVolumeIDVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, "nonexistent")
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
+	t.Run("EmptyEndpointMatchesMissingAndBlankOnly", func(t *testing.T) {
+		count, err := store.BackupCountByVolumeIDVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, "")
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), count)
+	})
+
+	t.Run("OnDBFailure", func(t *testing.T) {
+		failDB, err := SetupTestDB()
+		require.NoError(t, err)
+		failStore := NewDataStoreRepository(gormwrapper.New(failDB))
+		sqlDB, err := failStore.db.GORM().DB()
+		require.NoError(t, err)
+		_ = sqlDB.Close()
+
+		count, err := failStore.BackupCountByVolumeIDVaultAndEndpoint(context.Background(), "vol-1", vault1.ID, epA)
+		assert.Error(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+}
+
 func TestGetDistinctBackupVaultIDsByVolumeUUID_ReturnsErrorWhenDBFails(t *testing.T) {
 	db, err := SetupTestDB()
 	assert.NoError(t, err)

@@ -494,6 +494,13 @@ func backupDeleteEndpointMismatch(rel *commonparams.SnapmirrorRelationship, dbBa
 	return !strings.EqualFold(stored, strings.TrimSpace(*rel.DestinationUUID))
 }
 
+func backupAttributesTrimmedEndpointUUID(dbBackup *datamodel.Backup) string {
+	if dbBackup == nil || dbBackup.Attributes == nil {
+		return ""
+	}
+	return strings.TrimSpace(dbBackup.Attributes.EndpointUUID)
+}
+
 func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBackupParams) (interface{}, error) {
 	backupWf := new(BackupDeleteWorkflow)
 	err := backupWf.Setup(ctx, params)
@@ -680,7 +687,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	} else {
 		var backupCount int64
 		if utils.EnableBackupVaultSwitching {
-			err = workflow.ExecuteActivity(ctx, backupActivity.GetBackupCountByVolumeAndVault, dbBackup.VolumeUUID, dbBackup.BackupVaultID).Get(ctx, &backupCount)
+			err = workflow.ExecuteActivity(ctx, backupActivity.GetBackupCountByVolumeVaultAndEndpoint, dbBackup.VolumeUUID, dbBackup.BackupVaultID, backupAttributesTrimmedEndpointUUID(dbBackup)).Get(ctx, &backupCount)
 		} else {
 			err = workflow.ExecuteActivity(ctx, backupActivity.GetBackupCountByVolumeUUID, dbBackup.VolumeUUID).Get(ctx, &backupCount)
 		}

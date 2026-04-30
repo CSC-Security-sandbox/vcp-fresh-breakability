@@ -1522,6 +1522,37 @@ func TestGetBackupCountByVolumeAndVault(t *testing.T) {
 	})
 }
 
+func TestGetBackupCountByVolumeVaultAndEndpoint(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		backupVaultID := int64(10)
+		endpointUUID := "endpoint-uuid-1"
+		expectedCount := int64(2)
+
+		store.On("GetBackupCountByVolumeVaultAndEndpoint", ctx, volumeUUID, backupVaultID, endpointUUID).Return(expectedCount, nil)
+
+		count, err := activity.GetBackupCountByVolumeVaultAndEndpoint(ctx, volumeUUID, backupVaultID, endpointUUID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedCount, count)
+	})
+	t.Run("onDBFailure", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		store.On("GetBackupCountByVolumeVaultAndEndpoint", ctx, "vol", int64(1), "ep").Return(int64(0), errors.New("db error"))
+
+		count, err := activity.GetBackupCountByVolumeVaultAndEndpoint(ctx, "vol", int64(1), "ep")
+
+		assert.Error(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+}
+
 func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 	t.Run("onSuccessWithJob", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite

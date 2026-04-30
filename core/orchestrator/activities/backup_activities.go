@@ -923,6 +923,11 @@ func (a BackupActivity) GetBackupCountByVolumeAndVault(ctx context.Context, volu
 	return se.GetBackupCountByVolumeAndVault(ctx, volumeUUID, backupVaultID)
 }
 
+func (a BackupActivity) GetBackupCountByVolumeVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	se := a.SE
+	return se.GetBackupCountByVolumeVaultAndEndpoint(ctx, volumeUUID, backupVaultID, endpointUUID)
+}
+
 // DeleteSnapshotFromObjectStore Enhanced DeleteSnapshotFromObjectStore with idempotency
 func (a BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
 	activity.RecordHeartbeat(ctx, "delete snapshot from object store started")

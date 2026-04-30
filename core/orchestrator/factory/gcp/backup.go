@@ -832,20 +832,41 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("Cannot delete backup from the destination region")
 	}
 
-	// check if backup is latest
-	isLatest, err := se.IsLatestBackup(ctx, backup.UUID, backup.VolumeUUID)
-	if err != nil {
-		return err
-	}
+	if utils.EnableBackupVaultSwitching {
+		var endpointUUID string
+		if backup.Attributes != nil {
+			endpointUUID = backup.Attributes.EndpointUUID
+		}
 
-	// get count of backups under the volume
-	count, err := se.BackupCountByVolumeID(ctx, backup.VolumeUUID)
-	if err != nil {
-		return err
-	}
+		isLatest, err := se.IsLatestBackupInVaultAndInEndpoint(ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, endpointUUID)
+		if err != nil {
+			return err
+		}
 
-	if isLatest && count > 1 {
-		return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
+		count, err := se.BackupCountByVolumeIDVaultAndEndpoint(ctx, backup.VolumeUUID, backup.BackupVaultID, endpointUUID)
+		if err != nil {
+			return err
+		}
+
+		if isLatest && count > 1 {
+			return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
+		}
+	} else {
+		// check if backup is latest
+		isLatest, err := se.IsLatestBackup(ctx, backup.UUID, backup.VolumeUUID)
+		if err != nil {
+			return err
+		}
+
+		// get count of backups under the volume
+		count, err := se.BackupCountByVolumeID(ctx, backup.VolumeUUID)
+		if err != nil {
+			return err
+		}
+
+		if isLatest && count > 1 {
+			return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
+		}
 	}
 
 	// Immutability check

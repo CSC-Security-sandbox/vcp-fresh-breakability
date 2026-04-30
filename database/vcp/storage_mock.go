@@ -251,6 +251,65 @@ func (_c *MockStorage_BackupCountByVolumeID_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// BackupCountByVolumeIDVaultAndEndpoint provides a mock function with given fields: ctx, volumeUUID, backupVaultID, endpointUUID
+func (_m *MockStorage) BackupCountByVolumeIDVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	ret := _m.Called(ctx, volumeUUID, backupVaultID, endpointUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BackupCountByVolumeIDVaultAndEndpoint")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) (int64, error)); ok {
+		return rf(ctx, volumeUUID, backupVaultID, endpointUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) int64); ok {
+		r0 = rf(ctx, volumeUUID, backupVaultID, endpointUUID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, string) error); ok {
+		r1 = rf(ctx, volumeUUID, backupVaultID, endpointUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BackupCountByVolumeIDVaultAndEndpoint'
+type MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call struct {
+	*mock.Call
+}
+
+// BackupCountByVolumeIDVaultAndEndpoint is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - backupVaultID int64
+//   - endpointUUID string
+func (_e *MockStorage_Expecter) BackupCountByVolumeIDVaultAndEndpoint(ctx interface{}, volumeUUID interface{}, backupVaultID interface{}, endpointUUID interface{}) *MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call {
+	return &MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call{Call: _e.mock.On("BackupCountByVolumeIDVaultAndEndpoint", ctx, volumeUUID, backupVaultID, endpointUUID)}
+}
+
+func (_c *MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call) Run(run func(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string)) *MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call) Return(_a0 int64, _a1 error) *MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call) RunAndReturn(run func(context.Context, string, int64, string) (int64, error)) *MockStorage_BackupCountByVolumeIDVaultAndEndpoint_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // BatchCreateSnapshots provides a mock function with given fields: ctx, newSnapshots, returnCreatedSnapshotUUIDs
 func (_m *MockStorage) BatchCreateSnapshots(ctx context.Context, newSnapshots []*datamodel.Snapshot, returnCreatedSnapshotUUIDs bool) ([]string, error) {
 	ret := _m.Called(ctx, newSnapshots, returnCreatedSnapshotUUIDs)
@@ -5894,6 +5953,65 @@ func (_c *MockStorage_GetAllVolumesForHG_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// GetAppConfig provides a mock function with given fields: ctx, key
+func (_m *MockStorage) GetAppConfig(ctx context.Context, key string) (*datamodel.AppConfig, error) {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAppConfig")
+	}
+
+	var r0 *datamodel.AppConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.AppConfig, error)); ok {
+		return rf(ctx, key)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AppConfig); ok {
+		r0 = rf(ctx, key)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AppConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetAppConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAppConfig'
+type MockStorage_GetAppConfig_Call struct {
+	*mock.Call
+}
+
+// GetAppConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockStorage_Expecter) GetAppConfig(ctx interface{}, key interface{}) *MockStorage_GetAppConfig_Call {
+	return &MockStorage_GetAppConfig_Call{Call: _e.mock.On("GetAppConfig", ctx, key)}
+}
+
+func (_c *MockStorage_GetAppConfig_Call) Run(run func(ctx context.Context, key string)) *MockStorage_GetAppConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetAppConfig_Call) Return(_a0 *datamodel.AppConfig, _a1 error) *MockStorage_GetAppConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetAppConfig_Call) RunAndReturn(run func(context.Context, string) (*datamodel.AppConfig, error)) *MockStorage_GetAppConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAppConsistentSnapshotsForVolume provides a mock function with given fields: ctx, accountID, volumeID
 func (_m *MockStorage) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID int64, volumeID int64) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, accountID, volumeID)
@@ -6307,6 +6425,65 @@ func (_c *MockStorage_GetBackupCountByVolumeUUIDs_Call) Return(_a0 map[string]in
 }
 
 func (_c *MockStorage_GetBackupCountByVolumeUUIDs_Call) RunAndReturn(run func(context.Context, []string, [][]interface{}) (map[string]int64, error)) *MockStorage_GetBackupCountByVolumeUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupCountByVolumeVaultAndEndpoint provides a mock function with given fields: ctx, volumeUUID, backupVaultID, endpointUUID
+func (_m *MockStorage) GetBackupCountByVolumeVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	ret := _m.Called(ctx, volumeUUID, backupVaultID, endpointUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupCountByVolumeVaultAndEndpoint")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) (int64, error)); ok {
+		return rf(ctx, volumeUUID, backupVaultID, endpointUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) int64); ok {
+		r0 = rf(ctx, volumeUUID, backupVaultID, endpointUUID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, string) error); ok {
+		r1 = rf(ctx, volumeUUID, backupVaultID, endpointUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupCountByVolumeVaultAndEndpoint'
+type MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call struct {
+	*mock.Call
+}
+
+// GetBackupCountByVolumeVaultAndEndpoint is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - backupVaultID int64
+//   - endpointUUID string
+func (_e *MockStorage_Expecter) GetBackupCountByVolumeVaultAndEndpoint(ctx interface{}, volumeUUID interface{}, backupVaultID interface{}, endpointUUID interface{}) *MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call {
+	return &MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call{Call: _e.mock.On("GetBackupCountByVolumeVaultAndEndpoint", ctx, volumeUUID, backupVaultID, endpointUUID)}
+}
+
+func (_c *MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call) Run(run func(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string)) *MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call) Return(_a0 int64, _a1 error) *MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call) RunAndReturn(run func(context.Context, string, int64, string) (int64, error)) *MockStorage_GetBackupCountByVolumeVaultAndEndpoint_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -14427,6 +14604,66 @@ func (_c *MockStorage_IsLatestBackupInVault_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// IsLatestBackupInVaultAndInEndpoint provides a mock function with given fields: ctx, backupUUID, volumeUUID, backupVaultID, endpointUUID
+func (_m *MockStorage) IsLatestBackupInVaultAndInEndpoint(ctx context.Context, backupUUID string, volumeUUID string, backupVaultID int64, endpointUUID string) (bool, error) {
+	ret := _m.Called(ctx, backupUUID, volumeUUID, backupVaultID, endpointUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsLatestBackupInVaultAndInEndpoint")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64, string) (bool, error)); ok {
+		return rf(ctx, backupUUID, volumeUUID, backupVaultID, endpointUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64, string) bool); ok {
+		r0 = rf(ctx, backupUUID, volumeUUID, backupVaultID, endpointUUID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int64, string) error); ok {
+		r1 = rf(ctx, backupUUID, volumeUUID, backupVaultID, endpointUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_IsLatestBackupInVaultAndInEndpoint_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsLatestBackupInVaultAndInEndpoint'
+type MockStorage_IsLatestBackupInVaultAndInEndpoint_Call struct {
+	*mock.Call
+}
+
+// IsLatestBackupInVaultAndInEndpoint is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupUUID string
+//   - volumeUUID string
+//   - backupVaultID int64
+//   - endpointUUID string
+func (_e *MockStorage_Expecter) IsLatestBackupInVaultAndInEndpoint(ctx interface{}, backupUUID interface{}, volumeUUID interface{}, backupVaultID interface{}, endpointUUID interface{}) *MockStorage_IsLatestBackupInVaultAndInEndpoint_Call {
+	return &MockStorage_IsLatestBackupInVaultAndInEndpoint_Call{Call: _e.mock.On("IsLatestBackupInVaultAndInEndpoint", ctx, backupUUID, volumeUUID, backupVaultID, endpointUUID)}
+}
+
+func (_c *MockStorage_IsLatestBackupInVaultAndInEndpoint_Call) Run(run func(ctx context.Context, backupUUID string, volumeUUID string, backupVaultID int64, endpointUUID string)) *MockStorage_IsLatestBackupInVaultAndInEndpoint_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int64), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_IsLatestBackupInVaultAndInEndpoint_Call) Return(_a0 bool, _a1 error) *MockStorage_IsLatestBackupInVaultAndInEndpoint_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_IsLatestBackupInVaultAndInEndpoint_Call) RunAndReturn(run func(context.Context, string, string, int64, string) (bool, error)) *MockStorage_IsLatestBackupInVaultAndInEndpoint_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAccountsForTelemetry provides a mock function with given fields: ctx, pagination
 func (_m *MockStorage) ListAccountsForTelemetry(ctx context.Context, pagination *utils.Pagination) ([]*AccountTelemetryData, error) {
 	ret := _m.Called(ctx, pagination)
@@ -21108,6 +21345,54 @@ func (_c *MockStorage_UpdatingQuotaRule_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// UpsertAppConfig provides a mock function with given fields: ctx, key, value
+func (_m *MockStorage) UpsertAppConfig(ctx context.Context, key string, value string) error {
+	ret := _m.Called(ctx, key, value)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpsertAppConfig")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, key, value)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpsertAppConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertAppConfig'
+type MockStorage_UpsertAppConfig_Call struct {
+	*mock.Call
+}
+
+// UpsertAppConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - value string
+func (_e *MockStorage_Expecter) UpsertAppConfig(ctx interface{}, key interface{}, value interface{}) *MockStorage_UpsertAppConfig_Call {
+	return &MockStorage_UpsertAppConfig_Call{Call: _e.mock.On("UpsertAppConfig", ctx, key, value)}
+}
+
+func (_c *MockStorage_UpsertAppConfig_Call) Run(run func(ctx context.Context, key string, value string)) *MockStorage_UpsertAppConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpsertAppConfig_Call) Return(_a0 error) *MockStorage_UpsertAppConfig_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpsertAppConfig_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_UpsertAppConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // VerifyVolumeOwnership provides a mock function with given fields: ctx, volumeID, accountName
 func (_m *MockStorage) VerifyVolumeOwnership(ctx context.Context, volumeID string, accountName string) (*datamodel.Volume, error) {
 	ret := _m.Called(ctx, volumeID, accountName)
@@ -21211,113 +21496,6 @@ func (_c *MockStorage_WithTransaction_Call) Return(_a0 error) *MockStorage_WithT
 }
 
 func (_c *MockStorage_WithTransaction_Call) RunAndReturn(run func(context.Context, func(utils.Transaction) error) error) *MockStorage_WithTransaction_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAppConfig provides a mock function with given fields: ctx, key
-func (_m *MockStorage) GetAppConfig(ctx context.Context, key string) (*datamodel.AppConfig, error) {
-	ret := _m.Called(ctx, key)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAppConfig")
-	}
-
-	var r0 *datamodel.AppConfig
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.AppConfig, error)); ok {
-		return rf(ctx, key)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AppConfig); ok {
-		r0 = rf(ctx, key)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AppConfig)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, key)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_GetAppConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAppConfig'
-type MockStorage_GetAppConfig_Call struct {
-	*mock.Call
-}
-
-// GetAppConfig is a helper method to define mock.On call
-//   - ctx context.Context
-//   - key string
-func (_e *MockStorage_Expecter) GetAppConfig(ctx interface{}, key interface{}) *MockStorage_GetAppConfig_Call {
-	return &MockStorage_GetAppConfig_Call{Call: _e.mock.On("GetAppConfig", ctx, key)}
-}
-
-func (_c *MockStorage_GetAppConfig_Call) Run(run func(ctx context.Context, key string)) *MockStorage_GetAppConfig_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *MockStorage_GetAppConfig_Call) Return(_a0 *datamodel.AppConfig, _a1 error) *MockStorage_GetAppConfig_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_GetAppConfig_Call) RunAndReturn(run func(context.Context, string) (*datamodel.AppConfig, error)) *MockStorage_GetAppConfig_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpsertAppConfig provides a mock function with given fields: ctx, key, value
-func (_m *MockStorage) UpsertAppConfig(ctx context.Context, key string, value string) error {
-	ret := _m.Called(ctx, key, value)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpsertAppConfig")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, key, value)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockStorage_UpsertAppConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertAppConfig'
-type MockStorage_UpsertAppConfig_Call struct {
-	*mock.Call
-}
-
-// UpsertAppConfig is a helper method to define mock.On call
-//   - ctx context.Context
-//   - key string
-//   - value string
-func (_e *MockStorage_Expecter) UpsertAppConfig(ctx interface{}, key interface{}, value interface{}) *MockStorage_UpsertAppConfig_Call {
-	return &MockStorage_UpsertAppConfig_Call{Call: _e.mock.On("UpsertAppConfig", ctx, key, value)}
-}
-
-func (_c *MockStorage_UpsertAppConfig_Call) Run(run func(ctx context.Context, key string, value string)) *MockStorage_UpsertAppConfig_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *MockStorage_UpsertAppConfig_Call) Return(_a0 error) *MockStorage_UpsertAppConfig_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockStorage_UpsertAppConfig_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_UpsertAppConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -1201,6 +1201,10 @@ func TestDeleteBackup_CrossRegionBackupVault(t *testing.T) {
 }
 
 func TestValidateBackupDeleteParams(t *testing.T) {
+	originalSwitching := utils.EnableBackupVaultSwitching
+	defer utils.SetEnableBackupVaultSwitchingForTest(originalSwitching)
+	utils.SetEnableBackupVaultSwitchingForTest(false)
+
 	t.Run("OnSuccess", func(t *testing.T) {
 		// Ensure immutable backup feature is disabled for this test
 		originalValue := utils.IsImmutableBackupEnabled()
@@ -1698,7 +1702,108 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 	})
 }
 
+// TestValidateBackupDeleteParams_BackupVaultSwitching covers the EnableBackupVaultSwitching=true
+// branch in _validateBackupDeleteParams (uses the per-vault-per-endpoint database methods).
+func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
+	originalSwitching := utils.EnableBackupVaultSwitching
+	defer utils.SetEnableBackupVaultSwitchingForTest(originalSwitching)
+	utils.SetEnableBackupVaultSwitchingForTest(true)
+
+	originalImmutable := utils.IsImmutableBackupEnabled()
+	defer utils.SetImmutableBackupEnabledForTest(originalImmutable)
+	utils.SetImmutableBackupEnabledForTest(false)
+
+	const endpointUUID = "endpoint-1"
+	makeBackup := func() *datamodel.Backup {
+		return &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "testBackupUUID"},
+			VolumeUUID:    "volumeUUID1",
+			BackupVaultID: 42,
+			Attributes:    &datamodel.BackupAttributes{EndpointUUID: endpointUUID},
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType: "IN_REGION",
+			},
+		}
+	}
+	params := &common.DeleteBackupParams{
+		BackupUUID:      "testBackupUUID",
+		BackupVaultUUID: "testVaultID",
+		AccountName:     "testAccount",
+	}
+
+	t.Run("OnSuccessUsesPerVaultPerEndpoint", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := makeBackup()
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+		store.On("IsLatestBackupInVaultAndInEndpoint", ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(false, nil)
+		store.On("BackupCountByVolumeIDVaultAndEndpoint", ctx, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(int64(2), nil)
+
+		err := validateBackupDeleteParams(ctx, store, params)
+		assert.NoError(t, err)
+	})
+
+	t.Run("OnLatestBackupRejected", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := makeBackup()
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+		store.On("IsLatestBackupInVaultAndInEndpoint", ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(true, nil)
+		store.On("BackupCountByVolumeIDVaultAndEndpoint", ctx, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(int64(2), nil)
+
+		err := validateBackupDeleteParams(ctx, store, params)
+		assert.EqualError(t, err, "Cannot delete latest backup")
+	})
+
+	t.Run("OnIsLatestBackupError", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := makeBackup()
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+		store.On("IsLatestBackupInVaultAndInEndpoint", ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(false, errors.New("latest check failed"))
+
+		err := validateBackupDeleteParams(ctx, store, params)
+		assert.EqualError(t, err, "latest check failed")
+	})
+
+	t.Run("OnBackupCountError", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := makeBackup()
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+		store.On("IsLatestBackupInVaultAndInEndpoint", ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(false, nil)
+		store.On("BackupCountByVolumeIDVaultAndEndpoint", ctx, backup.VolumeUUID, backup.BackupVaultID, endpointUUID).Return(int64(0), errors.New("count failed"))
+
+		err := validateBackupDeleteParams(ctx, store, params)
+		assert.EqualError(t, err, "count failed")
+	})
+
+	t.Run("OnNilAttributesPassesEmptyEndpoint", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := makeBackup()
+		backup.Attributes = nil
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+		store.On("IsLatestBackupInVaultAndInEndpoint", ctx, backup.UUID, backup.VolumeUUID, backup.BackupVaultID, "").Return(false, nil)
+		store.On("BackupCountByVolumeIDVaultAndEndpoint", ctx, backup.VolumeUUID, backup.BackupVaultID, "").Return(int64(1), nil)
+
+		err := validateBackupDeleteParams(ctx, store, params)
+		assert.NoError(t, err)
+	})
+}
+
 func TestValidateBackupDeleteParams_ImmutabilityChecks(t *testing.T) {
+	// Pin the legacy code path; new switching-enabled coverage lives in
+	// TestValidateBackupDeleteParams_BackupVaultSwitching.
+	originalSwitching := utils.EnableBackupVaultSwitching
+	defer utils.SetEnableBackupVaultSwitchingForTest(originalSwitching)
+	utils.SetEnableBackupVaultSwitchingForTest(false)
+
 	t.Run("OnSuccessWithNonImmutableBackupVault", func(t *testing.T) {
 		// Enable immutable backup feature for this test
 		utils.SetImmutableBackupEnabledForTest(true)

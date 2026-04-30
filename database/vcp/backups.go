@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -646,10 +647,56 @@ func (d *DataStoreRepository) IsLatestBackupInVault(ctx context.Context, backupU
 	return backup.UUID == backupUUID, nil
 }
 
+// IsLatestBackupInVaultAndInEndpoint checks if a backup is the latest for its volume scoped to the
+// given backup vault and object-store endpoint (attributes.endpoint_uuid). Mirrors the available/error-with-delete-initiated
+// filter used by IsLatestBackup. If endpointUUID is empty (after trim), matches rows whose endpoint is
+// missing or blank in JSON (legacy / unset).
+func (d *DataStoreRepository) IsLatestBackupInVaultAndInEndpoint(ctx context.Context, backupUUID, volumeUUID string, backupVaultID int64, endpointUUID string) (bool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	backup := &datamodel.Backup{}
+	endpointUUID = strings.TrimSpace(endpointUUID)
+	q := db.Where(
+		"volume_uuid = ? AND backup_vault_id = ? AND (state = ? OR (state = ? AND attributes->>'delete_initiated' = 'true'))",
+		volumeUUID, backupVaultID, models.LifeCycleStateAvailable, models.LifeCycleStateError,
+	)
+	if endpointUUID == "" {
+		q = q.Where("TRIM(COALESCE(attributes->>'endpoint_uuid', '')) = ''")
+	} else {
+		q = q.Where("attributes->>'endpoint_uuid' = ?", endpointUUID)
+	}
+	err := q.Order("created_at desc").First(&backup).Error
+	if err != nil {
+		return false, err
+	}
+	return backup.UUID == backupUUID, nil
+}
+
 func (d *DataStoreRepository) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var count int64
 	err := db.Model(&datamodel.Backup{}).Where("volume_uuid = ? and state != ?", volumeUUID, models.LifeCycleStateError).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// BackupCountByVolumeIDVaultAndEndpoint returns the count of backups for the given volume scoped to the
+// given backup vault and object-store endpoint (attributes.endpoint_uuid). Mirrors the state filter used by
+// BackupCountByVolumeID (excludes error state). If endpointUUID is empty (after trim), counts rows whose
+// endpoint is missing or blank in JSON (legacy / unset).
+func (d *DataStoreRepository) BackupCountByVolumeIDVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var count int64
+	endpointUUID = strings.TrimSpace(endpointUUID)
+	q := db.Model(&datamodel.Backup{}).
+		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, models.LifeCycleStateError)
+	if endpointUUID == "" {
+		q = q.Where("TRIM(COALESCE(attributes->>'endpoint_uuid', '')) = ''")
+	} else {
+		q = q.Where("attributes->>'endpoint_uuid' = ?", endpointUUID)
+	}
+	err := q.Count(&count).Error
 	if err != nil {
 		return 0, err
 	}
@@ -767,6 +814,28 @@ func (d *DataStoreRepository) GetBackupCountByVolumeAndVault(ctx context.Context
 	err := db.Model(&datamodel.Backup{}).
 		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, models.LifeCycleStateDeleted).
 		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetBackupCountByVolumeVaultAndEndpoint returns the count of backups for the given volume, backup vault,
+// and object-store endpoint (attributes.endpoint_uuid), excluding deleted state.
+// Used when backup vault switching is enabled so "last backup" teardown (snapmirror, cloud endpoint) is scoped per endpoint.
+// If endpointUUID is empty (after trim), counts rows whose endpoint is missing or blank in JSON (legacy / unset).
+func (d *DataStoreRepository) GetBackupCountByVolumeVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	var count int64
+	db := d.db.GORM().WithContext(ctx)
+	endpointUUID = strings.TrimSpace(endpointUUID)
+	q := db.Model(&datamodel.Backup{}).
+		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, models.LifeCycleStateDeleted)
+	if endpointUUID == "" {
+		q = q.Where("TRIM(COALESCE(attributes->>'endpoint_uuid', '')) = ''")
+	} else {
+		q = q.Where("attributes->>'endpoint_uuid' = ?", endpointUUID)
+	}
+	err := q.Count(&count).Error
 	if err != nil {
 		return 0, err
 	}

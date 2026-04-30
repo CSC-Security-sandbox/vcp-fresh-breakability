@@ -1177,8 +1177,16 @@ func (s *PersistenceStore) IsLatestBackupInVault(ctx context.Context, backupUUID
 	return s.dataStore.IsLatestBackupInVault(ctx, backupUUID, volumeUUID, backupVaultID)
 }
 
+func (s *PersistenceStore) IsLatestBackupInVaultAndInEndpoint(ctx context.Context, backupUUID, volumeUUID string, backupVaultID int64, endpointUUID string) (bool, error) {
+	return s.dataStore.IsLatestBackupInVaultAndInEndpoint(ctx, backupUUID, volumeUUID, backupVaultID, endpointUUID)
+}
+
 func (s *PersistenceStore) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	return s.dataStore.BackupCountByVolumeID(ctx, volumeUUID)
+}
+
+func (s *PersistenceStore) BackupCountByVolumeIDVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	return s.dataStore.BackupCountByVolumeIDVaultAndEndpoint(ctx, volumeUUID, backupVaultID, endpointUUID)
 }
 
 func (s *PersistenceStore) CreateBackupMetadata(ctx context.Context, backupMetadata *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error) {
@@ -1375,6 +1383,10 @@ func (s *PersistenceStore) GetBackupCountByVolumeUUIDs(ctx context.Context, volu
 
 func (s *PersistenceStore) GetBackupCountByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (int64, error) {
 	return s.dataStore.GetBackupCountByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+}
+
+func (s *PersistenceStore) GetBackupCountByVolumeVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error) {
+	return s.dataStore.GetBackupCountByVolumeVaultAndEndpoint(ctx, volumeUUID, backupVaultID, endpointUUID)
 }
 
 func (s *PersistenceStore) GetDistinctBackupVaultIDsByVolumeUUID(ctx context.Context, volumeUUID string) ([]int64, error) {
