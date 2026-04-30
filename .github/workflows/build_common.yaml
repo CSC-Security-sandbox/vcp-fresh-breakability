@@ -484,18 +484,54 @@ jobs:
           done
         shell: bash -e {0}
 
+      - name: Validate manifest prerequisites
+        if: ${{ inputs.create_release }}
+        env:
+          IMAGES_TO_BUILD: ${{ inputs.images_to_build }}
+          PUSH_CHARTS: ${{ inputs.push_charts }}
+        run: |
+          REQUIRED_IMAGES=("core" "vcp-worker")
+          IFS=',' read -ra BUILT_IMAGES <<< "$IMAGES_TO_BUILD"
+
+          for REQ in "${REQUIRED_IMAGES[@]}"; do
+            FOUND=false
+            for BUILT in "${BUILT_IMAGES[@]}"; do
+              if [[ "$BUILT" == "$REQ" ]]; then
+                FOUND=true
+                break
+              fi
+            done
+            if [[ "$FOUND" == "false" ]]; then
+              echo "Error: create_release requires image '${REQ}' in images_to_build, but it is missing."
+              echo "Current images_to_build: ${IMAGES_TO_BUILD}"
+              exit 1
+            fi
+          done
+          echo "All required manifest images are present in images_to_build"
+
+          if [[ "$PUSH_CHARTS" != "true" ]]; then
+            echo "Warning: push_charts is false — helmCharts section will be empty in the release manifest"
+          fi
+        shell: bash -e {0}
+
       - name: Generate release manifest
         if: ${{ inputs.create_release }}
         env:
           IMAGES_TAG: ${{ inputs.tag }}
           GHCR_ORG: vcp-vsa-control-plane
           BINARY_PATH: ${{ vars.AR_BINARY_PATH }}
+          IMAGE_PATH: ${{ vars.AR_IMAGE_PATH }}
+          HELM_PATH: ${{ vars.AR_HELM_PATH }}
+          PUSH_CHARTS: ${{ inputs.push_charts }}
         run: |
           MANIFEST="artifacts/release-manifest.json"
+
+          # --- Binaries ---
           IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
           BINARIES_JSON="[]"
           for BINARY in "${BINARIES[@]}"; do
             SHA=$(awk '{print $1}' "artifacts/${BINARY}.sha256")
+            SIZE=$(stat -c%s "artifacts/${BINARY}" 2>/dev/null || stat -f%z "artifacts/${BINARY}")
             GHCR_OCI="ghcr.io/${GHCR_ORG}/${BINARY_PATH}/${BINARY}:${IMAGES_TAG}"
             DIGEST=$(oras resolve "$GHCR_OCI")
             if [ -z "$DIGEST" ]; then
@@ -505,18 +541,108 @@ jobs:
             BINARIES_JSON=$(echo "$BINARIES_JSON" | jq \
               --arg name "$BINARY" \
               --arg sha "$SHA" \
+              --argjson sizeBytes "$SIZE" \
+              --arg platform "linux/amd64" \
               --arg ghcr_oci "$GHCR_OCI" \
               --arg digest "$DIGEST" \
-              '. + [{"name":$name,"sha256":$sha,"ghcr_oci":$ghcr_oci,"digest":$digest}]')
+              '. + [{"name":$name,"sha256":$sha,"sizeBytes":$sizeBytes,"platform":$platform,"ghcr_oci":$ghcr_oci,"digest":$digest}]')
           done
+
+          # --- Container images ---
+          # Only these images are tracked in the release manifest; oci-proxy is always
+          # appended since it's built separately from the images_to_build input.
+          MANIFEST_IMAGES=("core" "vcp-worker" "oci-proxy")
+          IMAGES_JSON="[]"
+          for IMAGE in "${MANIFEST_IMAGES[@]}"; do
+            GHCR_REF="ghcr.io/${GHCR_ORG}/${IMAGE_PATH}/${IMAGE}:${IMAGES_TAG}"
+            GHCR_DIGEST=$(printenv "${IMAGE}-digest" 2>/dev/null || echo "")
+            if [ -z "$GHCR_DIGEST" ]; then
+              echo "Error: Missing digest for image ${IMAGE} (expected env var '${IMAGE}-digest')"
+              exit 1
+            fi
+            IMAGES_JSON=$(echo "$IMAGES_JSON" | jq \
+              --arg name "$IMAGE" \
+              --arg ghcr "$GHCR_REF" \
+              --arg ghcr_digest "$GHCR_DIGEST" \
+              --arg platform "linux/amd64" \
+              '. + [{"name":$name,"platform":$platform,"ghcr":$ghcr,"ghcr_digest":$ghcr_digest}]')
+          done
+
+          # --- Helm charts ---
+          # Intentional subset: only charts consumed by downstream deployment pipelines
+          # are included. Other charts (vsa-harvest-otel, ontap-proxy, temporal) are
+          # packaged/pushed but managed independently and not part of the release manifest.
+          CHARTS_JSON="[]"
+          if [[ "$PUSH_CHARTS" == "true" ]]; then
+            CHARTS=("vsa-control-plane" "vcp-worker-chart" "vlm-worker" "oci-proxy")
+            for CHART in "${CHARTS[@]}"; do
+              GHCR_CHART="oci://ghcr.io/${GHCR_ORG}/${HELM_PATH}/${CHART}:${IMAGES_TAG}"
+              CHARTS_JSON=$(echo "$CHARTS_JSON" | jq \
+                --arg name "$CHART" \
+                --arg version "$IMAGES_TAG" \
+                --arg ghcr "$GHCR_CHART" \
+                '. + [{"name":$name,"version":$version,"ghcr":$ghcr}]')
+            done
+          else
+            echo "Skipping helmCharts in manifest (push_charts=false)"
+          fi
+
+          # --- Assemble manifest ---
           jq -n \
+            --arg apiVersion "v1" \
+            --arg kind "ReleaseManifest" \
             --arg version "$IMAGES_TAG" \
-            --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg createdAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg createdBy "vcp-release-pipeline" \
             --argjson binaries "$BINARIES_JSON" \
-            '{"version":$version,"generated_at":$generated_at,"artifacts":{"binaries":$binaries}}' \
-            > "$MANIFEST"
+            --argjson images "$IMAGES_JSON" \
+            --argjson helmCharts "$CHARTS_JSON" \
+            '{
+              "apiVersion": $apiVersion,
+              "kind": $kind,
+              "metadata": {
+                "version": $version,
+                "vcpVersion": $version,
+                "createdAt": $createdAt,
+                "createdBy": $createdBy
+              },
+              "vcpArtifacts": {
+                "binaries": $binaries,
+                "images": $images,
+                "helmCharts": $helmCharts
+              }
+            }' > "$MANIFEST"
           echo "Release manifest:"
           cat "$MANIFEST"
+        shell: bash -e {0}
+
+      - name: Push and sign release manifest as OCI artifact to GHCR
+        if: ${{ inputs.create_release }}
+        env:
+          GHCR_ORG: vcp-vsa-control-plane
+          MANIFEST_PATH: ${{ vars.OCI_RELEASE_MANIFEST }}
+          IMAGES_TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$MANIFEST_PATH" ]; then
+            echo "Error: vars.OCI_RELEASE_MANIFEST is not set or empty"
+            exit 1
+          fi
+          ARTIFACT_REF="ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest:${IMAGES_TAG}"
+          echo "Pushing release manifest -> ${ARTIFACT_REF}"
+          oras push "$ARTIFACT_REF" \
+            --artifact-type "application/vnd.netapp.vcp.manifest.v1+json" \
+            "artifacts/release-manifest.json:application/json"
+          echo "Pushed ${ARTIFACT_REF}"
+
+          DIGEST=$(oras resolve "$ARTIFACT_REF")
+          if [ -z "$DIGEST" ]; then
+            echo "Error: Failed to resolve digest for release manifest OCI artifact"
+            exit 1
+          fi
+          echo "Signing release manifest: release-manifest@${DIGEST}"
+          COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key "ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest@${DIGEST}" --tlog-upload=false
+          cosign verify --key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest@${DIGEST}" --insecure-ignore-tlog=true
+          echo "Signed and verified release manifest"
         shell: bash -e {0}
 
       - name: Create a release
@@ -603,24 +729,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
           newTag: ${{ inputs.tag }}
           prBaseBranch: ${{ inputs.pr_base_branch }}
-
-      - name: Upload binary assets to release
-        if: ${{ inputs.create_release }}
-        run: |
-          IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
-          ASSETS=()
-          for BINARY in "${BINARIES[@]}"; do
-            ASSETS+=("artifacts/${BINARY}" "artifacts/${BINARY}.sha256")
-          done
-          ASSETS+=("artifacts/release-manifest.json")
-          gh release upload "${{ inputs.tag }}" \
-            "${ASSETS[@]}" \
-            --clobber \
-            -R https://github.com/${{ github.repository }}
-          echo "Uploaded ${BINARIES[*]} binaries, checksums, and manifest to release ${{ inputs.tag }}"
-        shell: bash -e {0}
-        env:
-          GH_TOKEN: ${{ secrets.GHVSA_PAT }}
 
       - name: Generate output URLs
         id: generate_output_urls
