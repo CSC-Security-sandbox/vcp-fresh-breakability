@@ -1719,7 +1719,9 @@ func (a VolumeCreateActivity) UpdateCloneParentStateInDB(ctx context.Context, vo
 		if removeCloneInfo {
 			// Split completed successfully — the volume is no longer a clone, so remove the
 			// cloneDetails block entirely.
+			// Mark it for hydration pending
 			updatedAttributes.CloneParentInfo = nil
+			updatedAttributes.SplitRegularVolumeHydrationPending = true
 			logger.Debugf("Removing CloneParentInfo for volume %s after successful split", volumeUUID)
 		} else if volume.VolumeAttributes.CloneParentInfo != nil {
 			updatedAttributes.CloneParentInfo = &datamodel.CloneParentInfo{
@@ -1742,59 +1744,7 @@ func (a VolumeCreateActivity) UpdateCloneParentStateInDB(ctx context.Context, vo
 		logger.Errorf("Failed to update clone parent state to %s for volume %s: %v", cloneState, volumeUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
-	if removeCloneInfo {
-		logger.Debugf("Removed CloneParentInfo and set clones_shared_bytes to %d for volume %s after successful split", clonesSharedBytes, volumeUUID)
-		if hydrationEnabled {
-			if hydrateErr := a.HydrateSplitVolumeAsNormalToCCFE(ctx, volume); hydrateErr != nil {
-				logger.Warnf("Failed to hydrate split volume %s as normal volume to CCFE: %v", volumeUUID, hydrateErr)
-			}
-		}
-	} else {
-		logger.Debugf("Updated clone parent state to %s and clones_shared_bytes to %d for volume %s", cloneState, clonesSharedBytes, volumeUUID)
-	}
 	return nil
-}
-
-// HydrateSplitVolumeAsNormalToCCFE sends an updated volume PATCH payload to CCFE after a
-// successful split. At this point CloneParentInfo has been removed and clones_shared_bytes is 0,
-// so the volume is represented as a normal volume.
-func (a VolumeCreateActivity) HydrateSplitVolumeAsNormalToCCFE(ctx context.Context, volume *datamodel.Volume) error {
-	logger := util.GetLogger(ctx)
-	if volume.PoolID == 0 {
-		logger.Warnf("Skipping split-volume hydration for volume %s: pool ID is empty", volume.UUID)
-		return nil
-	}
-	if volume.VolumeAttributes == nil {
-		return fmt.Errorf("volume %s has nil volume attributes", volume.UUID)
-	}
-
-	project := volume.VolumeAttributes.AccountName
-	if project == "" && volume.Account != nil {
-		project = volume.Account.Name
-	}
-	if project == "" {
-		return fmt.Errorf("volume %s has no account/project name for hydration", volume.UUID)
-	}
-
-	pool, err := a.SE.GetPoolByID(ctx, volume.PoolID)
-	if err != nil {
-		return err
-	}
-	location, err := utils.GetLocationFromVendorID(pool.VendorID)
-	if err != nil {
-		return err
-	}
-	callbackToken, err := auth.GenerateCallbackToken(ctx)
-	if err != nil {
-		return err
-	}
-
-	volumeHydrateObject := models.VolumeUpdateCCFERequest{
-		CloneDetails: nil,
-	}
-
-	return common.HydrateUpdatedVolume(ctx, volumeHydrateObject, location, project, volume.Name, callbackToken)
 }
 
 func ConvertToVSASnapshotPolicySchedules(schedules []*datamodel.SnapshotPolicySchedule) []*vsa.SnapshotPolicySchedule {

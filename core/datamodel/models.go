@@ -404,27 +404,28 @@ type PendingResourceDeletions struct {
 }
 
 type VolumeAttributes struct {
-	CreationToken      string           `json:"creation_token"`
-	Protocols          []string         `json:"protocols"`
-	VendorSubnetID     string           `json:"vendor_subnet_id"`
-	ExternalUUID       string           `json:"external_uuid"`
-	BlockProperties    *BlockProperties `json:"block_properties"`
-	BlockDevices       *[]BlockDevice   `json:"block_devices"`
-	FileProperties     *FileProperties  `json:"file_properties"`
-	IsDataProtection   bool             `json:"is_data_protection"`
-	Mounted            bool             `json:"mounted"`
-	SnapReserve        int64            `json:"snap_reserve"`
-	SnapshotDirectory  bool             `json:"snapshot_directory"`
-	KerberosEnabled    bool             `json:"kerberos_enabled"`
-	LdapEnabled        bool             `json:"ldap_enabled"`
-	Labels             *JSONB           `json:"labels"`
-	RestoredBackupID   string           `json:"restored_backup_id"`
-	RestoredBackupPath string           `json:"restored_backup_path"`
-	AccountName        string           `json:"account_name"`
-	DeploymentName     string           `json:"deployment_name"`
-	IsRegionalHA       bool             `json:"is_regional_ha"`
-	CloneParentInfo    *CloneParentInfo `json:"clone_parent_info"`
-	SecurityStyle      string           `json:"security_style"`
+	CreationToken                      string           `json:"creation_token"`
+	Protocols                          []string         `json:"protocols"`
+	VendorSubnetID                     string           `json:"vendor_subnet_id"`
+	ExternalUUID                       string           `json:"external_uuid"`
+	BlockProperties                    *BlockProperties `json:"block_properties"`
+	BlockDevices                       *[]BlockDevice   `json:"block_devices"`
+	FileProperties                     *FileProperties  `json:"file_properties"`
+	IsDataProtection                   bool             `json:"is_data_protection"`
+	Mounted                            bool             `json:"mounted"`
+	SnapReserve                        int64            `json:"snap_reserve"`
+	SnapshotDirectory                  bool             `json:"snapshot_directory"`
+	KerberosEnabled                    bool             `json:"kerberos_enabled"`
+	LdapEnabled                        bool             `json:"ldap_enabled"`
+	Labels                             *JSONB           `json:"labels"`
+	RestoredBackupID                   string           `json:"restored_backup_id"`
+	RestoredBackupPath                 string           `json:"restored_backup_path"`
+	AccountName                        string           `json:"account_name"`
+	DeploymentName                     string           `json:"deployment_name"`
+	IsRegionalHA                       bool             `json:"is_regional_ha"`
+	CloneParentInfo                    *CloneParentInfo `json:"clone_parent_info"`
+	SplitRegularVolumeHydrationPending bool             `json:"split_regular_volume_hydration_pending,omitempty"`
+	SecurityStyle                      string           `json:"security_style"`
 	// SplitJobUUID holds the ONTAP job UUID returned by InitiateSplitVolume.
 	// It is written before starting the Temporal poll workflow so the orphan-job
 	// processor can reconstruct the workflow arguments if Temporal was unavailable

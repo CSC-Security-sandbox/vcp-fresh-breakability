@@ -13,9 +13,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/testsuite"
 	"gorm.io/gorm"
@@ -2266,4 +2268,240 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_VolumeMissingNa
 	assert.Len(t, result.OntapSnapshots, 0)
 	// But REST API should still be called (verified by AssertExpectations)
 	mockProvider.AssertExpectations(t)
+}
+
+func Test_hydrateSplitNormalVolumesPendingCCFE_NoPendingVolumes_NoOp(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &SyncSnapshotActivity{SE: mockStorage}
+
+	err := act.hydrateSplitRegularVolumesPendingCCFE(ctx, map[string]*datamodel.Volume{
+		"ext": {
+			BaseModel: datamodel.BaseModel{UUID: "v1"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SplitRegularVolumeHydrationPending: false,
+			},
+		},
+	})
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_hydrateSplitNormalVolumesPendingCCFE_HydratesAndClearsFlag(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &SyncSnapshotActivity{SE: mockStorage}
+
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+		Name:      "vol-resource-name",
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SplitRegularVolumeHydrationPending: true,
+			AccountName:                        "proj",
+		},
+	}
+
+	mockStorage.On("GetPoolByID", mock.Anything, int64(42)).Return(&datamodel.Pool{
+		VendorID: "/projects/proj/locations/us-c1/pools/pool-res",
+	}, nil)
+
+	origTok := auth.GenerateCallbackToken
+	auth.GenerateCallbackToken = func(context.Context) (string, error) { return "tok", nil }
+	defer func() { auth.GenerateCallbackToken = origTok }()
+
+	origHU := orchcommon.HydrateUpdatedVolume
+	var gotPayload models.VolumeUpdateCCFERequest
+	var gotRegion, gotProject, gotVolID, gotTok string
+	orchcommon.HydrateUpdatedVolume = func(_ context.Context, payload models.VolumeUpdateCCFERequest, region, projectId, volumeResourceID, token string) error {
+		gotPayload = payload
+		gotRegion = region
+		gotProject = projectId
+		gotVolID = volumeResourceID
+		gotTok = token
+		return nil
+	}
+	defer func() { orchcommon.HydrateUpdatedVolume = origHU }()
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-uuid-1", mock.MatchedBy(func(fields map[string]interface{}) bool {
+		a, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+		return ok && a != nil && !a.SplitRegularVolumeHydrationPending
+	})).Return(nil)
+
+	err := act.hydrateSplitRegularVolumesPendingCCFE(ctx, map[string]*datamodel.Volume{"ext": vol})
+	assert.NoError(t, err)
+	assert.Equal(t, "us-c1", gotRegion)
+	assert.Equal(t, "proj", gotProject)
+	assert.Equal(t, "vol-resource-name", gotVolID)
+	assert.Equal(t, "tok", gotTok)
+	assert.Nil(t, gotPayload.CloneDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_hydrateSplitNormalVolumesPendingCCFE_HydrateError_NoClear(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &SyncSnapshotActivity{SE: mockStorage}
+
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+		Name:      "vol-resource-name",
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SplitRegularVolumeHydrationPending: true,
+			AccountName:                        "proj",
+		},
+	}
+
+	mockStorage.On("GetPoolByID", mock.Anything, int64(42)).Return(&datamodel.Pool{
+		VendorID: "/projects/proj/locations/us-c1/pools/pool-res",
+	}, nil)
+
+	origTok := auth.GenerateCallbackToken
+	auth.GenerateCallbackToken = func(context.Context) (string, error) { return "tok", nil }
+	defer func() { auth.GenerateCallbackToken = origTok }()
+
+	origHU := orchcommon.HydrateUpdatedVolume
+	orchcommon.HydrateUpdatedVolume = func(context.Context, models.VolumeUpdateCCFERequest, string, string, string, string) error {
+		return errors.New("ccfe failed")
+	}
+	defer func() { orchcommon.HydrateUpdatedVolume = origHU }()
+
+	err := act.hydrateSplitRegularVolumesPendingCCFE(ctx, map[string]*datamodel.Volume{"ext": vol})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ccfe failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_hydrateSplitVolumeNormalAfterCloneSplit(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("nil_volume_returns_error", func(tt *testing.T) {
+		act := &SyncSnapshotActivity{SE: database.NewMockStorage(tt)}
+		err := act.hydrateSplitVolumeRegularAfterCloneSplit(ctx, nil)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume is nil")
+	})
+
+	t.Run("zero_pool_id_skips", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act := &SyncSnapshotActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "v1"},
+			PoolID:    0,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName: "proj",
+			},
+		}
+		err := act.hydrateSplitVolumeRegularAfterCloneSplit(ctx, vol)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("nil_volume_attributes_returns_error", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act := &SyncSnapshotActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "v1"},
+			PoolID:           1,
+			VolumeAttributes: nil,
+		}
+		err := act.hydrateSplitVolumeRegularAfterCloneSplit(ctx, vol)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "nil volume attributes")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("missing_project_returns_error", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act := &SyncSnapshotActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "v1"},
+			PoolID:    1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName: "",
+			},
+		}
+		err := act.hydrateSplitVolumeRegularAfterCloneSplit(ctx, vol)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "no account/project name")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("success_cloneDetails_nil", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act := &SyncSnapshotActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "v1"},
+			Name:      "vol-resource-id",
+			PoolID:    42,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName: "test-project",
+			},
+		}
+		mockStorage.On("GetPoolByID", mock.Anything, int64(42)).Return(&datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 42},
+			VendorID:  "/projects/test-project/locations/us-c1/pools/pool-res",
+		}, nil)
+
+		origTok := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(context.Context) (string, error) { return "tok", nil }
+		defer func() { auth.GenerateCallbackToken = origTok }()
+
+		origHU := orchcommon.HydrateUpdatedVolume
+		var gotPayload models.VolumeUpdateCCFERequest
+		var gotRegion, gotProject, gotVolID, gotTok string
+		orchcommon.HydrateUpdatedVolume = func(_ context.Context, payload models.VolumeUpdateCCFERequest, region, projectId, volumeResourceID, token string) error {
+			gotPayload = payload
+			gotRegion = region
+			gotProject = projectId
+			gotVolID = volumeResourceID
+			gotTok = token
+			return nil
+		}
+		defer func() { orchcommon.HydrateUpdatedVolume = origHU }()
+
+		err := act.hydrateSplitVolumeRegularAfterCloneSplit(ctx, vol)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "us-c1", gotRegion)
+		assert.Equal(tt, "test-project", gotProject)
+		assert.Equal(tt, "vol-resource-id", gotVolID)
+		assert.Equal(tt, "tok", gotTok)
+		assert.Nil(tt, gotPayload.CloneDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("project_falls_back_to_Account", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act := &SyncSnapshotActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "v1"},
+			Name:      "vol-resource-id",
+			PoolID:    42,
+			Account:   &datamodel.Account{Name: "from-account"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName: "",
+			},
+		}
+		mockStorage.On("GetPoolByID", mock.Anything, int64(42)).Return(&datamodel.Pool{
+			VendorID: "/projects/from-account/locations/us-c1/pools/pool-res",
+		}, nil)
+
+		origTok := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(context.Context) (string, error) { return "tok", nil }
+		defer func() { auth.GenerateCallbackToken = origTok }()
+
+		origHU := orchcommon.HydrateUpdatedVolume
+		var gotProject string
+		orchcommon.HydrateUpdatedVolume = func(_ context.Context, _ models.VolumeUpdateCCFERequest, _ string, projectId string, _ string, _ string) error {
+			gotProject = projectId
+			return nil
+		}
+		defer func() { orchcommon.HydrateUpdatedVolume = origHU }()
+
+		err := act.hydrateSplitVolumeRegularAfterCloneSplit(ctx, vol)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "from-account", gotProject)
+		mockStorage.AssertExpectations(tt)
+	})
 }

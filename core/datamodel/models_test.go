@@ -71,6 +71,13 @@ func TestVolumeAttributes_Scan(t *testing.T) {
 		assert.True(t, va.Mounted)
 		assert.Equal(t, int64(5), va.SnapReserve)
 	})
+	t.Run("Scan_split_regular_volume_hydration_pending", func(t *testing.T) {
+		var va VolumeAttributes
+		err := va.Scan([]byte(`{"creation_token":"x","split_regular_volume_hydration_pending":true}`))
+		assert.NoError(t, err)
+		assert.True(t, va.SplitRegularVolumeHydrationPending)
+		assert.Equal(t, "x", va.CreationToken)
+	})
 }
 
 func TestVolumeAttributes_Value(t *testing.T) {
@@ -95,6 +102,21 @@ func TestVolumeAttributes_Value(t *testing.T) {
 		err = va2.Scan(val)
 		assert.NoError(t, err)
 		assert.Equal(t, "unix", va2.SecurityStyle)
+		assert.Equal(t, "token", va2.CreationToken)
+	})
+	t.Run("SplitRegularVolumeHydrationPending_roundTrip", func(t *testing.T) {
+		va := VolumeAttributes{
+			CreationToken:                      "token",
+			SplitRegularVolumeHydrationPending: true,
+		}
+		val, err := va.Value()
+		assert.NoError(t, err)
+		assert.Contains(t, string(val.([]byte)), `"split_regular_volume_hydration_pending":true`)
+
+		var va2 VolumeAttributes
+		err = va2.Scan(val)
+		assert.NoError(t, err)
+		assert.True(t, va2.SplitRegularVolumeHydrationPending)
 		assert.Equal(t, "token", va2.CreationToken)
 	})
 }

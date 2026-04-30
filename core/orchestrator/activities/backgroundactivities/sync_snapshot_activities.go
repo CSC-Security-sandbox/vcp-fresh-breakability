@@ -12,11 +12,13 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
+	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -658,6 +660,70 @@ func (a *SyncSnapshotActivity) HydrateSnapshotsToCCFE(ctx context.Context, creat
 	return nil
 }
 
+// hydrateSplitVolumeRegularAfterCloneSplit PATCHes CCFE so cloneDetails is cleared after a clone→regular split (used only from snapshot sync).
+func (a *SyncSnapshotActivity) hydrateSplitVolumeRegularAfterCloneSplit(ctx context.Context, volume *datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+	if volume == nil {
+		return fmt.Errorf("volume is nil")
+	}
+	if volume.PoolID == 0 {
+		logger.Warnf("Skipping split-regular CCFE hydration: empty pool ID for volume %s", volume.UUID)
+		return nil
+	}
+	if volume.VolumeAttributes == nil {
+		return fmt.Errorf("volume %s has nil volume attributes", volume.UUID)
+	}
+	project := volume.VolumeAttributes.AccountName
+	if project == "" && volume.Account != nil {
+		project = volume.Account.Name
+	}
+	if project == "" {
+		return fmt.Errorf("volume %s has no account/project name for hydration", volume.UUID)
+	}
+	pool, err := a.SE.GetPoolByID(ctx, volume.PoolID)
+	if err != nil {
+		return err
+	}
+	location, err := utils.GetLocationFromVendorID(pool.VendorID)
+	if err != nil {
+		return err
+	}
+	token, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		return err
+	}
+	payload := models.VolumeUpdateCCFERequest{CloneDetails: nil}
+	return orchcommon.HydrateUpdatedVolume(ctx, payload, location, project, volume.Name, token)
+}
+
+// hydrateSplitRegularVolumesPendingCCFE patches volumes whose clone→regular CCFE update was deferred after split.
+func (a *SyncSnapshotActivity) hydrateSplitRegularVolumesPendingCCFE(ctx context.Context, dbVolumeMap map[string]*datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+	if !hydrationEnabled {
+		logger.Warn("Hydration is disabled, skipping split-regular volume hydration to CCFE")
+		return nil
+	}
+
+	for _, vol := range dbVolumeMap {
+		if vol == nil || vol.VolumeAttributes == nil || !vol.VolumeAttributes.SplitRegularVolumeHydrationPending {
+			continue
+		}
+
+		if err := a.hydrateSplitVolumeRegularAfterCloneSplit(ctx, vol); err != nil {
+			return fmt.Errorf("split-regular CCFE hydrate for volume %s: %w", vol.UUID, err)
+		}
+
+		attrs := *vol.VolumeAttributes
+		attrs.SplitRegularVolumeHydrationPending = false
+		if err := a.SE.UpdateVolumeFields(ctx, vol.UUID, map[string]interface{}{
+			"volume_attributes": &attrs,
+		}); err != nil {
+			return fmt.Errorf("clear split_regular_ccfe_hydration_pending for volume %s: %w", vol.UUID, err)
+		}
+	}
+	return nil
+}
+
 // SyncSnapshotsForPoolBatchReturnValue represents the return value for batch processing
 type SyncSnapshotsForPoolBatchReturnValue struct {
 	TotalProcessed       int
@@ -815,7 +881,11 @@ func (a *SyncSnapshotActivity) processPoolSnapshotSync(ctx context.Context, pool
 		logger.Errorf("Failed to hydrate snapshots to CCFE for pool %s: %v", pool.Name, err)
 		return fmt.Errorf("HydrateSnapshotsToCCFE Failed: %w", err)
 	}
-
+	// Hydrate volumes to CCFE
+	if err = a.hydrateSplitRegularVolumesPendingCCFE(ctx, dbVolSnapshotResp.DBVolumeMap); err != nil {
+		logger.Errorf("Failed split-regular volume CCFE hydration for pool %s: %v", pool.Name, err)
+		return fmt.Errorf("hydrateSplitRegularVolumesPendingCCFE Failed: %w", err)
+	}
 	logger.Infof("Successfully completed snapshot synchronization for pool: %s", poolIdentifier.Name)
 	return nil
 }
