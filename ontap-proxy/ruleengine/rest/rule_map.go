@@ -359,6 +359,19 @@ func GetProxyRules() map[string]Rule {
 			PATCH:  DenyAll{},
 			DELETE: DenyAll{},
 		},
+		"/api/private/cli/vserver/object-store-server/bucket": {
+			GET: Allow{Name: "Allow private CLI NAS bucket GET"},
+			POST: When{
+				Name: "Private CLI NAS bucket create validation",
+				Condition: And(
+					HasFieldValue("type", "nas"),
+					HasFields("nas_path"),
+				),
+				IsTrue: Allow{Name: "Allow private CLI NAS bucket create"},
+			},
+			PATCH:  Allow{Name: "Allow private CLI NAS bucket PATCH"},
+			DELETE: Allow{Name: "Allow private CLI NAS bucket DELETE"},
+		},
 
 		// Storage Aggregates
 		"/api/storage/aggregates": {
@@ -400,6 +413,33 @@ func GetProxyRules() map[string]Rule {
 		"/api/storage/snaplock/event-retention/policies": {
 			DELETE: Deny{Name: "Bulk delete of event retention policies is not allowed"},
 			PATCH:  Deny{Name: "Bulk update of event retention policies is not allowed"},
+		},
+
+		"/api/protocols/s3/buckets": {
+			GET: Allow{Name: "Allow S3 bucket collection GET"},
+			POST: When{
+				Name: "S3 NAS bucket create validation",
+				Condition: And(
+					HasFieldValue("type", "nas"),
+					HasFields("nas_path"),
+				),
+				IsTrue: Allow{Name: "Allow NAS S3 bucket create"},
+			},
+			PATCH:  DenyAll{},
+			DELETE: DenyAll{},
+		},
+		"/api/protocols/s3/services/{uuid}/buckets": {
+			GET: Allow{Name: "Allow S3 buckets under SVM service GET"},
+			POST: When{
+				Name: "S3 NAS bucket create validation (SVM in path)",
+				Condition: And(
+					HasFieldValue("type", "nas"),
+					HasFields("nas_path"),
+				),
+				IsTrue: Allow{Name: "Allow NAS S3 bucket create"},
+			},
+			PATCH:  DenyAll{},
+			DELETE: DenyAll{},
 		},
 
 		// Cluster counter tables - block all (performance/diagnostic data; ONTAP REST counter_table_collection_get, counter_table_get, rows)

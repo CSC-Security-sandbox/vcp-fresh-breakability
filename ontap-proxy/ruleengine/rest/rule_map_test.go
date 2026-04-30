@@ -1262,3 +1262,199 @@ func TestSecurityCertificatesUUIDRule(t *testing.T) {
 		assert.NotEmpty(t, reason)
 	})
 }
+
+func TestS3ProtocolsBucketsRules(t *testing.T) {
+	t.Run("RulesRegistered", func(t *testing.T) {
+		rules := GetProxyRules()
+		_, ok := rules["/api/protocols/s3/buckets"]
+		assert.True(t, ok)
+		_, ok = rules["/api/protocols/s3/services/{uuid}/buckets"]
+		assert.True(t, ok)
+	})
+
+	t.Run("WhenPOSTBucketsWithNasAndPath_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/protocols/s3/buckets"]
+		body := bytes.NewBufferString(`{"name":"b1","type":"nas","nas_path":"/","svm":{"uuid":"550e8400-e29b-41d4-a716-446655440000"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/protocols/s3/buckets", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPOSTBucketsWithTypeS3_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/protocols/s3/buckets"]
+		body := bytes.NewBufferString(`{"name":"b1","type":"s3","svm":{"uuid":"550e8400-e29b-41d4-a716-446655440000"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/protocols/s3/buckets", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOSTBucketsWithNasAndEmptyNasPath_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/protocols/s3/buckets"]
+		body := bytes.NewBufferString(`{"name":"b1","type":"nas","nas_path":"","svm":{"uuid":"550e8400-e29b-41d4-a716-446655440000"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/protocols/s3/buckets", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPOSTBucketsWithNasAndNoNasPathKey_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/protocols/s3/buckets"]
+		body := bytes.NewBufferString(`{"name":"b1","type":"nas","svm":{"uuid":"550e8400-e29b-41d4-a716-446655440000"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/protocols/s3/buckets", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, reason)
+		assert.Contains(t, reason, "nas_path")
+	})
+
+	t.Run("WhenPOSTServiceBucketsWithNasAndPath_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/protocols/s3/services/{uuid}/buckets"]
+		body := bytes.NewBufferString(`{"name":"b1","type":"nas","nas_path":"/data"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/protocols/s3/services/550e8400-e29b-41d4-a716-446655440000/buckets", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPOSTServiceBucketsWithNasAndNoNasPathKey_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/protocols/s3/services/{uuid}/buckets"]
+		body := bytes.NewBufferString(`{"name":"b1","type":"nas"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/protocols/s3/services/550e8400-e29b-41d4-a716-446655440000/buckets", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, reason)
+		assert.Contains(t, reason, "nas_path")
+	})
+
+	t.Run("WhenGETBuckets_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/protocols/s3/buckets"]
+		req := httptest.NewRequest(http.MethodGet, "/api/protocols/s3/buckets", nil)
+		action := rule.GetAction(req)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed)
+	})
+}
+
+func TestPrivateCliObjectStoreBucketCreateRule(t *testing.T) {
+	path := "/api/private/cli/vserver/object-store-server/bucket"
+
+	t.Run("RulesRegistered", func(t *testing.T) {
+		rules := GetProxyRules()
+		_, ok := rules[path]
+		assert.True(t, ok)
+	})
+
+	t.Run("WhenPOSTWithNasAndPath_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"vserver":"vs1","bucket":"b1","type":"nas","nas_path":"/data"}`)
+		req := httptest.NewRequest(http.MethodPost, path, body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPOSTWithTypeS3_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"vserver":"vs1","bucket":"b1","type":"s3"}`)
+		req := httptest.NewRequest(http.MethodPost, path, body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOSTWithNasAndEmptyNasPath_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"vserver":"vs1","bucket":"b1","type":"nas","nas_path":""}`)
+		req := httptest.NewRequest(http.MethodPost, path, body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPOSTWithNasAndNoNasPathKey_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"vserver":"vs1","bucket":"b1","type":"nas"}`)
+		req := httptest.NewRequest(http.MethodPost, path, body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, reason)
+		assert.Contains(t, reason, "nas_path")
+	})
+
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPATCH_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"type":"nas","nas_path":"/vol"}`)
+		req := httptest.NewRequest(http.MethodPatch, path, body)
+		req.Header.Set("Content-Type", "application/json")
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenDELETE_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		req := httptest.NewRequest(http.MethodDelete, path, nil)
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+}

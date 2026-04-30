@@ -744,6 +744,34 @@ func TestRejectFields(t *testing.T) {
 	})
 }
 
+// NAS S3 bucket create uses And(HasFieldValue("type","nas"), HasFields("nas_path")) in rule_map.
+func TestAnd_TypeNasRequiresNasPathKey(t *testing.T) {
+	cond := And(
+		HasFieldValue("type", "nas"),
+		HasFields("nas_path"),
+	)
+
+	t.Run("WhenTypeNasAndNasPathPresentEvenIfEmpty_ShouldPass", func(t *testing.T) {
+		req := createRequestWithBody(`{"type":"nas","nas_path":"","name":"b1"}`)
+		ok, reason := cond(req)
+		assert.True(t, ok, reason)
+	})
+
+	t.Run("WhenTypeNasButNasPathOmitted_ShouldFailOnHasFields", func(t *testing.T) {
+		req := createRequestWithBody(`{"type":"nas","name":"b1"}`)
+		ok, reason := cond(req)
+		assert.False(t, ok)
+		assert.Contains(t, reason, "nas_path")
+	})
+
+	t.Run("WhenTypeS3_ShouldFailOnHasFieldValue", func(t *testing.T) {
+		req := createRequestWithBody(`{"type":"s3","nas_path":"/x"}`)
+		ok, reason := cond(req)
+		assert.False(t, ok)
+		assert.Contains(t, reason, "type")
+	})
+}
+
 // Helper function
 func createRequestWithBody(body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewBufferString(body))

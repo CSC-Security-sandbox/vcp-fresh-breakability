@@ -380,6 +380,38 @@ func TestMatchCLIRule(t *testing.T) {
 		}
 	})
 
+	t.Run("vserver object-store-server bucket create NAS-only", func(t *testing.T) {
+		valid := "vserver object-store-server bucket create -vserver svm1 -bucket b1 -type nas -nas-path /vol1/share"
+		cmd, err := ParseCLICommand(valid)
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		rule, found := MatchCLIRule(cmd)
+		if !found || rule == nil {
+			t.Fatal("expected matching rule for bucket create")
+		}
+		ok, reason := EvaluateRule(rule, cmd)
+		if !ok {
+			t.Fatalf("expected allowed: %s", reason)
+		}
+
+		badType := "vserver object-store-server bucket create -vserver svm1 -bucket b1 -type s3 -nas-path /"
+		cmd2, _ := ParseCLICommand(badType)
+		rule2, _ := MatchCLIRule(cmd2)
+		ok2, _ := EvaluateRule(rule2, cmd2)
+		if ok2 {
+			t.Fatal("expected deny when -type s3")
+		}
+
+		noNasPath := "vserver object-store-server bucket create -vserver svm1 -bucket b1 -type nas"
+		cmd3, _ := ParseCLICommand(noNasPath)
+		rule3, _ := MatchCLIRule(cmd3)
+		ok3, _ := EvaluateRule(rule3, cmd3)
+		if ok3 {
+			t.Fatal("expected deny when -nas-path omitted")
+		}
+	})
+
 	t.Run("standalone set commands - all denied", func(t *testing.T) {
 		expectedReason := "Privilege escalation not allowed; use the chained command form (e.g. 'set diag; <command>')"
 		tests := []struct {

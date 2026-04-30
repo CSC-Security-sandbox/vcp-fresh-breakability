@@ -178,9 +178,10 @@ const (
 	volStyleFlexGroup = "flexgroup"
 	volStyleFlexVol   = "flexvol"
 
-	keyManagerBootarg         = "bootarg.keymanager.ekmip.svm_context=false"
-	nfsTlsBootarg             = "bootarg.nfs.tls.enabled=true"
-	nfsTlsConnLimitBootargKey = "bootarg.nblade.nfs_tls_conn_max_limit"
+	keyManagerBootarg          = "bootarg.keymanager.ekmip.svm_context=false"
+	nfsTlsBootarg              = "bootarg.nfs.tls.enabled=true"
+	nfsTlsConnLimitBootargKey  = "bootarg.nblade.nfs_tls_conn_max_limit"
+	s3RestUserAuthCheckBootarg = "bootarg.s3.rest.user_auth_check.enabled=false"
 
 	MgmtVpcName      = "mgmt-e0a-vpc-01"
 	MgmtSubnetName   = "mgmt-e0a-subnet-01"
@@ -1575,7 +1576,7 @@ func GetImageChecksum(labels map[string]string) (string, error) {
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
-func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string, isLargeCapacityPool bool) (*vlm.VLMConfig, error) {
+func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string, isLargeCapacityPool bool, isOntapMode bool) (*vlm.VLMConfig, error) {
 	activity.RecordHeartbeat(ctx, "Starting IdentifyVMs activity")
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying VMs to use for VSA cluster")
@@ -1617,7 +1618,7 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 
 	activity.RecordHeartbeat(ctx, "Preparing VLM config")
 	// Convert the decision to a VLMConfig.
-	err = PrepareVlmConfig(vlmConfig, deploymentName, locationInfo.Region, locationInfo.PrimaryZone, locationInfo.SecondaryZone, tenancyInfo.Network, subnet, tenancyInfo.RegionalTenantProject, tenancyInfo.SnHostProject, decision, saEmail, autoTierBucket)
+	err = PrepareVlmConfig(vlmConfig, deploymentName, locationInfo.Region, locationInfo.PrimaryZone, locationInfo.SecondaryZone, tenancyInfo.Network, subnet, tenancyInfo.RegionalTenantProject, tenancyInfo.SnHostProject, decision, saEmail, autoTierBucket, isOntapMode)
 	if err != nil {
 		logger.Error("Failed to prepare VLM config", "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1753,7 +1754,7 @@ func _mockVlmConfig(vlmConfig *vlm.VLMConfig) (*vlm.VLMConfig, error) {
 	vlmConfig.Cloud.HAPairs[0].VM2.SystemLIFs[vlm.LIFTypeNodeMgmt] = ogConfig
 	return vlmConfig, nil
 }
-func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, regionalTenantProjectID, snHostProject string, decision *vmrs.Decision, vsaClusterSaEmail string, autoTierBucket string) error {
+func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, regionalTenantProjectID, snHostProject string, decision *vmrs.Decision, vsaClusterSaEmail string, autoTierBucket string, isOntapMode bool) error {
 	if err := ValidateVlmConfigInputs(vlmConfig, decision, deploymentID, region, primaryZone, network, subnet, regionalTenantProjectID, snHostProject, vsaClusterSaEmail); err != nil {
 		return err
 	}
@@ -1844,6 +1845,9 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 		if NfsTlsConnMaxLimit > 0 {
 			bootargs += ";" + nfsTlsConnLimitBootargKey + "=" + strconv.Itoa(NfsTlsConnMaxLimit)
 		}
+	}
+	if isOntapMode {
+		bootargs += ";" + s3RestUserAuthCheckBootarg
 	}
 	vlmConfig.Deployment.UserBootargs = bootargs
 

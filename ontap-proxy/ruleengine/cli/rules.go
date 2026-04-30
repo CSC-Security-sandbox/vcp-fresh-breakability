@@ -403,6 +403,16 @@ var cliRules = []CLIRule{
 		Allow:   false,
 		Reason:  "Certificate deletion not allowed",
 	},
+
+	{
+		Pattern: "vserver object-store-server bucket create",
+		Allow:   true,
+		Condition: CLIAnd(
+			CLIHasArgs("-vserver", "-bucket", "-nas-path"),
+			CLIArgRequiredEquals("-type", "nas"),
+		),
+	},
+
 	{
 		Pattern: "storage disk *",
 		Allow:   false,
@@ -610,6 +620,20 @@ func CLIIfPresentThenEquals(argName, expectedValue string) CLICondition {
 			return true, ""
 		}
 		return false, fmt.Sprintf("Argument %s must be %q, got %q", argName, expectedValue, value)
+	}
+}
+
+// CLIArgRequiredEquals requires the argument to be present and equal to expectedValue (case-insensitive).
+func CLIArgRequiredEquals(argName, expectedValue string) CLICondition {
+	return func(cmd *CLICommand) (bool, string) {
+		if !cmd.HasArgument(argName) {
+			return false, fmt.Sprintf("Missing required argument: %s", argName)
+		}
+		value := cmd.GetArgument(argName)
+		if strings.EqualFold(value, expectedValue) {
+			return true, ""
+		}
+		return false, fmt.Sprintf("argument %s must be %q for bucket create, got %q", argName, expectedValue, value)
 	}
 }
 
