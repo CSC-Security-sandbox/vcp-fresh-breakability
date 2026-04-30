@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -575,6 +576,108 @@ func TestReturnsOperationForJobStateErrorWithKMSMigrationSdeClientError(t *testi
 	assert.True(t, operationResult.Done.Value)
 	assert.Equal(t, float64(400), operationResult.Error.Value.Code.Value)
 	assert.Equal(t, sdeDetails, operationResult.Error.Value.Message.Value)
+}
+
+func TestV1betaDescribeOperation_RotateCmekBackupsErrorSurfacesDetailsAnd400OnKmsMismatch(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+	details := "KMS key mismatch after rotation for object bucket/obj: expected v280, got v279"
+	job := &models.Job{
+		Type:         models.JobTypeRotateCmekBackups,
+		State:        models.JobsStateERROR,
+		TrackingID:   vsaerrors.ErrGCPResourceProvisionError,
+		ErrorDetails: []byte(details),
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+	require.NoError(t, err)
+	require.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	op := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, op.Done.Value)
+	assert.True(t, op.Error.Set)
+	assert.Equal(t, float64(400), op.Error.Value.Code.Value)
+	assert.Equal(t, details, op.Error.Value.Message.Value)
+}
+
+func TestV1betaDescribeOperation_RotateCmekBackupsErrorWithoutKmsMismatchKeepsCatalogHttpCode(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+	details := "RotateBucketCmekActivity failed for bucket b: context deadline exceeded"
+	job := &models.Job{
+		Type:         models.JobTypeRotateCmekBackups,
+		State:        models.JobsStateERROR,
+		TrackingID:   vsaerrors.ErrGCPResourceProvisionError,
+		ErrorDetails: []byte(details),
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "a1b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0b",
+	}
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+	require.NoError(t, err)
+	require.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	op := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, op.Done.Value)
+	assert.True(t, op.Error.Set)
+	assert.Equal(t, float64(500), op.Error.Value.Code.Value)
+	assert.Equal(t, details, op.Error.Value.Message.Value)
+}
+
+func TestDescribeOperationSurfaceJobErrorDetails(t *testing.T) {
+	assert.False(t, describeOperationSurfaceJobErrorDetails(nil))
+
+	rotateWithDetails := &models.Job{
+		Type:         models.JobTypeRotateCmekBackups,
+		ErrorDetails: []byte("any"),
+	}
+	assert.True(t, describeOperationSurfaceJobErrorDetails(rotateWithDetails))
+
+	provisionErrOnly := &models.Job{
+		TrackingID:   vsaerrors.ErrGCPResourceProvisionError,
+		ErrorDetails: []byte("internal"),
+	}
+	assert.False(t, describeOperationSurfaceJobErrorDetails(provisionErrOnly))
+
+	allowListedButEmptyDetails := &models.Job{
+		TrackingID:   vsaerrors.ErrRestoreVolumeValidation,
+		ErrorDetails: nil,
+	}
+	assert.False(t, describeOperationSurfaceJobErrorDetails(allowListedButEmptyDetails))
+
+	allowListedWithDetails := &models.Job{
+		TrackingID:   vsaerrors.ErrRestoreVolumeValidation,
+		ErrorDetails: []byte("restore failed: size too small"),
+	}
+	assert.True(t, describeOperationSurfaceJobErrorDetails(allowListedWithDetails))
 }
 
 // Tests for V1betaDescribeInternalOperation

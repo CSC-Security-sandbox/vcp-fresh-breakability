@@ -32,7 +32,29 @@ const (
 	responseKeyForQuota  = "status_message"
 	resumeQuotaRuleError = "Operation was successful but quota rule sync between source and destination failed"
 	stopQuotaRuleError   = "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
+
+	// cmekRotationKmsKeyMismatchMarker matches RotateBucketCmekActivity / GCS mismatch text.
+	cmekRotationKmsKeyMismatchMarker = "KMS key mismatch"
 )
+
+// describeOperationSurfaceJobErrorDetails reports whether the public describeOperation
+// LRO should use job.ErrorDetails as error.message (vs catalog text).
+func describeOperationSurfaceJobErrorDetails(job *models.Job) bool {
+	if job == nil {
+		return false
+	}
+	if len(job.ErrorDetails) > 0 &&
+		(job.TrackingID == vsaerrors.ErrLargeVolumeBackupRestoreValidation ||
+			job.TrackingID == vsaerrors.ErrRestoreVolumeValidation ||
+			job.TrackingID == vsaerrors.ErrSFRFilesMissing ||
+			job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume ||
+			job.TrackingID == vsaerrors.ErrKMSMigrationSdeClientError ||
+			vsaerrors.IsCVPError(job.TrackingID)) {
+		return true
+	}
+	// ROTATE_CMEK_BACKUPS only — not all ErrGCPResourceProvisionError (3003) jobs.
+	return job.Type == models.JobTypeRotateCmekBackups && len(job.ErrorDetails) > 0
+}
 
 func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserver.V1betaDescribeOperationParams) (gcpgenserver.V1betaDescribeOperationRes, error) {
 	logger := util.GetLogger(ctx)
@@ -66,18 +88,22 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 		case models.JobsStateERROR:
 			errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
 			detailedErrorMessage := errMsg.Message
-			if job.TrackingID == vsaerrors.ErrLargeVolumeBackupRestoreValidation || job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSFRFilesMissing ||
-				job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume ||
-				job.TrackingID == vsaerrors.ErrKMSMigrationSdeClientError ||
-				vsaerrors.IsCVPError(job.TrackingID) {
+			if describeOperationSurfaceJobErrorDetails(job) {
 				detailedErrorMessage = string(job.ErrorDetails)
+			}
+			errorCode := float64(*errMsg.HttpCode)
+			// CMEK backup rotation: KMS key mismatch is a failed precondition / bad
+			// primaryKeyVersion vs bucket state — surface as 400, not generic 500.
+			if job.Type == models.JobTypeRotateCmekBackups && len(job.ErrorDetails) > 0 &&
+				strings.Contains(detailedErrorMessage, cmekRotationKmsKeyMismatchMarker) {
+				errorCode = float64(400)
 			}
 			return &gcpgenserver.OperationV1beta{
 				Done: gcpgenserver.NewOptBool(jobFinished),
 				Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
 				Error: gcpgenserver.OptStatusV1Beta{
 					Value: gcpgenserver.StatusV1Beta{
-						Code:    gcpgenserver.NewOptFloat64(float64(*errMsg.HttpCode)),
+						Code:    gcpgenserver.NewOptFloat64(errorCode),
 						Message: gcpgenserver.NewOptString(detailedErrorMessage),
 					},
 					Set: true,
