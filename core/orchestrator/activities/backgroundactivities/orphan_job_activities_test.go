@@ -15,6 +15,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	temporalclient "go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/mocks"
 )
@@ -437,6 +438,134 @@ func TestProcessSingleJob_RetryCountIncrementFails(t *testing.T) {
 
 	// Assertions
 	assert.NoError(t, err) // The function should continue even if retry count update fails
+	mockStorage.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
+	mockRun.AssertExpectations(t)
+}
+
+// TestProcessSingleJob_SplitVolume_TaskQueueAndTimeout asserts that a JobTypeSplitVolume
+// job is submitted to BackgroundTaskQueue with a WorkflowRunTimeout equal to
+// GetSplitVolumeWorkflowTimeout(), not the global default timeout.
+func TestProcessSingleJob_SplitVolume_TaskQueueAndTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	mockStorage := new(database.MockStorage)
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-split-1"},
+		Type:       string(models.JobTypeSplitVolume),
+		State:      string(models.JobsStateWaitForTemporal),
+		TrackingID: 0,
+		WorkflowID: "workflow-split-1",
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:      "volume-1",
+			CurrentRetryCount: 1,
+		},
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{ID: 10, UUID: "pool-1"},
+		DeploymentName: "test-deployment",
+	}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-1"},
+		Pool:      pool,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SplitJobUUID: "ontap-job-1",
+		},
+	}
+	dbNodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{UUID: "node-1"}},
+	}
+
+	mockStorage.On("UpdateJobAttributes", ctx, "job-split-1", mock.AnythingOfType("*datamodel.JobAttributes")).Return(nil)
+	mockStorage.On("GetVolume", ctx, "volume-1").Return(volume, nil)
+	mockStorage.On("GetNodesByPoolID", ctx, int64(10)).Return(dbNodes, nil)
+
+	mockTemporalClient := &mocks.Client{}
+	mockRun := &mocks.WorkflowRun{}
+	mockRun.On("GetID").Return("workflow-split-1")
+
+	expectedTimeout := *workflowengine.GetSplitVolumeWorkflowTimeout()
+	expectedTaskQueue := workflowengine.BackgroundTaskQueue
+
+	mockTemporalClient.On("ExecuteWorkflow",
+		ctx,
+		mock.MatchedBy(func(opts temporalclient.StartWorkflowOptions) bool {
+			return opts.TaskQueue == expectedTaskQueue &&
+				opts.WorkflowRunTimeout == expectedTimeout
+		}),
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	).Return(mockRun, nil)
+
+	err := _processSingleJob(ctx, mockStorage, job, mockTemporalClient)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
+	mockRun.AssertExpectations(t)
+}
+
+// TestProcessSingleJob_DefaultJobType_UsesCustomerTaskQueueAndGlobalTimeout asserts that
+// job types without an explicit taskQueue or timeoutSeconds (e.g. CreateKmsConfig) fall
+// back to CustomerTaskQueue and the global workflow timeout.
+func TestProcessSingleJob_DefaultJobType_UsesCustomerTaskQueueAndGlobalTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	mockStorage := new(database.MockStorage)
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-kms-1"},
+		Type:       string(models.JobTypeCreateKmsConfig),
+		State:      string(models.JobsStateWaitForTemporal),
+		TrackingID: 0,
+		WorkflowID: "workflow-kms-1",
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:      "kms-config-1",
+			CurrentRetryCount: 1,
+		},
+	}
+
+	mockKmsConfig := &datamodel.KmsConfig{
+		BaseModel:         datamodel.BaseModel{UUID: "kms-config-1"},
+		Account:           &datamodel.Account{Name: "test-account", BaseModel: datamodel.BaseModel{ID: 1}},
+		ResourceID:        "resource-1",
+		Description:       "Test KMS Config",
+		KeyRingLocation:   "us-central1",
+		CustomerProjectID: "project-123",
+		KmsAttributes: &datamodel.KmsAttributes{
+			SdeKmsConfigOperationURI:  "operations/op-1",
+			SdeKmsConfigOperationDone: false,
+		},
+	}
+
+	mockStorage.On("UpdateJobAttributes", ctx, "job-kms-1", mock.AnythingOfType("*datamodel.JobAttributes")).Return(nil)
+	mockStorage.On("GetKmsConfig", ctx, "kms-config-1").Return(mockKmsConfig, nil)
+
+	mockTemporalClient := &mocks.Client{}
+	mockRun := &mocks.WorkflowRun{}
+	mockRun.On("GetID").Return("workflow-kms-1")
+
+	expectedTimeout := workflowengine.GetWorkflowGlobalTimeout()
+	expectedTaskQueue := workflowengine.CustomerTaskQueue
+
+	mockTemporalClient.On("ExecuteWorkflow",
+		ctx,
+		mock.MatchedBy(func(opts temporalclient.StartWorkflowOptions) bool {
+			return opts.TaskQueue == expectedTaskQueue &&
+				opts.WorkflowRunTimeout == expectedTimeout
+		}),
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	).Return(mockRun, nil)
+
+	err := _processSingleJob(ctx, mockStorage, job, mockTemporalClient)
+
+	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 	mockTemporalClient.AssertExpectations(t)
 	mockRun.AssertExpectations(t)

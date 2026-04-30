@@ -425,6 +425,11 @@ type VolumeAttributes struct {
 	IsRegionalHA       bool             `json:"is_regional_ha"`
 	CloneParentInfo    *CloneParentInfo `json:"clone_parent_info"`
 	SecurityStyle      string           `json:"security_style"`
+	// SplitJobUUID holds the ONTAP job UUID returned by InitiateSplitVolume.
+	// It is written before starting the Temporal poll workflow so the orphan-job
+	// processor can reconstruct the workflow arguments if Temporal was unavailable
+	// when the split API call was made.
+	SplitJobUUID string `json:"split_job_uuid,omitempty"`
 }
 
 type BlockProperties struct {

@@ -132,6 +132,7 @@ data:
   VOLUME_REFRESH_INTERVAL_MINUTES: "{{ index .Values "volumeRefreshIntervalMinutes" }}"
   FLEXCACHE_CREATE_VOLUME_SUPERVISOR_GRACE_PERIOD: "{{ index .Values "flexCacheCreateVolumeSupervisorGracePeriod" }}"
   THIN_CLONE_GA_SUPPORT: "{{ index .Values "thinCloneGASupport" }}"
+  SPLIT_WAIT_FOR_TEMPORAL_ENABLED: "{{ index .Values "splitWaitForTemporalEnabled" }}"
   VALIDATE_CLONE_AT_POLICY_MATCH_PARENT: "{{ index .Values "validateCloneATPolicyMatchParent" }}"
   ENABLE_CLONE_INFO_REFRESH: "{{ index .Values "enableCloneInfoRefresh" }}"
   MAX_THIN_CLONES_PER_POOL: "{{ index .Values "maxThinClonesPerPool" }}"

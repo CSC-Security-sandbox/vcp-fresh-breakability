@@ -2,8 +2,11 @@ package gcp
 
 import (
 	"context"
+	errors2 "errors"
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -1331,8 +1334,9 @@ func TestSplitStartVolume_WorkflowExecutionFails_MockBased(t *testing.T) {
 		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, workflowErr).Maybe()
 
-	// Defer: job deleted, clones_shared_bytes reverted (split was initiated so stays 0),
-	// and clone state fetch for revert (non-ONTAP error after split initiated → state stays SPLITTING).
+	// Defer: job deleted; split was initiated so clones_shared_bytes stays 0.
+	// Non-ONTAP error after split initiated → clone state stays SPLITTING (no further UpdateVolumeFields).
+	// SplitJobUUID persist only runs inside the WAIT_FOR_TEMPORAL goroutine, which is disabled here.
 	mockStorage.On("DeleteJob", mock.Anything, job.UUID, mock.AnythingOfType("string")).Return(nil)
 
 	params := &common.SplitStartVolumeParams{
@@ -1474,7 +1478,9 @@ func TestSplitStartVolume_Success(t *testing.T) {
 	}).Return(nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
 
-	// ExecuteWorkflow succeeds — this drives the function to the line-3816 return.
+	// ExecuteWorkflow succeeds — this drives the function to the happy-path return.
+	// SplitJobUUID persist only runs inside the WAIT_FOR_TEMPORAL goroutine (when ExecuteWorkflow
+	// fails), so no volume_attributes UpdateVolumeFields call is expected here.
 	mockTemporalClient.EXPECT().
 		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil)
@@ -1795,4 +1801,151 @@ func TestSplitStartVolume_OntapErrorAfterSplit_StateUpdateFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "Clone split failed in the backend")
 	mockStorage.AssertExpectations(t)
 	mockTemporalClient.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_WaitForTemporal_AllRetriesExhausted_DeleteJobFails
+// covers lines 3939-3941 in volume.go:
+//
+// When splitWaitForTemporalEnabled=true and ExecuteWorkflow fails, the
+// background goroutine retries UpdateJob up to waitForTemporalUpdateMaxRetries
+// times. When all retries are exhausted, the goroutine logs the exhaustion
+// (line 3939) and calls DeleteJob (line 3940). If DeleteJob also fails,
+// the error is logged (line 3941) and the goroutine exits silently.
+//
+// A sync.WaitGroup is used to block the test until the goroutine completes,
+// which it does once DeleteJob is called (the last statement in the goroutine).
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_WaitForTemporal_AllRetriesExhausted_DeleteJobFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   1,
+		SizeInBytes: 10000000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-west1-a",
+		},
+	}
+	poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
+	dbNode := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	vol := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{ID: 5, UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         1,
+		Account:           account,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 500,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "job-uuid",
+	}
+
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = origGetAccountWithName }()
+
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	origFlag := splitWaitForTemporalEnabled
+	splitWaitForTemporalEnabled = true
+	defer func() { splitWaitForTemporalEnabled = origFlag }()
+
+	// wg is released when DeleteJob is called, which is the last statement in the
+	// goroutine's exhaustion path (line 3940-3941). This lets the test wait for
+	// the goroutine to reach lines 3939-3941 without polling or arbitrary sleeps.
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetPool", mock.Anything, pool.UUID, account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, map[string]interface{}{
+		"clones_shared_bytes": uint64(0),
+	}).Return(nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		_, ok := fields["volume_attributes"]
+		return ok
+	})).Return(nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+	// UpdateJob always fails — drives all waitForTemporalUpdateMaxRetries attempts (line 3926-3934).
+	mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(models.JobsStateWaitForTemporal), mock.AnythingOfType("int"), mock.AnythingOfType("string")).
+		Return(errors2.New("db write error"))
+	// DeleteJob also fails — exercises the error log on line 3941.
+	mockStorage.On("DeleteJob", mock.Anything, job.UUID, mock.AnythingOfType("string")).
+		Return(errors2.New("delete also failed")).
+		Run(func(args mock.Arguments) { wg.Done() })
+
+	mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
+	mockTemporalClient.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors2.New("temporal unavailable"))
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	resultVol, jobUUID, err := _splitStartVolume(ctx, mockStorage, mockTemporalClient, params)
+	// WAIT_FOR_TEMPORAL path clears err so the API can return 200.
+	assert.NoError(t, err)
+	assert.NotNil(t, resultVol)
+	assert.Equal(t, job.UUID, jobUUID)
+
+	// Wait for the background goroutine to exhaust all retries and call DeleteJob.
+	// The goroutine sleeps waitForTemporalUpdateInitDelay between each of the
+	// waitForTemporalUpdateMaxRetries attempts (1+2+4+8 ≈ 15s total), so allow
+	// enough headroom for CI environments.
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(60 * time.Second):
+		t.Fatal("timed out waiting for background goroutine to exhaust retries and call DeleteJob")
+	}
+
+	mockProvider.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
 }

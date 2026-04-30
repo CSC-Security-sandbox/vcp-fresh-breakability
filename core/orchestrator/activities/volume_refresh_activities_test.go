@@ -2637,6 +2637,85 @@ func TestVolumeRefreshActivity_SyncUpdatedVolumesToDatabase_NilInput(t *testing.
 	mockStorage.AssertExpectations(t)
 }
 
+// Test that _syncUpdatedVolumesToDatabase preserves all VolumeAttributes fields
+// (e.g. SplitJobUUID, AccountName, DeploymentName) that are not managed by the
+// refresh workflow when it writes clone info back to the database.
+func Test_syncUpdatedVolumesToDatabase_PreservesAllVolumeAttributeFields(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+
+	dbVols := map[string]*datamodel.Volume{
+		"vol-1": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			UsedBytes: 2048,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID:   "parent-vol-uuid",
+					ParentSnapshotUUID: "parent-snap-uuid",
+					State:              models.CloneStateSplitting,
+				},
+			},
+		},
+	}
+
+	// Existing DB record has SplitJobUUID and other fields that must survive the merge.
+	existingVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:       "external-uuid-1",
+			CreationToken:      "my-token",
+			SplitJobUUID:       "ontap-job-uuid-123",
+			AccountName:        "my-account",
+			DeploymentName:     "my-deployment",
+			IsRegionalHA:       true,
+			SecurityStyle:      "unix",
+			RestoredBackupID:   "backup-id-1",
+			RestoredBackupPath: "backup/path",
+		},
+	}
+
+	mockStorage.On("GetVolume", mock.Anything, "vol-1").Return(existingVolume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1",
+		mock.MatchedBy(func(fields map[string]interface{}) bool {
+			va, ok := fields["volume_attributes"]
+			if !ok {
+				return false
+			}
+			attrs, ok := va.(*datamodel.VolumeAttributes)
+			if !ok {
+				return false
+			}
+			// All existing fields must be preserved.
+			return attrs.ExternalUUID == "external-uuid-1" &&
+				attrs.CreationToken == "my-token" &&
+				attrs.SplitJobUUID == "ontap-job-uuid-123" &&
+				attrs.AccountName == "my-account" &&
+				attrs.DeploymentName == "my-deployment" &&
+				attrs.IsRegionalHA == true &&
+				attrs.SecurityStyle == "unix" &&
+				attrs.RestoredBackupID == "backup-id-1" &&
+				attrs.RestoredBackupPath == "backup/path" &&
+				// CloneParentInfo must be overwritten with the new value.
+				attrs.CloneParentInfo != nil &&
+				attrs.CloneParentInfo.ParentVolumeUUID == "parent-vol-uuid" &&
+				attrs.CloneParentInfo.State == models.CloneStateSplitting
+		}),
+	).Return(nil)
+
+	wrapper := &testSyncActivityWrapper{
+		SE:     mockStorage,
+		DBVols: dbVols,
+	}
+	env.RegisterActivity(wrapper.TestSyncActivity)
+
+	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 // Test sync volumes to database with clone info and UpdateVolumeFields error
 func Test_syncUpdatedVolumesToDatabase_WithCloneInfo_UpdateError(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}

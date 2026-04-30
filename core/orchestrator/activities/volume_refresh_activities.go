@@ -627,45 +627,21 @@ func _syncUpdatedVolumesToDatabase(ctx context.Context, se database.Storage, dbV
 				continue
 			}
 
-			// Merge clone parent info into existing volume_attributes
+			// Merge clone parent info into existing volume_attributes.
+			// Copy the entire existing struct so every field (including any future additions)
+			// is preserved, then overwrite only CloneParentInfo with the new value.
 			var updatedAttributes *datamodel.VolumeAttributes
 			if dbVolume.VolumeAttributes != nil {
-				// Deep copy existing attributes
-				updatedAttributes = &datamodel.VolumeAttributes{
-					CreationToken:      dbVolume.VolumeAttributes.CreationToken,
-					Protocols:          dbVolume.VolumeAttributes.Protocols,
-					VendorSubnetID:     dbVolume.VolumeAttributes.VendorSubnetID,
-					ExternalUUID:       dbVolume.VolumeAttributes.ExternalUUID,
-					BlockProperties:    dbVolume.VolumeAttributes.BlockProperties,
-					BlockDevices:       dbVolume.VolumeAttributes.BlockDevices,
-					FileProperties:     dbVolume.VolumeAttributes.FileProperties,
-					IsDataProtection:   dbVolume.VolumeAttributes.IsDataProtection,
-					Mounted:            dbVolume.VolumeAttributes.Mounted,
-					SnapReserve:        dbVolume.VolumeAttributes.SnapReserve,
-					SnapshotDirectory:  dbVolume.VolumeAttributes.SnapshotDirectory,
-					Labels:             dbVolume.VolumeAttributes.Labels,
-					RestoredBackupID:   dbVolume.VolumeAttributes.RestoredBackupID,
-					RestoredBackupPath: dbVolume.VolumeAttributes.RestoredBackupPath,
-					SecurityStyle:      dbVolume.VolumeAttributes.SecurityStyle,
-				}
-				// Merge clone parent info.
+				// Shallow-copy the whole struct — all scalar fields and pointer fields are
+				// preserved.  CloneParentInfo is the only field the refresh workflow is
+				// allowed to change, so we overwrite it right after.
+				attrsCopy := *dbVolume.VolumeAttributes
+				updatedAttributes = &attrsCopy
 				// If vol.VolumeAttributes.CloneParentInfo is nil, remove it from DB (set to nil).
 				// If it's not nil, update it.
-				if vol.VolumeAttributes.CloneParentInfo != nil {
-					cloneParentInfo := &datamodel.CloneParentInfo{
-						ParentVolumeUUID:     vol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID,
-						ParentSnapshotUUID:   vol.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID,
-						State:                vol.VolumeAttributes.CloneParentInfo.State,
-						StateDetails:         vol.VolumeAttributes.CloneParentInfo.StateDetails,
-						SplitCompletePercent: vol.VolumeAttributes.CloneParentInfo.SplitCompletePercent,
-					}
-					updatedAttributes.CloneParentInfo = cloneParentInfo
-				} else {
-					// Explicitly set to nil to remove CloneParentInfo from DB
-					updatedAttributes.CloneParentInfo = nil
-				}
+				updatedAttributes.CloneParentInfo = vol.VolumeAttributes.CloneParentInfo
 			} else {
-				// No existing attributes; create new with clone info
+				// No existing attributes; create new with clone info only.
 				updatedAttributes = &datamodel.VolumeAttributes{
 					CloneParentInfo: vol.VolumeAttributes.CloneParentInfo,
 				}

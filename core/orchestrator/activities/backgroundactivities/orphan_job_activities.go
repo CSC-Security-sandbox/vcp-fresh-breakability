@@ -3,6 +3,7 @@ package backgroundactivities
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -19,6 +20,8 @@ import (
 type WorkflowMapping struct {
 	workflowFunc interface{}
 	getArgsFunc  OrphanJobWorkflowManager
+	taskQueue    string
+	timeout      time.Duration
 }
 
 type OrphanJobWorkflowManager interface {
@@ -31,10 +34,20 @@ var (
 		models.JobTypeCreateKmsConfig: {
 			workflowFunc: "CreateKmsConfigWorkflow",
 			getArgsFunc:  &CreateKmsConfigArgs{},
+			taskQueue:    workflowengine.CustomerTaskQueue,
+			timeout:      workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		models.JobTypeDeleteKmsConfig: {
 			workflowFunc: "DeleteKmsConfigWorkflow",
 			getArgsFunc:  &DeleteKmsConfigArgs{},
+			taskQueue:    workflowengine.CustomerTaskQueue,
+			timeout:      workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		models.JobTypeSplitVolume: {
+			workflowFunc: "VolumePollSplitWorkflow",
+			getArgsFunc:  &SplitVolumeArgs{},
+			taskQueue:    workflowengine.BackgroundTaskQueue,
+			timeout:      *workflowengine.GetSplitVolumeWorkflowTimeout(),
 		},
 	}
 	processSingleJob           = _processSingleJob
@@ -125,10 +138,10 @@ func _processSingleJob(ctx context.Context, se database.Storage, job *datamodel.
 
 	// Create workflow options
 	workflowOptions := client.StartWorkflowOptions{
-		TaskQueue:             workflowengine.CustomerTaskQueue,
+		TaskQueue:             workflowMapping.taskQueue,
 		ID:                    job.WorkflowID,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
-		WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		WorkflowRunTimeout:    workflowMapping.timeout,
 	}
 	// Start the workflow
 	workflowRun, err := temporalClient.ExecuteWorkflow(ctx, workflowOptions, workflowMapping.workflowFunc, workflowArgs...)

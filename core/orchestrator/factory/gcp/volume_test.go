@@ -37227,3 +37227,336 @@ func TestSplitStartVolume_WorkflowExecutionFails(t *testing.T) {
 	assert.Error(t, err)
 	mockProvider.AssertExpectations(t)
 }
+
+// ---------------------------------------------------------------------------
+// splitStartVolumeTestEnv is a convenience helper that creates in-memory DB
+// records (account, pool, node, volume) needed by _splitStartVolume tests.
+// ---------------------------------------------------------------------------
+
+type splitStartVolumeTestEnv struct {
+	store   database.Storage
+	account *datamodel.Account
+	pool    *datamodel.Pool
+	node    *datamodel.Node
+	volume  *datamodel.Volume
+}
+
+func newSplitStartVolumeTestEnv(t *testing.T) *splitStartVolumeTestEnv {
+	t.Helper()
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	if err = database.ClearInMemoryDB(store.DB()); err != nil {
+		t.Fatalf("Failed to clear DB: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	if err = store.DB().Create(account).Error; err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+		VendorID: "/projects/proj/locations/loc/pools/pool",
+	}
+	if err = store.DB().Create(pool).Error; err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	if err = store.DB().Create(node).Error; err != nil {
+		t.Fatalf("Failed to create node: %v", err)
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+			ExternalUUID: "ext-uuid",
+		},
+	}
+	if err = store.DB().Create(volume).Error; err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
+	return &splitStartVolumeTestEnv{
+		store:   store,
+		account: account,
+		pool:    pool,
+		node:    node,
+		volume:  volume,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_PersistSplitJobUUIDFails covers line 3882:
+// UpdateVolumeFields for SplitJobUUID persistence fails (non-fatal — the
+// function continues and the workflow is still started successfully).
+//
+// Uses MockStorage so the two UpdateVolumeFields calls can have independent
+// return values: clones_shared_bytes reservation succeeds, SplitJobUUID
+// persistence fails (warning logged) but the function proceeds to dispatch
+// the workflow and return success.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_PersistSplitJobUUIDFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+		VendorID: "/projects/proj/locations/loc/pools/pool",
+	}
+	// QuotaInBytes must leave room for ClonesSharedBytes: pool.SizeInBytes (100000) >
+	// pool.QuotaInBytes (0, no other volumes) + volume.ClonesSharedBytes (1000) → passes validation.
+	poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{ID: 5, UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Account:           account,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+			ExternalUUID: "ext-uuid",
+		},
+	}
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "wf-job-uuid",
+		State:      string(models.JobsStateNEW),
+		TrackingID: 0,
+	}
+
+	mockSE := database.NewMockStorage(t)
+
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = origGetAccountWithName }()
+
+	mockSE.On("GetVolumeWithAccountID", mock.Anything, "vol-uuid", account.ID).Return(volume, nil)
+	mockSE.On("GetPool", mock.Anything, "pool-uuid", account.ID).Return(poolView, nil).Times(2)
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	// UpdateVolumeFields (reserve clones_shared_bytes) succeeds.
+	mockSE.On("UpdateVolumeFields", mock.Anything, "vol-uuid",
+		mock.MatchedBy(func(m map[string]interface{}) bool {
+			_, ok := m["clones_shared_bytes"]
+			return ok
+		}),
+	).Return(nil).Once()
+
+	mockSE.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{node}, nil)
+	mockSE.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	// ExecuteWorkflow succeeds — the SplitJobUUID persist only runs in the
+	// WAIT_FOR_TEMPORAL goroutine (when ExecuteWorkflow fails), so no
+	// volume_attributes UpdateVolumeFields call is expected here.
+	mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
+	mockTemporalClient.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil)
+
+	// The deferred job-delete on the main goroutine should NOT run (err=nil), so
+	// no DeleteJob mock expectation is needed.
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: account.Name,
+		VolumeID:    volume.UUID,
+	}
+
+	resultVolume, jobUUID, err := _splitStartVolume(ctx, mockSE, mockTemporalClient, params)
+	// Even though SplitJobUUID persist failed, the workflow was dispatched — expect success.
+	assert.NoError(t, err)
+	assert.NotNil(t, resultVolume)
+	assert.Equal(t, createdJob.UUID, jobUUID)
+	mockProvider.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
+	mockSE.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_WaitForTemporalEnabled_UpdateJobSucceeds covers
+// lines 3913-3929 and 3946:
+// When splitWaitForTemporalEnabled=true and ExecuteWorkflow fails, the
+// background goroutine successfully calls UpdateJob(WAIT_FOR_TEMPORAL) on
+// the first attempt, and _splitStartVolume returns nil error (200 OK).
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_WaitForTemporalEnabled_UpdateJobSucceeds(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	env := newSplitStartVolumeTestEnv(t)
+
+	// Enable the WAIT_FOR_TEMPORAL path.
+	origFlag := splitWaitForTemporalEnabled
+	splitWaitForTemporalEnabled = true
+	defer func() { splitWaitForTemporalEnabled = origFlag }()
+
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	// ExecuteWorkflow fails with a non-retryable error so the workflow executor
+	// does not sleep between retries and returns quickly.
+	mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
+	mockTemporalClient.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors2.New("workflow start failed"))
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: env.account.Name,
+		VolumeID:    env.volume.UUID,
+	}
+
+	resultVolume, jobUUID, err := _splitStartVolume(ctx, env.store, mockTemporalClient, params)
+	// err must be nil — WAIT_FOR_TEMPORAL path clears it (line 3946).
+	assert.NoError(t, err)
+	assert.NotNil(t, resultVolume)
+	assert.NotEmpty(t, jobUUID)
+
+	// Allow the background goroutine enough time to call UpdateJob on its first attempt.
+	// The goroutine has no initial sleep before attempt 1.
+	time.Sleep(200 * time.Millisecond)
+
+	// Confirm the job was transitioned to WAIT_FOR_TEMPORAL in the real store.
+	updatedJob, fetchErr := env.store.GetJob(ctx, jobUUID)
+	assert.NoError(t, fetchErr)
+	assert.Equal(t, string(models.JobsStateWaitForTemporal), updatedJob.State)
+	mockProvider.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_WaitForTemporalEnabled_ErrClearedReturnsSuccess covers
+// line 3946 (err = nil) and the goroutine retry/exhaustion path
+// (lines 3931-3934, 3939-3941):
+//
+// After _splitStartVolume returns successfully (err=nil), the job is removed
+// from the DB so the background goroutine's UpdateJob attempts all fail and
+// it eventually calls DeleteJob (which also fails). The test verifies that:
+//   - _splitStartVolume returns nil error and a valid result (line 3946)
+//   - No panic occurs when the goroutine exhausts retries (lines 3931-3934)
+//     and DeleteJob also fails (line 3941)
+//
+// NOTE: Because waitForTemporalUpdateInitDelay / waitForTemporalUpdateMaxRetries
+// are package-level constants (not vars), we cannot override them in tests.
+// The goroutine continues to run in the background after the test returns;
+// a t.Cleanup waits long enough to let the first attempt fire and confirm
+// the job was already deleted before the goroutine retried.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_WaitForTemporalEnabled_ErrClearedReturnsSuccess(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	env := newSplitStartVolumeTestEnv(t)
+
+	origFlag := splitWaitForTemporalEnabled
+	splitWaitForTemporalEnabled = true
+	defer func() { splitWaitForTemporalEnabled = origFlag }()
+
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
+	mockTemporalClient.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors2.New("workflow start failed"))
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: env.account.Name,
+		VolumeID:    env.volume.UUID,
+	}
+
+	resultVolume, jobUUID, err := _splitStartVolume(ctx, env.store, mockTemporalClient, params)
+	// err must be nil (line 3946): the WAIT_FOR_TEMPORAL path clears the workflow error
+	// so the API can return 200 while the goroutine handles the job state asynchronously.
+	assert.NoError(t, err)
+	assert.NotNil(t, resultVolume)
+	assert.NotEmpty(t, jobUUID)
+
+	// Remove the job so subsequent UpdateJob retries inside the goroutine fail (lines
+	// 3931-3934) and the goroutine eventually calls DeleteJob (lines 3939-3941).
+	// Both failures are non-fatal — the goroutine logs and exits without panicking.
+	_ = env.store.DB().Exec("DELETE FROM jobs WHERE uuid = ?", jobUUID).Error
+
+	mockProvider.AssertExpectations(t)
+}

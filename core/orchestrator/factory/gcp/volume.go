@@ -79,6 +79,7 @@ var (
 	enableMqos                                 = env.GetBool("ENABLE_MQOS", true)
 	enableInferredIops                         = env.GetBool("ENABLE_INFERRED_IOPS", false)
 	enableVolumePerformanceGroupAssignment     = env.GetBool("ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT", false)
+	splitWaitForTemporalEnabled                = env.GetBool("SPLIT_WAIT_FOR_TEMPORAL_ENABLED", false)
 )
 
 const (
@@ -91,9 +92,13 @@ const (
 	bytesPerGB                = 1073741824 // 1024^3 bytes = 1 GB
 	ErrMsgSnapReserveIncrease = "Cannot increase SnapReserve to %.0f%% as we cannot decrease the available space (%.2f GB). " +
 		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
-	DefaultUnixPermissionsOctal = "0770"
-	UnixSecurityStyle           = "unix"
-	NtfsSecurityStyle           = "ntfs" // lower-case for persistence and ONTAP REST (enum: ntfs/unix)
+	DefaultUnixPermissionsOctal     = "0770"
+	UnixSecurityStyle               = "unix"
+	NtfsSecurityStyle               = "ntfs" // lower-case for persistence and ONTAP REST (enum: ntfs/unix)
+	waitForTemporalUpdateMaxRetries = 5
+	waitForTemporalUpdateInitDelay  = 1 * time.Second
+	waitForTemporalUpdateMaxDelay   = 16 * time.Second
+	waitForTemporalBgTimeout        = 45 * time.Second
 )
 
 // securityStyleForAPIResponse maps stored lower-case security style (ONTAP convention) to GCNV Swagger enum casing for API responses.
@@ -3873,6 +3878,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 	// Temporal does not kill an individual run before it has a chance to restart itself.
 	splitWorkflowTimeout := workflowengine.GetSplitVolumeWorkflowTimeout()
 	taskQueue := workflowengine.BackgroundTaskQueue
+	workflowDispatchStart := time.Now()
 	err = workflowExecutor.ExecuteWorkflow(
 		ctx,
 		createdJob.WorkflowID,
@@ -3884,8 +3890,67 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 		ontapJobUUID,
 	)
 	if err != nil {
-		logger.Error("Failed to start volume poll split clone workflow after retries: ", "error", err)
-		return nil, "", err
+		if splitWaitForTemporalEnabled {
+			// Temporal is unavailable but ONTAP split is already in progress.
+			// Fire UpdateJob(WAIT_FOR_TEMPORAL) in a background goroutine so the API
+			// returns 200 immediately.  The goroutine retries with exponential backoff
+			// for ~10s total.  If all retries are exhausted it calls DeleteJob so the
+			// job does not linger in NEW state invisible to the orphan-job scheduler —
+			// mirroring the deferred job-delete that runs on the main goroutine for
+			// other error paths (see defer at line 3703).
+			logger.Warn("Failed to start volume poll split workflow, placing job in WAIT_FOR_TEMPORAL via background goroutine: ", "error", err)
+			logger.Infof("Split workflow dispatch failed in %s for volume %s (job %s)", time.Since(workflowDispatchStart), volume.UUID, createdJob.UUID)
+			workflowStartErr := err.Error()
+			jobUUID := createdJob.UUID
+			trackingID := createdJob.TrackingID
+			volumeUUID := volume.UUID
+			volumeAttrs := *volume.VolumeAttributes
+			go func() {
+				bgCtx, bgCancel := context.WithTimeout(context.Background(), waitForTemporalBgTimeout)
+				defer bgCancel()
+				bgLogger := util.GetLogger(bgCtx)
+				// Persist the ONTAP job UUID so the orphan-job processor can reconstruct
+				// VolumePollSplitWorkflow args if this job is picked up via WAIT_FOR_TEMPORAL.
+				// This is only needed on the WAIT_FOR_TEMPORAL fallback path.
+				updatedAttrsForSplitUUID := volumeAttrs
+				updatedAttrsForSplitUUID.SplitJobUUID = ontapJobUUID
+				if persistErr := se.UpdateVolumeFields(bgCtx, volumeUUID, map[string]interface{}{
+					"volume_attributes": &updatedAttrsForSplitUUID,
+				}); persistErr != nil {
+					bgLogger.Warnf("Failed to persist SplitJobUUID for volume %s (non-fatal): %v", volumeUUID, persistErr)
+				}
+				retryStart := time.Now()
+				delay := waitForTemporalUpdateInitDelay
+				var lastErr error
+				for attempt := 1; attempt <= waitForTemporalUpdateMaxRetries; attempt++ {
+					lastErr = se.UpdateJob(bgCtx, jobUUID, string(models.JobsStateWaitForTemporal), trackingID, workflowStartErr)
+					if lastErr == nil {
+						bgLogger.Infof("Split job %s successfully updated to WAIT_FOR_TEMPORAL (attempt %d, elapsed %s)", jobUUID, attempt, time.Since(retryStart))
+						return
+					}
+					bgLogger.Errorf("Failed to update split job %s to WAIT_FOR_TEMPORAL (attempt %d/%d, elapsed %s): %v", jobUUID, attempt, waitForTemporalUpdateMaxRetries, time.Since(retryStart), lastErr)
+					if attempt < waitForTemporalUpdateMaxRetries {
+						time.Sleep(delay)
+						delay = min(delay*2, waitForTemporalUpdateMaxDelay)
+					}
+				}
+				// All retries exhausted — delete the job so it does not linger in NEW
+				// state where the orphan-job scheduler cannot see it.
+				bgLogger.Errorf("Exhausted all %d attempts to update split job %s to WAIT_FOR_TEMPORAL (total elapsed %s) — marking job deleted", waitForTemporalUpdateMaxRetries, jobUUID, time.Since(retryStart))
+				if delErr := se.DeleteJob(bgCtx, jobUUID, lastErr.Error()); delErr != nil {
+					bgLogger.Errorf("Failed to delete split job %s after WAIT_FOR_TEMPORAL update exhaustion: %v", jobUUID, delErr)
+				}
+			}()
+			// Clear err so the deferred job-delete and clone-state revert on the main
+			// goroutine are suppressed, and the API returns 200.
+			err = nil
+		} else {
+			logger.Infof("Split workflow dispatch failed in %s for volume %s (job %s)", time.Since(workflowDispatchStart), volume.UUID, createdJob.UUID)
+			logger.Error("Failed to start volume poll split clone workflow after retries: ", "error", err)
+			return nil, "", err
+		}
+	} else {
+		logger.Infof("Split workflow dispatched successfully in %s for volume %s (job %s)", time.Since(workflowDispatchStart), volume.UUID, createdJob.UUID)
 	}
 
 	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
