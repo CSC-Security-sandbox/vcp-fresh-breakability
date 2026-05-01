@@ -131,6 +131,7 @@ func (h Handler) batchListVolumesVCPOnly(ctx context.Context, volumeUUIDs []stri
 		if converted == nil {
 			continue
 		}
+		updateVCPVolumeBaseForBatch(volume, converted)
 		batchVolume, convErr := convertVolumeModelToBatchVolume(logger, *converted, fieldSet)
 		if convErr != nil {
 			logger.Error("Failed to convert VCP volume to batch volume", "volumeID", volume.UUID, "error", convErr.Error())
@@ -185,6 +186,7 @@ func (h Handler) batchListVolumesParallel(ctx context.Context, volumeUUIDs []str
 			if converted == nil {
 				continue
 			}
+			updateVCPVolumeBaseForBatch(volume, converted)
 			batchVolume, convErr := convertVolumeModelToBatchVolume(logger, *converted, fieldSet)
 			if convErr != nil {
 				logger.Error("Failed to convert VCP volume to batch volume", "volumeID", volume.UUID, "error", convErr.Error())
@@ -267,6 +269,12 @@ func convertVolumeModelToBatchVolume(logger log.Logger, v gcpgenserver.VolumeV1b
 		applyRequestedBatchVolumeField(logger, &bv, v, field)
 	}
 	return bv, nil
+}
+
+func updateVCPVolumeBaseForBatch(volume *models.Volume, base *gcpgenserver.VolumeV1beta) {
+	if volume.SecondaryZone != "" {
+		base.SecondaryZone = gcpgenserver.NewOptNilString(volume.SecondaryZone)
+	}
 }
 
 func applyRequestedBatchVolumeField(logger log.Logger, bv *gcpgenserver.BatchVolumeV1beta, v gcpgenserver.VolumeV1beta, field string) {
@@ -395,7 +403,7 @@ func applyRequestedBatchVolumeField(logger log.Logger, bv *gcpgenserver.BatchVol
 		if v.InReplication.IsSet() {
 			bv.InReplication = gcpgenserver.NewOptNilBool(v.InReplication.Value)
 		} else {
-			bv.InReplication.SetToNull()
+			bv.InReplication = gcpgenserver.NewOptNilBool(false)
 		}
 	case "snapshotPolicy":
 		if v.SnapshotPolicy.IsSet() {

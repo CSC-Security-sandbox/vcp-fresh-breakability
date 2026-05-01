@@ -7851,7 +7851,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 	})
 
 	t.Run("InReplication_UsesPointerValueWhenPresent", func(t *testing.T) {
-		t.Run("false_sets_inReplication_false", func(t *testing.T) {
+		t.Run("false_omits_inReplication", func(t *testing.T) {
 			inReplication := false
 			vol := &models.Volume{
 				CreationToken:  "tok",
@@ -7862,8 +7862,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 			}
 			out := convertModelToVCPVolume(vol)
 			require.NotNil(t, out)
-			require.True(t, out.InReplication.Set, "inReplication should be set when the model carries a value")
-			assert.False(t, out.InReplication.Value)
+			assert.False(t, out.InReplication.Set, "inReplication should be omitted when the model value is false")
 		})
 		t.Run("true_sets_inReplication", func(t *testing.T) {
 			inReplication := true
@@ -14994,40 +14993,26 @@ func TestConvertModelToVCPVolume_WithKmsGrant(t *testing.T) {
 	assert.Equal(t, kmsGrant, result.BackupConfig.Value.KmsGrant.Value)
 }
 
-func TestConvertModelToVCPVolume_ServiceLevelSetsStorageClass(t *testing.T) {
+func TestConvertModelToVCPVolume_ServiceLevelUsesLegacyDefaults(t *testing.T) {
 	tests := []struct {
-		name                 string
-		serviceLevel         string
-		expectedServiceLevel gcpgenserver.VolumeV1betaServiceLevel
-		expectServiceLevel   bool
-		expectedStorageClass gcpgenserver.StorageClassV1beta
+		name         string
+		serviceLevel string
 	}{
 		{
-			name:                 "Flex service level maps to software storage",
-			serviceLevel:         "FLEX",
-			expectedServiceLevel: gcpgenserver.VolumeV1betaServiceLevelFLEX,
-			expectServiceLevel:   true,
-			expectedStorageClass: gcpgenserver.StorageClassV1betaSOFTWARE,
+			name:         "flex service level keeps software default",
+			serviceLevel: "FLEX",
 		},
 		{
-			name:                 "Case-insensitive flex maps to software storage",
-			serviceLevel:         "flex",
-			expectedServiceLevel: gcpgenserver.VolumeV1betaServiceLevel("flex"),
-			expectServiceLevel:   true,
-			expectedStorageClass: gcpgenserver.StorageClassV1betaSOFTWARE,
+			name:         "case insensitive flex keeps software default",
+			serviceLevel: "flex",
 		},
 		{
-			name:                 "Non-flex service level maps to hardware storage",
-			serviceLevel:         "PREMIUM",
-			expectedServiceLevel: gcpgenserver.VolumeV1betaServiceLevelPREMIUM,
-			expectServiceLevel:   true,
-			expectedStorageClass: gcpgenserver.StorageClassV1betaHARDWARE,
+			name:         "non flex service level keeps software default",
+			serviceLevel: "PREMIUM",
 		},
 		{
-			name:                 "Empty service level defaults to software storage",
-			serviceLevel:         "",
-			expectServiceLevel:   false,
-			expectedStorageClass: gcpgenserver.StorageClassV1betaSOFTWARE,
+			name:         "empty service level keeps software default",
+			serviceLevel: "",
 		},
 	}
 
@@ -15043,16 +15028,10 @@ func TestConvertModelToVCPVolume_ServiceLevelSetsStorageClass(t *testing.T) {
 
 			result := convertModelToVCPVolume(volume)
 			require.NotNil(t, result, "convertModelToVCPVolume returned nil")
-
-			if tt.expectServiceLevel {
-				assert.True(t, result.ServiceLevel.IsSet())
-				assert.Equal(t, tt.expectedServiceLevel, result.ServiceLevel.Value)
-			} else {
-				assert.False(t, result.ServiceLevel.IsSet())
-			}
-
+			assert.True(t, result.ServiceLevel.IsSet())
+			assert.Equal(t, gcpgenserver.VolumeV1betaServiceLevelFLEX, result.ServiceLevel.Value)
 			assert.True(t, result.StorageClass.IsSet())
-			assert.Equal(t, tt.expectedStorageClass, result.StorageClass.Value)
+			assert.Equal(t, gcpgenserver.StorageClassV1betaSOFTWARE, result.StorageClass.Value)
 		})
 	}
 }

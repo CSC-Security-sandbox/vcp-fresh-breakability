@@ -1663,6 +1663,8 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		CreationToken:      gcpgenserver.NewOptString(volume.CreationToken),
 		QuotaInBytes:       gcpgenserver.NewOptFloat64(float64(volume.QuotaInBytes)),
 		PoolResourceId:     gcpgenserver.NewOptNilString(volume.PoolName),
+		StorageClass:       gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE),
+		ServiceLevel:       gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX),
 		IsDataProtection:   gcpgenserver.NewOptBool(volume.IsDataProtection),
 		EncryptionType:     gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(volume.EncryptionType)),
 		SnapshotDirectory:  gcpgenserver.NewOptBool(volume.SnapshotDirectory),
@@ -1670,20 +1672,11 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		Zone:               gcpgenserver.NewOptString(volume.Zone),
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 		LargeCapacity:      gcpgenserver.NewOptNilBool(volume.LargeCapacity),
-		MultipleEndpoints:  gcpgenserver.NewOptNilBool(volume.LargeCapacity),
 	}
-	if volume.ServiceLevel != "" {
-		res.ServiceLevel = gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevel(volume.ServiceLevel))
-		if strings.EqualFold(volume.ServiceLevel, string(gcpgenserver.VolumeV1betaServiceLevelFLEX)) {
-			res.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE)
-		} else {
-			res.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaHARDWARE)
-		}
-	} else {
-		res.StorageClass = gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE)
-	}
-	if volume.SecondaryZone != "" {
-		res.SecondaryZone = gcpgenserver.NewOptNilString(volume.SecondaryZone)
+
+	// inReplication: only set when true (source or destination); omit when not in replication
+	if volume.InReplication != nil && *volume.InReplication {
+		res.InReplication = gcpgenserver.NewOptBool(true)
 	}
 	// Include throughput and iops if they were set from VPG (nullable int64; only for autogen VPG / individual values)
 	if volume.ThroughputMibps != nil {
@@ -1698,12 +1691,6 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	}
 	res.KerberosEnabled = gcpgenserver.NewOptNilBool(volume.KerberosEnabled)
 	res.LdapEnabled = gcpgenserver.NewOptNilBool(volume.LdapEnabled)
-	if volume.InReplication != nil {
-		res.InReplication = gcpgenserver.NewOptBool(*volume.InReplication)
-	}
-	res.RestrictedActions = gcpgenserver.RestrictedActionsV1beta{
-		gcpgenserver.RestrictedActionsV1betaItemRESTRICTEDACTIONUNSPECIFIED,
-	}
 	if volume.ActiveDirectoryConfigId != "" {
 		res.ActiveDirectoryConfigId = gcpgenserver.NewOptNilString(volume.ActiveDirectoryConfigId)
 	}

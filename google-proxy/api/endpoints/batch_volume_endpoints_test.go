@@ -47,6 +47,24 @@ func makeVCPVolume(uuid, name string) *models.Volume {
 	}
 }
 
+func convertVCPVolumeToBatchVolumeForTest(
+	t *testing.T,
+	volume *models.Volume,
+	fieldSet map[string]bool,
+) gcpgenserver.BatchVolumeV1beta {
+	t.Helper()
+
+	converted := convertModelToVCPVolume(volume)
+	require.NotNil(t, converted)
+
+	updateVCPVolumeBaseForBatch(volume, converted)
+
+	out, err := convertVolumeModelToBatchVolume(log.NewLogger(), *converted, fieldSet)
+	require.NoError(t, err)
+
+	return out
+}
+
 func allBatchVolumeFields() []gcpgenserver.V1betaBatchListVolumesFieldsItem {
 	return []gcpgenserver.V1betaBatchListVolumesFieldsItem{
 		gcpgenserver.V1betaBatchListVolumesFieldsItemResourceId,
@@ -508,8 +526,7 @@ func TestConvertVolumeModelToBatchVolume_PreservesSecondaryZoneFromModelConversi
 		SecondaryZone: "us-east4-b",
 	}
 
-	out, err := convertVolumeModelToBatchVolume(log.NewLogger(), *convertModelToVCPVolume(vol), fieldSet)
-	require.NoError(t, err)
+	out := convertVCPVolumeToBatchVolumeForTest(t, vol, fieldSet)
 
 	assert.Equal(t, "us-east4-a", out.Zone.Value)
 	assert.Equal(t, "us-east4-b", out.SecondaryZone.Value)
@@ -637,8 +654,7 @@ func TestConvertVolumeModelToBatchVolume_FullFilePayload_SkipsNestedRemapFailure
 		},
 	}
 
-	out, err := convertVolumeModelToBatchVolume(log.NewLogger(), *convertModelToVCPVolume(volume), buildBatchVolumeFieldSet(allBatchVolumeFields()))
-	require.NoError(t, err)
+	out := convertVCPVolumeToBatchVolumeForTest(t, volume, buildBatchVolumeFieldSet(allBatchVolumeFields()))
 	assert.Equal(t, "file-volume-uuid", out.VolumeId)
 	assert.True(t, out.ResourceId.Set)
 	assert.True(t, out.BackupConfig.Set)
@@ -701,8 +717,7 @@ func TestConvertVolumeModelToBatchVolume_FullBlockPayload(t *testing.T) {
 		IPAddresses: []string{"10.0.0.20", "10.0.0.21"},
 	}
 
-	out, err := convertVolumeModelToBatchVolume(log.NewLogger(), *convertModelToVCPVolume(volume), buildBatchVolumeFieldSet(allBatchVolumeFields()))
-	require.NoError(t, err)
+	out := convertVCPVolumeToBatchVolumeForTest(t, volume, buildBatchVolumeFieldSet(allBatchVolumeFields()))
 
 	assert.Equal(t, "block-volume", out.ResourceId.Value)
 	assert.Equal(t, "block-volume-uuid", out.VolumeId)
@@ -713,7 +728,7 @@ func TestConvertVolumeModelToBatchVolume_FullBlockPayload(t *testing.T) {
 	assert.True(t, out.BlockProperties.Set)
 	assert.True(t, out.BlockDevices.Set)
 	assert.True(t, out.MountPoints.Set)
-	assert.True(t, out.MultipleEndpoints.Value)
+	assert.False(t, out.MultipleEndpoints.Value)
 	assert.True(t, out.LargeCapacity.Value)
 	assert.Equal(t, int32(24), out.LargeVolumeConstituentCount.Value)
 	assert.True(t, out.RestrictedActions.Set)
