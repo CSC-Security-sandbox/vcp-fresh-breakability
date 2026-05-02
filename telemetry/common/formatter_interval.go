@@ -86,8 +86,9 @@ func (f SampledMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 			}
 			// -------|-----x-----|-------
 			dataPoints = append(dataPoints, DataPoint{
-				Timestamp: hydratedMetricTime,
-				Quantity:  hydratedMetric.Quantity,
+				Timestamp:    hydratedMetricTime,
+				Quantity:     hydratedMetric.Quantity,
+				TransferType: hydratedMetric.Metadata.TransferType,
 			})
 			lastMetric = &hydratedMetric
 			continue
@@ -109,8 +110,9 @@ func (f SampledMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 				break
 			}
 			dataPoints = append(dataPoints, DataPoint{
-				Timestamp: hydratedMetricTime,
-				Quantity:  hydratedMetric.Quantity,
+				Timestamp:    hydratedMetricTime,
+				Quantity:     hydratedMetric.Quantity,
+				TransferType: hydratedMetric.Metadata.TransferType,
 			})
 			lastMetric = &hydratedMetric
 			continue
@@ -120,12 +122,14 @@ func (f SampledMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 		if lastMetric.Timestamp.ToTime().Before(start) && !hydratedMetricTime.Before(end) {
 			if f.Mode == Interval {
 				dataPoints = append(dataPoints, DataPoint{
-					Timestamp: start,
-					Quantity:  hydratedMetric.Quantity,
+					Timestamp:    start,
+					Quantity:     hydratedMetric.Quantity,
+					TransferType: hydratedMetric.Metadata.TransferType,
 				})
 				dataPoints = append(dataPoints, DataPoint{
-					Timestamp: end,
-					Quantity:  hydratedMetric.Quantity,
+					Timestamp:    end,
+					Quantity:     hydratedMetric.Quantity,
+					TransferType: hydratedMetric.Metadata.TransferType,
 				})
 				lastMetric = &hydratedMetric
 			}
@@ -137,13 +141,15 @@ func (f SampledMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 			if f.Mode == Interval && !hydratedMetricTime.Equal(start) {
 				dataPoints = append(dataPoints,
 					DataPoint{
-						Timestamp: start,
-						Quantity:  hydratedMetric.Quantity,
+						Timestamp:    start,
+						Quantity:     hydratedMetric.Quantity,
+						TransferType: hydratedMetric.Metadata.TransferType,
 					})
 			}
 			dataPoints = append(dataPoints, DataPoint{
-				Timestamp: hydratedMetricTime,
-				Quantity:  hydratedMetric.Quantity,
+				Timestamp:    hydratedMetricTime,
+				Quantity:     hydratedMetric.Quantity,
+				TransferType: hydratedMetric.Metadata.TransferType,
 			})
 			lastMetric = &hydratedMetric
 			continue
@@ -164,8 +170,9 @@ func (f SampledMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 			dataPoints = []DataPoint{}
 			if f.Mode == Interval {
 				dataPoints = append(dataPoints, DataPoint{
-					Timestamp: lastMetric.Timestamp.ToTime(),
-					Quantity:  lastMetric.Quantity,
+					Timestamp:    lastMetric.Timestamp.ToTime(),
+					Quantity:     lastMetric.Quantity,
+					TransferType: lastMetric.Metadata.TransferType,
 				})
 			}
 		}
@@ -173,8 +180,9 @@ func (f SampledMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 		// -------|--x-----x--|-------
 		if hydratedMetricTime.Before(end) {
 			dataPoints = append(dataPoints, DataPoint{
-				Timestamp: hydratedMetricTime,
-				Quantity:  hydratedMetric.Quantity,
+				Timestamp:    hydratedMetricTime,
+				Quantity:     hydratedMetric.Quantity,
+				TransferType: hydratedMetric.Metadata.TransferType,
 			})
 			lastMetric = &hydratedMetric
 			continue
@@ -183,8 +191,9 @@ func (f SampledMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 		// -------|-----x-----|---x---
 		if f.Mode == Interval {
 			dataPoints = append(dataPoints, DataPoint{
-				Timestamp: end,
-				Quantity:  hydratedMetric.Quantity,
+				Timestamp:    end,
+				Quantity:     hydratedMetric.Quantity,
+				TransferType: hydratedMetric.Metadata.TransferType,
 			})
 			lastMetric = &hydratedMetric
 		}

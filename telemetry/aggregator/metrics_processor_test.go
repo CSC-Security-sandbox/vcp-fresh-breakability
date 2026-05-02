@@ -943,6 +943,260 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 		assert.NotNil(t, aggregatedRecords[0].LastCounterValue)
 		assert.Equal(t, 150.0, *aggregatedRecords[0].LastCounterValue)
 	})
+
+	t.Run("CounterAggregationReplicationMigrationUpdateSingleAggregatedRow", func(t *testing.T) {
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		resourceCollection := &ResourceCollection{
+			PoolData:              make(map[ResourceKey]ResourceData),
+			VolumeData:            make(map[ResourceKey]ResourceData),
+			VolumeReplicationData: make(map[ResourceKey]ResourceData),
+		}
+
+		resourceIDRep := ResourceKey{
+			ResourceType: metadata.VolumeReplicationRelationship,
+			ResourceName: "test-resource-uuid",
+			ConsumerID:   "test-customer",
+		}
+
+		repName := "replication1"
+		srcLoc := "us-west"
+		dstLoc := "us-east"
+		dstVolUUID := "dst-vol-uuid"
+		resourceCollection.VolumeReplicationData[resourceIDRep] = ResourceData{
+			UUID:      "test-uuid",
+			AccountID: 123,
+			Labels:    Labels{"env": "test"},
+			VolumeReplicationInfo: &VolumeReplicationInfo{
+				ReplicationType:       string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+				ReplicationSchedule:   "hourly",
+				ReplicationName:       &repName,
+				SourceLocation:        &srcLoc,
+				DestinationLocation:   &dstLoc,
+				DestinationVolumeUUID: &dstVolUUID,
+			},
+		}
+
+		tenMiB := float64(10 * 1024 * 1024)
+		sixteenMiB := float64(16 * 1024 * 1024)
+		repMetrics := []datamodel2.HydratedMetrics{
+			{
+				ResourceName:    "test-uuid",
+				ConsumerID:      customerID,
+				Location:        location,
+				Quantity:        0,
+				MetricTimestamp: startTime.Add(10 * time.Minute),
+				ResourceType:    metadata.VolumeReplicationRelationship,
+				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+			},
+			{
+				ResourceName:    "test-uuid",
+				ConsumerID:      customerID,
+				Location:        location,
+				Quantity:        0,
+				MetricTimestamp: startTime.Add(20 * time.Minute),
+				ResourceType:    metadata.VolumeReplicationRelationship,
+				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+			},
+			{
+				ResourceName:    "test-uuid",
+				ConsumerID:      customerID,
+				Location:        location,
+				Quantity:        tenMiB,
+				MetricTimestamp: startTime.Add(30 * time.Minute),
+				ResourceType:    metadata.VolumeReplicationRelationship,
+				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+			},
+			{
+				ResourceName:    "test-uuid",
+				ConsumerID:      customerID,
+				Location:        location,
+				Quantity:        sixteenMiB,
+				MetricTimestamp: startTime.Add(40 * time.Minute),
+				ResourceType:    metadata.VolumeReplicationRelationship,
+				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+			},
+		}
+
+		ts := hydratedMetricsToTimeSeries(repMetrics, startTime, now)
+		ts.Metadata.SetTransferType("update")
+
+		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 1)
+
+		rec := aggregatedRecords[0]
+		assert.True(t, rec.IsBillable)
+		assert.InDelta(t, 16.0, rec.Quantity, 0.01)
+		require.NotNil(t, rec.LastCounterValue)
+		assert.InDelta(t, sixteenMiB, *rec.LastCounterValue, 0.01)
+		assert.True(t, rec.AggregationStart.Equal(startTime))
+		assert.True(t, rec.AggregationEnd.Equal(now))
+	})
+}
+
+// TestProcessMetricsWithJobDef_ReplicationPrePositiveRows tests persistence of a separate non-billable
+// aggregated row for bytes before the first positive replication counter sample, and optional
+// splitting of (aggregation_start, aggregation_end) at segmentSplitAt for the unique index
+// (see metrics_processor.go ~1580–1595).
+func TestProcessMetricsWithJobDef_ReplicationPrePositiveRows(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	startTime := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+
+	processor := &BillingProvider{
+		metricsDB: &database.MockStorage{},
+		config:    &common.TelemetryConfig{},
+	}
+
+	resourceIDRep := ResourceKey{
+		ResourceType: metadata.VolumeReplicationRelationship,
+		ResourceName: "crr-resource",
+		ConsumerID:   "cust-1",
+	}
+
+	repName := "repl-1"
+	srcLoc := "us-west1"
+	dstLoc := "us-east1"
+	dstVolUUID := "dst-vol"
+	resourceCollection := &ResourceCollection{
+		PoolData:              make(map[ResourceKey]ResourceData),
+		VolumeData:            make(map[ResourceKey]ResourceData),
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.VolumeReplicationData[resourceIDRep] = ResourceData{
+		UUID:      "res-uuid-1",
+		AccountID: 99,
+		VolumeReplicationInfo: &VolumeReplicationInfo{
+			ReplicationType:       string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			ReplicationSchedule:   "hourly",
+			ReplicationName:       &repName,
+			SourceLocation:        &srcLoc,
+			DestinationLocation:   &dstLoc,
+			DestinationVolumeUUID: &dstVolUUID,
+		},
+	}
+
+	tenMiB := float64(10 * 1024 * 1024)
+	sixteenMiB := float64(16 * 1024 * 1024)
+	splitAt := startTime.Add(30 * time.Minute)
+	updateTT := strPtr("update")
+
+	t.Run("migration_counter_emits_non_billable_row_then_billable_row_with_split_windows", func(t *testing.T) {
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   endTime,
+			Metadata: metadata.ResourceMetadata{
+				ResourceType: metadata.VolumeReplicationRelationship,
+			},
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+			DataPoints: []common.DataPoint{
+				{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: startTime.Add(20 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: splitAt, Quantity: tenMiB, TransferType: updateTT},
+				{Timestamp: startTime.Add(40 * time.Minute), Quantity: sixteenMiB, TransferType: nil},
+			},
+		}
+
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{
+			AggregationType: common.CounterAggregation,
+		}, startTime, endTime, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 2, "non-billable pre-positive segment plus billable remainder")
+
+		skipped := aggregatedRecords[0]
+		billed := aggregatedRecords[1]
+
+		assert.False(t, skipped.IsBillable)
+		assert.InDelta(t, 10.0, skipped.Quantity, 0.001)
+		require.NotNil(t, skipped.LastCounterValue)
+		assert.InDelta(t, tenMiB, *skipped.LastCounterValue, 0.01)
+		assert.True(t, skipped.AggregationStart.Equal(startTime), "skipped row covers [start, split)")
+		assert.True(t, skipped.AggregationEnd.Equal(splitAt), "skipped row ends at first positive sample time")
+
+		assert.True(t, billed.IsBillable)
+		assert.InDelta(t, 6.0, billed.Quantity, 0.001)
+		require.NotNil(t, billed.LastCounterValue)
+		assert.InDelta(t, sixteenMiB, *billed.LastCounterValue, 0.01)
+		assert.True(t, billed.AggregationStart.Equal(splitAt), "billable row covers [split, end]")
+		assert.True(t, billed.AggregationEnd.Equal(endTime))
+	})
+
+	t.Run("migration_counter_first_positive_uses_initialize_transfer_type", func(t *testing.T) {
+		initTT := strPtr(TransferTypeInitial)
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   endTime,
+			Metadata: metadata.ResourceMetadata{
+				ResourceType: metadata.VolumeReplicationRelationship,
+			},
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+			DataPoints: []common.DataPoint{
+				{Timestamp: startTime.Add(5 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: splitAt, Quantity: tenMiB, TransferType: initTT},
+				{Timestamp: startTime.Add(45 * time.Minute), Quantity: sixteenMiB, TransferType: nil},
+			},
+		}
+
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{
+			AggregationType: common.CounterAggregation,
+		}, startTime, endTime, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 2)
+		assert.False(t, aggregatedRecords[0].IsBillable)
+		assert.InDelta(t, 10.0, aggregatedRecords[0].Quantity, 0.001)
+		assert.True(t, aggregatedRecords[0].AggregationEnd.Equal(splitAt))
+		assert.True(t, aggregatedRecords[1].AggregationStart.Equal(splitAt))
+		assert.True(t, aggregatedRecords[1].IsBillable)
+		assert.InDelta(t, 6.0, aggregatedRecords[1].Quantity, 0.001)
+	})
+
+	t.Run("cross_region_replication_type_does_not_emit_skipped_row", func(t *testing.T) {
+		crrCollection := &ResourceCollection{
+			PoolData:              make(map[ResourceKey]ResourceData),
+			VolumeData:            make(map[ResourceKey]ResourceData),
+			VolumeReplicationData: make(map[ResourceKey]ResourceData),
+		}
+		crrCollection.VolumeReplicationData[resourceIDRep] = ResourceData{
+			UUID:      "res-uuid-1",
+			AccountID: 99,
+			VolumeReplicationInfo: &VolumeReplicationInfo{
+				ReplicationType:       "CROSS_REGION_REPLICATION",
+				ReplicationSchedule:   "hourly",
+				ReplicationName:       &repName,
+				SourceLocation:        &srcLoc,
+				DestinationLocation:   &dstLoc,
+				DestinationVolumeUUID: &dstVolUUID,
+			},
+		}
+
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   endTime,
+			Metadata: metadata.ResourceMetadata{
+				ResourceType: metadata.VolumeReplicationRelationship,
+			},
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+			DataPoints: []common.DataPoint{
+				{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: startTime.Add(20 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: splitAt, Quantity: tenMiB, TransferType: updateTT},
+				{Timestamp: startTime.Add(40 * time.Minute), Quantity: sixteenMiB, TransferType: nil},
+			},
+		}
+
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{
+			AggregationType: common.CounterAggregation,
+		}, startTime, endTime, crrCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 1, "CRR should not use skip-until-first-positive path")
+		assert.True(t, aggregatedRecords[0].IsBillable)
+		assert.True(t, aggregatedRecords[0].AggregationStart.Equal(startTime))
+		assert.True(t, aggregatedRecords[0].AggregationEnd.Equal(endTime))
+	})
 }
 
 // TestProcessMetricsSuccess tests a successful path through ProcessMetrics.
@@ -6101,6 +6355,56 @@ func TestGroupMetricsByResource_ParsesTransferTypeFromMetadata(t *testing.T) {
 	})
 }
 
+func TestReplicationCounterPointsFirstPositiveSplit(t *testing.T) {
+	t0 := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	update := strPtr("update")
+	init := strPtr(TransferTypeInitial)
+
+	t.Run("splits when prior transfer blank and first positive has update", func(t *testing.T) {
+		pts := []common.DataPoint{
+			{Timestamp: t0, Quantity: 0, TransferType: nil},
+			{Timestamp: t0.Add(time.Minute), Quantity: 0, TransferType: nil},
+			{Timestamp: t0.Add(2 * time.Minute), Quantity: 10, TransferType: update},
+		}
+		pre, suf, ok := replicationCounterPointsFirstPositiveSplit(pts)
+		require.True(t, ok)
+		require.Len(t, pre, 3)
+		require.Len(t, suf, 1)
+		assert.Equal(t, 10.0, suf[0].Quantity)
+	})
+
+	t.Run("splits when prior transfer blank and first positive has initialize", func(t *testing.T) {
+		pts := []common.DataPoint{
+			{Timestamp: t0, Quantity: 0, TransferType: nil},
+			{Timestamp: t0.Add(time.Minute), Quantity: 5, TransferType: init},
+		}
+		pre, suf, ok := replicationCounterPointsFirstPositiveSplit(pts)
+		require.True(t, ok)
+		require.Len(t, pre, 2)
+		require.Len(t, suf, 1)
+	})
+
+	t.Run("no split when first positive lacks initialize_or_update transfer", func(t *testing.T) {
+		other := strPtr("continuous")
+		pts := []common.DataPoint{
+			{Timestamp: t0, Quantity: 0, TransferType: nil},
+			{Timestamp: t0.Add(time.Minute), Quantity: 10, TransferType: other},
+		}
+		_, _, ok := replicationCounterPointsFirstPositiveSplit(pts)
+		assert.False(t, ok)
+	})
+
+	t.Run("no split when a prior sample already has transfer set", func(t *testing.T) {
+		pts := []common.DataPoint{
+			{Timestamp: t0, Quantity: 0, TransferType: nil},
+			{Timestamp: t0.Add(time.Minute), Quantity: 0, TransferType: update},
+			{Timestamp: t0.Add(2 * time.Minute), Quantity: 10, TransferType: update},
+		}
+		_, _, ok := replicationCounterPointsFirstPositiveSplit(pts)
+		assert.False(t, ok)
+	})
+}
+
 func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationReplication(t *testing.T) {
 	ctx := context.Background()
 	logger := util.GetLogger(ctx)
@@ -6165,6 +6469,19 @@ func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationRepl
 				},
 			}
 
+			// Non-billable cases use all-zero samples so quantity and skipped pre-positive bytes are zero
+			// for hybrid migration / on-prem replication types (see processMetricsWithJobDef).
+			dataPoints := []common.DataPoint{
+				{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+				{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200},
+			}
+			if !tc.expectedBilling {
+				dataPoints = []common.DataPoint{
+					{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0},
+					{Timestamp: startTime.Add(20 * time.Minute), Quantity: 0},
+				}
+			}
+
 			timeSeries := common.TimeSeries{
 				AggregationStart: startTime,
 				AggregationEnd:   now,
@@ -6174,10 +6491,7 @@ func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationRepl
 					TransferType: tc.transferType,
 				},
 				MeasuredType: metadata.XregionReplicationTotalTransferBytes,
-				DataPoints: []common.DataPoint{
-					{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
-					{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200},
-				},
+				DataPoints:   dataPoints,
 			}
 
 			var aggregatedRecords []datamodel2.AggregatedUsage
@@ -6196,6 +6510,127 @@ func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationRepl
 			require.NoError(t, err)
 			require.Len(t, aggregatedRecords, 1)
 			assert.Equal(t, tc.expectedBilling, aggregatedRecords[0].IsBillable)
+		})
+	}
+}
+
+func TestProcessMetricsWithJobDef_ReplicationBillingStartsAfterCounterMovesFromZero(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	// Zero counter + zero skipped bytes only clear IsBillable for hybrid migration / on-prem replication
+	// (see processMetricsWithJobDef volume replication branch). Continuous (CRR-style) stays billable.
+	testCases := []struct {
+		name              string
+		transferType      *string
+		replicationType   string
+		dataPoints        []common.DataPoint
+		wantBillable      bool
+		wantPrimaryQtyMiB float64
+		wantRecordCount   int
+	}{
+		{
+			name:              "continuous replication initialize with zero counter stays billable",
+			transferType:      strPtr(TransferTypeInitial),
+			replicationType:   string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION),
+			dataPoints:        []common.DataPoint{{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0}, {Timestamp: startTime.Add(20 * time.Minute), Quantity: 0}},
+			wantBillable:      true,
+			wantPrimaryQtyMiB: 0,
+			wantRecordCount:   1,
+		},
+		{
+			name:              "continuous replication update with zero counter stays billable",
+			transferType:      strPtr("update"),
+			replicationType:   string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION),
+			dataPoints:        []common.DataPoint{{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0}, {Timestamp: startTime.Add(20 * time.Minute), Quantity: 0}},
+			wantBillable:      true,
+			wantPrimaryQtyMiB: 0,
+			wantRecordCount:   1,
+		},
+		{
+			name:              "update with transition from zero to non-zero bills full counter delta single row",
+			transferType:      strPtr("update"),
+			replicationType:   string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			dataPoints:        []common.DataPoint{{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0}, {Timestamp: startTime.Add(20 * time.Minute), Quantity: 1200}, {Timestamp: startTime.Add(50 * time.Minute), Quantity: 2500}},
+			wantBillable:      true,
+			wantPrimaryQtyMiB: BytesToMiB(2500),
+			wantRecordCount:   1,
+		},
+		{
+			name:              "initialize with first positive as last point bills full counter delta single row",
+			transferType:      strPtr(TransferTypeInitial),
+			replicationType:   string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			dataPoints:        []common.DataPoint{{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0}, {Timestamp: startTime.Add(50 * time.Minute), Quantity: 1200}},
+			wantBillable:      true,
+			wantPrimaryQtyMiB: BytesToMiB(1200),
+			wantRecordCount:   1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			processor := &BillingProvider{
+				config: &common.TelemetryConfig{},
+			}
+
+			resourceID := ResourceKey{
+				ResourceType: metadata.VolumeReplicationRelationship,
+				ResourceName: "rep-1",
+				ConsumerID:   "customer-1",
+			}
+
+			repName := "rep-1"
+			srcLoc := "us-central1"
+			dstLoc := "us-east1"
+			resourceCollection := &ResourceCollection{
+				PoolData:              make(map[ResourceKey]ResourceData),
+				VolumeData:            make(map[ResourceKey]ResourceData),
+				BackupData:            make(map[ResourceKey]ResourceData),
+				VolumeReplicationData: make(map[ResourceKey]ResourceData),
+			}
+			resourceCollection.VolumeReplicationData[resourceID] = ResourceData{
+				UUID:      "rep-uuid-1",
+				AccountID: 123,
+				VolumeReplicationInfo: &VolumeReplicationInfo{
+					ReplicationName:     &repName,
+					ReplicationType:     tc.replicationType,
+					SourceLocation:      &srcLoc,
+					DestinationLocation: &dstLoc,
+				},
+			}
+
+			timeSeries := common.TimeSeries{
+				AggregationStart: startTime,
+				AggregationEnd:   now,
+				Metadata: metadata.ResourceMetadata{
+					ResourceType: metadata.VolumeReplicationRelationship,
+					RegionName:   strPtr("us-central1"),
+					TransferType: tc.transferType,
+				},
+				MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+				DataPoints:   tc.dataPoints,
+			}
+
+			var aggregatedRecords []datamodel2.AggregatedUsage
+			err := processor.processMetricsWithJobDef(
+				ctx,
+				resourceID,
+				timeSeries,
+				common.AggregationJobDefinition{AggregationType: common.CounterAggregation},
+				startTime,
+				now,
+				resourceCollection,
+				&aggregatedRecords,
+				make(map[CounterAggregationCacheResourceKey]*float64),
+				logger,
+			)
+			require.NoError(t, err)
+			require.Len(t, aggregatedRecords, tc.wantRecordCount)
+			primary := aggregatedRecords[len(aggregatedRecords)-1]
+			assert.Equal(t, tc.wantBillable, primary.IsBillable)
+			assert.InDelta(t, tc.wantPrimaryQtyMiB, primary.Quantity, 1e-9)
 		})
 	}
 }

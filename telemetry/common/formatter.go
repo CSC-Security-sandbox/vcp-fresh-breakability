@@ -36,7 +36,7 @@ type TimeSeriesFormatter interface {
 func hasMetadataChanged(metric1, metric2 entity.HydratedMetric) bool {
 	return !(bothNilOrEqual(metric1.Metadata.ResourceName, metric2.Metadata.ResourceName) &&
 		bothNilOrEqual(metric1.Metadata.AccountName, metric2.Metadata.AccountName) &&
-		bothNilOrEqual(metric1.Metadata.ServiceLevel, metric2.Metadata.ServiceLevel) && bothNilOrEqual(metric1.Metadata.TransferType, metric2.Metadata.TransferType))
+		bothNilOrEqual(metric1.Metadata.ServiceLevel, metric2.Metadata.ServiceLevel))
 }
 
 // bothNilOrEqual determines whether two string pointers are both set to nil or have the same value

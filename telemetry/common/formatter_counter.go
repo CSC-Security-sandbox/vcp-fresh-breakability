@@ -137,14 +137,16 @@ func (f CounterMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 			}
 			dataPoints = []DataPoint{}
 			dataPoints = append(dataPoints, DataPoint{
-				Timestamp: lastMetric.Timestamp.ToTime(),
-				Quantity:  lastMetric.Quantity,
+				Timestamp:    lastMetric.Timestamp.ToTime(),
+				Quantity:     lastMetric.Quantity,
+				TransferType: lastMetric.Metadata.TransferType,
 			})
 		}
 
 		dataPoints = append(dataPoints, DataPoint{
-			Timestamp: metric.Timestamp.ToTime(),
-			Quantity:  metric.Quantity,
+			Timestamp:    metric.Timestamp.ToTime(),
+			Quantity:     metric.Quantity,
+			TransferType: metric.Metadata.TransferType,
 		})
 		lastMetric = metric
 	}

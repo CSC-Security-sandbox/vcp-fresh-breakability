@@ -32,6 +32,7 @@ import (
 const (
 	ReplicationScheduleOntapMode = "ONTAP_MODE"
 	TransferTypeInitial          = "initialize"
+	TransferTypeUpdate           = "update"
 )
 
 var (
@@ -1383,6 +1384,39 @@ func (p *BillingProvider) filterMetricsForCounterAndIntegralAggregationSorted(me
 	return result
 }
 
+// appendReplicationNonBillablePrePositiveSegment persists a non-billable aggregated row for hybrid replications
+// counter bytes before the first strictly positive sample, then the caller appends the billable row.
+// The skipped row is appended first so it loses GetLatestAggregatedUsageForAllResources (created_at DESC)
+// for last_counter_value. When segmentSplitAt falls within (start, end], aggregation windows are split so
+// skipped uses [start, splitAt) and the billable row uses [splitAt, end] for idx_aggregated_usage_unique.
+func appendReplicationNonBillablePrePositiveSegment(
+	aggregated *datamodel2.AggregatedUsage,
+	skippedPrePositiveQuantity float64,
+	skippedSegmentEndCounter *float64,
+	segmentSplitAt *time.Time,
+	start, end time.Time,
+	resourceKey ResourceKey,
+	aggregatedRecords *[]datamodel2.AggregatedUsage,
+	logger log.Logger,
+) {
+	skippedRec := *aggregated
+	skippedRec.Quantity = skippedPrePositiveQuantity
+	skippedRec.IsBillable = false
+	skippedRec.LastCounterValue = skippedSegmentEndCounter
+	if st := segmentSplitAt; st != nil {
+		splitAt := *st
+		if splitAt.After(start) && !splitAt.After(end) {
+			skippedRec.AggregationStart = start
+			skippedRec.AggregationEnd = splitAt
+			aggregated.AggregationStart = splitAt
+			aggregated.AggregationEnd = end
+		}
+	}
+	logger.Debugf("Recording non-billable replication pre-first-positive segment quantity=%.6f MiB for resource %s",
+		skippedPrePositiveQuantity, resourceKey.ResourceName)
+	*aggregatedRecords = append(*aggregatedRecords, skippedRec)
+}
+
 func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics common.TimeSeries, jobDef common.AggregationJobDefinition, start, end time.Time, resourceCollection *ResourceCollection, aggregatedRecords *[]datamodel2.AggregatedUsage, counterCache map[CounterAggregationCacheResourceKey]*float64, logger log.Logger) error {
 	if len(metrics.DataPoints) == 0 {
 		logger.Infof("No metrics found for resource key %s and customer id %s", resourceKey, resourceKey.ConsumerID)
@@ -1399,12 +1433,24 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	// Calculate aggregated value based on job type
 	var quantity float64
 	var lastCounterValue *float64
+	var skippedPrePositiveQuantity float64
+	var skippedSegmentEndCounter *float64
+	var counterDeltaRes counterDeltaWithHistoryResult
+	replicationTypeForSkip := ""
+	if resourceData.VolumeReplicationInfo != nil {
+		replicationTypeForSkip = resourceData.VolumeReplicationInfo.ReplicationType
+	}
+	skipBillingUntilFirstPositiveReplicationPoint := shouldSkipBillingUntilFirstPositiveReplicationPoint(jobDef, metrics, replicationTypeForSkip)
 	switch jobDef.AggregationType {
 	case common.IntegralAggregation:
 		quantity = common.Integral(metrics.DataPoints)
 	case common.CounterAggregation:
 		// Use the new method that considers previous aggregated counter values
-		quantity, lastCounterValue = p.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, metrics.DataPoints, metrics.MeasuredType, start, counterCache, resourceData.UUID, logger)
+		counterDeltaRes = p.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, metrics.DataPoints, metrics.MeasuredType, start, counterCache, resourceData.UUID, logger, skipBillingUntilFirstPositiveReplicationPoint)
+		quantity = counterDeltaRes.billed
+		lastCounterValue = counterDeltaRes.lastCounter
+		skippedPrePositiveQuantity = counterDeltaRes.skippedPrePositive
+		skippedSegmentEndCounter = counterDeltaRes.skippedSegmentEndCounter
 	case common.SumAggregation:
 		quantity = common.Sum(metrics.DataPoints)
 	case common.FirstAggregation:
@@ -1439,6 +1485,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 
 	if metrics.MeasuredType != metadata.PoolTotalIops && metrics.MeasuredType != metadata.PoolTotalThroughputMibps {
 		quantity = BytesToMiB(quantity)
+		skippedPrePositiveQuantity = BytesToMiB(skippedPrePositiveQuantity)
 	}
 
 	// Determine base billability
@@ -1526,10 +1573,13 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 			aggregated.DestinationRegion = resourceData.VolumeReplicationInfo.DestinationLocation
 			aggregated.ReplicationDstVolumeID = resourceData.VolumeReplicationInfo.DestinationVolumeUUID
 			aggregated.ReplicationType = resourceData.VolumeReplicationInfo.ReplicationType
-			if (aggregated.ReplicationType == clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION || aggregated.ReplicationType == clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION) && metrics.Metadata.TransferType != nil && *metrics.Metadata.TransferType == TransferTypeInitial {
+
+			// when aggregated quantity is zero and also skippedPrePositiveBytes is zero, i.e, baseline transfer was happening for entire aggregation window.
+			// then skip billing for replication transfer if it's hybrid migration or on-prem replication as for these replication types, baseline transfer should not be billed.
+			if quantity == 0 && skippedPrePositiveQuantity == 0 && isHybridMigrationOrOnPremReplicationType(aggregated.ReplicationType) {
 				aggregated.IsBillable = false
-				logger.Infof("Setting IsBillable=false for onprem_replication/migration with initialize transfer type, resource %s, deployment %s",
-					resourceKey.ResourceName, resourceKey.DeploymentName)
+				logger.Infof("Setting IsBillable=false for replication baseline transfer (replication_type=%s), resource %s, deployment %s",
+					aggregated.ReplicationType, resourceKey.ResourceName, resourceKey.DeploymentName)
 			}
 		} else {
 			logger.Infof("No resourceData found for resource name %s, deployment name :%s", resourceKey.ResourceName, resourceKey.DeploymentName)
@@ -1551,7 +1601,29 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	logger.Debugf("Processing metrics for resource %s (customer: %s, type: %s, labels: %s)",
 		resourceKey.ResourceName, resourceKey.ConsumerID, jobDef.AggregationType, labelsInfo)
 
-	*aggregatedRecords = append(*aggregatedRecords, *aggregated)
+	if skippedPrePositiveQuantity > 0 && skipBillingUntilFirstPositiveReplicationPoint &&
+		jobDef.AggregationType == common.CounterAggregation {
+		appendReplicationNonBillablePrePositiveSegment(
+			aggregated,
+			skippedPrePositiveQuantity,
+			skippedSegmentEndCounter,
+			counterDeltaRes.segmentSplitAt,
+			start,
+			end,
+			resourceKey,
+			aggregatedRecords,
+			logger,
+		)
+	}
+
+	// Only append the billable record if quantity is greater than zero or if there were no skipped pre-positive bytes.
+	// This prevents creating a zero-quantity billable record when there is a non-billable segment with quantity in the same aggregation window, which can happen for hybrid replication metrics.
+	if quantity == 0 && skippedPrePositiveQuantity > 0 && isHybridMigrationOrOnPremReplicationType(aggregated.ReplicationType) {
+		logger.Debugf("Skipping billable record with zero quantity for resource %s since there is a non-billable segment with quantity %.6f MiB in the same aggregation window for hybrid replication", resourceKey.ResourceName, skippedPrePositiveQuantity)
+	} else {
+		*aggregatedRecords = append(*aggregatedRecords, *aggregated)
+	}
+
 	return nil
 }
 
@@ -1688,6 +1760,79 @@ func setServiceLevelForCRR(schedule string) string {
 	}
 }
 
+// isHybridMigrationOrOnPremReplicationType is true for hybrid replication API types where
+// transfer-byte billing may skip until the first positive counter sample (initialize/update).
+func isHybridMigrationOrOnPremReplicationType(replicationType string) bool {
+	switch replicationType {
+	case string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION),
+		string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION):
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldSkipBillingUntilFirstPositiveReplicationPoint(jobDef common.AggregationJobDefinition, metrics common.TimeSeries, replicationType string) bool {
+	if metrics.Metadata.ResourceType == metadata.VolumeReplicationRelationship && isHybridMigrationOrOnPremReplicationType(replicationType) {
+		return true
+	}
+	return false
+}
+
+func replicationTransferTypeBlank(tt *string) bool {
+	if tt == nil {
+		return true
+	}
+	return strings.TrimSpace(*tt) == ""
+}
+
+func replicationTransferTypeInitializeOrUpdate(tt *string) bool {
+	if tt == nil {
+		return false
+	}
+	v := strings.ToLower(strings.TrimSpace(*tt))
+	return v == TransferTypeInitial || v == TransferTypeUpdate
+}
+
+// replicationCounterPointsFirstPositiveSplit partitions points when initialize/update replication
+// skips billing for the run-up of non-positive samples until the first strictly positive reading **and**
+// transfer_type on that sample is initialize or update while all prior samples have blank/unset transfer_type.
+// prefix ends at that first positive point (inclusive); suffix starts at the same point.
+// split is false when no such partition applies.
+func replicationCounterPointsFirstPositiveSplit(points []common.DataPoint) (prefix []common.DataPoint, suffix []common.DataPoint, split bool) {
+	if len(points) < 2 {
+		return nil, points, false
+	}
+
+	firstPositiveIdx := -1
+	hasZeroBeforeFirstPositive := false
+
+	for i, point := range points {
+		if point.Quantity > 0 {
+			firstPositiveIdx = i
+			break
+		}
+		if point.Quantity == 0 {
+			hasZeroBeforeFirstPositive = true
+		}
+	}
+
+	if firstPositiveIdx <= 0 || !hasZeroBeforeFirstPositive {
+		return nil, points, false
+	}
+
+	for j := 0; j < firstPositiveIdx; j++ {
+		if !replicationTransferTypeBlank(points[j].TransferType) {
+			return nil, points, false
+		}
+	}
+	if !replicationTransferTypeInitializeOrUpdate(points[firstPositiveIdx].TransferType) {
+		return nil, points, false
+	}
+
+	return points[:firstPositiveIdx+1], points[firstPositiveIdx:], true
+}
+
 func isPoolResourceType(rt metadata.ResourceType) bool {
 	return rt == metadata.VolumePool || rt == metadata.VolumePoolRegionalHA
 }
@@ -1786,9 +1931,22 @@ func (p *BillingProvider) preloadCounterValues(ctx context.Context, aggregationS
 	return p.fetchAndCacheCounterValues(ctx, "CounterAggregation", pageSize, logger)
 }
 
+// counterDeltaWithHistoryResult holds counter deltas for the current window, including an optional
+// non-billable replication segment (bytes before the first positive counter sample) for persistence.
+type counterDeltaWithHistoryResult struct {
+	billed                   float64
+	skippedPrePositive       float64
+	lastCounter              *float64
+	skippedSegmentEndCounter *float64
+	// segmentSplitAt is the timestamp of the first strictly positive counter sample after a leading
+	// non-positive run. Used to give skipped vs billed rows distinct
+	// (aggregation_start, aggregation_end) for the aggregated_usages unique index.
+	segmentSplitAt *time.Time
+}
+
 // calculateCounterDeltaWithAggregatedHistory adds the last aggregated counter value
 // as first data point and uses the existing CounterDelta logic
-func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context.Context, resourceKey ResourceKey, dataPoints []common.DataPoint, measuredType metadata.MeasuredType, aggregationStartTime time.Time, counterCache map[CounterAggregationCacheResourceKey]*float64, resourceUUID string, logger log.Logger) (float64, *float64) {
+func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context.Context, resourceKey ResourceKey, dataPoints []common.DataPoint, measuredType metadata.MeasuredType, aggregationStartTime time.Time, counterCache map[CounterAggregationCacheResourceKey]*float64, resourceUUID string, logger log.Logger, skipUntilFirstPositive bool) counterDeltaWithHistoryResult {
 	// Create the cache key using ResourceUUID and MeasuredType
 	cacheKey := CounterAggregationCacheResourceKey{
 		ResourceUUID: resourceUUID,
@@ -1797,8 +1955,10 @@ func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context
 	lastAggregatedCounterValue := counterCache[cacheKey]
 	// If no data points, return 0 and lastAggregatedCounterValue
 	if len(dataPoints) == 0 {
-		return 0, lastAggregatedCounterValue
+		return counterDeltaWithHistoryResult{billed: 0, lastCounter: lastAggregatedCounterValue}
 	}
+
+	pointsForDelta := dataPoints
 
 	// If we have a previous aggregated counter value, add it as the first data point
 	if lastAggregatedCounterValue != nil {
@@ -1810,20 +1970,31 @@ func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context
 		}
 
 		// Prepend the last counter value to the data points
-		enhancedDataPoints := append([]common.DataPoint{lastCounterDataPoint}, dataPoints...)
+		pointsForDelta = append([]common.DataPoint{lastCounterDataPoint}, dataPoints...)
 
 		logger.Debugf("Added last counter value %.2f from cache as starting point for resource %s, measured type %s",
 			*lastAggregatedCounterValue, resourceUUID, measuredType)
-
-		// Use existing CounterDelta logic with enhanced data points
-		aggregate, lastCounter := common.CounterDelta(enhancedDataPoints, logger, measuredType, resourceUUID)
-		return aggregate, lastCounter
 	}
 
-	// No previous aggregated value found, use standard counter delta calculation
-	logger.Debugf("No previous aggregated counter value found for resource %s, measured type %s, using standard CounterDelta", resourceUUID, measuredType)
-	aggregate, lastCounter := common.CounterDelta(dataPoints, logger, measuredType, resourceUUID)
-	return aggregate, lastCounter
+	if skipUntilFirstPositive {
+		prefix, suffix, split := replicationCounterPointsFirstPositiveSplit(pointsForDelta)
+		if split {
+			skippedQty, skippedEnd := common.CounterDelta(prefix, logger, measuredType, resourceUUID)
+			billed, last := common.CounterDelta(suffix, logger, measuredType, resourceUUID)
+			splitAt := suffix[0].Timestamp
+			return counterDeltaWithHistoryResult{
+				billed:                   billed,
+				skippedPrePositive:       skippedQty,
+				lastCounter:              last,
+				skippedSegmentEndCounter: skippedEnd,
+				segmentSplitAt:           &splitAt,
+			}
+		}
+	}
+
+	// Use existing CounterDelta logic
+	aggregate, lastCounter := common.CounterDelta(pointsForDelta, logger, measuredType, resourceUUID)
+	return counterDeltaWithHistoryResult{billed: aggregate, lastCounter: lastCounter}
 }
 
 // fetchHistoricalVolumeSizeMetrics fetches aggregated volume size metrics from aggregated_usages table

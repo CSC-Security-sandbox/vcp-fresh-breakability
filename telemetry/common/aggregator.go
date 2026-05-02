@@ -14,6 +14,9 @@ type JobType string
 type DataPoint struct {
 	Timestamp time.Time
 	Quantity  float64
+	// TransferType is the per-sample replication transfer label when present (e.g. from hydrated metrics).
+	// Used for replication counter split logic; nil or empty string after trim means blank/unset.
+	TransferType *string
 }
 
 // TimeSeries is a collection of data points along with metadata that applies to these points.

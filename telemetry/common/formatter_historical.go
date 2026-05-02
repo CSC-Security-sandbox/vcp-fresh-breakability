@@ -59,8 +59,9 @@ func (f HistoricalMetricsFormatter) Format(ctx context.Context, logger log.Logge
 			})
 			dataPoints = []DataPoint{
 				{
-					Timestamp: *lastMetric.Metadata.DeletedAt,
-					Quantity:  lastMetric.Quantity,
+					Timestamp:    *lastMetric.Metadata.DeletedAt,
+					Quantity:     lastMetric.Quantity,
+					TransferType: lastMetric.Metadata.TransferType,
 				},
 			}
 		}
@@ -70,13 +71,15 @@ func (f HistoricalMetricsFormatter) Format(ctx context.Context, logger log.Logge
 		if lastMetric == nil {
 			if metricTime.Before(start) {
 				dataPoints = append(dataPoints, DataPoint{
-					Timestamp: start,
-					Quantity:  hydratedMetric.Quantity,
+					Timestamp:    start,
+					Quantity:     hydratedMetric.Quantity,
+					TransferType: hydratedMetric.Metadata.TransferType,
 				})
 			} else {
 				dataPoints = append(dataPoints, DataPoint{
-					Timestamp: metricTime,
-					Quantity:  hydratedMetric.Quantity,
+					Timestamp:    metricTime,
+					Quantity:     hydratedMetric.Quantity,
+					TransferType: hydratedMetric.Metadata.TransferType,
 				})
 			}
 		}
@@ -87,19 +90,22 @@ func (f HistoricalMetricsFormatter) Format(ctx context.Context, logger log.Logge
 		if deletedAt != nil {
 			if deletedAt.After(end) {
 				dataPoints = append(dataPoints, DataPoint{
-					Timestamp: end,
-					Quantity:  hydratedMetric.Quantity,
+					Timestamp:    end,
+					Quantity:     hydratedMetric.Quantity,
+					TransferType: hydratedMetric.Metadata.TransferType,
 				})
 			} else {
 				dataPoints = append(dataPoints, DataPoint{
-					Timestamp: *deletedAt,
-					Quantity:  hydratedMetric.Quantity,
+					Timestamp:    *deletedAt,
+					Quantity:     hydratedMetric.Quantity,
+					TransferType: hydratedMetric.Metadata.TransferType,
 				})
 			}
 		} else {
 			dataPoints = append(dataPoints, DataPoint{
-				Timestamp: end,
-				Quantity:  hydratedMetric.Quantity,
+				Timestamp:    end,
+				Quantity:     hydratedMetric.Quantity,
+				TransferType: hydratedMetric.Metadata.TransferType,
 			})
 		}
 

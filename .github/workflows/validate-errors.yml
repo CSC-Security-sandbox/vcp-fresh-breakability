@@ -22,8 +22,22 @@ jobs:
 
       - name: Install jq
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          set -u
+          if command -v jq >/dev/null 2>&1; then
+            echo "jq already installed: $(jq --version)"
+            exit 0
+          fi
+          # The self-hosted runner's NetApp apt mirror periodically serves a
+          # stale jammy-backports/universe index, and the git-core PPA is not
+          # reachable from this network. jq lives in jammy/main, so drop both
+          # sources before updating to avoid hard-failing on unrelated repos.
+          sudo rm -f /etc/apt/sources.list.d/git-core-*.list || true
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i.bak '/jammy-backports/d' /etc/apt/sources.list || true
+          fi
+          sudo apt-get update -o Acquire::Retries=3 || true
+          sudo apt-get install -y --no-install-recommends jq
+          jq --version
 
       - name: Validate Error Framework
         run: |

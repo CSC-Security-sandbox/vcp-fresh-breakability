@@ -66,6 +66,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -111,10 +112,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -145,10 +148,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -179,10 +184,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -213,10 +220,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -244,10 +253,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -278,10 +289,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -312,6 +325,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -324,10 +338,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -358,6 +374,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -370,10 +387,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -404,10 +423,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -435,6 +456,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -447,10 +469,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -483,14 +507,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp3,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -523,14 +550,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp3,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -563,14 +593,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -603,14 +636,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -643,14 +679,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -683,10 +722,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -699,10 +740,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp3,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -735,10 +778,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -751,10 +796,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp3,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -787,10 +834,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -803,10 +852,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -837,10 +888,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -853,10 +906,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -889,14 +944,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp3,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -929,6 +987,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -941,14 +1000,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp3,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -981,6 +1043,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -993,14 +1056,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1033,6 +1099,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1045,10 +1112,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1061,10 +1130,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp3,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1097,10 +1168,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1113,10 +1186,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1150,14 +1225,17 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: end,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1184,6 +1262,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1226,6 +1305,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1257,10 +1337,12 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 					{
 						Timestamp: start,
 						Quantity:  200,
+						TransferType: nil,
 					},
 					{
 						Timestamp: timestamp2,
 						Quantity:  300,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1302,6 +1384,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1332,6 +1415,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1344,6 +1428,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1374,6 +1459,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1404,6 +1490,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1434,6 +1521,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1446,6 +1534,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 					{
 						Timestamp: timestamp2,
 						Quantity:  200,
+						TransferType: nil,
 					},
 				},
 			},
@@ -1476,6 +1565,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 					{
 						Timestamp: timestamp1,
 						Quantity:  100,
+						TransferType: nil,
 					},
 				},
 			},

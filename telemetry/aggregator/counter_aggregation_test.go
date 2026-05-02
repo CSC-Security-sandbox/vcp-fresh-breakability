@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
@@ -40,11 +41,11 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 		// Empty cache
 		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
 
-		result, _ := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger, false)
 
 		// Should calculate delta without previous value: (200-100) = 100, the dip to 150 is skipped as anomalous
 		expectedDelta := float64(100)
-		assert.Equal(t, expectedDelta, result)
+		assert.Equal(t, expectedDelta, res.billed)
 	})
 
 	t.Run("With cached counter value - enhanced delta calculation", func(t *testing.T) {
@@ -63,20 +64,39 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			cacheKey: &lastCounterValue,
 		}
 
-		result, _ := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger, false)
 
 		// Should calculate delta with previous value: (120-100) + (170-120) = 20 + 50 = 70
 		expectedDelta := float64(70)
-		assert.Equal(t, expectedDelta, result)
+		assert.Equal(t, expectedDelta, res.billed)
 	})
 
 	t.Run("Empty data points", func(t *testing.T) {
 		dataPoints := []common.DataPoint{}
 		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
 
-		result, _ := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger, false)
 
-		assert.Equal(t, float64(0), result)
+		assert.Equal(t, float64(0), res.billed)
+	})
+
+	t.Run("Replication initialize splits skipped vs billed before first positive", func(t *testing.T) {
+		initTT := TransferTypeInitial
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(5 * time.Minute), Quantity: 0, TransferType: nil},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 0, TransferType: nil},
+			{Timestamp: aggregationStartTime.Add(25 * time.Minute), Quantity: 100, TransferType: &initTT},
+			{Timestamp: aggregationStartTime.Add(35 * time.Minute), Quantity: 160, TransferType: &initTT},
+		}
+		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+		// Prefix [0,0,100]: delta 100; suffix [100,160]: delta 60
+		assert.InDelta(t, 100.0, res.skippedPrePositive, 0.001)
+		assert.InDelta(t, 60.0, res.billed, 0.001)
+		require.NotNil(t, res.skippedSegmentEndCounter)
+		assert.InDelta(t, 100.0, *res.skippedSegmentEndCounter, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.InDelta(t, 160.0, *res.lastCounter, 0.001)
 	})
 }
 
