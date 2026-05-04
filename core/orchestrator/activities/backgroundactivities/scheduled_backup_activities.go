@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	backupTypeSCHEDULED         = "SCHEDULED"
+	backupTypeSCHEDULED       = "SCHEDULED"
 	scheduledBackupNameFormat = "%s-scheduled-backup-%s-%s"
 )
 
@@ -151,7 +151,7 @@ func (j *ScheduledBackupActivity) HydrateCreatedBackupsToCCFE(ctx context.Contex
 	var sourceStoragePool string
 	if volume.Pool != nil && volume.Pool.APIAccessMode == "ONTAP" {
 		mode = models.BackupHydrationModeONTAP
-		sourceStoragePool = fmt.Sprintf("projects/%s/locations/%s/storagePools/%s", projectId, region, volume.Pool.Name)
+		sourceStoragePool = fmt.Sprintf("projects/%s/locations/%s/storagePools/%s", projectId, volume.Pool.PoolAttributes.PrimaryZone, volume.Pool.Name)
 	}
 	requests := common.ConvertToGCPHydrateBackupCreateRequests(backups, mode, sourceStoragePool)
 	err = common.HydrateCreatedBackups(ctx, logger, requests, backupVaultName, region, projectId, token)
@@ -231,9 +231,15 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 		return nil, err
 	}
 
+	expertModeConditions := [][]interface{}{
+		{"account_id = ?", accountID},
+		{"state = ?", models.LifeCycleStateAvailable},
+		{"backup_config->>'backup_policy_id' = ?", backupPolicyUUID},
+		{"backup_config->>'scheduled_backup_enabled' = 'true'"},
+	}
 	// Also fetch expert mode volumes with the same backup policy
 	// Expert mode volumes are stored separately but need to be included for scheduled backups
-	expertModeVolumes, err := se.ListExpertModeVolumesWithPagination(ctx, conditions, pagination)
+	expertModeVolumes, err := se.ListExpertModeVolumesWithPagination(ctx, expertModeConditions, pagination)
 	if err != nil {
 		logger.Warnf("Failed to fetch expert mode volumes with backup policy %s: %v", backupPolicyUUID, err)
 		// Don't fail the entire operation, just log and continue with regular volumes

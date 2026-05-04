@@ -471,8 +471,14 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
+		expertModeConditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateAvailable},
+			{"backup_config->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"backup_config->>'scheduled_backup_enabled' = 'true'"},
+		}
 		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return(expectedVolumes, nil).Once()
-		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, conditions, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, expertModeConditions, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
 
 		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
 		assert.NoError(t, err)
@@ -526,8 +532,14 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
+		expertModeConditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateAvailable},
+			{"backup_config->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"backup_config->>'scheduled_backup_enabled' = 'true'"},
+		}
 		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return(expectedVolumes, nil).Once()
-		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, conditions, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, expertModeConditions, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
 
 		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
 		assert.NoError(t, err)
@@ -551,8 +563,14 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
+		expertModeConditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateAvailable},
+			{"backup_config->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"backup_config->>'scheduled_backup_enabled' = 'true'"},
+		}
 		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
-		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, conditions, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, expertModeConditions, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
 
 		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
 		assert.NoError(t, err)
@@ -594,8 +612,14 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
+		expertModeConditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateAvailable},
+			{"backup_config->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"backup_config->>'scheduled_backup_enabled' = 'true'"},
+		}
 		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return(regularVolumes, nil).Once()
-		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, conditions, mock.Anything).Return(expertModeVolumes, nil).Once()
+		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, expertModeConditions, mock.Anything).Return(expertModeVolumes, nil).Once()
 
 		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
 		assert.NoError(t, err)
@@ -629,9 +653,15 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
+		expertModeConditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateAvailable},
+			{"backup_config->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"backup_config->>'scheduled_backup_enabled' = 'true'"},
+		}
 		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return(regularVolumes, nil).Once()
 		// Expert mode fetch fails — should NOT propagate error, just return regular volumes
-		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, conditions, mock.Anything).Return(nil, errors.New("expert mode db error")).Once()
+		mockStorage.On("ListExpertModeVolumesWithPagination", ctx, expertModeConditions, mock.Anything).Return(nil, errors.New("expert mode db error")).Once()
 
 		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
 		assert.NoError(t, err)
@@ -845,7 +875,7 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		ontapVolume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 			Account:   &datamodel.Account{Name: "project-123"},
-			Pool:      &datamodel.Pool{Name: "my-pool", APIAccessMode: "ONTAP"},
+			Pool:      &datamodel.Pool{Name: "my-pool", APIAccessMode: "ONTAP", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-central1"}},
 		}
 
 		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
