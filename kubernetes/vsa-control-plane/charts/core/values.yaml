@@ -107,6 +107,13 @@ global:
     metricsDbPostRollbackSteps: "0"
     gcpAuthServiceAccount: ""
     workflowSupervisorNotFoundGracePeriod: "5m"
+    leakedResourcesMonitoringEnabled: false
+    leakedResourcesMonitoringCronExpression: "0 0 0 * * *"
+    leakedResourcesInternalIpMinAgeHours: 6
+    leakedResourcesCcfeListStoragePoolsPath: "/v1internal/projects/%s/locations/%s/storagePools"
+    # Empty -> omitted from configmap; set when CCFE compare / hydration is required
+    gcpHydrateBaseUrl: ""
+    gcpHydrateAuthServiceAccount: ""
     regionNumberMap:
       africa-south1: "01"
       asia-east1: "02"

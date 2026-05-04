@@ -32,7 +32,7 @@ func TestClient_ListStoragePools_GetTokenFails(t *testing.T) {
 func TestClient_ListStoragePools_Success(t *testing.T) {
 	ctx := context.Background()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1beta1/projects/proj1/locations/us-central1/storagePools", r.URL.Path)
+		assert.Equal(t, "/v1internal/projects/proj1/locations/us-central1/storagePools", r.URL.Path)
 		assert.Equal(t, "Bearer tok", r.Header.Get("Authorization"))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -106,6 +106,25 @@ func TestClient_ListStoragePools_WithTokenGetter(t *testing.T) {
 	require.Len(t, names, 2) // third item has empty name and empty poolId -> skipped
 	assert.Equal(t, "segment-z", names[0])
 	assert.Equal(t, "id-only", names[1])
+}
+
+func TestClient_ListStoragePools_CustomPathTemplate(t *testing.T) {
+	ctx := context.Background()
+	legacyPath := "/v1beta1/projects/%s/locations/%s/storagePools"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1beta1/projects/proj1/locations/us-central1/storagePools", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"storagePools":[{"name":"projects/p/locations/l/storagePools/legacy-pool"}]}`))
+	}))
+	defer server.Close()
+
+	getToken := func(context.Context) (string, error) { return "tok", nil }
+	c := NewClient(getToken, WithBaseURL(server.URL), WithHTTPClient(server.Client()), WithListStoragePoolsPathTemplate(legacyPath))
+	names, err := c.ListStoragePools(ctx, "proj1", "us-central1")
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+	assert.Equal(t, "legacy-pool", names[0])
 }
 
 func TestClient_ListBackupVaults_EmptyBaseURL(t *testing.T) {

@@ -1,5 +1,6 @@
 // Package ccfe provides an internal client for listing storage pools, backup vaults, and backups from CCFE.
 // Used only by the leaked-resources pipeline; not exposed to users.
+// ListStoragePools defaults to the same /v1internal/... path style as CCFE hydration; set LEAKED_RESOURCES_CCFE_LIST_STORAGE_POOLS_PATH to override.
 package ccfe
 
 import (
@@ -15,8 +16,12 @@ import (
 )
 
 const (
-	listStoragePoolsPath   = "/v1beta1/projects/%s/locations/%s/storagePools"
-	listBackupVaultsPath   = "/v1beta1/projects/%s/locations/%s/backupVaults"
+	// envListStoragePoolsPath is LEAKED_RESOURCES_CCFE_LIST_STORAGE_POOLS_PATH: printf template with two verbs (project ID, location).
+	envListStoragePoolsPath = "LEAKED_RESOURCES_CCFE_LIST_STORAGE_POOLS_PATH"
+	// defaultListStoragePoolsPathTemplate is the CCFE internal (hydration) list path.
+	defaultListStoragePoolsPathTemplate = "/v1internal/projects/%s/locations/%s/storagePools"
+
+	listBackupVaultsPath = "/v1beta1/projects/%s/locations/%s/backupVaults"
 )
 
 // listStoragePoolsResponse represents a minimal CCFE list storage pools response.
@@ -44,9 +49,10 @@ type ccfeBackupVaultItem struct {
 
 // Client performs internal CCFE API calls for leaked-resources detection only.
 type Client struct {
-	baseURL    string
-	httpClient *http.Client
-	getToken   func(context.Context) (string, error)
+	baseURL                      string
+	listStoragePoolsPathTemplate string
+	httpClient                   *http.Client
+	getToken                     func(context.Context) (string, error)
 }
 
 // ClientOption configures the CCFE client.
@@ -73,12 +79,21 @@ func WithBaseURL(url string) ClientOption {
 	}
 }
 
+// WithListStoragePoolsPathTemplate sets the list-pools relative path template (two "%s": project, location). Overrides LEAKED_RESOURCES_CCFE_LIST_STORAGE_POOLS_PATH / default.
+func WithListStoragePoolsPathTemplate(template string) ClientOption {
+	return func(client *Client) {
+		client.listStoragePoolsPathTemplate = template
+	}
+}
+
 // NewClient returns a client that uses GCP_HYDRATE_BASE_URL and default auth.
+// ListStoragePools uses a v1internal-style path by default; override with LEAKED_RESOURCES_CCFE_LIST_STORAGE_POOLS_PATH or WithListStoragePoolsPathTemplate.
 func NewClient(getToken func(context.Context) (string, error), opts ...ClientOption) *Client {
 	c := &Client{
-		baseURL:    env.GetString("GCP_HYDRATE_BASE_URL", ""),
-		httpClient: http.DefaultClient,
-		getToken:   getToken,
+		baseURL:                      env.GetString("GCP_HYDRATE_BASE_URL", ""),
+		listStoragePoolsPathTemplate: env.GetString(envListStoragePoolsPath, defaultListStoragePoolsPathTemplate),
+		httpClient:                   http.DefaultClient,
+		getToken:                     getToken,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -90,7 +105,7 @@ func NewClient(getToken func(context.Context) (string, error), opts ...ClientOpt
 // Location is typically a region (e.g. us-central1) or zone. Returns nil slice and nil error if base URL is empty (CCFE disabled).
 func (c *Client) ListStoragePools(ctx context.Context, projectID, location string) ([]string, error) {
 	logger := util.GetLogger(ctx)
-	relPath := fmt.Sprintf(listStoragePoolsPath, projectID, location)
+	relPath := fmt.Sprintf(c.listStoragePoolsPathTemplate, projectID, location)
 
 	if c.baseURL == "" {
 		logger.Infof("leaked resources CCFE: ListStoragePools skipped (GCP_HYDRATE_BASE_URL empty) project=%s location=%s path=%s",
