@@ -26,7 +26,7 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 	}
 	var roRules, rwRules string
 	roRules = models.ExportAuthenticationFlavorSys
-	rwRules = models.AnyAccessProtocol
+	rwRules = models.ExportAuthenticationFlavorAny
 	if utils.IsRuleKerberosSupported(rule.NFSv4, rule.Kerberos5ReadWrite, rule.Kerberos5ReadOnly, rule.Kerberos5pReadWrite,
 		rule.Kerberos5pReadOnly, rule.Kerberos5iReadOnly, rule.Kerberos5iReadWrite) {
 		roRules, rwRules = convertStorageExportPolicyAuthenticationFlavorToONTAP(rule)
@@ -37,9 +37,9 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 		rwRules = *nillable.ToPointer(models.ExportAuthenticationFlavorNever)
 	}
 
-	superUserRule := models.NoneAccessProtocol
+	superUserRule := models.ExportAuthenticationFlavorNone
 	if rule.Superuser {
-		superUserRule = models.AnyAccessProtocol
+		superUserRule = models.ExportAuthenticationFlavorAny
 	}
 	anonUser := models.RootAnonymousUser
 
@@ -49,6 +49,9 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 		if rule.AnonUid != nil {
 			anonUser = strconv.FormatInt(*rule.AnonUid, 10)
 		}
+		roRules = models.ExportAuthenticationFlavorNone
+		rwRules = models.ExportAuthenticationFlavorNone
+		superUserRule = models.ExportAuthenticationFlavorNone
 	} else if rule.AnonymousUser != "" {
 		anonUser = rule.AnonymousUser
 	}

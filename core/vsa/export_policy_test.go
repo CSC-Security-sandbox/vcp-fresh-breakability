@@ -899,11 +899,12 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabled(t *testing.T) {
 
 	got := convertStorageExportPolicyRuleToONTAP(rule)
 
+	// AllSquash semantics in ONTAP require ro/rw/superuser=none so every UID is mapped to anon.
 	expected := &ontapRest.ExportRule{
 		ClientMatch:      "10.0.0.0/24",
 		ChownMode:        models.ChownModeRestricted,
-		ReadOnlyRule:     models.ExportAuthenticationFlavorSys,
-		ReadWriteRule:    models.AnyAccessProtocol,
+		ReadOnlyRule:     models.NoneAccessProtocol,
+		ReadWriteRule:    models.NoneAccessProtocol,
 		SuperUserRule:    models.NoneAccessProtocol,
 		Index:            1,
 		NtfsUnixSecurity: *nillable.ToPointer("ignore"),
@@ -977,8 +978,8 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledWithZeroAnonUid(t
 	expected := &ontapRest.ExportRule{
 		ClientMatch:      "10.0.0.0/24",
 		ChownMode:        models.ChownModeRestricted,
-		ReadOnlyRule:     models.ExportAuthenticationFlavorSys,
-		ReadWriteRule:    models.AnyAccessProtocol,
+		ReadOnlyRule:     models.NoneAccessProtocol,
+		ReadWriteRule:    models.NoneAccessProtocol,
 		SuperUserRule:    models.NoneAccessProtocol,
 		Index:            1,
 		NtfsUnixSecurity: *nillable.ToPointer("ignore"),
@@ -1014,8 +1015,8 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledAnonUidTakesPrece
 	expected := &ontapRest.ExportRule{
 		ClientMatch:      "10.0.0.0/24",
 		ChownMode:        models.ChownModeRestricted,
-		ReadOnlyRule:     models.ExportAuthenticationFlavorSys,
-		ReadWriteRule:    models.AnyAccessProtocol,
+		ReadOnlyRule:     models.NoneAccessProtocol,
+		ReadWriteRule:    models.NoneAccessProtocol,
 		SuperUserRule:    models.NoneAccessProtocol,
 		Index:            1,
 		NtfsUnixSecurity: *nillable.ToPointer("ignore"),
@@ -2412,4 +2413,492 @@ func TestGetExportPolicyProtocols(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, protocols)
 	})
+}
+
+// squashRuleExpectation pins the ONTAP fields that decide NFS UID-mapping.
+type squashRuleExpectation struct {
+	roRule    string
+	rwRule    string
+	superuser string
+	anonUser  string
+}
+
+type squashCase struct {
+	name      string
+	superuser bool
+	allSquash *bool
+	anonUid   *int64
+	anonUser  string // legacy AnonymousUser, used only when AllSquash != true
+	want      squashRuleExpectation
+}
+
+func ptrBool(v bool) *bool    { return &v }
+func ptrInt64(v int64) *int64 { return &v }
+
+func squashCases() []squashCase {
+	return []squashCase{
+		{
+			name:      "NO_ROOT_SQUASH",
+			superuser: true,
+			want: squashRuleExpectation{
+				roRule:    models.ExportAuthenticationFlavorSys,
+				rwRule:    models.AnyAccessProtocol,
+				superuser: models.AnyAccessProtocol,
+				anonUser:  models.RootAnonymousUser,
+			},
+		},
+		{
+			name:      "ROOT_SQUASH",
+			superuser: false,
+			want: squashRuleExpectation{
+				roRule:    models.ExportAuthenticationFlavorSys,
+				rwRule:    models.AnyAccessProtocol,
+				superuser: models.NoneAccessProtocol,
+				anonUser:  models.RootAnonymousUser,
+			},
+		},
+		{
+			name:      "ALL_SQUASH",
+			superuser: false,
+			allSquash: ptrBool(true),
+			anonUid:   ptrInt64(2000),
+			want: squashRuleExpectation{
+				roRule:    models.NoneAccessProtocol,
+				rwRule:    models.NoneAccessProtocol,
+				superuser: models.NoneAccessProtocol,
+				anonUser:  "2000",
+			},
+		},
+		{
+			name:      "LEGACY_ANON_USER_FALLBACK",
+			superuser: true,
+			anonUser:  "nobody",
+			want: squashRuleExpectation{
+				roRule:    models.ExportAuthenticationFlavorSys,
+				rwRule:    models.AnyAccessProtocol,
+				superuser: models.AnyAccessProtocol,
+				anonUser:  "nobody",
+			},
+		},
+	}
+}
+
+func assertSquashRule(t *testing.T, got *ontapRest.ExportRule, want squashRuleExpectation, msg string) {
+	t.Helper()
+	assert.Equal(t, want.roRule, got.ReadOnlyRule, "%s: ro_rule", msg)
+	assert.Equal(t, want.rwRule, got.ReadWriteRule, "%s: rw_rule", msg)
+	assert.Equal(t, want.superuser, got.SuperUserRule, "%s: superuser", msg)
+	assert.Equal(t, want.anonUser, got.AnonymousUser, "%s: anonymous_user", msg)
+}
+
+func TestConvertStorageExportPolicyRuleToONTAP_SquashModeMatrix(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	protocolMixes := []struct {
+		name  string
+		nfsv3 bool
+		nfsv4 bool
+	}{
+		{"NFSv3", true, false},
+		{"NFSv4", false, true},
+		{"NFSv3_and_NFSv4", true, true},
+	}
+
+	for _, pm := range protocolMixes {
+		for _, sc := range squashCases() {
+			t.Run(pm.name+"/"+sc.name, func(t *testing.T) {
+				rule := ExportRule{
+					AllowedClients: "0.0.0.0/0",
+					Index:          1,
+					NFSv3:          pm.nfsv3,
+					NFSv4:          pm.nfsv4,
+					Superuser:      sc.superuser,
+					AllSquash:      sc.allSquash,
+					AnonUid:        sc.anonUid,
+					AnonymousUser:  sc.anonUser,
+				}
+				got := convertStorageExportPolicyRuleToONTAP(rule)
+				assertSquashRule(t, got, sc.want, sc.name)
+				// The emitted rule must be NFS-only; SMB access is governed
+				// by share ACLs, not by export policy.
+				assert.NotContains(t, got.Protocols, utils.GetOntapValue(utils.ProtocolSMB))
+			})
+		}
+	}
+}
+
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashDualProtocolEmitsNFSOnlyRule(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	rule := ExportRule{
+		AllowedClients: "10.0.0.0/24",
+		Index:          1,
+		NFSv3:          true,
+		CIFS:           false,
+		Superuser:      false,
+		AllSquash:      ptrBool(true),
+		AnonUid:        ptrInt64(2000),
+	}
+
+	got := convertStorageExportPolicyRuleToONTAP(rule)
+
+	assertSquashRule(t, got, squashRuleExpectation{
+		roRule:    models.NoneAccessProtocol,
+		rwRule:    models.NoneAccessProtocol,
+		superuser: models.NoneAccessProtocol,
+		anonUser:  "2000",
+	}, "dual-protocol all_squash")
+
+	assert.ElementsMatch(t,
+		[]string{utils.GetOntapValue(utils.ProtocolNFSv3)},
+		got.Protocols,
+	)
+}
+
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashOverridesSuperuser(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	rule := ExportRule{
+		AllowedClients: "0.0.0.0/0",
+		Index:          1,
+		NFSv3:          true,
+		Superuser:      true,
+		AllSquash:      ptrBool(true),
+		AnonUid:        ptrInt64(2000),
+	}
+	got := convertStorageExportPolicyRuleToONTAP(rule)
+
+	assert.Equal(t, models.NoneAccessProtocol, got.SuperUserRule)
+	assert.Equal(t, models.NoneAccessProtocol, got.ReadOnlyRule)
+	assert.Equal(t, models.NoneAccessProtocol, got.ReadWriteRule)
+	assert.Equal(t, "2000", got.AnonymousUser)
+}
+
+// With IS_ALL_SQUASH_ENABLED off, AllSquash is ignored and the rule
+// reverts to legacy semantics (ro=sys, rw=any, AnonymousUser used as-is).
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashFlagDisabled(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(false)
+
+	rule := ExportRule{
+		AllowedClients: "0.0.0.0/0",
+		Index:          1,
+		NFSv3:          true,
+		Superuser:      false,
+		AllSquash:      ptrBool(true),
+		AnonUid:        ptrInt64(2000),
+		AnonymousUser:  "nobody",
+	}
+	got := convertStorageExportPolicyRuleToONTAP(rule)
+
+	assert.Equal(t, models.ExportAuthenticationFlavorSys, got.ReadOnlyRule)
+	assert.Equal(t, models.AnyAccessProtocol, got.ReadWriteRule)
+	assert.Equal(t, models.NoneAccessProtocol, got.SuperUserRule)
+	assert.Equal(t, "nobody", got.AnonymousUser)
+}
+
+// stubDefaultExportPolicy returns a minimal default ExportPolicy that
+// satisfies ExportPolicyEnsureDefault.
+func stubDefaultExportPolicy() *ontapRest.ExportPolicy {
+	return &ontapRest.ExportPolicy{
+		ExportPolicy: ontaprestmodels.ExportPolicy{
+			ID: nillable.ToPointer(int64(123)),
+			ExportPolicyInlineRules: []*ontaprestmodels.ExportRules{
+				{
+					ExportRulesInlineClients: []*ontaprestmodels.ExportClients{
+						{Match: nillable.ToPointer(models.AllowedAllClients)},
+					},
+					Index:     nillable.ToPointer(int64(models.DefaultIndexExportPolicyRule)),
+					ChownMode: nillable.ToPointer(models.ChownModeRestricted),
+					Protocols: []*string{nillable.ToPointer(utils.GetOntapValue(utils.ProtocolNFS))},
+					ExportRulesInlineRoRule: []*ontaprestmodels.ExportAuthenticationFlavor{
+						(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys)),
+					},
+					ExportRulesInlineRwRule: []*ontaprestmodels.ExportAuthenticationFlavor{
+						(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys)),
+					},
+					ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{
+						(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone)),
+					},
+				},
+			},
+		},
+	}
+}
+
+// *ontapRest.ExportPolicyCreateParams handed to the ONTAP REST client for each squash mode.
+func TestCreateExportPolicy_SquashModeMatrix(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	for _, sc := range squashCases() {
+		t.Run(sc.name, func(t *testing.T) {
+			mockNASClient := new(MockNASClient)
+			mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+			origFunc := getOntapClientFunc
+			defer func() { getOntapClientFunc = origFunc }()
+			getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			}
+
+			mockNASClient.On("ExportPolicyGet", mock.Anything).Return(stubDefaultExportPolicy(), nil)
+
+			var captured *ontapRest.ExportPolicyCreateParams
+			mockNASClient.On("ExportPolicyCreate", mock.Anything).Run(func(args mock.Arguments) {
+				captured = args.Get(0).(*ontapRest.ExportPolicyCreateParams)
+			}).Return("policy-id", nil)
+
+			rc := &OntapRestProvider{Logger: log.NewLogger()}
+			err := rc.CreateExportPolicy(&ExportPolicy{
+				ExportPolicyName: "p",
+				SvmName:          "svm",
+				ExportRules: []*ExportRule{
+					{
+						AllowedClients: "0.0.0.0/0",
+						Index:          1,
+						NFSv3:          true,
+						Superuser:      sc.superuser,
+						AllSquash:      sc.allSquash,
+						AnonUid:        sc.anonUid,
+						AnonymousUser:  sc.anonUser,
+					},
+				},
+			})
+
+			assert.NoError(t, err)
+			if !assert.NotNil(t, captured, "ExportPolicyCreate must be invoked") {
+				return
+			}
+			if !assert.Len(t, captured.Rules, 1) {
+				return
+			}
+			assertSquashRule(t, captured.Rules[0], sc.want, sc.name)
+			mockNASClient.AssertExpectations(t)
+		})
+	}
+}
+
+// modify-path counterpart to TestCreateExportPolicy_SquashModeMatrix.
+func TestOntapRestProvider_UpdateExportPolicyRules_SquashModeMatrix(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	for _, sc := range squashCases() {
+		t.Run(sc.name, func(t *testing.T) {
+			mockNASClient := new(MockNASClient)
+			mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+			origFunc := getOntapClientFunc
+			defer func() { getOntapClientFunc = origFunc }()
+			getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			}
+
+			existing := &ontapRest.ExportPolicy{
+				ExportPolicy: ontaprestmodels.ExportPolicy{
+					ID: nillable.ToPointer(int64(456)),
+				},
+			}
+			mockNASClient.On("ExportPolicyGet", mock.Anything).Return(existing, nil)
+
+			var captured *ontapRest.ExportPolicyModifyParams
+			mockNASClient.On("ExportPolicyModify", mock.Anything).Run(func(args mock.Arguments) {
+				captured = args.Get(0).(*ontapRest.ExportPolicyModifyParams)
+			}).Return(nil)
+
+			rc := &OntapRestProvider{Logger: log.NewLogger()}
+			err := rc.UpdateExportPolicyRules(UpdateExportPolicyRulesParams{
+				SvmName: "svm",
+				ExportPolicy: &ExportPolicy{
+					ExportPolicyName: "p",
+					ExportRules: []*ExportRule{
+						{
+							AllowedClients: "0.0.0.0/0",
+							Index:          1,
+							NFSv3:          true,
+							Superuser:      sc.superuser,
+							AllSquash:      sc.allSquash,
+							AnonUid:        sc.anonUid,
+							AnonymousUser:  sc.anonUser,
+						},
+					},
+				},
+			})
+
+			assert.NoError(t, err)
+			if !assert.NotNil(t, captured, "ExportPolicyModify must be invoked") {
+				return
+			}
+			if !assert.Len(t, captured.Rules, 1) {
+				return
+			}
+			assertSquashRule(t, captured.Rules[0], sc.want, sc.name)
+			mockNASClient.AssertExpectations(t)
+		})
+	}
+}
+
+// asserts that anonUid=0 (a valid UID) is honored as anonymous_user="0", not replaced by "root".
+func TestCreateExportPolicy_AllSquashAnonUidZero(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	mockNASClient := new(MockNASClient)
+	mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+	origFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = origFunc }()
+	getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockRESTClient, nil
+	}
+
+	mockNASClient.On("ExportPolicyGet", mock.Anything).Return(stubDefaultExportPolicy(), nil)
+
+	var captured *ontapRest.ExportPolicyCreateParams
+	mockNASClient.On("ExportPolicyCreate", mock.Anything).Run(func(args mock.Arguments) {
+		captured = args.Get(0).(*ontapRest.ExportPolicyCreateParams)
+	}).Return("policy-id", nil)
+
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
+	err := rc.CreateExportPolicy(&ExportPolicy{
+		ExportPolicyName: "p",
+		SvmName:          "svm",
+		ExportRules: []*ExportRule{{
+			AllowedClients: "0.0.0.0/0",
+			Index:          1,
+			NFSv3:          true,
+			Superuser:      false,
+			AllSquash:      ptrBool(true),
+			AnonUid:        ptrInt64(0),
+		}},
+	})
+
+	assert.NoError(t, err)
+	if assert.NotNil(t, captured) && assert.Len(t, captured.Rules, 1) {
+		assertSquashRule(t, captured.Rules[0], squashRuleExpectation{
+			roRule:    models.NoneAccessProtocol,
+			rwRule:    models.NoneAccessProtocol,
+			superuser: models.NoneAccessProtocol,
+			anonUser:  "0",
+		}, "anonUid=0")
+	}
+}
+
+func TestCreateExportPolicy_AllSquashAnonUidNil(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	mockNASClient := new(MockNASClient)
+	mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+	origFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = origFunc }()
+	getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockRESTClient, nil
+	}
+
+	mockNASClient.On("ExportPolicyGet", mock.Anything).Return(stubDefaultExportPolicy(), nil)
+
+	var captured *ontapRest.ExportPolicyCreateParams
+	mockNASClient.On("ExportPolicyCreate", mock.Anything).Run(func(args mock.Arguments) {
+		captured = args.Get(0).(*ontapRest.ExportPolicyCreateParams)
+	}).Return("policy-id", nil)
+
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
+	err := rc.CreateExportPolicy(&ExportPolicy{
+		ExportPolicyName: "p",
+		SvmName:          "svm",
+		ExportRules: []*ExportRule{{
+			AllowedClients: "0.0.0.0/0",
+			Index:          1,
+			NFSv3:          true,
+			Superuser:      false,
+			AllSquash:      ptrBool(true),
+			AnonUid:        nil,
+		}},
+	})
+
+	assert.NoError(t, err)
+	if assert.NotNil(t, captured) && assert.Len(t, captured.Rules, 1) {
+		assert.Equal(t, models.NoneAccessProtocol, captured.Rules[0].ReadOnlyRule, "ro_rule")
+		assert.Equal(t, models.NoneAccessProtocol, captured.Rules[0].ReadWriteRule, "rw_rule")
+		assert.Equal(t, models.NoneAccessProtocol, captured.Rules[0].SuperUserRule, "superuser")
+		assert.Equal(t, models.RootAnonymousUser, captured.Rules[0].AnonymousUser, "anonymous_user")
+	}
+}
+
+func TestCreateExportPolicy_MultiRuleWithSingleAllSquash(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	mockNASClient := new(MockNASClient)
+	mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+	origFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = origFunc }()
+	getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockRESTClient, nil
+	}
+
+	mockNASClient.On("ExportPolicyGet", mock.Anything).Return(stubDefaultExportPolicy(), nil)
+
+	var captured *ontapRest.ExportPolicyCreateParams
+	mockNASClient.On("ExportPolicyCreate", mock.Anything).Run(func(args mock.Arguments) {
+		captured = args.Get(0).(*ontapRest.ExportPolicyCreateParams)
+	}).Return("policy-id", nil)
+
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
+	err := rc.CreateExportPolicy(&ExportPolicy{
+		ExportPolicyName: "p",
+		SvmName:          "svm",
+		ExportRules: []*ExportRule{
+			{
+				AllowedClients: "10.0.0.0/8",
+				Index:          1,
+				NFSv3:          true,
+				Superuser:      true,
+			},
+			{
+				AllowedClients: "0.0.0.0/0",
+				Index:          2,
+				NFSv3:          true,
+				Superuser:      false,
+				AllSquash:      ptrBool(true),
+				AnonUid:        ptrInt64(2000),
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+	if !assert.NotNil(t, captured) || !assert.Len(t, captured.Rules, 2) {
+		return
+	}
+
+	assertSquashRule(t, captured.Rules[0], squashRuleExpectation{
+		roRule:    models.ExportAuthenticationFlavorSys,
+		rwRule:    models.AnyAccessProtocol,
+		superuser: models.AnyAccessProtocol,
+		anonUser:  models.RootAnonymousUser,
+	}, "rule[0] no_root_squash")
+	assert.Equal(t, "10.0.0.0/8", captured.Rules[0].ClientMatch)
+	assert.EqualValues(t, 1, captured.Rules[0].Index)
+
+	assertSquashRule(t, captured.Rules[1], squashRuleExpectation{
+		roRule:    models.NoneAccessProtocol,
+		rwRule:    models.NoneAccessProtocol,
+		superuser: models.NoneAccessProtocol,
+		anonUser:  "2000",
+	}, "rule[1] all_squash")
+	assert.Equal(t, "0.0.0.0/0", captured.Rules[1].ClientMatch)
+	assert.EqualValues(t, 2, captured.Rules[1].Index)
 }

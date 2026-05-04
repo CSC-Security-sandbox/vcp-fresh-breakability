@@ -83,8 +83,9 @@ const (
 	NoneAccessProtocol              = "none"
 	ExportAuthenticationFlavorNever = "never"
 	// ExportAuthenticationFlavorAny captures enum value "any"
-	ExportAuthenticationFlavorAny = "any"
-	ExportAuthenticationFlavorSys = "Sys"
+	ExportAuthenticationFlavorAny  = "any"
+	ExportAuthenticationFlavorNone = "none"
+	ExportAuthenticationFlavorSys  = "Sys"
 	// ExportAuthenticationFlavorKrb5 captures enum value "krb5"
 	ExportAuthenticationFlavorKrb5 = "krb5"
 

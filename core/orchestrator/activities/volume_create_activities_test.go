@@ -4925,6 +4925,156 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 	})
 }
 
+// Tests to make sure that Superuser, AllSquash, AnonUid, and AnonymousUser passes through &
+// datamodel.ExportRule -> vsa.ExportRule conversion handed to the provider.
+func TestCreateExportPolicyInOntap_PropagatesSquashFields(t *testing.T) {
+	allSquashTrue := true
+	anonUid2000 := int64(2000)
+	anonUid0 := int64(0)
+
+	cases := []struct {
+		name          string
+		input         *datamodel.ExportRule
+		wantSuperuser bool
+		wantAllSquash *bool
+		wantAnonUid   *int64
+		wantAnonUser  string
+	}{
+		{
+			name: "NO_ROOT_SQUASH",
+			input: &datamodel.ExportRule{
+				AllowedClients: "0.0.0.0/0",
+				AccessType:     "ReadWrite",
+				NFSv3:          true,
+				Index:          1,
+				Superuser:      true,
+			},
+			wantSuperuser: true,
+		},
+		{
+			name: "ROOT_SQUASH",
+			input: &datamodel.ExportRule{
+				AllowedClients: "0.0.0.0/0",
+				AccessType:     "ReadWrite",
+				NFSv3:          true,
+				Index:          1,
+				Superuser:      false,
+			},
+			wantSuperuser: false,
+		},
+		{
+			name: "ALL_SQUASH_anonUid_2000",
+			input: &datamodel.ExportRule{
+				AllowedClients: "0.0.0.0/0",
+				AccessType:     "ReadWrite",
+				NFSv3:          true,
+				Index:          1,
+				Superuser:      false,
+				AllSquash:      &allSquashTrue,
+				AnonUid:        &anonUid2000,
+			},
+			wantSuperuser: false,
+			wantAllSquash: &allSquashTrue,
+			wantAnonUid:   &anonUid2000,
+		},
+		{
+			name: "ALL_SQUASH_anonUid_0",
+			input: &datamodel.ExportRule{
+				AllowedClients: "0.0.0.0/0",
+				AccessType:     "ReadWrite",
+				NFSv3:          true,
+				Index:          1,
+				Superuser:      false,
+				AllSquash:      &allSquashTrue,
+				AnonUid:        &anonUid0,
+			},
+			wantSuperuser: false,
+			wantAllSquash: &allSquashTrue,
+			wantAnonUid:   &anonUid0,
+		},
+		{
+			name: "LEGACY_ANON_USER",
+			input: &datamodel.ExportRule{
+				AllowedClients: "0.0.0.0/0",
+				AccessType:     "ReadWrite",
+				NFSv3:          true,
+				Index:          1,
+				Superuser:      true,
+				AnonymousUser:  "nobody",
+			},
+			wantSuperuser: true,
+			wantAnonUser:  "nobody",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			testSuite := &testsuite.WorkflowTestSuite{}
+			env := testSuite.NewTestActivityEnvironment()
+
+			mockStorage := database.NewMockStorage(t)
+			activity := activities.VolumeCreateActivity{SE: mockStorage}
+			env.RegisterActivity(activity.CreateExportPolicyInOntap)
+
+			mockProvider := vsa.NewMockProvider(t)
+			originalGetProviderByNode := hyperscaler2.GetProviderByNode
+			defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+			hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				return mockProvider, nil
+			}
+
+			volume := &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					FileProperties: &datamodel.FileProperties{
+						ExportPolicy: &datamodel.ExportPolicy{
+							ExportPolicyName: "p",
+							ExportRules:      []*datamodel.ExportRule{tc.input},
+						},
+					},
+				},
+				Svm: &datamodel.Svm{Name: "svm"},
+			}
+			node := &models.Node{Name: "n", EndpointAddress: "127.0.0.1"}
+
+			var captured *vsa.ExportPolicy
+			mockProvider.EXPECT().CreateExportPolicy(mock.MatchedBy(func(p *vsa.ExportPolicy) bool {
+				captured = p
+				return true
+			})).Return(nil)
+
+			_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
+			assert.NoError(t, err)
+
+			if !assert.NotNil(t, captured) || !assert.Len(t, captured.ExportRules, 1) {
+				return
+			}
+			got := captured.ExportRules[0]
+
+			assert.Equal(t, tc.input.AllowedClients, got.AllowedClients)
+			assert.Equal(t, tc.input.NFSv3, got.NFSv3)
+			assert.Equal(t, tc.wantSuperuser, got.Superuser, "Superuser must be propagated")
+
+			if tc.wantAllSquash == nil {
+				assert.Nil(t, got.AllSquash, "AllSquash must remain nil when not set")
+			} else {
+				if assert.NotNil(t, got.AllSquash, "AllSquash must be propagated") {
+					assert.Equal(t, *tc.wantAllSquash, *got.AllSquash)
+				}
+			}
+
+			if tc.wantAnonUid == nil {
+				assert.Nil(t, got.AnonUid, "AnonUid must remain nil when not set")
+			} else {
+				if assert.NotNil(t, got.AnonUid, "AnonUid must be propagated") {
+					assert.Equal(t, *tc.wantAnonUid, *got.AnonUid)
+				}
+			}
+
+			assert.Equal(t, tc.wantAnonUser, got.AnonymousUser)
+		})
+	}
+}
+
 func TestConfigureLdap(t *testing.T) {
 	t.Run("Skip_NonFileVolume", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
