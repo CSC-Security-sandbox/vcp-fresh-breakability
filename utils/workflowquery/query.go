@@ -46,15 +46,20 @@ type WorkflowError struct {
 }
 
 type OCICreatePoolVMMetadata struct {
-	Name            string `json:"name,omitempty"`
-	SerialNumber    string `json:"serialNumber,omitempty"`
-	VSAManagementIP string `json:"vsaManagementIP,omitempty"`
-	InterclusterIP  string `json:"interclusterIP,omitempty"`
-	NodeIP          string `json:"nodeIP,omitempty"`
+	Name            string
+	SerialNumber    string
+	VSAManagementIP string
+	InterclusterIP  string
+	NodeIP          string
+	HAPair          string
+	IOPS            int64
+	ThroughputGBps  float64
+	SizeInGiB       int64
 }
 
 type OCICreatePoolMetadata struct {
-	Vms []OCICreatePoolVMMetadata `json:"vms,omitempty"`
+	PoolUUID string                    `json:"poolUUID,omitempty"`
+	Vms      []OCICreatePoolVMMetadata `json:"vms,omitempty"`
 }
 
 type OCICreateSVMLifMetadata struct {

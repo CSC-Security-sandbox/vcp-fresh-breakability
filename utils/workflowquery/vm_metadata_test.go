@@ -80,7 +80,11 @@ func TestPoolVMMetadataFromEmbed(t *testing.T) {
           "lifs": {
             "intercluster": { "ip": "10.38.25.146" },
             "nodemgmtinternal": { "ip": "10.38.18.182" }
-          }
+          },
+          "data_disks": [
+            { "size": 50, "disk_iops": 1500, "disk_throughput": 954 },
+            { "size": 50, "disk_iops": 1500, "disk_throughput": 954 }
+          ]
         },
         "vm2": {
           "name": "vm-02",
@@ -89,7 +93,59 @@ func TestPoolVMMetadataFromEmbed(t *testing.T) {
           "lifs": {
             "intercluster": { "ip": "10.38.1.218" },
             "nodemgmtinternal": { "ip": "10.38.5.224" }
-          }
+          },
+          "data_disks": [
+            { "size": 100, "disk_iops": 3000, "disk_throughput": 1908 }
+          ]
+        }
+      }
+    ]
+  }
+}`
+	var cfg vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
+	expectedThroughputGBps := float64(1908) / MiBpsPerGBps
+	require.Equal(t, []OCICreatePoolVMMetadata{
+		{
+			Name:            "vm-01",
+			SerialNumber:    "1234501",
+			VSAManagementIP: "150.136.212.147",
+			InterclusterIP:  "10.38.25.146",
+			NodeIP:          "10.38.18.182",
+			HAPair:          "ha_pair-0",
+			SizeInGiB:       100,
+			IOPS:            3000,
+			ThroughputGBps:  expectedThroughputGBps,
+		},
+		{
+			Name:            "vm-02",
+			SerialNumber:    "1234502",
+			VSAManagementIP: "158.101.109.167",
+			InterclusterIP:  "10.38.1.218",
+			NodeIP:          "10.38.5.224",
+			HAPair:          "ha_pair-0",
+			SizeInGiB:       100,
+			IOPS:            3000,
+			ThroughputGBps:  expectedThroughputGBps,
+		},
+	}, poolVMMetadataFromEmbed(&cfg))
+}
+
+func TestPoolVMMetadataFromEmbed_NoDataDisks(t *testing.T) {
+	t.Parallel()
+	const snippet = `{
+  "cloud": {
+    "ha_pair": [
+      {
+        "vm1": {
+          "name": "vm-01",
+          "serial_number": "1234501",
+          "vsa_management_ip": "150.136.212.147",
+          "lifs": {
+            "intercluster": { "ip": "10.38.25.146" },
+            "nodemgmtinternal": { "ip": "10.38.18.182" }
+          },
+          "data_disks": null
         }
       }
     ]
@@ -104,15 +160,62 @@ func TestPoolVMMetadataFromEmbed(t *testing.T) {
 			VSAManagementIP: "150.136.212.147",
 			InterclusterIP:  "10.38.25.146",
 			NodeIP:          "10.38.18.182",
-		},
-		{
-			Name:            "vm-02",
-			SerialNumber:    "1234502",
-			VSAManagementIP: "158.101.109.167",
-			InterclusterIP:  "10.38.1.218",
-			NodeIP:          "10.38.5.224",
+			HAPair:          "ha_pair-0",
 		},
 	}, poolVMMetadataFromEmbed(&cfg))
+}
+
+func TestPoolUUIDFromEmbed(t *testing.T) {
+	t.Parallel()
+	require.Empty(t, poolUUIDFromEmbed(nil), "nil cfg returns empty UUID")
+
+	const withLabels = `{
+  "cloud": { "ha_pair": [] },
+  "deployment": {
+    "labels": {
+      "pool_ocid": "ocid1.pool.oc1.ashburn-1.testpool",
+      "pool_uuid": "b5fb9baf-953b-9c65-19d5-31e3365cc2e3",
+      "pool_name": "testpool"
+    }
+  }
+}`
+	var cfg vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(withLabels), &cfg))
+	require.Equal(t, "b5fb9baf-953b-9c65-19d5-31e3365cc2e3", poolUUIDFromEmbed(&cfg))
+
+	const withoutLabels = `{ "cloud": { "ha_pair": [] } }`
+	var cfg2 vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(withoutLabels), &cfg2))
+	require.Empty(t, poolUUIDFromEmbed(&cfg2), "missing deployment.labels returns empty UUID")
+}
+
+// TestPoolVMMetadataFromEmbed_HAPairIndexing verifies that HAPair labels are
+// assigned by zero-based pair index (ha_pair-0, ha_pair-1, ...) and that both
+// VMs in the same pair share the same label.
+func TestPoolVMMetadataFromEmbed_HAPairIndexing(t *testing.T) {
+	t.Parallel()
+	const snippet = `{
+  "cloud": {
+    "ha_pair": [
+      {
+        "vm1": { "name": "vm-01", "lifs": { "intercluster": { "ip": "10.0.0.1" } } },
+        "vm2": { "name": "vm-02", "lifs": { "intercluster": { "ip": "10.0.0.2" } } }
+      },
+      {
+        "vm1": { "name": "vm-03", "lifs": { "intercluster": { "ip": "10.0.0.3" } } },
+        "vm2": { "name": "vm-04", "lifs": { "intercluster": { "ip": "10.0.0.4" } } }
+      }
+    ]
+  }
+}`
+	var cfg vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
+	got := poolVMMetadataFromEmbed(&cfg)
+	require.Len(t, got, 4)
+	require.Equal(t, "ha_pair-0", got[0].HAPair, "vm1 of pair 0 must be ha_pair-0")
+	require.Equal(t, "ha_pair-0", got[1].HAPair, "vm2 of pair 0 must be ha_pair-0")
+	require.Equal(t, "ha_pair-1", got[2].HAPair, "vm1 of pair 1 must be ha_pair-1")
+	require.Equal(t, "ha_pair-1", got[3].HAPair, "vm2 of pair 1 must be ha_pair-1")
 }
 
 func TestPoolVMMetadataFromEmbed_VM2Omitted(t *testing.T) {
@@ -143,6 +246,7 @@ func TestPoolVMMetadataFromEmbed_VM2Omitted(t *testing.T) {
 			VSAManagementIP: "150.136.212.147",
 			InterclusterIP:  "10.38.25.146",
 			NodeIP:          "10.38.18.182",
+			HAPair:          "ha_pair-0",
 		},
 	}, poolVMMetadataFromEmbed(&cfg))
 }

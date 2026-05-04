@@ -50,6 +50,28 @@ func (s *CreatePoolRequest) SetFake() {
 	}
 	{
 		{
+			s.ThroughputGBps = float64(0)
+		}
+	}
+	{
+		{
+			s.DataEndpointCount = int64(0)
+		}
+	}
+	{
+		{
+			s.DataEndpointConfig = nil
+			for i := 0; i < 2; i++ {
+				var elem DataEndpointConfig
+				{
+					elem.SetFake()
+				}
+				s.DataEndpointConfig = append(s.DataEndpointConfig, elem)
+			}
+		}
+	}
+	{
+		{
 			s.PrimaryAvailabilityDomain = "string"
 		}
 	}
@@ -61,16 +83,6 @@ func (s *CreatePoolRequest) SetFake() {
 	{
 		{
 			s.MediatorAvailabilityDomain.SetFake()
-		}
-	}
-	{
-		{
-			s.ThroughputGBps = float64(0)
-		}
-	}
-	{
-		{
-			s.Iops = int64(0)
 		}
 	}
 	{
@@ -136,6 +148,25 @@ func (s *CreateSvmRequest) SetFake() {
 				}
 				s.Ips = append(s.Ips, elem)
 			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *DataEndpointConfig) SetFake() {
+	{
+		{
+			s.SizeInGiB = int64(0)
+		}
+	}
+	{
+		{
+			s.ThroughputGBps = float64(0)
+		}
+	}
+	{
+		{
+			s.Iops = int64(0)
 		}
 	}
 }
@@ -308,6 +339,31 @@ func (s *OCICreatePoolWorkflowVM) SetFake() {
 	{
 		{
 			s.NodeIP = "string"
+		}
+	}
+	{
+		{
+			s.NodeUUID = "string"
+		}
+	}
+	{
+		{
+			s.HaPair = "string"
+		}
+	}
+	{
+		{
+			s.SizeInGiB = int64(0)
+		}
+	}
+	{
+		{
+			s.Iops = int64(0)
+		}
+	}
+	{
+		{
+			s.ThroughputGBps = float64(0)
 		}
 	}
 }

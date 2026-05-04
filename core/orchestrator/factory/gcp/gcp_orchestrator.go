@@ -1,7 +1,11 @@
 package gcp
 
 import (
+	"context"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"go.temporal.io/sdk/client"
 )
 
@@ -17,4 +21,11 @@ func NewGCPOrchestrator(storage database.Storage, temporalClient client.Client) 
 		storage:  storage,
 		temporal: temporalClient,
 	}
+}
+
+// GetNodesByPoolUUID is not implemented for GCP; the OCI workflow response is
+// the only consumer of this lookup today. Wired into the interface so the GCP
+// orchestrator continues to satisfy OrchestratorFactory.
+func (o *GCPOrchestrator) GetNodesByPoolUUID(_ context.Context, _ string) ([]*datamodel.Node, error) {
+	return nil, customerrors.NewNotImplementedYetErr()
 }

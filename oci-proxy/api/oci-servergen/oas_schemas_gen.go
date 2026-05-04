@@ -144,18 +144,23 @@ type CreatePoolRequest struct {
 	// OCI subnet OCID for the pool. This is the service subnet in your VCN where pool resources will be
 	// placed.
 	SubnetId string `json:"subnetId"`
-	// Total pool capacity in GiB. Typically a multiple of 1 TiB.
+	// Total pool capacity in GiB across all HA pairs. The service distributes this
+	// capacity across the underlying nodes. Typically a multiple of 1 TiB.
 	SizeInGiB int64 `json:"sizeInGiB"`
+	// Total target throughput for the pool in GBps across all HA pairs.
+	ThroughputGBps float64 `json:"throughputGBps"`
+	// Number of data endpoints to provision for the pool. Must be >= 2
+	// and a multiple of 2.
+	DataEndpointCount int64 `json:"dataEndpointCount"`
+	// Optional per-node capacity and performance configuration. When provided, must
+	// contain an even number of entries — exactly 2 per HA pair.
+	DataEndpointConfig []DataEndpointConfig `json:"dataEndpointConfig"`
 	// Availability domain for the primary HA node (e.g. IMtu:EU-FRANKFURT-1-AD-1).
 	PrimaryAvailabilityDomain string `json:"primaryAvailabilityDomain"`
 	// Availability domain for the secondary HA node. Required for HA deployments.
 	SecondaryAvailabilityDomain OptString `json:"secondaryAvailabilityDomain"`
 	// Availability domain for the mediator VM. Required for HA deployments.
 	MediatorAvailabilityDomain OptString `json:"mediatorAvailabilityDomain"`
-	// Total pool throughput in GBps.
-	ThroughputGBps float64 `json:"throughputGBps"`
-	// Target IOPS for the pool.
-	Iops int64 `json:"iops"`
 	// OCI secret reference for admin password.
 	OciAdminPassword OCIOCIDVersionRef `json:"ociAdminPassword"`
 	// Optional description for the pool.
@@ -189,6 +194,21 @@ func (s *CreatePoolRequest) GetSizeInGiB() int64 {
 	return s.SizeInGiB
 }
 
+// GetThroughputGBps returns the value of ThroughputGBps.
+func (s *CreatePoolRequest) GetThroughputGBps() float64 {
+	return s.ThroughputGBps
+}
+
+// GetDataEndpointCount returns the value of DataEndpointCount.
+func (s *CreatePoolRequest) GetDataEndpointCount() int64 {
+	return s.DataEndpointCount
+}
+
+// GetDataEndpointConfig returns the value of DataEndpointConfig.
+func (s *CreatePoolRequest) GetDataEndpointConfig() []DataEndpointConfig {
+	return s.DataEndpointConfig
+}
+
 // GetPrimaryAvailabilityDomain returns the value of PrimaryAvailabilityDomain.
 func (s *CreatePoolRequest) GetPrimaryAvailabilityDomain() string {
 	return s.PrimaryAvailabilityDomain
@@ -202,16 +222,6 @@ func (s *CreatePoolRequest) GetSecondaryAvailabilityDomain() OptString {
 // GetMediatorAvailabilityDomain returns the value of MediatorAvailabilityDomain.
 func (s *CreatePoolRequest) GetMediatorAvailabilityDomain() OptString {
 	return s.MediatorAvailabilityDomain
-}
-
-// GetThroughputGBps returns the value of ThroughputGBps.
-func (s *CreatePoolRequest) GetThroughputGBps() float64 {
-	return s.ThroughputGBps
-}
-
-// GetIops returns the value of Iops.
-func (s *CreatePoolRequest) GetIops() int64 {
-	return s.Iops
 }
 
 // GetOciAdminPassword returns the value of OciAdminPassword.
@@ -254,6 +264,21 @@ func (s *CreatePoolRequest) SetSizeInGiB(val int64) {
 	s.SizeInGiB = val
 }
 
+// SetThroughputGBps sets the value of ThroughputGBps.
+func (s *CreatePoolRequest) SetThroughputGBps(val float64) {
+	s.ThroughputGBps = val
+}
+
+// SetDataEndpointCount sets the value of DataEndpointCount.
+func (s *CreatePoolRequest) SetDataEndpointCount(val int64) {
+	s.DataEndpointCount = val
+}
+
+// SetDataEndpointConfig sets the value of DataEndpointConfig.
+func (s *CreatePoolRequest) SetDataEndpointConfig(val []DataEndpointConfig) {
+	s.DataEndpointConfig = val
+}
+
 // SetPrimaryAvailabilityDomain sets the value of PrimaryAvailabilityDomain.
 func (s *CreatePoolRequest) SetPrimaryAvailabilityDomain(val string) {
 	s.PrimaryAvailabilityDomain = val
@@ -267,16 +292,6 @@ func (s *CreatePoolRequest) SetSecondaryAvailabilityDomain(val OptString) {
 // SetMediatorAvailabilityDomain sets the value of MediatorAvailabilityDomain.
 func (s *CreatePoolRequest) SetMediatorAvailabilityDomain(val OptString) {
 	s.MediatorAvailabilityDomain = val
-}
-
-// SetThroughputGBps sets the value of ThroughputGBps.
-func (s *CreatePoolRequest) SetThroughputGBps(val float64) {
-	s.ThroughputGBps = val
-}
-
-// SetIops sets the value of Iops.
-func (s *CreatePoolRequest) SetIops(val int64) {
-	s.Iops = val
 }
 
 // SetOciAdminPassword sets the value of OciAdminPassword.
@@ -495,6 +510,47 @@ func (s *CreateSvmRequest) SetSvmAdminPassword(val OCIOCIDVersionRef) {
 // SetIps sets the value of Ips.
 func (s *CreateSvmRequest) SetIps(val []string) {
 	s.Ips = val
+}
+
+// Per-node capacity and performance configuration.
+// Ref: #/components/schemas/DataEndpointConfig
+type DataEndpointConfig struct {
+	// Capacity for this node in GiB. Typically a multiple of 1 TiB.
+	SizeInGiB int64 `json:"sizeInGiB"`
+	// Throughput for this node in GBps.
+	ThroughputGBps float64 `json:"throughputGBps"`
+	// IOPS for the node.
+	Iops int64 `json:"iops"`
+}
+
+// GetSizeInGiB returns the value of SizeInGiB.
+func (s *DataEndpointConfig) GetSizeInGiB() int64 {
+	return s.SizeInGiB
+}
+
+// GetThroughputGBps returns the value of ThroughputGBps.
+func (s *DataEndpointConfig) GetThroughputGBps() float64 {
+	return s.ThroughputGBps
+}
+
+// GetIops returns the value of Iops.
+func (s *DataEndpointConfig) GetIops() int64 {
+	return s.Iops
+}
+
+// SetSizeInGiB sets the value of SizeInGiB.
+func (s *DataEndpointConfig) SetSizeInGiB(val int64) {
+	s.SizeInGiB = val
+}
+
+// SetThroughputGBps sets the value of ThroughputGBps.
+func (s *DataEndpointConfig) SetThroughputGBps(val float64) {
+	s.ThroughputGBps = val
+}
+
+// SetIops sets the value of Iops.
+func (s *DataEndpointConfig) SetIops(val int64) {
+	s.Iops = val
 }
 
 // Ref: #/components/schemas/DeletePoolAcceptedResponse
@@ -1146,6 +1202,23 @@ type OCICreatePoolWorkflowVM struct {
 	InterclusterIP string `json:"interclusterIP"`
 	// Node management internal IP address for this VM.
 	NodeIP string `json:"nodeIP"`
+	// UUID of the corresponding node.
+	NodeUUID string `json:"nodeUUID"`
+	// Identifier of the HA pair this VM belongs to within the pool's
+	// VLM config, formatted as `ha_pair-<index>` where `<index>` is the
+	// zero-based position of the pair in `cloud.ha_pair`
+	// (e.g. `ha_pair-0`, `ha_pair-1`).
+	HaPair string `json:"haPair"`
+	// Aggregated capacity for this VM in GiB, computed as the sum of
+	// `size` across all entries in the VM's `data_disks` from VLM config.
+	SizeInGiB int64 `json:"sizeInGiB"`
+	// Aggregated IOPS for this VM, computed as the sum of `disk_iops`
+	// across all entries in the VM's `data_disks` from VLM config.
+	Iops int64 `json:"iops"`
+	// Aggregated throughput for this VM in GBps, computed as the sum of
+	// `disk_throughput` (MiBps) across all entries in the VM's `data_disks`
+	// from VLM config and converted from MiBps to GBps.
+	ThroughputGBps float64 `json:"throughputGBps"`
 }
 
 // GetName returns the value of Name.
@@ -1173,6 +1246,31 @@ func (s *OCICreatePoolWorkflowVM) GetNodeIP() string {
 	return s.NodeIP
 }
 
+// GetNodeUUID returns the value of NodeUUID.
+func (s *OCICreatePoolWorkflowVM) GetNodeUUID() string {
+	return s.NodeUUID
+}
+
+// GetHaPair returns the value of HaPair.
+func (s *OCICreatePoolWorkflowVM) GetHaPair() string {
+	return s.HaPair
+}
+
+// GetSizeInGiB returns the value of SizeInGiB.
+func (s *OCICreatePoolWorkflowVM) GetSizeInGiB() int64 {
+	return s.SizeInGiB
+}
+
+// GetIops returns the value of Iops.
+func (s *OCICreatePoolWorkflowVM) GetIops() int64 {
+	return s.Iops
+}
+
+// GetThroughputGBps returns the value of ThroughputGBps.
+func (s *OCICreatePoolWorkflowVM) GetThroughputGBps() float64 {
+	return s.ThroughputGBps
+}
+
 // SetName sets the value of Name.
 func (s *OCICreatePoolWorkflowVM) SetName(val string) {
 	s.Name = val
@@ -1196,6 +1294,31 @@ func (s *OCICreatePoolWorkflowVM) SetInterclusterIP(val string) {
 // SetNodeIP sets the value of NodeIP.
 func (s *OCICreatePoolWorkflowVM) SetNodeIP(val string) {
 	s.NodeIP = val
+}
+
+// SetNodeUUID sets the value of NodeUUID.
+func (s *OCICreatePoolWorkflowVM) SetNodeUUID(val string) {
+	s.NodeUUID = val
+}
+
+// SetHaPair sets the value of HaPair.
+func (s *OCICreatePoolWorkflowVM) SetHaPair(val string) {
+	s.HaPair = val
+}
+
+// SetSizeInGiB sets the value of SizeInGiB.
+func (s *OCICreatePoolWorkflowVM) SetSizeInGiB(val int64) {
+	s.SizeInGiB = val
+}
+
+// SetIops sets the value of Iops.
+func (s *OCICreatePoolWorkflowVM) SetIops(val int64) {
+	s.Iops = val
+}
+
+// SetThroughputGBps sets the value of ThroughputGBps.
+func (s *OCICreatePoolWorkflowVM) SetThroughputGBps(val float64) {
+	s.ThroughputGBps = val
 }
 
 // SVM metadata returned when an OCICreateSVMWorkflow completes successfully.

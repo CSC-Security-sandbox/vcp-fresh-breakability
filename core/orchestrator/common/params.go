@@ -65,6 +65,7 @@ type CreatePoolParams struct {
 	RequestedRanges   []string
 	OciAdminPassword  *OciAdminPassword
 	DataNICSubnetID   string
+	HAPairs           uint64
 }
 
 type OciAdminPassword struct {

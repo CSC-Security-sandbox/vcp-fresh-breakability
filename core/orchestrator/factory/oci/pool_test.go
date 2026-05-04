@@ -221,7 +221,7 @@ func TestDeletePool_ConflictWhileCreating(t *testing.T) {
 	assert.True(t, utilserrors.IsConflictErr(err))
 }
 
-func TestDeletePool_IdempotentWhenAlreadyDeleting(t *testing.T) {
+func TestDeletePool_ConflictWhenAlreadyDeleting(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
 	mockStorage := database.NewMockStorage(t)
@@ -240,9 +240,11 @@ func TestDeletePool_IdempotentWhenAlreadyDeleting(t *testing.T) {
 		AccountName: "ocid1.compartment..x",
 		PoolOCID:    "ocid1.pool.oc1..y",
 	})
-	assert.NoError(t, err)
+	assert.Error(t, err)
+	assert.True(t, utilserrors.IsConflictErr(err), "already-deleting must map to a conflict, not idempotent success")
+	assert.Contains(t, err.Error(), "deletion is already in progress")
+	assert.Nil(t, pool, "no pool model is returned alongside a conflict error")
 	assert.Equal(t, "", wf)
-	assert.Equal(t, models.LifeCycleStateDeleting, pool.State)
 }
 
 func TestDeletePool_TransitionalStateConflict(t *testing.T) {

@@ -2,9 +2,11 @@ package oci
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -2147,5 +2149,76 @@ func TestOCIOrchestrator_ManageBackupConfigForExpertModeVolume(t *testing.T) {
 		assert.True(tt, errors.IsNotImplementedYetErr(err))
 		assert.Nil(tt, backupConfig)
 		assert.Empty(tt, jobUUID)
+	})
+}
+
+func TestOCIOrchestrator_GetNodesByPoolUUID(t *testing.T) {
+	t.Run("WrapsStorageErrorOnPoolLookup", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(nil, fmt.Errorf("db unavailable"))
+		orch := &OCIOrchestrator{storage: mockStorage}
+
+		result, err := orch.GetNodesByPoolUUID(context.Background(), "pool-uuid")
+
+		assert.Error(tt, err)
+		// Wrapped with operation name + pool uuid for log-side triage; underlying
+		// error preserved via %w.
+		assert.Contains(tt, err.Error(), "GetNodesByPoolUUID")
+		assert.Contains(tt, err.Error(), "pool-uuid")
+		assert.Contains(tt, err.Error(), "db unavailable")
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WrapsStorageErrorOnNodeListing", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 42, UUID: "pool-uuid"}}
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, int64(42)).Return(nil, fmt.Errorf("nodes unavailable"))
+		orch := &OCIOrchestrator{storage: mockStorage}
+
+		result, err := orch.GetNodesByPoolUUID(context.Background(), "pool-uuid")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "GetNodesByPoolUUID")
+		assert.Contains(tt, err.Error(), "id=42")
+		assert.Contains(tt, err.Error(), "nodes unavailable")
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsNilWhenPoolNotFound", func(tt *testing.T) {
+		// DataStoreRepository.GetPoolByUUID returns customerrors.NewNotFoundErr
+		// (never (nil, nil)) when the pool is missing — see database/vcp/pools.go.
+		// Translate that to (nil, nil) so best-effort callers skip enrichment
+		// without logging a noisy error.
+		mockStorage := database.NewMockStorage(tt)
+		missingUUID := "missing-uuid"
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, missingUUID).
+			Return(nil, errors.NewNotFoundErr("Pool", &missingUUID))
+		orch := &OCIOrchestrator{storage: mockStorage}
+
+		result, err := orch.GetNodesByPoolUUID(context.Background(), missingUUID)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsNodesWhenPoolExists", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 42, UUID: "pool-uuid"}}
+		nodes := []*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{UUID: "node-uuid-1"}, Name: "vm-01"},
+			{BaseModel: datamodel.BaseModel{UUID: "node-uuid-2"}, Name: "vm-02"},
+		}
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, int64(42)).Return(nodes, nil)
+		orch := &OCIOrchestrator{storage: mockStorage}
+
+		result, err := orch.GetNodesByPoolUUID(context.Background(), "pool-uuid")
+
+		assert.NoError(tt, err)
+		if assert.Len(tt, result, 2) {
+			assert.Equal(tt, "node-uuid-1", result[0].UUID)
+			assert.Equal(tt, "vm-01", result[0].Name)
+		}
 	})
 }

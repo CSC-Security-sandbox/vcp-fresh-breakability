@@ -2,6 +2,7 @@ package oci
 
 import (
 	"context"
+	"fmt"
 
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -25,6 +26,27 @@ func NewOCIOrchestrator(storage database.Storage, temporalClient client.Client) 
 		storage:  storage,
 		temporal: temporalClient,
 	}
+}
+
+// GetNodesByPoolUUID returns the nodes belonging to the pool identified by
+// poolUUID. A missing pool is reported as (nil, nil) — best-effort callers
+// (e.g. the workflow-query metadata enrichment in oci-proxy) can then skip
+// enrichment without surfacing a noisy "pool not found" error to the user.
+// Any other storage failure is wrapped with the operation name so the layer
+// of origin is visible in logs.
+func (o *OCIOrchestrator) GetNodesByPoolUUID(ctx context.Context, poolUUID string) ([]*datamodel.Node, error) {
+	pool, err := o.storage.GetPoolByUUID(ctx, poolUUID)
+	if err != nil {
+		if utilserrors.IsNotFoundErr(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("GetNodesByPoolUUID: lookup pool %q: %w", poolUUID, err)
+	}
+	nodes, err := o.storage.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		return nil, fmt.Errorf("GetNodesByPoolUUID: list nodes for pool %q (id=%d): %w", poolUUID, pool.ID, err)
+	}
+	return nodes, nil
 }
 
 func (o *OCIOrchestrator) GetPoolsByUUIDs(ctx context.Context, poolUUIDs []string, opts commonparams.PoolFetchOptions) ([]*models.Pool, error) {

@@ -10,6 +10,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/validators"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,7 +24,7 @@ import (
 const (
 	ociSerialNumberLeadingPrefix = "955"
 	ociSerialNumberPrefix        = "000000000000000"
-	ociVSAUserBootargs           = "bootarg.use.cam.nda=true;bootarg.vm.vnvram_jswap_enable=false;bootarg.vm.nvramdevice=/dev/da2"
+	defaultOCIVSAUserBootargs    = "bootarg.use.cam.nda=true;bootarg.vm.vnvram_jswap_enable=false;bootarg.vm.nvramdevice=/dev/da2;bootarg.vm.cluster_ports=e0a.pv1;bootarg.vm.vnvram.ephemeral=true;bootarg.vm.nvme.lssd_size_for_ec=4294967296;"
 )
 
 var (
@@ -35,11 +36,11 @@ var (
 	ociDefinedTagNamespace        = env.GetString("OCI_DEFINED_TAG_NAMESPACE", "netapp_tags")
 	ociVSAInstanceType            = env.GetString("OCI_VSA_INSTANCE_TYPE", "VM.DenseIO.E5.Flex")
 	ociMediatorInstanceType       = env.GetString("OCI_MEDIATOR_INSTANCE_TYPE", "VM.Standard3.Flex")
+	ociVSAUserBootargs            = env.GetString("OCI_VSA_USER_BOOTARGS", defaultOCIVSAUserBootargs)
 	localRegion                   = env.GetString("LOCAL_REGION", "")
 	ociCreator                    = env.GetString("OCI_CREATOR", "vcp")
 	secretURI                     = env.GetString("SECRET_URI", "")
 	dbHeartbeatTimeoutSec         = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
-	numHAPair                     = env.GetIntNotNegative("OCI_VSA_NUM_HA_PAIR", 1)
 	dataDiskCount                 = env.GetIntNotNegative("OCI_VSA_DATA_DISK_COUNT", 2)
 	extIPForNodeMgmt              = env.GetBool("OCI_VSA_EXT_IP_FOR_NODE_MGMT", false)
 	allowNonDenseShapeForVSA      = env.GetBool("OCI_VSA_ALLOW_NON_DENSE_SHAPE_FOR_VSA", true)
@@ -125,8 +126,24 @@ func (wf *ociCreatePoolWorkflow) Setup(ctx workflow.Context, input interface{}) 
 }
 
 func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
-	params := args[0].(*common.CreatePoolParams)
-	pool := args[1].(*datamodel.Pool)
+	if len(args) < 2 {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreatePoolWorkflow.Run: expected 2 args, got %d", len(args)))
+	}
+	params, ok := args[0].(*common.CreatePoolParams)
+	if !ok {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreatePoolWorkflow.Run: args[0] has unexpected type %T, want *common.CreatePoolParams", args[0]))
+	}
+	if params == nil {
+		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("OCICreatePoolWorkflow.Run: args[0] (*common.CreatePoolParams) must not be nil")))
+	}
+	pool, ok := args[1].(*datamodel.Pool)
+	if !ok {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreatePoolWorkflow.Run: args[1] has unexpected type %T, want *datamodel.Pool", args[1]))
+	}
+	if pool == nil {
+		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("OCICreatePoolWorkflow.Run: args[1] (*datamodel.Pool) must not be nil")))
+	}
+
 	poolActivity := &activities.PoolActivity{}
 	rollbackManager := common.NewRollbackManager()
 	rollbackManager.AddActivity(poolActivity.ErroredPool, pool)
@@ -169,12 +186,12 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// TODO: Create ONTAP credentials for OCI
-	// The current CreateOnTapCredentials activity implementation is GCP-specific.
-	// For OCI, we need to implement OCI-specific credential creation logic.
-	// For now, creating a simple struct with password from environment variable.
+	if pool.PoolCredentials == nil {
+		err = fmt.Errorf("pool credentials are required to create ONTAP admin credentials for pool %q", pool.Name)
+		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, err))
+	}
 	credConfig := &vlm.OntapCredentials{
-		AdminPassword: ociOntapAdminPassword,
+		AdminPassword: pool.PoolCredentials.Password,
 		Certificate:   vlm.OntapCertificate{},
 	}
 
@@ -298,7 +315,7 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 			"account_id": params.AccountName,
 		},
 		DeploymentType:       vlm.DeploymentTypeNonSharedHA,
-		NumHAPair:            numHAPair,
+		NumHAPair:            int(params.HAPairs),
 		VSAInstanceType:      ociVSAInstanceType,
 		MediatorInstanceType: ociMediatorInstanceType,
 		DataDiskCount:        dataDiskCount,
@@ -317,6 +334,12 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 
 // prepareVLMConfig prepares the VLM configuration for OCI pool creation.
 func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool) (*vlm.VLMConfig, error) {
+	if params.HAPairs == 0 {
+		return nil, utilserrors.NewUserInputValidationErr(
+			"haPairs must be greater than 0; OCI pool creation requires CreatePoolParams.HAPairs to be set",
+		)
+	}
+
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 	sizeStr := fmt.Sprintf("%dGi", sizeInGB)
 
@@ -324,8 +347,15 @@ func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool) (*v
 	iops := int64(0)
 	if params.CustomPerformanceParams != nil {
 		throughputMibps = params.CustomPerformanceParams.ThroughputMibps
-		if params.CustomPerformanceParams.Iops != nil {
-			iops = *params.CustomPerformanceParams.Iops
+		perf := &validators.CustomPerformance{
+			ThroughputMibps: throughputMibps,
+			Iops:            params.CustomPerformanceParams.Iops,
+		}
+		if err := validators.NewPoolValidator(false).ValidateIops(perf); err != nil {
+			return nil, fmt.Errorf("derive iops from throughput: %w", err)
+		}
+		if perf.Iops != nil {
+			iops = *perf.Iops
 		}
 	}
 
@@ -435,8 +465,24 @@ func (wf *ociDeletePoolWorkflow) Setup(ctx workflow.Context, input interface{}) 
 }
 
 func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
-	params := args[0].(*common.DeletePoolParams)
-	pool := args[1].(*datamodel.Pool)
+	if len(args) < 2 {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeletePoolWorkflow.Run: expected 2 args, got %d", len(args)))
+	}
+	params, ok := args[0].(*common.DeletePoolParams)
+	if !ok {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeletePoolWorkflow.Run: args[0] has unexpected type %T, want *common.DeletePoolParams", args[0]))
+	}
+	if params == nil {
+		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("OCIDeletePoolWorkflow.Run: args[0] (*common.DeletePoolParams) must not be nil")))
+	}
+	pool, ok := args[1].(*datamodel.Pool)
+	if !ok {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeletePoolWorkflow.Run: args[1] has unexpected type %T, want *datamodel.Pool", args[1]))
+	}
+	if pool == nil {
+		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("OCIDeletePoolWorkflow.Run: args[1] (*datamodel.Pool) must not be nil")))
+	}
+
 	// Set up activity options
 	poolActivity := &activities.PoolActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()

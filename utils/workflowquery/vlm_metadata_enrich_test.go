@@ -43,6 +43,12 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 					},
 				},
 			},
+			"deployment": map[string]interface{}{
+				"labels": map[string]interface{}{
+					"pool_uuid": "b5fb9baf-953b-9c65-19d5-31e3365cc2e3",
+					"pool_ocid": "ocid1.pool.oc1.ashburn-1.testpool",
+				},
+			},
 		},
 		"workflow_type": "OCICreatePoolWorkflow",
 	}
@@ -51,6 +57,7 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 
 	out := vsaClusterChildMetadataFromPayloads([]*commonpb.Payload{{Data: body}})
 	require.NotNil(t, out)
+	require.Equal(t, "b5fb9baf-953b-9c65-19d5-31e3365cc2e3", out.PoolUUID)
 
 	require.Equal(t, []OCICreatePoolVMMetadata{
 		{
@@ -59,6 +66,7 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 			VSAManagementIP: "150.136.212.147",
 			InterclusterIP:  "10.38.25.146",
 			NodeIP:          "10.38.0.1",
+			HAPair:          "ha_pair-0",
 		},
 		{
 			Name:            "FsnIdocnv-vm-02",
@@ -66,6 +74,7 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 			VSAManagementIP: "158.101.109.167",
 			InterclusterIP:  "10.38.1.218",
 			NodeIP:          "10.38.0.2",
+			HAPair:          "ha_pair-0",
 		},
 	}, out.Vms)
 }
@@ -113,6 +122,7 @@ func TestVsaClusterChildMetadataFromPayloads_Base64WrappedPayload(t *testing.T) 
 			VSAManagementIP: "10.0.0.3",
 			InterclusterIP:  "10.0.0.1",
 			NodeIP:          "10.0.0.2",
+			HAPair:          "ha_pair-0",
 		},
 	}, out.Vms)
 }

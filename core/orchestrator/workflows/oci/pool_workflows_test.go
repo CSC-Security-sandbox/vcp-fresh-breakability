@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -105,6 +106,7 @@ func TestPrepareVLMConfig_CustomPerformanceAndFixedSerialPrefix(t *testing.T) {
 		MediatorZone:    "ad3",
 		VendorSubNetID:  "subnet",
 		CompartmentOCID: "comp",
+		HAPairs:         1,
 		CustomPerformanceParams: &common.CustomPerformanceParams{
 			ThroughputMibps: 128,
 			Iops:            &iops,
@@ -132,6 +134,102 @@ func TestPrepareVLMConfig_CustomPerformanceAndFixedSerialPrefix(t *testing.T) {
 		"SerialNumberPrefix must be exactly 18 characters")
 	assert.Len(t, ociSerialNumberPrefix, 15,
 		"ociSerialNumberPrefix const must be exactly 15 zero digits")
+}
+
+func TestPrepareVLMConfig_DerivesIopsFromThroughputWhenNil(t *testing.T) {
+	setTestOCIImageEnv(t)
+	params := &common.CreatePoolParams{
+		AccountName:     "acct",
+		SizeInBytes:     100 * 1024 * 1024 * 1024,
+		PrimaryZone:     "ad1",
+		SecondaryZone:   "ad2",
+		MediatorZone:    "ad3",
+		VendorSubNetID:  "subnet",
+		CompartmentOCID: "comp",
+		HAPairs:         1,
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 128,
+			Iops:            nil, // derived by the validator
+		},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "u1"},
+		DeploymentName: "dep1",
+		Name:           "pool1",
+		Account:        &datamodel.Account{Name: "acct"},
+	}
+
+	cfg, err := prepareVLMConfig(params, pool)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	const expectedDerivedIOPS = int64(2048)
+	assert.Equal(t, int64(128), cfg.Deployment.SPConfig.Throughput)
+	assert.Equal(t, expectedDerivedIOPS, cfg.Deployment.SPConfig.IOps,
+		"SPConfig.IOps must equal the validator-derived IOPS (ThroughputMibps * IopsPerMiBps)")
+}
+
+func TestPrepareVLMConfig_ReturnsErrorWhenIopsValidationFails(t *testing.T) {
+	setTestOCIImageEnv(t)
+	belowMin := int64(100) // below MinCustomIops (1024)
+	params := &common.CreatePoolParams{
+		AccountName:     "acct",
+		SizeInBytes:     100 * 1024 * 1024 * 1024,
+		PrimaryZone:     "ad1",
+		SecondaryZone:   "ad2",
+		MediatorZone:    "ad3",
+		VendorSubNetID:  "subnet",
+		CompartmentOCID: "comp",
+		HAPairs:         1,
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 128,
+			Iops:            &belowMin,
+		},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "u1"},
+		DeploymentName: "dep1",
+		Name:           "pool1",
+		Account:        &datamodel.Account{Name: "acct"},
+	}
+
+	cfg, err := prepareVLMConfig(params, pool)
+	assert.Error(t, err, "validator must reject IOPS below MinCustomIops")
+	assert.Nil(t, cfg)
+	assert.Contains(t, err.Error(), "derive iops from throughput")
+}
+
+func TestPrepareVLMConfig_RejectsZeroHAPairs(t *testing.T) {
+	setTestOCIImageEnv(t)
+	iops := int64(5000)
+	params := &common.CreatePoolParams{
+		AccountName:     "acct",
+		SizeInBytes:     100 * 1024 * 1024 * 1024,
+		PrimaryZone:     "ad1",
+		SecondaryZone:   "ad2",
+		MediatorZone:    "ad3",
+		VendorSubNetID:  "subnet",
+		CompartmentOCID: "comp",
+		// HAPairs intentionally omitted (zero value).
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 128,
+			Iops:            &iops,
+		},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "u1"},
+		DeploymentName: "dep1",
+		Name:           "pool1",
+		Account:        &datamodel.Account{Name: "acct"},
+	}
+
+	cfg, err := prepareVLMConfig(params, pool)
+	require.Error(t, err, "zero HAPairs must be rejected")
+	assert.Nil(t, cfg)
+	assert.True(t, utilserrors.IsUserInputValidationErr(err),
+		"error must be a UserInputValidationErr so it surfaces as a 4xx, not a 5xx")
+	assert.Contains(t, err.Error(), "haPairs",
+		"error message must mention the offending field")
 }
 
 func TestPrepareOCIDeleteVSAClusterDeploymentRequest(t *testing.T) {
@@ -233,16 +331,18 @@ func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 		SizeInBytes: 1024 * 1024 * 1024 * 1024, // 1 TB
 		Region:      "us-ashburn-1",
 		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
 	}
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-pool-uuid",
 		},
-		Name:      "test-pool",
-		AccountID: 12345,
-		VendorID:  "test-vendor",
-		Account:   &datamodel.Account{Name: "test-account"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
 	}
 
 	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
@@ -292,10 +392,11 @@ func TestOCICreatePoolWorkflow_SetupError(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-pool-uuid",
 		},
-		Name:      "test-pool",
-		AccountID: 12345,
-		VendorID:  "test-vendor",
-		Account:   &datamodel.Account{Name: "test-account"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
 	}
 
 	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
@@ -333,16 +434,18 @@ func TestOCICreatePoolWorkflow_EnsureJobStateError(t *testing.T) {
 		SizeInBytes: 1024 * 1024 * 1024 * 1024,
 		Region:      "us-ashburn-1",
 		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
 	}
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-pool-uuid",
 		},
-		Name:      "test-pool",
-		AccountID: 12345,
-		VendorID:  "test-vendor",
-		Account:   &datamodel.Account{Name: "test-account"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
 	}
 
 	// Mock GetJob activity to return ERROR state (should cause EnsureJobState to fail)
@@ -381,16 +484,18 @@ func TestOCICreatePoolWorkflow_UpdateJobStatusError(t *testing.T) {
 		SizeInBytes: 1024 * 1024 * 1024 * 1024,
 		Region:      "us-ashburn-1",
 		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
 	}
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-pool-uuid",
 		},
-		Name:      "test-pool",
-		AccountID: 12345,
-		VendorID:  "test-vendor",
-		Account:   &datamodel.Account{Name: "test-account"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
 	}
 
 	// Mock GetJob activity - return NEW state for workflow job
@@ -440,16 +545,18 @@ func TestOCICreatePoolWorkflow_RunMethodCalled(t *testing.T) {
 		SizeInBytes: 1024 * 1024 * 1024 * 1024,
 		Region:      "us-ashburn-1",
 		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
 	}
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-pool-uuid",
 		},
-		Name:      "test-pool",
-		AccountID: 12345,
-		VendorID:  "test-vendor",
-		Account:   &datamodel.Account{Name: "test-account"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
 	}
 
 	// Mock GetJob activity - return NEW state for workflow job
@@ -503,13 +610,15 @@ func TestOCICreatePoolWorkflow_ExpertModePasswordFromEnv(t *testing.T) {
 		SizeInBytes: 1024 * 1024 * 1024 * 1024,
 		Region:      "us-ashburn-1",
 		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-		Name:      "test-pool",
-		AccountID: 12345,
-		VendorID:  "test-vendor",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
 	}
 
 	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
@@ -555,17 +664,19 @@ func TestOCICreatePoolWorkflow_CreateExpertModeCredentialsFails(t *testing.T) {
 		SizeInBytes: 1024 * 1024 * 1024 * 1024,
 		Region:      "us-ashburn-1",
 		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
 		OciAdminPassword: &common.OciAdminPassword{
 			Ocid:    "ocid1.vaultsecret.oc1..testadminpw",
 			Version: 1,
 		},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-		Name:      "test-pool",
-		AccountID: 12345,
-		VendorID:  "test-vendor",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
 	}
 
 	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
@@ -607,13 +718,15 @@ func TestOCICreatePoolWorkflow_CreateVSAExpertModeUserFails(t *testing.T) {
 		SizeInBytes: 1024 * 1024 * 1024 * 1024,
 		Region:      "us-ashburn-1",
 		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-		Name:      "test-pool",
-		AccountID: 12345,
-		VendorID:  "test-vendor",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
 	}
 
 	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
@@ -634,4 +747,171 @@ func TestOCICreatePoolWorkflow_CreateVSAExpertModeUserFails(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+
+func TestOCICreatePoolWorkflow_NilPoolCredentialsRejected(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		AccountID: 12345,
+		VendorID:  "test-vendor",
+		Account:   &datamodel.Account{Name: "test-account"},
+	}
+
+	// Rollback fires when Run returns an error.
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "pool credentials are required",
+		"workflow should fail with the new pool-credentials guard, not some downstream error")
+	env.AssertExpectations(t)
+}
+
+func TestOCICreatePoolWorkflow_RunArgsValidation(t *testing.T) {
+	validParams := &common.CreatePoolParams{Name: "p", AccountName: "a", HAPairs: 1}
+	validPool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "u"}, Name: "p"}
+
+	cases := []struct {
+		name             string
+		args             []interface{}
+		wantOriginalSubs string // substring expected in OriginalErr.Error()
+		wantTrackingID   int    // 0 = don't assert; otherwise must match
+	}{
+		{
+			name:             "ZeroArgs",
+			args:             nil,
+			wantOriginalSubs: "expected 2 args, got 0",
+		},
+		{
+			name:             "OneArg",
+			args:             []interface{}{validParams},
+			wantOriginalSubs: "expected 2 args, got 1",
+		},
+		{
+			name:             "Args0WrongType",
+			args:             []interface{}{"not-params", validPool},
+			wantOriginalSubs: "args[0] has unexpected type string",
+		},
+		{
+			name:             "Args0TypedNil",
+			args:             []interface{}{(*common.CreatePoolParams)(nil), validPool},
+			wantOriginalSubs: "args[0] (*common.CreatePoolParams) must not be nil",
+			wantTrackingID:   vsaerrors.ErrResourceEmptyError,
+		},
+		{
+			name:             "Args1WrongType",
+			args:             []interface{}{validParams, "not-pool"},
+			wantOriginalSubs: "args[1] has unexpected type string",
+		},
+		{
+			name:             "Args1TypedNil",
+			args:             []interface{}{validParams, (*datamodel.Pool)(nil)},
+			wantOriginalSubs: "args[1] (*datamodel.Pool) must not be nil",
+			wantTrackingID:   vsaerrors.ErrResourceEmptyError,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			wf := &ociCreatePoolWorkflow{}
+			out, customErr := wf.Run(nil, tc.args...)
+
+			assert.Nil(tt, out, "validation failure should not return a payload")
+			require.NotNil(tt, customErr, "expected a *vsaerrors.CustomError, got nil")
+			require.NotNil(tt, customErr.OriginalErr, "OriginalErr should preserve the descriptive validation message")
+			assert.Contains(tt, customErr.OriginalErr.Error(), tc.wantOriginalSubs)
+			if tc.wantTrackingID != 0 {
+				assert.Equal(tt, tc.wantTrackingID, customErr.TrackingID,
+					"typed-nil cases should be classified as ErrResourceEmptyError so they aren't lumped with generic internal errors")
+			}
+		})
+	}
+}
+
+// TestOCIDeletePoolWorkflow_RunArgsValidation mirrors the Create-side coverage
+// for (*ociDeletePoolWorkflow).Run. Same validation block, same rationale —
+// keeping the two workflows in lock-step for reviewers.
+func TestOCIDeletePoolWorkflow_RunArgsValidation(t *testing.T) {
+	validParams := &common.DeletePoolParams{}
+	validPool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "u"}, Name: "p"}
+
+	cases := []struct {
+		name             string
+		args             []interface{}
+		wantOriginalSubs string
+		wantTrackingID   int
+	}{
+		{
+			name:             "ZeroArgs",
+			args:             nil,
+			wantOriginalSubs: "expected 2 args, got 0",
+		},
+		{
+			name:             "OneArg",
+			args:             []interface{}{validParams},
+			wantOriginalSubs: "expected 2 args, got 1",
+		},
+		{
+			name:             "Args0WrongType",
+			args:             []interface{}{"not-params", validPool},
+			wantOriginalSubs: "args[0] has unexpected type string",
+		},
+		{
+			name:             "Args0TypedNil",
+			args:             []interface{}{(*common.DeletePoolParams)(nil), validPool},
+			wantOriginalSubs: "args[0] (*common.DeletePoolParams) must not be nil",
+			wantTrackingID:   vsaerrors.ErrResourceEmptyError,
+		},
+		{
+			name:             "Args1WrongType",
+			args:             []interface{}{validParams, "not-pool"},
+			wantOriginalSubs: "args[1] has unexpected type string",
+		},
+		{
+			name:             "Args1TypedNil",
+			args:             []interface{}{validParams, (*datamodel.Pool)(nil)},
+			wantOriginalSubs: "args[1] (*datamodel.Pool) must not be nil",
+			wantTrackingID:   vsaerrors.ErrResourceEmptyError,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			wf := &ociDeletePoolWorkflow{}
+			out, customErr := wf.Run(nil, tc.args...)
+
+			assert.Nil(tt, out, "validation failure should not return a payload")
+			require.NotNil(tt, customErr, "expected a *vsaerrors.CustomError, got nil")
+			require.NotNil(tt, customErr.OriginalErr, "OriginalErr should preserve the descriptive validation message")
+			assert.Contains(tt, customErr.OriginalErr.Error(), tc.wantOriginalSubs)
+			if tc.wantTrackingID != 0 {
+				assert.Equal(tt, tc.wantTrackingID, customErr.TrackingID,
+					"typed-nil cases should be classified as ErrResourceEmptyError so they aren't lumped with generic internal errors")
+			}
+		})
+	}
 }

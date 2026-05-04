@@ -1,10 +1,12 @@
 package gcp
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 )
 
@@ -18,5 +20,18 @@ func TestNewGCPOrchestrator(t *testing.T) {
 		assert.NotNil(tt, orch)
 		assert.Equal(tt, mockStorage, orch.storage)
 		assert.Equal(tt, mockTemporal, orch.temporal)
+	})
+}
+
+func TestGCPOrchestrator_GetNodesByPoolUUID(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &GCPOrchestrator{}
+		ctx := context.Background()
+
+		result, err := orch.GetNodesByPoolUUID(ctx, "pool-uuid")
+
+		assert.Error(tt, err)
+		assert.True(tt, utilserrors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, result)
 	})
 }

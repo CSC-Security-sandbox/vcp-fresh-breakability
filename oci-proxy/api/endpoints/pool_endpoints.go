@@ -20,8 +20,11 @@ import (
 )
 
 const (
-	gBpsToMibpsMultiplier = 953.67431640625
-	invalidOPCRequestID   = "Opc-Request-Id not set"
+	invalidOPCRequestID                   = "Opc-Request-Id not set"
+	errMsgInvalidAdminPasswordVersion     = "ociAdminPassword.version must be a valid integer"
+	errMsgAdminPasswordVersionLessThanOne = "ociAdminPassword.version must be greater than or equal to 1"
+	errMsgOddDataEndpointConfig           = "dataEndpointConfig must have an even number of entries (one pair per HA pair)"
+	errMsgOddDataEndpointCount            = "dataEndpointCount must be a multiple of 2"
 )
 
 // Handler implements the OCI API Handler interface.
@@ -69,6 +72,17 @@ func (h *Handler) GetHealth(ctx context.Context) (ociserver.GetHealthRes, error)
 	return &ociserver.Health{Status: ociserver.NewOptString("healthy")}, nil
 }
 
+func newCreatePoolBadRequest(opcRequestID, poolOCID, errMsg string) *ociserver.CreatePoolBadRequest {
+	return &ociserver.CreatePoolBadRequest{
+		OpcRequestID: opcRequestID,
+		Response: ociserver.PoolOperationErrorResponse{
+			Status:       string(workflowquery.WorkflowStatusFailed),
+			PoolOCID:     poolOCID,
+			ErrorMessage: errMsg,
+		},
+	}
+}
+
 // CreatePool returns 202 Accepted with opc-request-id, opc-work-request-id, and the created Pool.
 func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolRequest, params ociserver.CreatePoolParams) (ociserver.CreatePoolRes, error) {
 	logger := util.GetLogger(ctx)
@@ -76,48 +90,48 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 	opcRequestID, err := opcRequestIDFromContext(ctx)
 	if err != nil {
 		logger.Error("missing opc-request-id in context", "error", err)
-		return &ociserver.CreatePoolBadRequest{
-			OpcRequestID: uuid.NewString(),
-			Response: ociserver.PoolOperationErrorResponse{
-				Status:       string(workflowquery.WorkflowStatusFailed),
-				PoolOCID:     req.PoolOCID,
-				ErrorMessage: invalidOPCRequestID,
-			},
-		}, nil
+		return newCreatePoolBadRequest(uuid.NewString(), req.PoolOCID, invalidOPCRequestID), nil
 	}
 
 	ociAdminPasswordVersion, err := strconv.ParseInt(req.OciAdminPassword.Version, 10, 64)
 	if err != nil {
 		logger.Error("invalid ociAdminPassword version", "error", err)
-		return &ociserver.CreatePoolBadRequest{
-			OpcRequestID: opcRequestID,
-			Response: ociserver.PoolOperationErrorResponse{
-				Status:       string(workflowquery.WorkflowStatusFailed),
-				PoolOCID:     req.PoolOCID,
-				ErrorMessage: "ociAdminPassword.version must be a valid integer",
-			},
-		}, nil
+		return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, errMsgInvalidAdminPasswordVersion), nil
 	}
 
 	if ociAdminPasswordVersion < 1 {
 		logger.Error("invalid ociAdminPassword version", "version", ociAdminPasswordVersion)
-		return &ociserver.CreatePoolBadRequest{
-			OpcRequestID: opcRequestID,
-			Response: ociserver.PoolOperationErrorResponse{
-				Status:       string(workflowquery.WorkflowStatusFailed),
-				PoolOCID:     req.PoolOCID,
-				ErrorMessage: "ociAdminPassword.version must be greater than or equal to 1",
-			},
-		}, nil
+		return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, errMsgAdminPasswordVersionLessThanOne), nil
+	}
+
+	if len(req.DataEndpointConfig)%2 != 0 {
+		logger.Error("dataEndpointConfig has odd number of entries", "count", len(req.DataEndpointConfig))
+		return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, errMsgOddDataEndpointConfig), nil
+	}
+
+	if req.DataEndpointCount%2 != 0 {
+		logger.Error("dataEndpointCount is not a multiple of 2", "count", req.DataEndpointCount)
+		return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, errMsgOddDataEndpointCount), nil
+	}
+
+	secondaryAD := req.SecondaryAvailabilityDomain.Value
+	if secondaryAD == "" {
+		secondaryAD = req.PrimaryAvailabilityDomain
+	}
+	isRegionalHA := secondaryAD != req.PrimaryAvailabilityDomain
+
+	mediatorAD := req.MediatorAvailabilityDomain.Value
+	if mediatorAD == "" {
+		mediatorAD = req.PrimaryAvailabilityDomain
 	}
 
 	// Map the provided config to CreatePoolParams
 	createPoolParams := &commonparams.CreatePoolParams{
-		AccountName:    params.TenancyOcid,                         // compartment_id from ociconfig                         // region
+		AccountName:    params.TenancyOcid,                         // compartment_id from ociconfig
 		PrimaryZone:    req.PrimaryAvailabilityDomain,              // availability_domain1
-		SecondaryZone:  req.SecondaryAvailabilityDomain.Value,      // availability_domain2
-		MediatorZone:   req.MediatorAvailabilityDomain.Value,       // mediator_availability_domain
-		IsRegionalHA:   true,                                       // non_shared_ha deployment type indicates regional HA
+		SecondaryZone:  secondaryAD,                                // availability_domain2
+		MediatorZone:   mediatorAD,                                 // mediator_availability_domain
+		IsRegionalHA:   isRegionalHA,                               // derived from primary vs secondary AD
 		Name:           req.DisplayName,                            // deployment_id
 		Description:    req.Description.Value,                      // Will be generated by orchestrator
 		VendorSubNetID: req.SubnetId,                               // subnet_id from ociconfig
@@ -125,8 +139,7 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 		PoolOCID:       req.PoolOCID,                               // OCI pool OCID - used to generate deployment name
 		CustomPerformanceParams: &commonparams.CustomPerformanceParams{
 			Enabled:         true,
-			ThroughputMibps: int64(req.ThroughputGBps * gBpsToMibpsMultiplier), // convert GBps to MiBps
-			Iops:            &req.Iops,                                         // iops from spconfig
+			ThroughputMibps: int64(req.ThroughputGBps * workflowquery.MiBpsPerGBps), // convert GBps from API contract to MiBps for orchestrator
 		},
 		LargeCapacity:   false,
 		CompartmentOCID: req.CompartmentOCID,
@@ -135,19 +148,13 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 			Version: ociAdminPasswordVersion,
 		},
 		DataNICSubnetID: req.DataNicSubnetId,
+		HAPairs:         uint64(req.DataEndpointCount / 2),
 	}
 
 	_, workflowID, err := h.Orchestrator.CreatePool(ctx, createPoolParams)
 	if err != nil {
 		if utilserrors.IsUserInputValidationErr(err) {
-			return &ociserver.CreatePoolBadRequest{
-				OpcRequestID: opcRequestID,
-				Response: ociserver.PoolOperationErrorResponse{
-					Status:       string(workflowquery.WorkflowStatusFailed),
-					PoolOCID:     req.PoolOCID,
-					ErrorMessage: err.Error(),
-				},
-			}, nil
+			return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, err.Error()), nil
 		}
 		if utilserrors.IsConflictErr(err) {
 			msg := err.Error()
@@ -225,6 +232,7 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 		resp.Error = ociserver.NewOptWorkflowStatusError(workflowErr)
 	}
 	if res.PoolMetadata != nil {
+		nodeUUIDByName := h.nodeUUIDsByName(ctx, res.PoolMetadata.PoolUUID)
 		vms := make([]ociserver.OCICreatePoolWorkflowVM, 0, len(res.PoolMetadata.Vms))
 		for _, vm := range res.PoolMetadata.Vms {
 			vms = append(vms, ociserver.OCICreatePoolWorkflowVM{
@@ -233,6 +241,11 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 				VsaManagementIP: vm.VSAManagementIP,
 				InterclusterIP:  vm.InterclusterIP,
 				NodeIP:          vm.NodeIP,
+				NodeUUID:        nodeUUIDByName[vm.Name],
+				HaPair:          vm.HAPair,
+				SizeInGiB:       vm.SizeInGiB,
+				Iops:            vm.IOPS,
+				ThroughputGBps:  vm.ThroughputGBps,
 			})
 		}
 		resp.PoolMetadata = ociserver.NewOptOCICreatePoolWorkflowMetadata(
@@ -270,6 +283,24 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 	}, nil
 }
 
+func (h *Handler) nodeUUIDsByName(ctx context.Context, poolUUID string) map[string]string {
+	if h.Orchestrator == nil || strings.TrimSpace(poolUUID) == "" {
+		return nil
+	}
+	nodes, err := h.Orchestrator.GetNodesByPoolUUID(ctx, poolUUID)
+	if err != nil {
+		util.GetLogger(ctx).Warn("nodeUUID enrichment skipped: GetNodesByPoolUUID failed", "poolUUID", poolUUID, "error", err)
+		return nil
+	}
+	out := make(map[string]string, len(nodes))
+	for _, n := range nodes {
+		if n != nil && n.Name != "" {
+			out[n.Name] = n.UUID
+		}
+	}
+	return out
+}
+
 func mapGetWorkflowQueryError(opcRequestID string, err error) ociserver.GetWorkflowRes {
 	code := statusFromError(err)
 	if code == http.StatusNotFound {
@@ -288,7 +319,6 @@ func mapGetWorkflowQueryError(opcRequestID string, err error) ociserver.GetWorkf
 	}
 }
 
-// DeletePool returns 202 Accepted with workflow status body while deletion is in progress.
 func (h *Handler) DeletePool(ctx context.Context, params ociserver.DeletePoolParams) (ociserver.DeletePoolRes, error) {
 	logger := util.GetLogger(ctx)
 	poolOCID := params.PoolOCID

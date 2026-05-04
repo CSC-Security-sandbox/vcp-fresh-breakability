@@ -171,6 +171,24 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 		e.Int64(s.SizeInGiB)
 	}
 	{
+		e.FieldStart("throughputGBps")
+		e.Float64(s.ThroughputGBps)
+	}
+	{
+		e.FieldStart("dataEndpointCount")
+		e.Int64(s.DataEndpointCount)
+	}
+	{
+		if s.DataEndpointConfig != nil {
+			e.FieldStart("dataEndpointConfig")
+			e.ArrStart()
+			for _, elem := range s.DataEndpointConfig {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("primaryAvailabilityDomain")
 		e.Str(s.PrimaryAvailabilityDomain)
 	}
@@ -185,14 +203,6 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 			e.FieldStart("mediatorAvailabilityDomain")
 			s.MediatorAvailabilityDomain.Encode(e)
 		}
-	}
-	{
-		e.FieldStart("throughputGBps")
-		e.Float64(s.ThroughputGBps)
-	}
-	{
-		e.FieldStart("iops")
-		e.Int64(s.Iops)
 	}
 	{
 		e.FieldStart("ociAdminPassword")
@@ -210,20 +220,21 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCreatePoolRequest = [13]string{
+var jsonFieldsNameOfCreatePoolRequest = [14]string{
 	0:  "poolOCID",
 	1:  "compartmentOCID",
 	2:  "displayName",
 	3:  "subnetId",
 	4:  "sizeInGiB",
-	5:  "primaryAvailabilityDomain",
-	6:  "secondaryAvailabilityDomain",
-	7:  "mediatorAvailabilityDomain",
-	8:  "throughputGBps",
-	9:  "iops",
-	10: "ociAdminPassword",
-	11: "description",
-	12: "dataNicSubnetId",
+	5:  "throughputGBps",
+	6:  "dataEndpointCount",
+	7:  "dataEndpointConfig",
+	8:  "primaryAvailabilityDomain",
+	9:  "secondaryAvailabilityDomain",
+	10: "mediatorAvailabilityDomain",
+	11: "ociAdminPassword",
+	12: "description",
+	13: "dataNicSubnetId",
 }
 
 // Decode decodes CreatePoolRequest from json.
@@ -295,8 +306,49 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"sizeInGiB\"")
 			}
-		case "primaryAvailabilityDomain":
+		case "throughputGBps":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Float64()
+				s.ThroughputGBps = float64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"throughputGBps\"")
+			}
+		case "dataEndpointCount":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int64()
+				s.DataEndpointCount = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dataEndpointCount\"")
+			}
+		case "dataEndpointConfig":
+			if err := func() error {
+				s.DataEndpointConfig = make([]DataEndpointConfig, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem DataEndpointConfig
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.DataEndpointConfig = append(s.DataEndpointConfig, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dataEndpointConfig\"")
+			}
+		case "primaryAvailabilityDomain":
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.PrimaryAvailabilityDomain = string(v)
@@ -327,32 +379,8 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mediatorAvailabilityDomain\"")
 			}
-		case "throughputGBps":
-			requiredBitSet[1] |= 1 << 0
-			if err := func() error {
-				v, err := d.Float64()
-				s.ThroughputGBps = float64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"throughputGBps\"")
-			}
-		case "iops":
-			requiredBitSet[1] |= 1 << 1
-			if err := func() error {
-				v, err := d.Int64()
-				s.Iops = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"iops\"")
-			}
 		case "ociAdminPassword":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.OciAdminPassword.Decode(d); err != nil {
 					return err
@@ -372,7 +400,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"description\"")
 			}
 		case "dataNicSubnetId":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.DataNicSubnetId = string(v)
@@ -393,8 +421,8 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b00111111,
-		0b00010111,
+		0b01111111,
+		0b00101001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -724,6 +752,136 @@ func (s *CreateSvmRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CreateSvmRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *DataEndpointConfig) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *DataEndpointConfig) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("sizeInGiB")
+		e.Int64(s.SizeInGiB)
+	}
+	{
+		e.FieldStart("throughputGBps")
+		e.Float64(s.ThroughputGBps)
+	}
+	{
+		e.FieldStart("iops")
+		e.Int64(s.Iops)
+	}
+}
+
+var jsonFieldsNameOfDataEndpointConfig = [3]string{
+	0: "sizeInGiB",
+	1: "throughputGBps",
+	2: "iops",
+}
+
+// Decode decodes DataEndpointConfig from json.
+func (s *DataEndpointConfig) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DataEndpointConfig to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "sizeInGiB":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.SizeInGiB = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sizeInGiB\"")
+			}
+		case "throughputGBps":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Float64()
+				s.ThroughputGBps = float64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"throughputGBps\"")
+			}
+		case "iops":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.Iops = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"iops\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode DataEndpointConfig")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfDataEndpointConfig) {
+					name = jsonFieldsNameOfDataEndpointConfig[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *DataEndpointConfig) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DataEndpointConfig) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -1747,14 +1905,39 @@ func (s *OCICreatePoolWorkflowVM) encodeFields(e *jx.Encoder) {
 		e.FieldStart("nodeIP")
 		e.Str(s.NodeIP)
 	}
+	{
+		e.FieldStart("nodeUUID")
+		e.Str(s.NodeUUID)
+	}
+	{
+		e.FieldStart("haPair")
+		e.Str(s.HaPair)
+	}
+	{
+		e.FieldStart("sizeInGiB")
+		e.Int64(s.SizeInGiB)
+	}
+	{
+		e.FieldStart("iops")
+		e.Int64(s.Iops)
+	}
+	{
+		e.FieldStart("throughputGBps")
+		e.Float64(s.ThroughputGBps)
+	}
 }
 
-var jsonFieldsNameOfOCICreatePoolWorkflowVM = [5]string{
+var jsonFieldsNameOfOCICreatePoolWorkflowVM = [10]string{
 	0: "name",
 	1: "serialNumber",
 	2: "vsaManagementIP",
 	3: "interclusterIP",
 	4: "nodeIP",
+	5: "nodeUUID",
+	6: "haPair",
+	7: "sizeInGiB",
+	8: "iops",
+	9: "throughputGBps",
 }
 
 // Decode decodes OCICreatePoolWorkflowVM from json.
@@ -1762,7 +1945,7 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode OCICreatePoolWorkflowVM to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -1826,6 +2009,66 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"nodeIP\"")
 			}
+		case "nodeUUID":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.NodeUUID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"nodeUUID\"")
+			}
+		case "haPair":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.HaPair = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"haPair\"")
+			}
+		case "sizeInGiB":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int64()
+				s.SizeInGiB = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sizeInGiB\"")
+			}
+		case "iops":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.Iops = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"iops\"")
+			}
+		case "throughputGBps":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Float64()
+				s.ThroughputGBps = float64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"throughputGBps\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -1835,8 +2078,9 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00011111,
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

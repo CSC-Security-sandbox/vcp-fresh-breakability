@@ -1,11 +1,23 @@
 package workflowquery
 
-// JSON shape for vlm_config -> cloud.ha_pair[].(vm1|vm2).lifs.(intercluster|nodemgmtinternal).ip
-// as returned in Temporal child workflow results (CreateVSAClusterDeploymentWorkflow).
-// Only fields required for VM metadata extraction are declared; embedding keeps nesting clear.
+import "fmt"
+
+// 1 GBps = 10^9 bytes/s
+// 1 MiBps = 2^20 bytes/s
+// MiBpsPerGBps = 10^9 / 2^20 = 953.67431640625
+const MiBpsPerGBps = 953.67431640625
+
+func haPairLabel(i int) string {
+	return fmt.Sprintf("ha_pair-%d", i)
+}
 
 type lifIPEmbed struct {
 	IP string `json:"ip"`
+}
+type dataDisk struct {
+	Size           int64 `json:"size"`
+	DiskIOPS       int64 `json:"disk_iops"`
+	DiskThroughput int64 `json:"disk_throughput"`
 }
 
 type vmMetadata struct {
@@ -16,6 +28,7 @@ type vmMetadata struct {
 		Intercluster     lifIPEmbed `json:"intercluster"`
 		Nodemgmtinternal lifIPEmbed `json:"nodemgmtinternal"`
 	} `json:"lifs"`
+	DataDisks []dataDisk `json:"data_disks"`
 }
 
 type haPairIPEmbed struct {
@@ -23,11 +36,20 @@ type haPairIPEmbed struct {
 	VM2 vmMetadata `json:"vm2"`
 }
 
-// vlmConfigIPEmbed is the minimal vlm_config subtree unmarshaled from workflow result JSON.
 type vlmConfigIPEmbed struct {
 	Cloud struct {
 		HAPairs []haPairIPEmbed `json:"ha_pair"`
 	} `json:"cloud"`
+	Deployment struct {
+		Labels map[string]string `json:"labels"`
+	} `json:"deployment"`
+}
+
+func poolUUIDFromEmbed(cfg *vlmConfigIPEmbed) string {
+	if cfg == nil {
+		return ""
+	}
+	return cfg.Deployment.Labels["pool_uuid"]
 }
 
 func interclusterIPsFromEmbed(cfg *vlmConfigIPEmbed) []string {
@@ -78,7 +100,19 @@ func nodemgmtInternalIPsFromEmbed(cfg *vlmConfigIPEmbed) []string {
 
 func vmMetadataIsEmpty(vm vmMetadata) bool {
 	return vm.Name == "" && vm.SerialNumber == "" && vm.VSAManagementIP == "" &&
-		vm.Lifs.Intercluster.IP == "" && vm.Lifs.Nodemgmtinternal.IP == ""
+		vm.Lifs.Intercluster.IP == "" && vm.Lifs.Nodemgmtinternal.IP == "" &&
+		len(vm.DataDisks) == 0
+}
+
+func dataDiskTotals(disks []dataDisk) (sizeInGiB, iops int64, throughputGBps float64) {
+	var throughputMiBps int64
+	for _, d := range disks {
+		sizeInGiB += d.Size
+		iops += d.DiskIOPS
+		throughputMiBps += d.DiskThroughput
+	}
+	throughputGBps = float64(throughputMiBps) / MiBpsPerGBps
+	return
 }
 
 func poolVMMetadataFromEmbed(cfg *vlmConfigIPEmbed) []OCICreatePoolVMMetadata {
@@ -87,23 +121,34 @@ func poolVMMetadataFromEmbed(cfg *vlmConfigIPEmbed) []OCICreatePoolVMMetadata {
 	}
 
 	vms := make([]OCICreatePoolVMMetadata, 0, len(cfg.Cloud.HAPairs)*2)
-	for _, pair := range cfg.Cloud.HAPairs {
+	for i, pair := range cfg.Cloud.HAPairs {
+		label := haPairLabel(i)
 		if !vmMetadataIsEmpty(pair.VM1) {
+			sizeInGiB, iops, throughputGBps := dataDiskTotals(pair.VM1.DataDisks)
 			vms = append(vms, OCICreatePoolVMMetadata{
 				Name:            pair.VM1.Name,
 				SerialNumber:    pair.VM1.SerialNumber,
 				VSAManagementIP: pair.VM1.VSAManagementIP,
 				InterclusterIP:  pair.VM1.Lifs.Intercluster.IP,
 				NodeIP:          pair.VM1.Lifs.Nodemgmtinternal.IP,
+				HAPair:          label,
+				SizeInGiB:       sizeInGiB,
+				IOPS:            iops,
+				ThroughputGBps:  throughputGBps,
 			})
 		}
 		if !vmMetadataIsEmpty(pair.VM2) {
+			sizeInGiB, iops, throughputGBps := dataDiskTotals(pair.VM2.DataDisks)
 			vms = append(vms, OCICreatePoolVMMetadata{
 				Name:            pair.VM2.Name,
 				SerialNumber:    pair.VM2.SerialNumber,
 				VSAManagementIP: pair.VM2.VSAManagementIP,
 				InterclusterIP:  pair.VM2.Lifs.Intercluster.IP,
 				NodeIP:          pair.VM2.Lifs.Nodemgmtinternal.IP,
+				HAPair:          label,
+				SizeInGiB:       sizeInGiB,
+				IOPS:            iops,
+				ThroughputGBps:  throughputGBps,
 			})
 		}
 	}

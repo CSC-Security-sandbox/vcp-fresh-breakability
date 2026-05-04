@@ -206,9 +206,6 @@ func (o *OCIOrchestrator) CreatePool(ctx context.Context, params *commonparams.C
 	return common.ConvertDatastorePoolToModel(poolView, account.Name), workflowID, nil
 }
 
-// DeletePool deletes the specified pool by calling VSA cluster delete activity.
-// After loading the pool, state is evaluated: conflicts while creating or in other transitional states,
-// idempotent success when already deleting (no second workflow), then volume check before transitioning to DELETING.
 func (o *OCIOrchestrator) DeletePool(ctx context.Context, params *commonparams.DeletePoolParams) (*models.Pool, string, error) {
 	logger := util.GetLogger(ctx)
 	se := o.storage
@@ -245,7 +242,7 @@ func (o *OCIOrchestrator) DeletePool(ctx context.Context, params *commonparams.D
 	case poolView.State == models.LifeCycleStateCreating:
 		return nil, "", customerrors.NewConflictErr("pool cannot be deleted while creation is in progress")
 	case poolView.State == models.LifeCycleStateDeleting:
-		return common.ConvertDatastorePoolToModel(poolView, account.Name), "", nil
+		return nil, "", customerrors.NewConflictErr("pool deletion is already in progress")
 	case utils.IsTransitionalState(poolView.State):
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("pool is in transition state and cannot be deleted, state: %s", poolView.State))
 	}

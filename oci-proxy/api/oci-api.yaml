@@ -77,12 +77,22 @@ paths:
               compartmentOCID: "ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a"
               displayName: "my-pool"
               subnetId: "ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q"
-              sizeInGiB: 1024
+              dataEndpointConfig:
+                - sizeInGiB: 512
+                  throughputGBps: 0.5
+                  iops: 1500
+                - sizeInGiB: 512
+                  throughputGBps: 0.5
+                  iops: 1500              
+              dataNicSubnetId: "ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q"
+              sizeInGiB: 100
+              throughputGBps: 1
               primaryAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-1"
               secondaryAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-2"
               mediatorAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-3"
-              throughputGBps: 1.0
-              iops: 3000
+              ociAdminPassword:
+                ocid: "ocid1.vaultsecret.oc1.eu-frankfurt-1.amaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                version: "1"
               description: "Demo pool"
       responses:
         "202":
@@ -762,6 +772,27 @@ components:
           type: string
           description: Pool OCID for the requested pool.
 
+    DataEndpointConfig:
+      type: object
+      description: Per-node capacity and performance configuration.
+      required:
+        - sizeInGiB
+        - throughputGBps
+        - iops
+      properties:
+        sizeInGiB:
+          type: integer
+          format: int64
+          description: Capacity for this node in GiB. Typically a multiple of 1 TiB.
+        throughputGBps:
+          type: number
+          format: double
+          description: Throughput for this node in GBps.
+        iops:
+          type: integer
+          format: int64
+          description: IOPS for the node.
+
     CreatePoolRequest:
       type: object
       required:
@@ -770,9 +801,9 @@ components:
         - displayName
         - subnetId
         - sizeInGiB
-        - primaryAvailabilityDomain
         - throughputGBps
-        - iops
+        - dataEndpointCount
+        - primaryAvailabilityDomain
         - ociAdminPassword
         - dataNicSubnetId
       properties:
@@ -791,7 +822,29 @@ components:
         sizeInGiB:
           type: integer
           format: int64
-          description: Total pool capacity in GiB. Typically a multiple of 1 TiB.
+          description: |
+            Total pool capacity in GiB across all HA pairs. The service distributes this
+            capacity across the underlying nodes. Typically a multiple of 1 TiB.
+        throughputGBps:
+          type: number
+          format: double
+          description: Total target throughput for the pool in GBps across all HA pairs.
+        dataEndpointCount:
+          type: integer
+          format: int64
+          minimum: 2
+          multipleOf: 2
+          description: |
+            Number of data endpoints to provision for the pool. Must be >= 2
+            and a multiple of 2
+        dataEndpointConfig:
+          type: array
+          minItems: 2
+          description: |
+            Optional per-node capacity and performance configuration. When provided, must
+            contain an even number of entries — exactly 2 per HA pair
+          items:
+            $ref: '#/components/schemas/DataEndpointConfig'
         primaryAvailabilityDomain:
           type: string
           description: Availability domain for the primary HA node (e.g. IMtu:EU-FRANKFURT-1-AD-1).
@@ -801,14 +854,6 @@ components:
         mediatorAvailabilityDomain:
           type: string
           description: Availability domain for the mediator VM. Required for HA deployments.
-        throughputGBps:
-          type: number
-          format: double
-          description: Total pool throughput in GBps.
-        iops:
-          type: integer
-          format: int64
-          description: Target IOPS for the pool.
         ociAdminPassword:
           $ref: '#/components/schemas/OCIOCIDVersionRef'
           description: OCI secret reference for admin password.
@@ -818,14 +863,6 @@ components:
         dataNicSubnetId:
           type: string
           description: OCI subnet OCID for the data NIC
-    DeletePoolRequest:
-      type: object
-      required:
-        - compartmentOCID
-      properties:
-        compartmentOCID:
-          type: string
-          description: OCI compartment OCID (scope for the pool). Used for authorization.
 
     CreateSvmRequest:
       type: object
@@ -932,6 +969,11 @@ components:
         - vsaManagementIP
         - interclusterIP
         - nodeIP
+        - nodeUUID
+        - haPair
+        - sizeInGiB
+        - iops
+        - throughputGBps
       properties:
         name:
           type: string
@@ -948,6 +990,36 @@ components:
         nodeIP:
           type: string
           description: Node management internal IP address for this VM.
+        nodeUUID:
+          type: string
+          description: UUID of the corresponding node
+        haPair:
+          type: string
+          description: |
+            Identifier of the HA pair this VM belongs to within the pool's
+            VLM config, formatted as `ha_pair-<index>` where `<index>` is the
+            zero-based position of the pair in `cloud.ha_pair`
+            (e.g. `ha_pair-0`, `ha_pair-1`).
+          example: "ha_pair-0"
+        sizeInGiB:
+          type: integer
+          format: int64
+          description: |
+            Aggregated capacity for this VM in GiB, computed as the sum of
+            `size` across all entries in the VM's `data_disks` from VLM config.
+        iops:
+          type: integer
+          format: int64
+          description: |
+            Aggregated IOPS for this VM, computed as the sum of `disk_iops`
+            across all entries in the VM's `data_disks` from VLM config.
+        throughputGBps:
+          type: number
+          format: double
+          description: |
+            Aggregated throughput for this VM in GBps, computed as the sum of
+            `disk_throughput` (MiBps) across all entries in the VM's `data_disks`
+            from VLM config and converted from MiBps to GBps.
 
     OCICreatePoolWorkflowMetadata:
       type: object
