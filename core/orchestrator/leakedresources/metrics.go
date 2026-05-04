@@ -18,11 +18,16 @@ const (
 	monitoringRunsName       = "vcp.leaked_resources.monitoring_runs"
 )
 
+// leakedCountKey identifies one exported time series. project_id + reason (with
+// resource_id/name) let alerts group by project/reason while still exposing
+// which resource triggered the series. Cardinality scales with leak count.
 type leakedCountKey struct {
 	resourceType string
 	reason       string
 	projectID    string
 	region       string
+	resourceID   string
+	resourceName string
 }
 
 type leakedCountObservation struct {
@@ -107,7 +112,7 @@ func initLeakedResourceMetrics() {
 		meter := otel.Meter(leakedResourcesMeterName)
 		countGauge, err := meter.Int64ObservableGauge(
 			leakedResourcesCountName,
-			metric.WithDescription("Number of leaked resources at the last report run, by resource_type and reason."),
+			metric.WithDescription("Leaked resources at the last report run, one time series per resource (resource_id/resource_name labels). High cardinality when many leaks exist."),
 			metric.WithUnit("{resource}"),
 		)
 		if err != nil {
@@ -144,6 +149,8 @@ func updateLeakedCounts(records []model.LeakRecord) {
 			reason:       record.Reason,
 			projectID:    record.ProjectID,
 			region:       record.Region,
+			resourceID:   record.ResourceID,
+			resourceName: record.ResourceName,
 		}
 		next[key]++
 	}
@@ -168,6 +175,12 @@ func currentLeakCountObservations() []leakedCountObservation {
 		}
 		if key.region != "" {
 			attrs = append(attrs, attribute.String("region", key.region))
+		}
+		if key.resourceID != "" {
+			attrs = append(attrs, attribute.String("resource_id", key.resourceID))
+		}
+		if key.resourceName != "" {
+			attrs = append(attrs, attribute.String("resource_name", key.resourceName))
 		}
 		observations = append(observations, leakedCountObservation{
 			count: count,

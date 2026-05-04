@@ -33,18 +33,32 @@ func TestMetricsReporter_Report_AggregatesCountsBySafeDimensions(t *testing.T) {
 	records := []model.LeakRecord{
 		{
 			ResourceType: model.ResourceTypePool,
+			ResourceID:   "pool-a",
+			ResourceName: "pool-a-name",
 			Reason:       "in_vcp_not_in_ccfe",
 			ProjectID:    "p1",
 			Region:       "us-central1",
 		},
 		{
 			ResourceType: model.ResourceTypePool,
+			ResourceID:   "pool-a",
+			ResourceName: "pool-a-name",
+			Reason:       "in_vcp_not_in_ccfe",
+			ProjectID:    "p1",
+			Region:       "us-central1",
+		},
+		{
+			ResourceType: model.ResourceTypePool,
+			ResourceID:   "pool-b",
+			ResourceName: "pool-b-name",
 			Reason:       "in_vcp_not_in_ccfe",
 			ProjectID:    "p1",
 			Region:       "us-central1",
 		},
 		{
 			ResourceType: model.ResourceTypeVolume,
+			ResourceID:   "vol-1",
+			ResourceName: "vol-one",
 			Reason:       "volume_orphan_pool_missing",
 		},
 	}
@@ -59,12 +73,24 @@ func TestMetricsReporter_Report_AggregatesCountsBySafeDimensions(t *testing.T) {
 		reason:       "in_vcp_not_in_ccfe",
 		projectID:    "p1",
 		region:       "us-central1",
+		resourceID:   "pool-a",
+		resourceName: "pool-a-name",
+	}])
+	assert.Equal(t, int64(1), leakedCountsByKey[leakedCountKey{
+		resourceType: "pool",
+		reason:       "in_vcp_not_in_ccfe",
+		projectID:    "p1",
+		region:       "us-central1",
+		resourceID:   "pool-b",
+		resourceName: "pool-b-name",
 	}])
 	assert.Equal(t, int64(1), leakedCountsByKey[leakedCountKey{
 		resourceType: "volume",
 		reason:       "volume_orphan_pool_missing",
 		projectID:    "",
 		region:       "",
+		resourceID:   "vol-1",
+		resourceName: "vol-one",
 	}])
 }
 
@@ -73,12 +99,22 @@ func TestMetricsReporter_Report_ReplacesPreviousRunState(t *testing.T) {
 	r := NewMetricsReporter()
 
 	err := r.Report(context.Background(), []model.LeakRecord{
-		{ResourceType: model.ResourceTypePool, Reason: "in_vcp_not_in_ccfe"},
+		{
+			ResourceType: model.ResourceTypePool,
+			ResourceID:   "pool-1",
+			ResourceName: "p-one",
+			Reason:       "in_vcp_not_in_ccfe",
+		},
 	})
 	assert.NoError(t, err)
 
 	err = r.Report(context.Background(), []model.LeakRecord{
-		{ResourceType: model.ResourceTypeSnapshot, Reason: "snapshot_orphan_volume_missing"},
+		{
+			ResourceType: model.ResourceTypeSnapshot,
+			ResourceID:   "snap-2",
+			ResourceName: "snap-two",
+			Reason:       "snapshot_orphan_volume_missing",
+		},
 	})
 	assert.NoError(t, err)
 
@@ -90,6 +126,8 @@ func TestMetricsReporter_Report_ReplacesPreviousRunState(t *testing.T) {
 		reason:       "snapshot_orphan_volume_missing",
 		projectID:    "",
 		region:       "",
+		resourceID:   "snap-2",
+		resourceName: "snap-two",
 	}])
 }
 
@@ -122,12 +160,16 @@ func TestCurrentLeakCountObservations_IncludesOptionalDimensionsConditionally(t 
 	updateLeakedCounts([]model.LeakRecord{
 		{
 			ResourceType: model.ResourceTypePool,
+			ResourceID:   "pid-1",
+			ResourceName: "pool-one",
 			Reason:       "in_vcp_not_in_ccfe",
 			ProjectID:    "proj-1",
 			Region:       "us-central1",
 		},
 		{
 			ResourceType: model.ResourceTypeVolume,
+			ResourceID:   "vid-1",
+			ResourceName: "v-one",
 			Reason:       "volume_orphan_pool_missing",
 		},
 	})
@@ -165,10 +207,14 @@ func TestCurrentLeakCountObservations_IncludesOptionalDimensionsConditionally(t 
 		"reason":        "in_vcp_not_in_ccfe",
 		"project_id":    "proj-1",
 		"region":        "us-central1",
+		"resource_id":   "pid-1",
+		"resource_name": "pool-one",
 	}))
 	assert.True(t, containsObs(1, map[string]string{
 		"resource_type": "volume",
 		"reason":        "volume_orphan_pool_missing",
+		"resource_id":   "vid-1",
+		"resource_name": "v-one",
 	}))
 }
 
