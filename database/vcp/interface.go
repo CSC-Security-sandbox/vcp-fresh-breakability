@@ -417,6 +417,7 @@ type (
 
 		// Cluster Peering methods
 		GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx context.Context, accountID int64, onPrempCluster string, poolID int64) (*datamodel.ClusterPeerings, error)
+		GetClusterPeeringRowByID(ctx context.Context, clusterPeerID int64) (*datamodel.ClusterPeerings, error)
 		CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error)
 		UpdateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error
 		ListClusterPeeringRowsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.ClusterPeerings, error)

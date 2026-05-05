@@ -46,7 +46,6 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 
 	createFlexCacheVolume = mm.createFlexCacheVolume
 	establishFlexCacheVolumePeering = mm.establishFlexCacheVolumePeering
-	checkAndCancelCreateWorkflowIfNeeded = mm.checkAndCancelCreateWorkflowIfNeeded
 
 	// Volume replication methods
 	getAccountWithName = mm.getAccountWithName
@@ -77,7 +76,6 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 
 		createFlexCacheVolume = _createFlexCacheVolume
 		establishFlexCacheVolumePeering = _establishFlexCacheVolumePeering
-		checkAndCancelCreateWorkflowIfNeeded = _checkAndCancelCreateWorkflowIfNeeded
 
 		// Volume replication methods
 		getAccountWithName = _getAccountWithName

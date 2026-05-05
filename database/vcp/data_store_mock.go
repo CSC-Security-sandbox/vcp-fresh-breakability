@@ -2365,65 +2365,6 @@ func (_c *MockDataStore_CreateSVM_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
-// CreateSvmInCreatingState provides a mock function with given fields: ctx, svm
-func (_m *MockDataStore) CreateSvmInCreatingState(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
-	ret := _m.Called(ctx, svm)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateSvmInCreatingState")
-	}
-
-	var r0 *datamodel.Svm
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)); ok {
-		return rf(ctx, svm)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) *datamodel.Svm); ok {
-		r0 = rf(ctx, svm)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.Svm)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Svm) error); ok {
-		r1 = rf(ctx, svm)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_CreateSvmInCreatingState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSvmInCreatingState'
-type MockDataStore_CreateSvmInCreatingState_Call struct {
-	*mock.Call
-}
-
-// CreateSvmInCreatingState is a helper method to define mock.On call
-//   - ctx context.Context
-//   - svm *datamodel.Svm
-func (_e *MockDataStore_Expecter) CreateSvmInCreatingState(ctx interface{}, svm interface{}) *MockDataStore_CreateSvmInCreatingState_Call {
-	return &MockDataStore_CreateSvmInCreatingState_Call{Call: _e.mock.On("CreateSvmInCreatingState", ctx, svm)}
-}
-
-func (_c *MockDataStore_CreateSvmInCreatingState_Call) Run(run func(ctx context.Context, svm *datamodel.Svm)) *MockDataStore_CreateSvmInCreatingState_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Svm))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_CreateSvmInCreatingState_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockDataStore_CreateSvmInCreatingState_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_CreateSvmInCreatingState_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)) *MockDataStore_CreateSvmInCreatingState_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // CreateSfrMetadata provides a mock function with given fields: ctx, sfrMetadata
 func (_m *MockDataStore) CreateSfrMetadata(ctx context.Context, sfrMetadata *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error) {
 	ret := _m.Called(ctx, sfrMetadata)
@@ -2479,6 +2420,65 @@ func (_c *MockDataStore_CreateSfrMetadata_Call) Return(_a0 *datamodel.SfrMetadat
 }
 
 func (_c *MockDataStore_CreateSfrMetadata_Call) RunAndReturn(run func(context.Context, *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error)) *MockDataStore_CreateSfrMetadata_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateSvmInCreatingState provides a mock function with given fields: ctx, svm
+func (_m *MockDataStore) CreateSvmInCreatingState(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, svm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSvmInCreatingState")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)); ok {
+		return rf(ctx, svm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) *datamodel.Svm); ok {
+		r0 = rf(ctx, svm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Svm) error); ok {
+		r1 = rf(ctx, svm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateSvmInCreatingState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSvmInCreatingState'
+type MockDataStore_CreateSvmInCreatingState_Call struct {
+	*mock.Call
+}
+
+// CreateSvmInCreatingState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svm *datamodel.Svm
+func (_e *MockDataStore_Expecter) CreateSvmInCreatingState(ctx interface{}, svm interface{}) *MockDataStore_CreateSvmInCreatingState_Call {
+	return &MockDataStore_CreateSvmInCreatingState_Call{Call: _e.mock.On("CreateSvmInCreatingState", ctx, svm)}
+}
+
+func (_c *MockDataStore_CreateSvmInCreatingState_Call) Run(run func(ctx context.Context, svm *datamodel.Svm)) *MockDataStore_CreateSvmInCreatingState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Svm))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateSvmInCreatingState_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockDataStore_CreateSvmInCreatingState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateSvmInCreatingState_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)) *MockDataStore_CreateSvmInCreatingState_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -7598,6 +7598,65 @@ func (_c *MockDataStore_GetClusterPeerByAccountIDExternalClusterAndPoolID_Call) 
 }
 
 func (_c *MockDataStore_GetClusterPeerByAccountIDExternalClusterAndPoolID_Call) RunAndReturn(run func(context.Context, int64, string, int64) (*datamodel.ClusterPeerings, error)) *MockDataStore_GetClusterPeerByAccountIDExternalClusterAndPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetClusterPeeringRowByID provides a mock function with given fields: ctx, clusterPeerID
+func (_m *MockDataStore) GetClusterPeeringRowByID(ctx context.Context, clusterPeerID int64) (*datamodel.ClusterPeerings, error) {
+	ret := _m.Called(ctx, clusterPeerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterPeeringRowByID")
+	}
+
+	var r0 *datamodel.ClusterPeerings
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*datamodel.ClusterPeerings, error)); ok {
+		return rf(ctx, clusterPeerID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *datamodel.ClusterPeerings); ok {
+		r0 = rf(ctx, clusterPeerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ClusterPeerings)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, clusterPeerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetClusterPeeringRowByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterPeeringRowByID'
+type MockDataStore_GetClusterPeeringRowByID_Call struct {
+	*mock.Call
+}
+
+// GetClusterPeeringRowByID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clusterPeerID int64
+func (_e *MockDataStore_Expecter) GetClusterPeeringRowByID(ctx interface{}, clusterPeerID interface{}) *MockDataStore_GetClusterPeeringRowByID_Call {
+	return &MockDataStore_GetClusterPeeringRowByID_Call{Call: _e.mock.On("GetClusterPeeringRowByID", ctx, clusterPeerID)}
+}
+
+func (_c *MockDataStore_GetClusterPeeringRowByID_Call) Run(run func(ctx context.Context, clusterPeerID int64)) *MockDataStore_GetClusterPeeringRowByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetClusterPeeringRowByID_Call) Return(_a0 *datamodel.ClusterPeerings, _a1 error) *MockDataStore_GetClusterPeeringRowByID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetClusterPeeringRowByID_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.ClusterPeerings, error)) *MockDataStore_GetClusterPeeringRowByID_Call {
 	_c.Call.Return(run)
 	return _c
 }

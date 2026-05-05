@@ -10204,7 +10204,6 @@ func TestDeleteVolume(t *testing.T) {
 		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
 		mm.EXPECT().validateDeleteVolumeParams(ctx, mockStorage, volume).Return(nil)
-		mm.EXPECT().checkAndCancelCreateWorkflowIfNeeded(ctx, mockStorage, temporal, volume).Return(nil)
 		mockStorage.EXPECT().GetVolume(ctx, volume.UUID).Return(volume, nil)
 		// Mock GetJobByResourceUUID for FLEXCACHE_DELETE_VOLUME (check for existing delete job when in non-transitional state)
 		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheDeleteVolume)).Return(nil, nil)
@@ -10231,12 +10230,12 @@ func TestDeleteVolume(t *testing.T) {
 		assert.True(tt, workflowValidated, "expected flex cache delete workflow to be used")
 	})
 
-	t.Run("WhenFlexCacheVolumeCancelFails", func(tt *testing.T) {
+	t.Run("WhenFlexCacheVolume_NonSequentialWhenPreparing", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockStorage := database.NewMockStorage(tt)
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 101, UUID: "test-account-uuid"},
@@ -10259,8 +10258,7 @@ func TestDeleteVolume(t *testing.T) {
 			Account:      account,
 			PoolID:       pool.ID,
 			Pool:         pool,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State: models.LifeCycleStatePreparing,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols:         []string{utils.ProtocolNFSv3},
 				SnapReserve:       0,
@@ -10271,16 +10269,39 @@ func TestDeleteVolume(t *testing.T) {
 			},
 		}
 
+		originalAutoScaling := enableAutoPoolScaling
+		enableAutoPoolScaling = false
+		defer func() { enableAutoPoolScaling = originalAutoScaling }()
+
+		var sequentialCalled bool
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temp client.Client, execCtx context.Context, options client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			sequentialCalled = true
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
 		mm.EXPECT().validateDeleteVolumeParams(ctx, mockStorage, volume).Return(nil)
-		mm.EXPECT().checkAndCancelCreateWorkflowIfNeeded(ctx, mockStorage, temporal, volume).Return(fmt.Errorf("some error"))
 		mockStorage.EXPECT().GetVolume(ctx, volume.UUID).Return(volume, nil)
-		// Mock GetJobByResourceUUID for FLEXCACHE_DELETE_VOLUME (check for existing delete job when in non-transitional state)
 		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheDeleteVolume)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeFlexCacheDeleteVolume)
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}, nil)
+		mockStorage.EXPECT().UpdateVolumeFields(ctx, volume.UUID, mock.Anything).Return(nil)
+
+		temporal.EXPECT().ExecuteWorkflow(ctx,
+			mock.AnythingOfType("internal.StartWorkflowOptions"),
+			mock.Anything,
+			volume,
+		).Return(nil, nil)
 
 		resultVolume, jobID, err := deleteVolume(ctx, mockStorage, temporal, volume.UUID)
-		assert.Error(tt, err)
-		assert.Nil(tt, resultVolume)
-		assert.Empty(tt, jobID)
+		assert.NoError(tt, err, "deleteVolume should succeed for FlexCache volume")
+		assert.Equal(tt, "job-uuid", jobID)
+		assert.NotNil(tt, resultVolume)
+		assert.Equal(tt, models.LifeCycleStateDeleting, resultVolume.LifeCycleState)
+		assert.False(tt, sequentialCalled, "expected non-sequential ExecuteWorkflow path when cancel-create indicates parallel delete")
+		temporal.AssertExpectations(tt)
 	})
 
 	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {

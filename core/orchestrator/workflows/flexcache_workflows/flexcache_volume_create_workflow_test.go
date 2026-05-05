@@ -87,6 +87,7 @@ func (s *FlexCacheUnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity)
 	// Register all flexcache related activities used in workflow so mocks match
 	s.env.RegisterActivity(flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity)
+	s.env.RegisterActivity(flexCacheVolumeCreateActivity.AbortIfCancelledActivity)
 	s.env.RegisterActivity(flexCacheVolumeCreateActivity.CreatePeeringJobActivity)
 	s.env.RegisterActivity(flexCacheVolumeCreateActivity.CompletePeeringJobActivity)
 	s.env.RegisterActivity(flexCacheVolumeCreateActivity.StartInternalJobActivity)
@@ -223,6 +224,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_Success() {
 
 	peerExpiryTime := time.Now()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -278,6 +280,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_Create_New_Success
 		ClusterPeeringRow: clusterPeeringRow,
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.GetClusterPeeringRowFromDBActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -322,6 +325,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_GetNodeFailure() {
 	volume := CreateTestVolume()
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -339,6 +343,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_GetClusterPeeringR
 	volume := CreateTestVolume()
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -360,6 +365,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CreateClusterPeeri
 	volume := CreateTestVolume()
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -382,6 +388,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateClusterPeeri
 	volume := CreateTestVolume()
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -407,6 +414,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateClusterPeeri
 	result := createPeeringResult(volume)
 	expectedErr := assert.AnError
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -445,6 +453,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CreateClusterPeerF
 		ClusterPeeringRow: clusterPeerRow,
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -478,6 +487,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateFlexCacheVol
 	result.ClusterPeeringRow = clusterPeerRow
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -517,6 +527,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateClusterPeeri
 	event := createTestEvent()
 
 	// Expectations up to the failure point (no UpdateClusterPeeringInVolume or FailJobActivity in this path)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -551,6 +562,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForClusterPeer
 
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.GetClusterPeeringRowFromDBActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -588,6 +600,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateClusterPeeri
 	}
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -627,6 +640,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForClusterPeer
 
 	var capturedResult *flexcache.CreateFlexCacheResult
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -674,6 +688,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_EnsureSVMPeerInOnt
 	}
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -716,6 +731,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CreateSVMPeerFailu
 	expectedErr := errors.WrapAsTemporalApplicationError(errors.NewVCPError(errors.ErrSVMPeerError, fmt.Errorf("some_error")))
 	var capturedResult *flexcache.CreateFlexCacheResult
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -757,6 +773,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateFlexCacheVol
 	result.ClusterPeeringRow = clusterPeerRow
 	result.ClusterPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -789,6 +806,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_HydrateFlexCacheSt
 	result.ClusterPeerAction = flexcache.ActionReady
 	result.SVMPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -835,6 +853,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForSVMPeerActi
 
 	var capturedResult *flexcache.CreateFlexCacheResult
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -880,6 +899,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateFlexCacheVol
 		ClusterPeeringRow: clusterPeerRow,
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -918,6 +938,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForSVMPeerActi
 
 	var capturedResult *flexcache.CreateFlexCacheResult
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -967,6 +988,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CreateFlexCacheVol
 		ClusterPeeringRow: clusterPeerRow,
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1012,6 +1034,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateVolumeAttrib
 	result.ClusterPeeringRow = clusterPeerRow
 	result.ClusterPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1051,6 +1074,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateVolumeAttrib
 	result.ClusterPeeringRow = clusterPeerRow
 	result.ClusterPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1091,6 +1115,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_VerifyVolumeEncryp
 	result.ClusterPeeringRow = clusterPeerRow
 	result.ClusterPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1129,6 +1154,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CreateExportPolicy
 	}
 	result.ClusterPeeringRow = clusterPeerRow
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -1174,6 +1200,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_HydrateFlexCacheSt
 	result.SVMPeerAction = flexcache.ActionCreate
 
 	// Only mock activities that are actually called in the ready path
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -1210,6 +1237,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateFlexCacheVol
 	result.ClusterPeerAction = flexcache.ActionReady
 	result.SVMPeerAction = flexcache.ActionCreate
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1250,6 +1278,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateVolumeDetail
 	result := createPeeringResult(volume)
 	result.ClusterPeeringRow = clusterPeerRow
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1277,6 +1306,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateClusterPeeri
 	result := &flexcache.CreateFlexCacheResult{DBVolume: volume, ClusterPeeringRow: peerRow}
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1297,6 +1327,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateJobStatusFai
 	volume := CreateTestVolume()
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(assert.AnError)
 
 	s.env.ExecuteWorkflow(CreateFlexCacheWorkflow, &common.CreateVolumeParams{}, volume, event)
@@ -1309,6 +1340,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateJobStatusFai
 	volume := CreateTestVolume()
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(func(ctx context.Context, job *datamodel.Job) error {
 		if job.State == string(models.JobsStatePROCESSING) {
 			return nil
@@ -1345,6 +1377,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_DeleteClusterPeerI
 		ClusterPeeringRow: clusterPeeringRow,
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.GetClusterPeeringRowFromDBActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -1384,6 +1417,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_DeleteClusterPeeri
 
 	expectedErr := assert.AnError
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1422,6 +1456,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_DeleteSVMPeeringIn
 
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -1461,6 +1496,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_DeleteSVMPeeringIn
 	}
 	event := createTestEvent()
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -1494,6 +1530,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_DeleteSVMPeeringIn
 
 // setupMocksBeforeChildWorkflows sets up all activity mocks needed to reach child workflow execution
 func (s *FlexCacheUnitTestSuite) setupMocksBeforeChildWorkflows(result *flexcache.CreateFlexCacheResult) {
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -1612,6 +1649,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_PostFileVolumeWork
 	result.ClusterPeerAction = flexcache.ActionReady
 	result.SVMPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1653,6 +1691,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_PostFileVolumeWork
 	defer func() { enableSmb = originalEnableSmb }()
 	enableSmb = true
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1835,6 +1874,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationError(
 		s.env.SignalWorkflow(CancelFlexCacheSignalName, "cancel data")
 	}, 0*time.Millisecond)
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Maybe().Return(&flexcache.CreateFlexCacheResult{DBVolume: volume}, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateVolumeDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
@@ -1858,6 +1898,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationDuring
 	}
 
 	// Signal cancellation when the first activity completes so the test is deterministic (no timer race).
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		s.env.SignalWorkflow(CancelFlexCacheSignalName, "cancel data")
@@ -1901,6 +1942,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationAtVari
 		},
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Maybe().Return(result, nil)
@@ -1926,6 +1968,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationAfterC
 	event := createTestEvent()
 	result := createPeeringResult(volume)
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		s.env.SignalWorkflow(CancelFlexCacheSignalName, "cancel data")
@@ -1944,6 +1987,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationAfterG
 	event := createTestEvent()
 	result := createPeeringResult(volume)
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -1965,6 +2009,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationAfterG
 	result := createPeeringResult(volume)
 	result.ActiveJobType = models.JobTypeFlexCacheEstablishPeering
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -1989,6 +2034,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.ClusterPeerAction = flexcache.ActionCreate
 	result.ClusterPeer = clusterPeer
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2023,6 +2069,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 		AccountID:    volume.AccountID,
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2072,6 +2119,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 		AccountID:    volume.AccountID,
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2125,6 +2173,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 		BaseModel: datamodel.BaseModel{ID: int64(1)},
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2155,6 +2204,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result := createPeeringResult(volume)
 	result.ClusterPeerAction = flexcache.ActionCreate
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2209,6 +2259,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 		BaseModel: datamodel.BaseModel{ID: int64(1)},
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2246,6 +2297,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 		BaseModel: datamodel.BaseModel{ID: int64(1)},
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2276,6 +2328,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result := createPeeringResult(volume)
 	result.ClusterPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2304,6 +2357,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result := createPeeringResult(volume)
 	result.ClusterPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2342,6 +2396,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result := createPeeringResult(volume)
 	result.ClusterPeerAction = flexcache.ActionCreate
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2380,6 +2435,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 		BaseModel: datamodel.BaseModel{ID: int64(1)},
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2414,6 +2470,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result := createPeeringResult(volume)
 	result.ClusterPeerAction = flexcache.ActionCreate
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2448,6 +2505,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.SVMPeerAction = flexcache.ActionCreate
 	result.SVMPeer = &vsa.SvmPeer{PeerSvmName: "svm-peer"}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2487,6 +2545,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 		AccountID:    volume.AccountID,
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2530,6 +2589,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.ClusterPeerAction = flexcache.ActionReady
 	result.SVMPeerAction = flexcache.ActionCreate
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2560,6 +2620,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.ClusterPeerAction = flexcache.ActionReady
 	result.SVMPeerAction = flexcache.ActionCreate
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2590,6 +2651,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.ClusterPeerAction = flexcache.ActionReady
 	result.SVMPeerAction = flexcache.ActionWait
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2621,6 +2683,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.ClusterPeerAction = flexcache.ActionReady
 	result.SVMPeerAction = flexcache.ActionReady
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2653,6 +2716,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.SVMPeerAction = flexcache.ActionReady
 	result.ActiveJobType = models.JobTypeFlexCacheInternalPeering
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2688,6 +2752,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 		EndpointAddressesToHostNameMap: make(map[string]string),
 	}
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2723,6 +2788,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.VolumeResponse = &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"}}
 	result.ActiveJobType = models.JobTypeFlexCacheInternalPeering
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2761,6 +2827,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.VolumeResponse = &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"}}
 	result.ActiveJobType = models.JobTypeFlexCacheInternalPeering
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2801,6 +2868,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	updatedVolume := *volume
 	updatedVolume.Name = "updated-volume"
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2837,6 +2905,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.VolumeResponse = &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"}}
 	result.ActiveJobType = models.JobTypeFlexCacheInternalPeering
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2874,6 +2943,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.VolumeResponse = &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"}}
 	result.ActiveJobType = models.JobTypeFlexCacheInternalPeering
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2911,6 +2981,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.VolumeResponse = &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"}}
 	result.ActiveJobType = models.JobTypeFlexCacheInternalPeering
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -2948,6 +3019,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationBefore
 	result.VolumeResponse = &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"}}
 	result.ActiveJobType = models.JobTypeFlexCacheInternalPeering
 
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.AbortIfCancelledActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(result, nil)

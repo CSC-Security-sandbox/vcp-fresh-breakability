@@ -6,6 +6,7 @@ import (
 	context "context"
 
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	client "go.temporal.io/sdk/client"
 
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 
@@ -136,6 +137,54 @@ func (_c *monkeyMock_commonHydrateFlexCacheState_Call) Return(_a0 error) *monkey
 }
 
 func (_c *monkeyMock_commonHydrateFlexCacheState_Call) RunAndReturn(run func(context.Context, log.Logger, string, string, string, string, string, string) error) *monkeyMock_commonHydrateFlexCacheState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// fetchTemporalClientForFlexCacheDelete provides a mock function with given fields: ctx
+func (_m *monkeyMock) fetchTemporalClientForFlexCacheDelete(ctx context.Context) client.Client {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for fetchTemporalClientForFlexCacheDelete")
+	}
+
+	var r0 client.Client
+	if rf, ok := ret.Get(0).(func(context.Context) client.Client); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(client.Client)
+		}
+	}
+
+	return r0
+}
+
+// monkeyMock_fetchTemporalClientForFlexCacheDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'fetchTemporalClientForFlexCacheDelete'
+type monkeyMock_fetchTemporalClientForFlexCacheDelete_Call struct {
+	*mock.Call
+}
+
+// fetchTemporalClientForFlexCacheDelete is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *monkeyMock_Expecter) fetchTemporalClientForFlexCacheDelete(ctx interface{}) *monkeyMock_fetchTemporalClientForFlexCacheDelete_Call {
+	return &monkeyMock_fetchTemporalClientForFlexCacheDelete_Call{Call: _e.mock.On("fetchTemporalClientForFlexCacheDelete", ctx)}
+}
+
+func (_c *monkeyMock_fetchTemporalClientForFlexCacheDelete_Call) Run(run func(ctx context.Context)) *monkeyMock_fetchTemporalClientForFlexCacheDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_fetchTemporalClientForFlexCacheDelete_Call) Return(_a0 client.Client) *monkeyMock_fetchTemporalClientForFlexCacheDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_fetchTemporalClientForFlexCacheDelete_Call) RunAndReturn(run func(context.Context) client.Client) *monkeyMock_fetchTemporalClientForFlexCacheDelete_Call {
 	_c.Call.Return(run)
 	return _c
 }

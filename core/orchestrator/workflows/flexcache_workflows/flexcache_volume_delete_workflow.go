@@ -193,7 +193,7 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-
+	
 	if flexCacheResult.VolumeReplicationCountOnClusterPeering == 0 && flexCacheResult.FlexCacheVolumeCountOnClusterPeering == 1 {
 		if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.DeleteClusterPeerInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
@@ -227,6 +227,10 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
+	}
+
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, &flexCacheResult).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	if err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteVolume, &dbVolume).Get(ctx, nil); err != nil {

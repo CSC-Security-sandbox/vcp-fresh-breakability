@@ -98,55 +98,6 @@ func (_c *monkeyMock_authGetSignedJwtToken_Call) RunAndReturn(run func(string) (
 	return _c
 }
 
-// checkAndCancelCreateWorkflowIfNeeded provides a mock function with given fields: ctx, se, temporal, dbVolume
-func (_m *monkeyMock) checkAndCancelCreateWorkflowIfNeeded(ctx context.Context, se database.Storage, temporal client.Client, dbVolume *datamodel.Volume) error {
-	ret := _m.Called(ctx, se, temporal, dbVolume)
-
-	if len(ret) == 0 {
-		panic("no return value specified for checkAndCancelCreateWorkflowIfNeeded")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, client.Client, *datamodel.Volume) error); ok {
-		r0 = rf(ctx, se, temporal, dbVolume)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'checkAndCancelCreateWorkflowIfNeeded'
-type monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call struct {
-	*mock.Call
-}
-
-// checkAndCancelCreateWorkflowIfNeeded is a helper method to define mock.On call
-//   - ctx context.Context
-//   - se database.Storage
-//   - temporal client.Client
-//   - dbVolume *datamodel.Volume
-func (_e *monkeyMock_Expecter) checkAndCancelCreateWorkflowIfNeeded(ctx interface{}, se interface{}, temporal interface{}, dbVolume interface{}) *monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call {
-	return &monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call{Call: _e.mock.On("checkAndCancelCreateWorkflowIfNeeded", ctx, se, temporal, dbVolume)}
-}
-
-func (_c *monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call) Run(run func(ctx context.Context, se database.Storage, temporal client.Client, dbVolume *datamodel.Volume)) *monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(database.Storage), args[2].(client.Client), args[3].(*datamodel.Volume))
-	})
-	return _c
-}
-
-func (_c *monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call) Return(_a0 error) *monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call) RunAndReturn(run func(context.Context, database.Storage, client.Client, *datamodel.Volume) error) *monkeyMock_checkAndCancelCreateWorkflowIfNeeded_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // checkForFlexCacheJobInProgress provides a mock function with given fields: ctx, se, dbVolume, params
 func (_m *monkeyMock) checkForFlexCacheJobInProgress(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) (bool, string, error) {
 	ret := _m.Called(ctx, se, dbVolume, params)

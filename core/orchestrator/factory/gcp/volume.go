@@ -66,7 +66,6 @@ var (
 	validateDeleteVolumeParams           = _validateDeleteVolumeParams
 	updateVolumeStatus                   = _updateVolumeStatus
 	convertDatastoreVolumeToModel        = _convertDatastoreVolumeToModel
-	checkAndCancelCreateWorkflowIfNeeded = _checkAndCancelCreateWorkflowIfNeeded
 	minPrimeNumberConfigAllowed          = 7
 
 	envIsLocalEnv                              = env.IsLocalEnv
@@ -2119,11 +2118,8 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if volume.CacheParameters != nil {
 		workflowFunc = flexcache_workflows.DeleteFlexCacheVolumeWorkflow
-
-		err = checkAndCancelCreateWorkflowIfNeeded(ctx, se, temporal, volume)
-		if err != nil {
-			logger.Error("Failed to check and cancel create flex cache volume workflow", "error", err)
-			return nil, "", err
+		if volume.State == models.LifeCycleStatePreparing {
+			useNonSequentialExecution = true
 		}
 	}
 

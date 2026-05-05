@@ -164,7 +164,7 @@ func (a *FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx con
 	}
 
 	result.ClusterPeer = clusterPeer
-	logger.Infof("cluster peer created successfully with UUID: %s", clusterPeer.UUID)
+	logger.Infof("cluster peer created successfully with UUID: %s", clusterPeer.ExternalUUID)
 
 	return result, nil
 }
@@ -424,6 +424,30 @@ func (a *FlexCacheVolumeCreateActivity) shouldSetErrorState(result *flexcache.Cr
 	}
 
 	return true
+}
+
+// AbortIfCancelledActivity returns a non-retryable error when the FlexCache create job
+// is CANCELLED in the database (for example after CancelRunningJobsForResource during volume delete).
+// Queued create workflows consult this when they start under the sequence workflow so they exit without work.
+func (a *FlexCacheVolumeCreateActivity) AbortIfCancelledActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
+	logger := utilGetLogger(ctx)
+	job, err := a.SE.GetJobByResourceUUID(ctx, result.DBVolume.UUID, string(coremodels.JobTypeFlexCacheCreateVolume))
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil
+		}
+		logger.Errorf("failed to load FlexCache create job for %s: %v", result.DBVolume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if job == nil {
+		return nil
+	}
+	if job.State == string(coremodels.JobsStateCANCELLED) || job.State == string(coremodels.JobsStateERROR) {
+		logger.Infof("FlexCache create job %s is CANCELLED or ERROR; aborting create workflow for volume %s", job.UUID, result.DBVolume.UUID)
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			fmt.Errorf("flexcache creation cancelled by delete request"))
+	}
+	return nil
 }
 
 // CompleteFlexCacheCreateJobActivity finds and completes an existing FlexCache create job if it exists.
@@ -827,8 +851,8 @@ func (a *FlexCacheVolumeCreateActivity) GetClusterPeeringRowFromDBActivity(ctx c
 	existingPeer, err := a.SE.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, volume.Account.ID,
 		cacheParams.PeerClusterName, volume.Pool.ID)
 	if err != nil {
-		if customerrors.IsNotFoundErr(err) {
-			logger.Debugf("Cluster peering row not found (account=%d cluster=%s pool=%d)",
+		if customerrors.IsNotFoundErr(err) || existingPeer != nil && existingPeer.State == coremodels.CvpClusterPeeringStatusERROR {
+			logger.Debugf("Cluster peering row not available (account=%d cluster=%s pool=%d)",
 				volume.Account.ID, cacheParams.PeerClusterName, volume.Pool.ID)
 			return result, nil
 		}

@@ -416,39 +416,3 @@ func _verifyCommandExpiryTime(peerExpiryTime *time.Time) error {
 	}
 	return nil
 }
-
-func _checkAndCancelCreateWorkflowIfNeeded(ctx context.Context, se database.Storage, temporal client.Client, dbVolume *datamodel.Volume) error {
-	logger := utilGetLogger(ctx)
-
-	if dbVolume.State != coremodels.LifeCycleStatePreparing {
-		logger.Debugf("cannot cancel create workflow for volume %s as it is not in PREPARING state", dbVolume.Name)
-		return nil
-	}
-
-	// Grab the create job so that we can use it's workflow ID to cancel the workflow
-	// The create job is the first job created for the volume so it should always exist
-	createJob, err := se.GetJobByResourceUUID(ctx, dbVolume.UUID, string(coremodels.JobTypeFlexCacheCreateVolume))
-	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			logger.Debugf("no create job found for volume %s", dbVolume.Name)
-			return nil
-		}
-		logger.Errorf("error retrieving create job for volume %s: %v", dbVolume.Name, err)
-		return err
-	}
-
-	err = temporal.CancelWorkflow(ctx, createJob.WorkflowID, "")
-	if err != nil {
-		logger.Errorf("failed to cancel create workflow %s for volume %s: %v", createJob.WorkflowID, dbVolume.Name, err)
-		return err
-	}
-
-	err = se.CancelRunningJobsForResource(ctx, dbVolume.UUID)
-	if err != nil {
-		logger.Errorf("failed to cancel running jobs for volume %s: %v", dbVolume.Name, err)
-		return err
-	}
-
-	logger.Infof("successfully cancelled create workflow %s for volume %s", createJob.WorkflowID, dbVolume.Name)
-	return nil
-}

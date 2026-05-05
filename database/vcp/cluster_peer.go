@@ -16,6 +16,11 @@ func (d *DataStoreRepository) GetClusterPeerByAccountIDExternalClusterAndPoolID(
 	return getClusterPeerByAccountIDExternalClusterAndPoolID(d.db.GORM().WithContext(ctx), accountID, onPrempCluster, poolID)
 }
 
+// GetClusterPeeringRowByID retrieves a cluster peering row by primary key (cluster_peerings.id).
+func (d *DataStoreRepository) GetClusterPeeringRowByID(ctx context.Context, clusterPeerID int64) (*datamodel.ClusterPeerings, error) {
+	return getClusterPeeringRowByID(d.db.GORM().WithContext(ctx), clusterPeerID)
+}
+
 // CreateClusterPeeringRow creates a new cluster peering row in the database
 func (d *DataStoreRepository) CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error) {
 	return createClusterPeeringRow(d.db.GORM().WithContext(ctx), clusterPeeringRow)
@@ -50,6 +55,23 @@ func getClusterPeerByAccountIDExternalClusterAndPoolID(db *gorm.DB, accountID in
 				"account_id":      accountID,
 				"onpremp_cluster": onPrempCluster,
 				"pool_id":         poolID,
+			}
+			contextJSON, _ := json.Marshal(contextMap)
+			contextStr := string(contextJSON)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerNotFound, customerrors.NewNotFoundErr("cluster peer", &contextStr))
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return clusterPeeringRow, nil
+}
+
+func getClusterPeeringRowByID(db *gorm.DB, clusterPeerID int64) (*datamodel.ClusterPeerings, error) {
+	clusterPeeringRow := &datamodel.ClusterPeerings{}
+	err := db.First(clusterPeeringRow, clusterPeerID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			contextMap := map[string]interface{}{
+				"cluster_peer_id": clusterPeerID,
 			}
 			contextJSON, _ := json.Marshal(contextMap)
 			contextStr := string(contextJSON)

@@ -15,6 +15,7 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 	isHydrationEnabled = mm.isHydrationEnabled
 	verifyAndGetFlexCacheUpdateParams = mm.verifyAndGetFlexCacheUpdateParams
 
+	fetchTemporalClientForFlexCacheDelete = mm.fetchTemporalClientForFlexCacheDelete
 	hyperscalerGetProviderByNode = mm.hyperscalerGetProviderByNode
 	utilGetLogger = mm.utilGetLogger
 	commonHydrateFlexCacheState = mm.commonHydrateFlexCacheState
@@ -24,6 +25,7 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 		isHydrationEnabled = _isHydrationEnabled
 		verifyAndGetFlexCacheUpdateParams = _verifyAndGetFlexCacheUpdateParams
 
+		fetchTemporalClientForFlexCacheDelete = _fetchTemporalClientForFlexCacheDelete
 		hyperscalerGetProviderByNode = hyperscaler.GetProviderByNode
 		utilGetLogger = util.GetLogger
 		commonHydrateFlexCacheState = common.HydrateFlexCacheState

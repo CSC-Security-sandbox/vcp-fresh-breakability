@@ -80,6 +80,7 @@ func (s *FlexCacheDeleteUnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.UpdateClusterPeeringRowStateDeletedInDBActivity)
 	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity)
 	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.CancelPrepopulateJobsForVolume)
+	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity)
 }
 
 func CreateTestVolumeForDelete() *datamodel.Volume {
@@ -140,6 +141,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Succes
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UpdateClusterPeeringRowStateDeletedInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -468,6 +470,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Delete
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UpdateClusterPeeringRowStateDeletedInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("some_error"))
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -491,6 +494,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Update
 		DeleteJobResponse: &vsa.OntapAsyncResponse{JobUUID: ""},
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetOntapJob, mock.Anything, "", mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("some_error"))
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("some_error"))
 
@@ -557,6 +561,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Update
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -596,6 +601,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_LdapEn
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DetermineIfVolumeIsLastFilesVolume, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteLDAPConfiguration, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -636,6 +642,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_LdapEn
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetClusterPeeringFromDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DetermineIfVolumeIsLastFilesVolume, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -675,6 +682,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_LdapDi
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetClusterPeeringFromDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -714,6 +722,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_LdapEn
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetClusterPeeringFromDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -824,6 +833,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetClusterPeeringFromDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	// Register cancellation activities
@@ -866,6 +876,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetClusterPeeringFromDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	// Register cancellation activities
@@ -907,6 +918,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Correl
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetClusterPeeringFromDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	// Register cancellation activities
@@ -947,6 +959,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UpdateClusterPeeringRowStateDeletedInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)
@@ -981,6 +994,7 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UpdateClusterPeeringRowStateDeletedInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(DeleteFlexCacheVolumeWorkflow, volume)

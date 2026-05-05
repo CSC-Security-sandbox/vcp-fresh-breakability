@@ -218,12 +218,12 @@ func (d *DataStoreRepository) CancelRunningJobsForResource(ctx context.Context, 
 	db := d.db.GORM().WithContext(ctx)
 	var whereClause string
 	if utils.EnableJobResourceUUIDIndex {
-		whereClause = "resource_uuid = ? AND state = ?"
+		whereClause = "resource_uuid = ? AND state IN (?, ?)"
 	} else {
-		whereClause = "job_attributes ->> 'resource_uuid' = ? AND state = ?"
+		whereClause = "job_attributes ->> 'resource_uuid' = ? AND state IN (?, ?)"
 	}
 	err := db.Model(&datamodel.Job{}).
-		Where(whereClause, resourceUUID, models.JobsStatePROCESSING).
+		Where(whereClause, resourceUUID, models.JobsStateNEW, models.JobsStatePROCESSING).
 		Update("state", string(models.JobsStateCANCELLED)).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)

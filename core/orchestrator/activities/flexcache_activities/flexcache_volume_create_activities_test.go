@@ -510,7 +510,7 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 			},
 		}
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
-		clusterPeer := &vsa.ClusterPeer{UUID: "cluster-peer-uuid"}
+		clusterPeer := &vsa.ClusterPeer{UUID: "cluster-peer-uuid", ExternalUUID: "ext-peer-uuid"}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2) // Once for activity, once for EnsureExternalPeerRole
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -532,7 +532,7 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 				*params.LocalRole == activities.OnPremPeerRoleName &&
 				params.ExpiryTime != nil
 		})).Return(clusterPeer, nil)
-		logger.EXPECT().Infof("cluster peer created successfully with UUID: %s", clusterPeer.UUID)
+		logger.EXPECT().Infof("cluster peer created successfully with UUID: %s", clusterPeer.ExternalUUID)
 
 		res, err := activity.CreateClusterPeerInOntapActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
@@ -554,7 +554,7 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 			},
 		}
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
-		clusterPeer := &vsa.ClusterPeer{UUID: "cluster-peer-uuid"}
+		clusterPeer := &vsa.ClusterPeer{UUID: "cluster-peer-uuid", ExternalUUID: "ext-peer-uuid"}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -567,7 +567,7 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 		mockProvider.EXPECT().CreateClusterPeer(mock.MatchedBy(func(params vsa.CreateClusterPeerParams) bool {
 			return params.LocalRole != nil && *params.LocalRole == activities.OnPremPeerRoleName
 		})).Return(clusterPeer, nil)
-		logger.EXPECT().Infof("cluster peer created successfully with UUID: %s", clusterPeer.UUID)
+		logger.EXPECT().Infof("cluster peer created successfully with UUID: %s", clusterPeer.ExternalUUID)
 
 		res, err := activity.CreateClusterPeerInOntapActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
@@ -1339,6 +1339,42 @@ func TestCompleteFlexCacheCreateJobActivity(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Empty(tt, result.ErrorMessage)
 		assert.Equal(tt, 0, result.ErrorTrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestAbortIfCancelledActivity(t *testing.T) {
+	ctx := context.Background()
+	vol := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, Name: "v1"}
+
+	t.Run("jobNotFoundContinues", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheCreateVolume)).
+			Return(nil, customerrors.NewNotFoundErr("job", nil)).Once()
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		err := act.AbortIfCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("cancelledAborts", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheCreateVolume)).
+			Return(&datamodel.Job{State: string(models.JobsStateCANCELLED)}, nil).Once()
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		err := act.AbortIfCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "flexcache creation cancelled by delete request")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("processingContinues", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheCreateVolume)).
+			Return(&datamodel.Job{State: string(models.JobsStatePROCESSING)}, nil).Once()
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		err := act.AbortIfCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
+		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -2321,6 +2357,29 @@ func TestFlexCacheVolumeCreateActivity_GetClusterPeeringRowFromDBActivity(t *tes
 		assert.NoError(tt, err)
 		assert.NotNil(tt, out)
 		assert.Nil(tt, out.ClusterPeeringRow)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ClusterPeeringWithErrorReturnsNilRow", func(tt *testing.T) {
+		vol := makeVolume()
+		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		existing := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "peer-row-1"},
+			AccountID:      vol.Account.ID,
+			PoolID:         vol.Pool.ID,
+			OnprempCluster: vol.CacheParameters.PeerClusterName,
+			State:          coremodels.CvpClusterPeeringStatusERROR,
+		}
+
+		mockStorage.
+			On("GetClusterPeerByAccountIDExternalClusterAndPoolID", ctx,
+				vol.Account.ID, vol.CacheParameters.PeerClusterName, vol.Pool.ID).
+			Return(existing, nil).Once()
+
+		out, err := act.GetClusterPeeringRowFromDBActivity(ctx, result)
+		assert.Nil(tt, err)
+		assert.Equal(tt, existing, out.ClusterPeeringRow)
 		mockStorage.AssertExpectations(tt)
 	})
 

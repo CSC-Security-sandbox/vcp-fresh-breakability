@@ -2,6 +2,7 @@ package flexcache_activities
 
 import (
 	"context"
+	stderrors "errors"
 	"strings"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -9,7 +10,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
 )
+
+var fetchTemporalClientForFlexCacheDelete = _fetchTemporalClientForFlexCacheDelete
+
+func _fetchTemporalClientForFlexCacheDelete(ctx context.Context) client.Client {
+	return activity.GetClient(ctx)
+}
 
 type FlexCacheVolumeDeleteActivity struct {
 	SE database.Storage
@@ -118,6 +128,10 @@ func (a FlexCacheVolumeDeleteActivity) DeleteClusterPeerInOntapActivity(ctx cont
 	if clusterPeeringRow.OntapPeerUUID != "" {
 		err = provider.DeleteClusterPeer(clusterPeeringRow.OntapPeerUUID)
 		if err != nil {
+			if customerrors.IsNotFoundErr(err) {
+				logger.Debugf("Cluster peer not found for UUID %s, skipping delete", clusterPeeringRow.OntapPeerUUID)
+				return result, nil
+			}
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDeletingClusterPeer, err)
 		}
 		logger.Debugf("Cluster peering with UUID %s deleted successfully", clusterPeeringRow.OntapPeerUUID)
@@ -142,22 +156,23 @@ func (a FlexCacheVolumeDeleteActivity) GetClusterPeeringFromDBActivity(ctx conte
 	result *flexcache.DeleteFlexCacheResult) (*flexcache.DeleteFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
-	cacheParams := volume.CacheParameters
 
-	existingPeer, err := a.SE.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, volume.Account.ID,
-		cacheParams.PeerClusterName, volume.Pool.ID)
-	if err != nil {
-		if customerrors.IsNotFoundErr(err) {
-			logger.Debugf("Cluster peering row not found (account=%d cluster=%s pool=%d)",
-				volume.Account.ID, cacheParams.PeerClusterName, volume.Pool.ID)
-			return result, nil
+	if volume.ClusterPeerID.Valid && volume.ClusterPeerID.Int64 != 0 {
+		existingPeer, err := a.SE.GetClusterPeeringRowByID(ctx, volume.ClusterPeerID.Int64)
+		if err != nil {
+			if customerrors.IsNotFoundErr(err) {
+				logger.Debugf("Cluster peering row not found for cluster_peer_id=%d", volume.ClusterPeerID.Int64)
+				return result, nil
+			}
+			logger.Errorf("Failed to get cluster peering row from database: %v", err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
-		logger.Errorf("Failed to get cluster peering row from database: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		result.ClusterPeeringRow = existingPeer
+		logger.Debugf("Found existing cluster peering row in database: %s", existingPeer.UUID)
+		return result, nil
 	}
 
-	result.ClusterPeeringRow = existingPeer
-	logger.Debugf("Found existing cluster peering row in database: %s", existingPeer.UUID)
+	logger.Debugf("cluster_peer_id not set on volume; skipping cluster peering row lookup")
 	return result, nil
 }
 
@@ -215,5 +230,61 @@ func (a FlexCacheVolumeDeleteActivity) CancelPrepopulateJobsForVolume(ctx contex
 	}
 
 	logger.Infof("Successfully cancelled prepopulate jobs for volume %s", volumeUUID)
+	return nil
+}
+
+// CancelFlexCacheCreateWorkflowIfPreparingActivity uses DBVolume from result; if it is a FlexCache volume in
+// PREPARING state, cancels the FlexCache create workflow and clears running jobs for the resource.
+// Called at the end of DeleteFlexCacheVolumeWorkflow (before DeleteVolume) so cluster peering teardown completes first.
+func (a FlexCacheVolumeDeleteActivity) CancelFlexCacheCreateWorkflowIfPreparingActivity(ctx context.Context, result *flexcache.DeleteFlexCacheResult) error {
+	logger := utilGetLogger(ctx)
+	dbVolume := result.DBVolume
+
+	if dbVolume.CacheParameters == nil {
+		logger.Debugf("skip cancel create workflow for volume %s: not a FlexCache volume", dbVolume.Name)
+		return nil
+	}
+	if dbVolume.State != coremodels.LifeCycleStatePreparing {
+		logger.Debugf("cannot cancel create workflow for volume %s as it is not in PREPARING state", dbVolume.Name)
+		return nil
+	}
+
+	createJob, err := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(coremodels.JobTypeFlexCacheCreateVolume))
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger.Debugf("no create job found for volume %s", dbVolume.Name)
+			return nil
+		}
+		logger.Errorf("error retrieving create job for volume %s: %v", dbVolume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	temporalClient := fetchTemporalClientForFlexCacheDelete(ctx)
+	err = temporalClient.CancelWorkflow(ctx, createJob.WorkflowID, "")
+	workflowMissing := false
+	if err != nil {
+		var notFoundErr *serviceerror.NotFound
+		if stderrors.As(err, &notFoundErr) {
+			workflowMissing = true
+			logger.Debugf("create workflow not found in Temporal (workflowID=%s volume=%s); clearing running jobs for resource",
+				createJob.WorkflowID, dbVolume.Name)
+		} else {
+			logger.Errorf("failed to cancel create workflow %s for volume %s: %v", createJob.WorkflowID, dbVolume.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	err = a.SE.CancelRunningJobsForResource(ctx, dbVolume.UUID)
+	if err != nil {
+		logger.Errorf("failed to cancel running jobs for volume %s: %v", dbVolume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if workflowMissing {
+		logger.Infof("cleared running jobs for volume %s (create workflow %s was not running in Temporal)",
+			dbVolume.Name, createJob.WorkflowID)
+	} else {
+		logger.Infof("successfully cancelled create workflow %s for volume %s", createJob.WorkflowID, dbVolume.Name)
+	}
 	return nil
 }

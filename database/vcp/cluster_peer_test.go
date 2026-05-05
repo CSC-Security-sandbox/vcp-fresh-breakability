@@ -138,6 +138,140 @@ func TestGetClusterPeerByAccountIDExternalClusterAndPoolID(t *testing.T) {
 	})
 }
 
+func TestGetClusterPeeringRowByID(t *testing.T) {
+	t.Run("WhenClusterPeeringRowExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-uuid",
+			},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   42,
+				UUID: "test-cluster-peer-uuid-by-id",
+			},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "test-cluster",
+			OntapPeerUUID:  "test-ontap-peer-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		err = store.db.Create(clusterPeeringRow).Error()
+		assert.NoError(tt, err, "Failed to create cluster peering row")
+
+		result, err := store.GetClusterPeeringRowByID(context.Background(), clusterPeeringRow.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, clusterPeeringRow.ID, result.ID)
+		assert.Equal(tt, clusterPeeringRow.UUID, result.UUID)
+		assert.Equal(tt, clusterPeeringRow.OnprempCluster, result.OnprempCluster)
+	})
+
+	t.Run("WhenClusterPeeringRowDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		_, err = store.GetClusterPeeringRowByID(context.Background(), 99999)
+		assert.Error(tt, err)
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrClusterPeerNotFound, customErr.TrackingID)
+		}
+	})
+
+	t.Run("WhenRowSoftDeleted", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-soft-del"}, Name: "acct"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-soft-del"}, Name: "pool", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		row := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{ID: 77, UUID: "peer-soft-del"},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			OnprempCluster: "c1",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		assert.NoError(tt, store.db.Create(row).Error())
+		assert.NoError(tt, store.DeleteClusterPeeringRow(context.Background(), row))
+
+		_, err = store.GetClusterPeeringRowByID(context.Background(), row.ID)
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrClusterPeerNotFound, customErr.TrackingID)
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-cancel"}, Name: "acct"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-cancel"}, Name: "pool", AccountID: account.ID, Account: account, DeploymentName: "dep"}
+		assert.NoError(tt, store.db.Create(pool).Error())
+		row := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "peer-cancel"},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			OnprempCluster: "c1",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		assert.NoError(tt, store.db.Create(row).Error())
+
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err = store.GetClusterPeeringRowByID(cancelledCtx, row.ID)
+		assert.Error(tt, err)
+	})
+}
+
 func TestCreateClusterPeeringRow(t *testing.T) {
 	t.Run("WhenClusterPeeringRowIsCreatedSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

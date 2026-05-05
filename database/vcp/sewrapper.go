@@ -5169,6 +5169,22 @@ func (re *retryEngine) GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx con
 	return var0, err
 }
 
+func (re *retryEngine) GetClusterPeeringRowByID(ctx context.Context, clusterPeerID int64) (*datamodel.ClusterPeerings, error) {
+	var var0 *datamodel.ClusterPeerings
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetClusterPeeringRowByID(ctx, clusterPeerID)
+		if err != nil {
+			re.logError("GetClusterPeeringRowByID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error) {
 	var var0 *datamodel.ClusterPeerings
 	err := retry.Do(func(attempt int) (bool, error) {

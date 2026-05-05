@@ -1603,6 +1603,10 @@ func (s *PersistenceStore) GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx
 	return s.dataStore.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, accountID, externalCluster, poolID)
 }
 
+func (s *PersistenceStore) GetClusterPeeringRowByID(ctx context.Context, clusterPeerID int64) (*datamodel.ClusterPeerings, error) {
+	return s.dataStore.GetClusterPeeringRowByID(ctx, clusterPeerID)
+}
+
 func (s *PersistenceStore) CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error) {
 	return s.dataStore.CreateClusterPeeringRow(ctx, clusterPeeringRow)
 }

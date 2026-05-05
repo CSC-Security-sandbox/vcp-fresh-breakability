@@ -78,6 +78,11 @@ func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumePa
 		return err
 	}
 	flexCacheWf.Status = workflows.WorkflowStatusRunning
+	earlyAbortResult := &flexcache.CreateFlexCacheResult{DBVolume: volume}
+	if err := flexCacheWf.abortIfCancelled(ctx, earlyAbortResult); err != nil {
+		log.Errorf("CreateFlexCacheWorkflow aborted (job cancelled or error before processing): %v", err)
+		return err
+	}
 	if err := flexCacheWf.UpdateJobStatus(ctx, string(coremodels.JobsStatePROCESSING), nil); err != nil {
 		log.Errorf("Failed to update job status to Processing for CreateFlexCacheWorkflow: %v", err)
 		return err
@@ -112,6 +117,25 @@ func (wf *flexCacheCreateWorkflow) Setup(ctx workflow.Context, input interface{}
 			CustomerID: wf.CustomerID,
 		}, nil
 	})
+}
+
+func (wf *flexCacheCreateWorkflow) abortIfCancelled(ctx workflow.Context, result *flexcache.CreateFlexCacheResult) error {
+	flexCacheVolumeCreateActivity := &flexcache_activities.FlexCacheVolumeCreateActivity{}
+	retryPolicy, err := workflows.PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+	return workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.AbortIfCancelledActivity, result).Get(ctx, nil)
 }
 
 func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
