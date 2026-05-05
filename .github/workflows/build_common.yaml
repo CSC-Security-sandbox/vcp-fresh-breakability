@@ -49,6 +49,11 @@ on:
         description: "A flag to indicate if Helm charts should be pushed"
         default: true
         type: boolean
+      oci_override_suffix:
+        description: "OCI override file suffix to use for manifest metadata (e.g. eng_cp, nmobsa)"
+        required: false
+        type: string
+        default: "eng_cp"
     outputs:
       GHCR_core_URL:
         description: "URL of the core image in GHCR"
@@ -540,6 +545,58 @@ jobs:
         run: |
           MANIFEST="artifacts/release-manifest.json"
 
+          # --- OCI override files (source of truth for OCI/OCIR metadata) ---
+          OCI_ENV="${{ inputs.oci_override_suffix }}"
+          OCI_ENV="${OCI_ENV:-eng_cp}"
+          OCI_VLM_OVERRIDES="kubernetes/OCI/vlm-worker/overrides_${OCI_ENV}.yaml"
+          OCI_WORKER_OVERRIDES="kubernetes/OCI/vcp-worker-chart/overrides_${OCI_ENV}.yaml"
+          OCI_PROXY_OVERRIDES="kubernetes/OCI/oci-proxy/overrides_${OCI_ENV}.yaml"
+          OCI_VLM_VALUES="kubernetes/OCI/vlm-worker/values.yaml"
+          OCI_WORKER_VALUES="kubernetes/OCI/vcp-worker-chart/values.yaml"
+
+          for f in "$OCI_VLM_OVERRIDES" "$OCI_WORKER_OVERRIDES" "$OCI_PROXY_OVERRIDES" "$OCI_VLM_VALUES" "$OCI_WORKER_VALUES"; do
+            if [ ! -f "$f" ]; then
+              echo "Error: Required OCI override file not found: $f"
+              exit 1
+            fi
+          done
+
+          # --- Read OCI metadata from override/values files ---
+          ONTAP_VERSIONS_JSON=$(yq -o=json '.ontapVersionVlmImageMappings | [.[].ontapVersion]' "$OCI_VLM_OVERRIDES")
+
+          OCIR_REGISTRY=$(yq '.global.primaryImageRegistry' "$OCI_WORKER_VALUES")
+          OCIR_TENANCY_NS=$(yq '.global.primaryImageRegistryPath' "$OCI_WORKER_OVERRIDES")
+
+          VLM_IMAGE_NAME=$(yq '.ontapVersionVlmImageMappings[0].vlmImageName' "$OCI_VLM_OVERRIDES")
+          VLM_IMAGE_TAG=$(yq '.ontapVersionVlmImageMappings[0].vlmImageTag' "$OCI_VLM_OVERRIDES")
+
+          VSA_IMAGE_OCID=$(yq '.workerConfig.vsaImageName' "$OCI_WORKER_OVERRIDES")
+          MEDIATOR_IMAGE_OCID=$(yq '.workerConfig.vsaMediatorImageName' "$OCI_WORKER_OVERRIDES")
+
+          WORKER_IMAGE_NAME=$(yq '.images.vcpWorker.name' "$OCI_WORKER_OVERRIDES")
+          WORKER_IMAGE_TAG=$(yq '.images.vcpWorker.tag' "$OCI_WORKER_OVERRIDES")
+
+          OCI_PROXY_IMAGE_NAME=$(yq '.images.ociProxy.name' "$OCI_PROXY_OVERRIDES")
+          OCI_PROXY_IMAGE_TAG=$(yq '.images.ociProxy.tag' "$OCI_PROXY_OVERRIDES")
+
+          # Fail fast if any required OCI metadata resolved to empty or yq's "null"
+          for _var in OCIR_REGISTRY OCIR_TENANCY_NS VLM_IMAGE_NAME VLM_IMAGE_TAG \
+                      VSA_IMAGE_OCID MEDIATOR_IMAGE_OCID WORKER_IMAGE_NAME \
+                      WORKER_IMAGE_TAG OCI_PROXY_IMAGE_NAME OCI_PROXY_IMAGE_TAG; do
+            _val=$(eval echo "\$$_var")
+            if [ -z "$_val" ] || [ "$_val" = "null" ]; then
+              echo "Error: Required OCI metadata variable $_var is empty or null (check override files)"
+              exit 1
+            fi
+          done
+
+          MIN_ONTAP=$(echo "$ONTAP_VERSIONS_JSON" | jq -r 'if length > 0 then first else "" end')
+          MAX_ONTAP=$(echo "$ONTAP_VERSIONS_JSON" | jq -r 'if length > 0 then last else "" end')
+          if [ -z "$MIN_ONTAP" ] || [ -z "$MAX_ONTAP" ]; then
+            echo "Error: No ONTAP versions found in $OCI_VLM_OVERRIDES (ontapVersionVlmImageMappings is empty)"
+            exit 1
+          fi
+
           # --- Binaries ---
           IFS=' ' read -ra BINARIES <<< "$RELEASE_BINARIES"
           BINARIES_JSON="[]"
@@ -562,9 +619,7 @@ jobs:
               '. + [{"name":$name,"sha256":$sha,"sizeBytes":$sizeBytes,"platform":$platform,"ghcr_oci":$ghcr_oci,"digest":$digest}]')
           done
 
-          # --- Container images ---
-          # Only these images are tracked in the release manifest; oci-proxy is always
-          # appended since it's built separately from the images_to_build input.
+          # --- Container images (GHCR) ---
           MANIFEST_IMAGES=("core" "vcp-worker" "oci-proxy")
           IMAGES_JSON="[]"
           for IMAGE in "${MANIFEST_IMAGES[@]}"; do
@@ -582,33 +637,82 @@ jobs:
               '. + [{"name":$name,"platform":$platform,"ghcr":$ghcr,"ghcr_digest":$ghcr_digest}]')
           done
 
+          # --- OCIR container registry refs (from OCI override files) ---
+          # registry = host only; repository = tenancy-namespace/image-name
+          # so consumers can reconstruct: registry + "/" + repository + ":" + tag
+          OCIR_IMAGES_JSON=$(jq -n \
+            --arg worker_name "$WORKER_IMAGE_NAME" \
+            --arg worker_repo "${OCIR_TENANCY_NS}/${WORKER_IMAGE_NAME}" \
+            --arg worker_tag "$WORKER_IMAGE_TAG" \
+            --arg proxy_name "$OCI_PROXY_IMAGE_NAME" \
+            --arg proxy_repo "${OCIR_TENANCY_NS}/${OCI_PROXY_IMAGE_NAME}" \
+            --arg proxy_tag "$OCI_PROXY_IMAGE_TAG" \
+            --arg vlm_name "$VLM_IMAGE_NAME" \
+            --arg vlm_repo "${OCIR_TENANCY_NS}/${VLM_IMAGE_NAME}" \
+            --arg vlm_tag "$VLM_IMAGE_TAG" \
+            --arg platform "linux/amd64" \
+            '[
+              {"name":$worker_name,"repository":$worker_repo,"tag":$worker_tag,"platform":$platform},
+              {"name":$proxy_name,"repository":$proxy_repo,"tag":$proxy_tag,"platform":$platform},
+              {"name":$vlm_name,"repository":$vlm_repo,"tag":$vlm_tag,"platform":$platform}
+            ]')
+
           # --- Helm charts ---
-          # Intentional subset: only charts consumed by downstream deployment pipelines
-          # are included. Other charts (vsa-harvest-otel, ontap-proxy, temporal) are
-          # packaged/pushed but managed independently and not part of the release manifest.
+          append_chart() {
+            local chart="$1" helm_path="$2"
+            local ghcr="oci://ghcr.io/${GHCR_ORG}/${helm_path}/${chart}:${IMAGES_TAG}"
+            local chart_files=( ./helm-packages/${chart}-*.tgz )
+            local sha=""
+            if [ -f "${chart_files[0]}" ]; then
+              if [ ${#chart_files[@]} -gt 1 ]; then
+                echo "Warning: Multiple chart packages for ${chart}, using ${chart_files[0]}"
+              fi
+              sha=$(sha256sum "${chart_files[0]}" | awk '{print $1}')
+            else
+              echo "Warning: No chart package found for ${chart} — sha256 will be empty"
+            fi
+            CHARTS_JSON=$(echo "$CHARTS_JSON" | jq \
+              --arg name "$chart" \
+              --arg version "$IMAGES_TAG" \
+              --arg ghcr "$ghcr" \
+              --arg sha256 "$sha" \
+              '. + [{"name":$name,"version":$version,"ghcr":$ghcr,"sha256":$sha256}]')
+          }
+
           CHARTS_JSON="[]"
           if [[ "$PUSH_CHARTS" == "true" ]]; then
-            CHARTS=("vsa-control-plane" "vcp-worker-chart" "vlm-worker")
-            for CHART in "${CHARTS[@]}"; do
-              GHCR_CHART="oci://ghcr.io/${GHCR_ORG}/${HELM_PATH}/${CHART}:${IMAGES_TAG}"
-              CHARTS_JSON=$(echo "$CHARTS_JSON" | jq \
-                --arg name "$CHART" \
-                --arg version "$IMAGES_TAG" \
-                --arg ghcr "$GHCR_CHART" \
-                '. + [{"name":$name,"version":$version,"ghcr":$ghcr}]')
+            for CHART in vsa-control-plane vcp-worker-chart vlm-worker; do
+              append_chart "$CHART" "$HELM_PATH"
             done
             IFS=' ' read -ra OCI_CHARTS <<< "$OCI_CHART_NAMES"
             for CHART in "${OCI_CHARTS[@]}"; do
-              GHCR_CHART="oci://ghcr.io/${GHCR_ORG}/${OCI_HELM_PATH}/${CHART}:${IMAGES_TAG}"
-              CHARTS_JSON=$(echo "$CHARTS_JSON" | jq \
-                --arg name "$CHART" \
-                --arg version "$IMAGES_TAG" \
-                --arg ghcr "$GHCR_CHART" \
-                '. + [{"name":$name,"version":$version,"ghcr":$ghcr}]')
+              append_chart "$CHART" "$OCI_HELM_PATH"
             done
           else
             echo "Skipping helmCharts in manifest (push_charts=false)"
           fi
+
+          # --- vsaArtifacts (from OCI overrides) ---
+          VSA_VERSIONS_JSON=$(yq -o=json '.ontapVersionVlmImageMappings' "$OCI_VLM_OVERRIDES" | jq \
+            --arg vsaOcid "$VSA_IMAGE_OCID" \
+            --arg mediatorOcid "$MEDIATOR_IMAGE_OCID" \
+            '[.[] | {
+              "ontapVersion": .ontapVersion,
+              "vlmVersion": (.vlmImageTag | split("_") | .[0]),
+              "vsaImageOcid": $vsaOcid,
+              "mediatorImageOcid": $mediatorOcid
+            }]')
+
+          # --- Dockerfiles (existing in repo) ---
+          DOCKERFILES_JSON='[]'
+          for DF_DIR in core worker oci-proxy; do
+            if [ -f "${DF_DIR}/Dockerfile" ]; then
+              DOCKERFILES_JSON=$(echo "$DOCKERFILES_JSON" | jq \
+                --arg name "Dockerfile.${DF_DIR}" \
+                --arg sourcePath "${DF_DIR}/Dockerfile" \
+                '. + [{"name":$name,"sourcePath":$sourcePath}]')
+            fi
+          done
 
           # --- Assemble manifest ---
           jq -n \
@@ -617,22 +721,42 @@ jobs:
             --arg version "$IMAGES_TAG" \
             --arg createdAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg createdBy "vcp-release-pipeline" \
+            --argjson ontapVersions "$ONTAP_VERSIONS_JSON" \
+            --argjson vsaVersions "$VSA_VERSIONS_JSON" \
             --argjson binaries "$BINARIES_JSON" \
             --argjson images "$IMAGES_JSON" \
+            --arg ocirRegistry "$OCIR_REGISTRY" \
+            --argjson ocirImages "$OCIR_IMAGES_JSON" \
             --argjson helmCharts "$CHARTS_JSON" \
+            --argjson dockerfiles "$DOCKERFILES_JSON" \
+            --arg minOntap "$MIN_ONTAP" \
+            --arg maxOntap "$MAX_ONTAP" \
             '{
               "apiVersion": $apiVersion,
               "kind": $kind,
               "metadata": {
                 "version": $version,
                 "vcpVersion": $version,
+                "ontapVersions": $ontapVersions,
                 "createdAt": $createdAt,
                 "createdBy": $createdBy
+              },
+              "vsaArtifacts": {
+                "versions": $vsaVersions
               },
               "vcpArtifacts": {
                 "binaries": $binaries,
                 "images": $images,
-                "helmCharts": $helmCharts
+                "containerRegistry": {
+                  "registry": $ocirRegistry,
+                  "images": $ocirImages
+                },
+                "helmCharts": $helmCharts,
+                "dockerfiles": $dockerfiles
+              },
+              "compatibility": {
+                "minimumOntapVersion": $minOntap,
+                "maximumOntapVersion": $maxOntap
               }
             }' > "$MANIFEST"
           echo "Release manifest:"
