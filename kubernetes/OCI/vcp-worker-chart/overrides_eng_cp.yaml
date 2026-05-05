@@ -11,12 +11,12 @@ workerConfig:
   database:
     host: primary.djzfvolyanswjizl6jz5bkqucnfeha.postgresql.us-ashburn-1.oci.oraclecloud.com
   vsaMediatorImageName: "ocid1.image.oc1.iad.aaaaaaaa7jahxa2up4364shyrd6x3tv3ijmip2umefrvoh754k3lorhmchva"
-  vsaImageName: "ocid1.image.oc1.iad.aaaaaaaaleoexbdjz4y6l46gukvm6becuesu5zvg276cqd6l345nfjxc3htq"
+  vsaImageName: "ocid1.image.oc1.iad.aaaaaaaa7dxr6bmgmppzftu3jbdcgjcyfypbsirbjopvim6x5ooasfqwp4oa"
   secretUri: "ocid1.vaultsecret.oc1.iad.amaaaaaarxzkjlqajgrscsxpkbduu4rcocmwi4wh57okquxkqibzwl6vyjxa"
 
 # Image configuration (OCIR)
 images:
   vcpWorker:
     name: vcp-worker
-    tag: "22042026"
+    tag: "04052026"
     digest: ""

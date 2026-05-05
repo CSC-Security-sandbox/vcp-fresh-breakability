@@ -13,5 +13,5 @@ workerConfig:
 ontapVersionVlmImageMappings:
   - ontapVersion: "9.18.1"
     vlmImageName: "vlm-worker"
-    vlmImageTag: "27042026_latest"
+    vlmImageTag: "R9.19.1Sx_8084596_260430"
     vlmImageDigest: ""
