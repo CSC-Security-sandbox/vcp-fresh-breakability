@@ -48,6 +48,14 @@
     "yamlPath": ["images.ociProxy.tag"]
   },
   {
+    "filePath": "kubernetes/OCI/vcp-worker-chart/Chart.yaml",
+    "yamlPath": ["version", "appVersion"]
+  },
+  {
+    "filePath": "kubernetes/OCI/vlm-worker/Chart.yaml",
+    "yamlPath": ["version", "appVersion"]
+  },
+  {
     "filePath": "kubernetes/vsa-harvest-otel/Chart.yaml",
     "yamlPath": [
       "version",

@@ -116,6 +116,12 @@ on:
       GHCR_oci_proxy_HELM_URL:
         description: "URL of the oci-proxy chart in GHCR"
         value: ${{ jobs.build_and_publish.outputs.GHCR_oci_proxy_HELM_URL }}
+      GHCR_oci_vcp_worker_chart_HELM_URL:
+        description: "URL of the OCI vcp-worker chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_oci_vcp_worker_chart_HELM_URL }}
+      GHCR_oci_vlm_worker_HELM_URL:
+        description: "URL of the OCI vlm-worker chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_oci_vlm_worker_HELM_URL }}
       GHCR_vcp_worker_BINARY_URL:
         description: "URL of the vcp-worker binary OCI artifact in GHCR"
         value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_worker_BINARY_URL }}
@@ -178,8 +184,11 @@ jobs:
       GHCR_oci_proxy_BINARY_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-proxy_BINARY_URL }}
       GHCR_oci_proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-proxy_URL }}
       GHCR_oci_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-proxy_HELM_URL }}
+      GHCR_oci_vcp_worker_chart_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-vcp-worker-chart_HELM_URL }}
+      GHCR_oci_vlm_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_oci-vlm-worker_HELM_URL }}
     env:
       RELEASE_BINARIES: "vcp-worker oci-proxy"
+      OCI_CHART_NAMES: "oci-proxy oci-vcp-worker-chart oci-vlm-worker"
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -441,7 +450,7 @@ jobs:
       - name: Package Helm Charts
         if: ${{ inputs.push_charts }}
         run: |
-          charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker ontap-proxy OCI/oci-proxy )
+          charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker ontap-proxy OCI/oci-proxy OCI/vcp-worker-chart OCI/vlm-worker )
           # Only include temporal chart when building from main branch to prevent
           # release branches from overwriting the current temporal tag with older code
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
@@ -459,28 +468,32 @@ jobs:
       - name: Push Helm Charts to GHCR
         if: ${{ inputs.push_charts }}
         run: |
+          is_oci_chart() { local name=$1; [[ " ${OCI_CHART_NAMES} " == *" ${name} "* ]]; }
           for CHART in ./helm-packages/*.tgz; do
-            if grep -q "temporal" <<< "${CHART}" ; then
+            CHART_NAME=$(basename "$CHART" | sed 's/-[0-9][0-9]*\..*$//')
+            if [[ "$CHART_NAME" == "temporal" ]]; then
               helm push $CHART oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_TEMPORAL_HELM_REPO }}
-              continue
-            fi 
-            helm push $CHART oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}
+            elif is_oci_chart "$CHART_NAME"; then
+              helm push $CHART oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_OCI_HELM_PATH }}
+            else
+              helm push $CHART oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}
+            fi
           done
         shell: bash -e {0}
 
       - name: Push Helm Charts to Artifact Registry
         if: ${{ inputs.push_charts }}
         run: |
+          is_oci_chart() { local name=$1; [[ " ${OCI_CHART_NAMES} " == *" ${name} "* ]]; }
           for CHART in ./helm-packages/*.tgz; do
-            if grep -q "temporal" <<< "${CHART}" ; then
+            CHART_NAME=$(basename "$CHART" | sed 's/-[0-9][0-9]*\..*$//')
+            if [[ "$CHART_NAME" == "temporal" ]]; then
               helm push $CHART oci://${{ vars.AR_TEMPORAL_HELM_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_TEMPORAL_HELM_REPO}}
-              continue
+            elif is_oci_chart "$CHART_NAME"; then
+              echo "Skipping GCP AR push for OCI chart ${CHART_NAME} (GHCR only)"
+            else
+              helm push $CHART oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_HELM_PATH}}
             fi
-            if grep -q "oci-proxy" <<< "${CHART}" ; then
-              echo "Skipping GCP AR push for oci-proxy chart (GHCR only)"
-              continue
-            fi
-            helm push $CHART oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_HELM_PATH}}
           done
         shell: bash -e {0}
 
@@ -522,6 +535,7 @@ jobs:
           BINARY_PATH: ${{ vars.AR_BINARY_PATH }}
           IMAGE_PATH: ${{ vars.AR_IMAGE_PATH }}
           HELM_PATH: ${{ vars.AR_HELM_PATH }}
+          OCI_HELM_PATH: ${{ vars.AR_OCI_HELM_PATH }}
           PUSH_CHARTS: ${{ inputs.push_charts }}
         run: |
           MANIFEST="artifacts/release-manifest.json"
@@ -574,9 +588,18 @@ jobs:
           # packaged/pushed but managed independently and not part of the release manifest.
           CHARTS_JSON="[]"
           if [[ "$PUSH_CHARTS" == "true" ]]; then
-            CHARTS=("vsa-control-plane" "vcp-worker-chart" "vlm-worker" "oci-proxy")
+            CHARTS=("vsa-control-plane" "vcp-worker-chart" "vlm-worker")
             for CHART in "${CHARTS[@]}"; do
               GHCR_CHART="oci://ghcr.io/${GHCR_ORG}/${HELM_PATH}/${CHART}:${IMAGES_TAG}"
+              CHARTS_JSON=$(echo "$CHARTS_JSON" | jq \
+                --arg name "$CHART" \
+                --arg version "$IMAGES_TAG" \
+                --arg ghcr "$GHCR_CHART" \
+                '. + [{"name":$name,"version":$version,"ghcr":$ghcr}]')
+            done
+            IFS=' ' read -ra OCI_CHARTS <<< "$OCI_CHART_NAMES"
+            for CHART in "${OCI_CHARTS[@]}"; do
+              GHCR_CHART="oci://ghcr.io/${GHCR_ORG}/${OCI_HELM_PATH}/${CHART}:${IMAGES_TAG}"
               CHARTS_JSON=$(echo "$CHARTS_JSON" | jq \
                 --arg name "$CHART" \
                 --arg version "$IMAGES_TAG" \
@@ -747,7 +770,10 @@ jobs:
             echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
             echo "GCP_${CHART}_HELM_URL=oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_HELM_PATH }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           done
-          echo "GHCR_oci-proxy_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}/oci-proxy:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          IFS=' ' read -ra OCI_CHARTS <<< "$OCI_CHART_NAMES"
+          for CHART in "${OCI_CHARTS[@]}"; do
+            echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_OCI_HELM_PATH }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          done
           echo "GHCR_vcp-worker_BINARY_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_BINARY_PATH }}/vcp-worker:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           echo "GHCR_oci-proxy_BINARY_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_BINARY_PATH }}/oci-proxy:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           
