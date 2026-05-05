@@ -425,6 +425,13 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			return nil, ConvertToVSAError(err)
 		}
 
+		volumeActivity := &activities.VolumeCreateActivity{}
+		var remoteBV *datamodel.BackupVault
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CheckOrCreateRemoteBackupVaultInVCP, &volume, backupVault, nil).Get(ctx, &remoteBV)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
 		backupRegion := params.Region
 		if backupVault.BackupVaultType == activities.CrossRegionBackupType && *backupVault.BackupRegionName != "" {
 			backupRegion = *backupVault.BackupRegionName
@@ -482,18 +489,11 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+		}
 
-			var RemoteBV *datamodel.BackupVault
-			volumeActivity := &activities.VolumeCreateActivity{}
-			err = workflow.ExecuteActivity(ctx, volumeActivity.CheckOrCreateRemoteBackupVaultInVCP, &volume, backupVault, &bucketDetails).Get(ctx, &RemoteBV)
-			if err != nil {
-				return nil, ConvertToVSAError(err)
-			}
-
-			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails, &volume, backupVault, RemoteBV, &bucketDetails).Get(ctx, nil)
-			if err != nil {
-				return nil, ConvertToVSAError(err)
-			}
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails, &volume, backupVault, remoteBV, &bucketDetails).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
 		}
 
 		// Grant pool SA access to GCBDR bucket unconditionally — runs on every volume operation

@@ -1369,18 +1369,70 @@ func FetchRemoteBackupVaultFromVCP(ctx context.Context, backupVaultUUID, project
 	res, err := googleProxyClient.Invoker.V1betaInternalDescribeBackupVault(ctx, params)
 	if err != nil {
 		logger.Error("Failed to fetch remote BackupVault", "error", err.Error(), "region", region, "backupVaultID", backupVaultUUID)
-		return nil, errors.NewNotFoundErr("remote backup vault", &backupVaultUUID)
+		return nil, temporal.NewApplicationError(
+			fmt.Sprintf("Failed to fetch remote backup vault: %v", err),
+			"InternalDescribeBackupVaultTransportError",
+			err,
+		)
 	}
 
-	backupVault, ok := res.(*googleproxyclient.BackupVaultInternalV1beta)
-	if !ok {
+	switch r := res.(type) {
+	case *googleproxyclient.BackupVaultInternalV1beta:
+		result := convertInternalAPIToDatamodel(r)
+		logger.Info("Successfully fetched remote BackupVault", "backupVaultID", result.Name, "region", region)
+		return result, nil
+
+	case *googleproxyclient.V1betaInternalDescribeBackupVaultNotFound:
+		return nil, errors.NewNotFoundErr("remote backup vault", &backupVaultUUID)
+
+	case *googleproxyclient.V1betaInternalDescribeBackupVaultBadRequest:
+		logger.Error("Bad request fetching remote backup vault", "message", r.Message, "region", region, "backupVaultID", backupVaultUUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Bad request fetching remote backup vault: %s", r.Message),
+			"V1betaInternalDescribeBackupVaultBadRequest",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDescribeBackupVaultUnauthorized:
+		logger.Error("Unauthorized fetching remote backup vault", "message", r.Message, "region", region, "backupVaultID", backupVaultUUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unauthorized fetching remote backup vault: %s", r.Message),
+			"V1betaInternalDescribeBackupVaultUnauthorized",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDescribeBackupVaultForbidden:
+		logger.Error("Forbidden fetching remote backup vault", "message", r.Message, "region", region, "backupVaultID", backupVaultUUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Forbidden fetching remote backup vault: %s", r.Message),
+			"V1betaInternalDescribeBackupVaultForbidden",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDescribeBackupVaultUnprocessableEntity:
+		logger.Error("Unprocessable entity fetching remote backup vault", "message", r.Message, "region", region, "backupVaultID", backupVaultUUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unprocessable entity fetching remote backup vault: %s", r.Message),
+			"V1betaInternalDescribeBackupVaultUnprocessableEntity",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDescribeBackupVaultInternalServerError:
+		logger.Error("Internal server error fetching remote backup vault", "message", r.Message, "region", region, "backupVaultID", backupVaultUUID)
+		return nil, temporal.NewApplicationError(
+			fmt.Sprintf("Internal server error fetching remote backup vault: %s", r.Message),
+			"V1betaInternalDescribeBackupVaultInternalServerError",
+			errors.New(r.Message),
+		)
+
+	default:
 		logger.Error("Unexpected response type from remote BackupVault fetch", "type", fmt.Sprintf("%T", res))
-		return nil, errors.NewNotFoundErr("remote backup vault", &backupVaultUUID)
+		return nil, temporal.NewApplicationError(
+			fmt.Sprintf("Unexpected response type from remote BackupVault fetch: %T", res),
+			"UnexpectedDescribeBackupVaultResponseType",
+			fmt.Errorf("unexpected response type: %T", res),
+		)
 	}
-
-	result := convertInternalAPIToDatamodel(backupVault)
-	logger.Info("Successfully fetched remote BackupVault", "backupVaultID", result.Name, "region", region)
-	return result, nil
 }
 
 // CreateRemoteBackupVaultInVCP calls the internal POST endpoint to create BackupVault in a backup region
@@ -1403,7 +1455,7 @@ func CreateRemoteBackupVaultInVCP(ctx context.Context, projectNumber string, bac
 		XCorrelationID: googleproxyclient.NewOptString(correlationID),
 	}
 
-	if backupVault.BucketDetails == nil {
+	if backupVault.BucketDetails == nil && bucketDetails != nil {
 		backupVault.BucketDetails = append(backupVault.BucketDetails, &datamodel.BucketDetails{
 			BucketName:          bucketDetails.BucketName,
 			ServiceAccountName:  bucketDetails.ServiceAccountName,

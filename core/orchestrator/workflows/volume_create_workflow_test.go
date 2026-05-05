@@ -2354,6 +2354,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GCBDR_BucketAlreadyExists_Perm
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2382,12 +2384,14 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GCBDR_BucketAlreadyExists_Perm
 			{TenantProjectNumber: "tenant-project-123", BucketName: "existing-bucket"},
 		},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	// CheckForBucketResourceName returns non-empty — bucket already exists, creation skipped
 	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
 		BucketName:          "existing-bucket",
 		ServiceAccountName:  "existing-sa",
 		TenantProjectNumber: "tenant-project-123",
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// SetupCrossProjectBackupPermissions must still be called unconditionally
 	s.env.OnActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -5517,6 +5521,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
 	s.env.RegisterActivity(poolActivity.MarshalVLMConfig)
 	s.env.RegisterActivity(poolActivity.UpdatePoolFields)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
 
 	// Mock ParseVlmConfig to return a VLMConfig with NAS LIF already configured
 	// This prevents the workflow from calling ModifyVSASVMWorkflow
@@ -5582,6 +5588,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 		BackupVaultType: "LOCAL", // Use LOCAL type to avoid cross-region complexity in this test
 	}
 	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
 		BucketName:          "existing-bucket",
@@ -7464,6 +7472,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CoverageForMissingLines() {
 		AccountID:   1,
 	}
 
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
+
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 		State:     string(models.JobsStateNEW),
@@ -7509,7 +7520,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CoverageForMissingLines() {
 		BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
 		Name:      "test-backup-vault",
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{BucketName: "existing-bucket"}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute the workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume)

@@ -5941,6 +5941,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CrossRegionBackup_With
 	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
 	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
 	s.env.RegisterActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
 
@@ -5962,6 +5964,10 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CrossRegionBackup_With
 		BackupVaultType:  activities.CrossRegionBackupType,
 		BackupRegionName: &backupRegionName,
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "remote-backup-vault-uuid"},
+		Name:      "test-remote-backup-vault",
+	}, nil)
 	s.env.OnActivity(updateActivity.FindTenancyDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		RegionalTenantProject: "tenant-project",
 	}, nil)
@@ -5970,6 +5976,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CrossRegionBackup_With
 		ServiceAccountName:  "test-sa",
 		TenantProjectNumber: "12345",
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
 	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -6108,6 +6115,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CrossRegionBackup_Slee
 	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
 	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
 	s.env.RegisterActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
 
@@ -6133,6 +6142,10 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CrossRegionBackup_Slee
 		BackupVaultType:  activities.CrossRegionBackupType,
 		BackupRegionName: &backupRegionName,
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "remote-backup-vault-uuid"},
+		Name:      "test-remote-backup-vault",
+	}, nil)
 	s.env.OnActivity(updateActivity.FindTenancyDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		RegionalTenantProject: "tenant-project",
 	}, nil)
@@ -6141,6 +6154,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CrossRegionBackup_Slee
 		ServiceAccountName:  "test-sa",
 		TenantProjectNumber: "12345",
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
 
 	// Mock SyncBucketDetails activity (called by syncBucketDetailsWithGCP)
@@ -8968,6 +8982,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExi
 	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
 	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
 	s.env.RegisterActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
 
@@ -8993,12 +9009,14 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExi
 			{BucketName: "gcbdr-bucket", TenantProjectNumber: "tenant-project"},
 		},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	// CheckBucketResourceName returns existing bucket — no bucket creation needed
 	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
 		BucketName:          "gcbdr-bucket",
 		ServiceAccountName:  "gcbdr-sa",
 		TenantProjectNumber: "12345",
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// SetupCrossProjectBackupPermissions is called unconditionally — even when bucket already exists
 	s.env.OnActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)

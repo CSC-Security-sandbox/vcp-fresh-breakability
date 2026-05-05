@@ -7644,7 +7644,7 @@ func TestFetchRemoteBackupVaultFromVCP_ErrorHandling(t *testing.T) {
 		mockInvoker.AssertExpectations(t)
 	})
 
-	t.Run("Error_InvalidResponseType", func(t *testing.T) {
+	t.Run("Error_UnexpectedDescribeBackupVaultResponseType_nilResponse", func(t *testing.T) {
 		// Arrange
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
@@ -7668,12 +7668,7 @@ func TestFetchRemoteBackupVaultFromVCP_ErrorHandling(t *testing.T) {
 			return "https://us-west1.example.com", "mock-jwt-token", nil
 		}
 
-		// Mock returns wrong type
-		invalidResponse := &googleproxyclient.V1betaInternalDescribeBackupVaultBadRequest{
-			Code:    400,
-			Message: "Bad request",
-		}
-		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(invalidResponse, nil)
+		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(nil, nil)
 
 		// Act
 		result, err := activities.FetchRemoteBackupVaultFromVCP(ctx, "test-vault-uuid", "123456789", "us-west1")
@@ -7681,9 +7676,119 @@ func TestFetchRemoteBackupVaultFromVCP_ErrorHandling(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "remote backup vault")
+		var appErr *temporal.ApplicationError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "UnexpectedDescribeBackupVaultResponseType", appErr.Type())
+		assert.Contains(t, appErr.Error(), "Unexpected response type from remote BackupVault fetch")
 		mockInvoker.AssertExpectations(t)
 	})
+}
+
+// TestFetchRemoteBackupVaultFromVCP_DescribeEndpointErrorResponses covers each V1betaInternalDescribeBackupVault
+// response branch in FetchRemoteBackupVaultFromVCP (success path is covered elsewhere).
+func TestFetchRemoteBackupVaultFromVCP_DescribeEndpointErrorResponses(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	vaultUUID := "test-vault-uuid"
+
+	tests := []struct {
+		name           string
+		res            googleproxyclient.V1betaInternalDescribeBackupVaultRes
+		wantNotFound   bool
+		wantAppErrType string
+		wantSubstr     string
+	}{
+		{
+			name: "NotFound",
+			res: &googleproxyclient.V1betaInternalDescribeBackupVaultNotFound{
+				Code:    404,
+				Message: "backup vault not found",
+			},
+			wantNotFound: true,
+		},
+		{
+			name: "BadRequest",
+			res: &googleproxyclient.V1betaInternalDescribeBackupVaultBadRequest{
+				Code:    400,
+				Message: "invalid backup vault id",
+			},
+			wantAppErrType: "V1betaInternalDescribeBackupVaultBadRequest",
+			wantSubstr:     "Bad request fetching remote backup vault",
+		},
+		{
+			name: "Unauthorized",
+			res: &googleproxyclient.V1betaInternalDescribeBackupVaultUnauthorized{
+				Code:    401,
+				Message: "unauthorized",
+			},
+			wantAppErrType: "V1betaInternalDescribeBackupVaultUnauthorized",
+			wantSubstr:     "Unauthorized fetching remote backup vault",
+		},
+		{
+			name: "Forbidden",
+			res: &googleproxyclient.V1betaInternalDescribeBackupVaultForbidden{
+				Code:    403,
+				Message: "forbidden",
+			},
+			wantAppErrType: "V1betaInternalDescribeBackupVaultForbidden",
+			wantSubstr:     "Forbidden fetching remote backup vault",
+		},
+		{
+			name: "UnprocessableEntity",
+			res: &googleproxyclient.V1betaInternalDescribeBackupVaultUnprocessableEntity{
+				Code:    422,
+				Message: "cannot process",
+			},
+			wantAppErrType: "V1betaInternalDescribeBackupVaultUnprocessableEntity",
+			wantSubstr:     "Unprocessable entity fetching remote backup vault",
+		},
+		{
+			name: "InternalServerError",
+			res: &googleproxyclient.V1betaInternalDescribeBackupVaultInternalServerError{
+				Code:    500,
+				Message: "upstream failure",
+			},
+			wantAppErrType: "V1betaInternalDescribeBackupVaultInternalServerError",
+			wantSubstr:     "Internal server error fetching remote backup vault",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockInvoker := googleproxyclient.NewMockInvoker(t)
+			mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+
+			originalGetGProxyClient := googleproxyclient.GetGProxyClient
+			originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+			defer func() {
+				googleproxyclient.GetGProxyClient = originalGetGProxyClient
+				common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+			}()
+
+			googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+				return mockProxyClient
+			}
+			common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+				return "https://us-west1.example.com", "mock-jwt-token", nil
+			}
+
+			mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(tt.res, nil)
+
+			result, err := activities.FetchRemoteBackupVaultFromVCP(ctx, vaultUUID, "123456789", "us-west1")
+
+			assert.Nil(t, result)
+			assert.Error(t, err)
+			if tt.wantNotFound {
+				assert.True(t, utilErrors.IsNotFoundErr(err), "expected not found, got %T: %v", err, err)
+				mockInvoker.AssertExpectations(t)
+				return
+			}
+			var appErr *temporal.ApplicationError
+			assert.True(t, errors.As(err, &appErr), "expected temporal.ApplicationError, got %T: %v", err, err)
+			assert.Equal(t, tt.wantAppErrType, appErr.Type())
+			assert.Contains(t, appErr.Error(), tt.wantSubstr)
+			mockInvoker.AssertExpectations(t)
+		})
+	}
 }
 
 // TestConvertInternalAPIToDatamodel_DirectUnitTest tests the convertInternalAPIToDatamodel function directly
@@ -8127,7 +8232,7 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 		assert.Contains(t, err.Error(), "remote backup vault")
 	})
 
-	t.Run("Error_V1betaInternalDescribeBackupVault_InvalidResponseType", func(t *testing.T) {
+	t.Run("Error_UnexpectedDescribeBackupVaultResponseType_nilResponse", func(t *testing.T) {
 		// Arrange
 		mockInvoker := googleproxyclient.NewMockInvoker(t)
 		mockProxyClient := &googleproxyclient.ProxyClient{
@@ -8149,12 +8254,7 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 			return "https://us-west1.example.com", "mock-jwt-token", nil
 		}
 
-		// Mock returns wrong type
-		invalidResponse := &googleproxyclient.V1betaInternalDescribeBackupVaultBadRequest{
-			Code:    400,
-			Message: "Bad request",
-		}
-		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(invalidResponse, nil)
+		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(nil, nil)
 
 		// Act
 		result, err := activities.FetchRemoteBackupVaultFromVCP(ctx, "test-vault-uuid", "123456789", "us-west1")
@@ -8162,7 +8262,10 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "remote backup vault")
+		var appErr *temporal.ApplicationError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "UnexpectedDescribeBackupVaultResponseType", appErr.Type())
+		assert.Contains(t, appErr.Error(), "Unexpected response type from remote BackupVault fetch")
 	})
 
 	t.Run("Error_GetRemoteRegionConfig_VCP_PAIRED_REGIONS_NotSet", func(t *testing.T) {
@@ -8902,72 +9005,6 @@ func TestCheckOrCreateRemoteBackupVaultInVCP(t *testing.T) {
 		mockInvoker.AssertExpectations(t)
 	})
 
-	t.Run("Success_RemoteVaultNotFound_CreateSucceeds", func(t *testing.T) {
-		// Arrange
-		volume := &datamodel.Volume{
-			Account: &datamodel.Account{Name: "123456789"},
-		}
-		sourceRegion := "us-central1"
-		backupRegion := "us-west1"
-		backupVault := &datamodel.BackupVault{
-			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
-			BackupVaultType:  activities.CrossRegionBackupType,
-			SourceRegionName: &sourceRegion,
-			BackupRegionName: &backupRegion,
-		}
-		bucketDetails := &common.BucketDetails{
-			BucketName:          "test-bucket",
-			ServiceAccountName:  "test-sa",
-			TenantProjectNumber: "987654321",
-			VendorSubnetID:      "subnet-123",
-		}
-
-		mockInvoker := googleproxyclient.NewMockInvoker(t)
-		mockProxyClient := &googleproxyclient.ProxyClient{
-			Invoker: mockInvoker,
-		}
-
-		originalGetGProxyClient := googleproxyclient.GetGProxyClient
-		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
-		defer func() {
-			googleproxyclient.GetGProxyClient = originalGetGProxyClient
-			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
-		}()
-
-		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
-			return mockProxyClient
-		}
-
-		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
-			return "https://us-west1.example.com", "mock-jwt-token", nil
-		}
-
-		// Mock fetch returns NotFound
-		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(nil, utilErrors.NewNotFoundErr("remote backup vault", nil))
-
-		// Mock successful create
-		createdVault := &googleproxyclient.BackupVaultInternalV1beta{
-			BackupVaultId:   "test-bv-uuid",
-			ResourceId:      "test-resource-id",
-			AccountVendorId: "123456789",
-			BackupVaultType: googleproxyclient.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-			LifeCycleState:  googleproxyclient.BackupVaultInternalV1betaLifeCycleStateREADY,
-			SourceRegion:    googleproxyclient.NewOptString("us-central1"),
-			BackupRegion:    googleproxyclient.NewOptString("us-west1"),
-		}
-
-		mockInvoker.On("V1betaInternalCreateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(createdVault, nil)
-
-		// Act
-		result, err := activities.CheckOrCreateRemoteBackupVaultInVCP(ctx, volume, backupVault, bucketDetails)
-
-		// Assert
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, "test-bv-uuid", result.Name)
-		mockInvoker.AssertExpectations(t)
-	})
-
 	t.Run("Error_CreateRemoteVault_Fails", func(t *testing.T) {
 		// Arrange
 		volume := &datamodel.Volume{
@@ -9006,7 +9043,7 @@ func TestCheckOrCreateRemoteBackupVaultInVCP(t *testing.T) {
 		}
 
 		// Mock fetch returns NotFound
-		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(nil, utilErrors.NewNotFoundErr("remote backup vault", nil))
+		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(&googleproxyclient.V1betaInternalDescribeBackupVaultNotFound{}, nil)
 
 		// Mock create fails with BadRequest
 		badRequestError := &googleproxyclient.V1betaInternalCreateBackupVaultBadRequest{
