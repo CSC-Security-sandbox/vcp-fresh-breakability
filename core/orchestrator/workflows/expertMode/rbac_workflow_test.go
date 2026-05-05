@@ -52,6 +52,7 @@ func (s *RBACWorkflowTestSuite) SetupTest() {
 
 	// Register workflows
 	s.env.RegisterWorkflow(UpdateRbacForPoolsWorkflow)
+	s.env.RegisterWorkflow(UpdateRbacForSinglePoolWorkflow)
 	s.env.RegisterWorkflow(UpdateSinglePoolRbacChildWorkflow)
 
 	// Register common activities for job management
@@ -76,6 +77,7 @@ func (s *RBACWorkflowTestSuite) SetupTest() {
 	s.env.RegisterActivity(rbacActivity.GetPoolsDetailsByOntapVersion)
 	s.env.RegisterActivity(rbacActivity.GetLatestRbacHashForAllOntapVersion)
 	s.env.RegisterActivity(rbacActivity.GetPoolByUUID)
+	s.env.RegisterActivity(rbacActivity.GetSinglePoolVersionDetails)
 	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
 	s.env.RegisterActivity(poolActivity.GetExpertModeCredentials)
 	s.env.RegisterActivity(poolActivity.ParseVlmConfig)
@@ -1263,6 +1265,257 @@ func (s *RBACWorkflowTestSuite) Test_UpdateRbacHashForPoolsWorkflow_ValidateRbac
 	// Verify error message contains the failed pool UUID
 	errorMsg := s.env.GetWorkflowError().Error()
 	assert.Contains(s.T(), errorMsg, "pool-uuid-1")
+}
+
+// --- UpdateRbacForSinglePoolWorkflow tests ---
+
+func (s *RBACWorkflowTestSuite) Test_UpdateRbacForSinglePoolWorkflow_Success() {
+	rbacActivity := &expertmodeactivities.RBACUpdateActivity{}
+	poolActivity := &activities.PoolActivity{}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+			RbacFileHash: "old-hash-1",
+			RbacFileUrl:  "GCNV/9.18.1/RBAC/gcnvadmin_create_cli",
+		},
+		VLMConfig: `{"deployment":{"deployment_id":"deployment-1"}}`,
+	}
+
+	// Mock GetPoolByUUID
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+
+	// Mock GetSinglePoolVersionDetails
+	poolsByVersion := map[string][]expertmodeactivities.PoolDetailWithCurrentHash{
+		"9.18.1": {
+			{PoolUUID: "pool-uuid-1", CurrentHash: "old-hash-1"},
+		},
+	}
+	s.env.OnActivity(rbacActivity.GetSinglePoolVersionDetails, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).Return(poolsByVersion, nil).Once()
+
+	// Mock GetLatestRbacHashForAllOntapVersion
+	poolListNeedUpdate := []expertmodeactivities.PoolDetailsWithRbacHash{
+		{
+			PoolUUID:       "pool-uuid-1",
+			LatestRbacHash: "new-hash-123",
+			CurrentHash:    "old-hash-1",
+			OntapVersion:   "9.18.1",
+			NeedUpdate:     true,
+		},
+	}
+	s.env.OnActivity(rbacActivity.GetLatestRbacHashForAllOntapVersion, mock.Anything, mock.AnythingOfType("map[string][]expertmodeactivities.PoolDetailWithCurrentHash")).Return(poolListNeedUpdate, nil).Once()
+
+	// Mock child workflow activities
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+	s.env.OnActivity(poolActivity.ValidateRbacHash, mock.Anything, "9.18.1", mock.AnythingOfType("*hyperscaler.BucketFileDetails")).Return(nil).Once()
+
+	ontapCredentials := &vlm.OntapCredentials{AdminPassword: "password"}
+	expertCredentials := &vlm.OntapCredentials{AdminPassword: "expert-password"}
+	vlmConfig := &vlm.VLMConfig{Deployment: vlm.DeploymentConfig{DeploymentID: "deployment-1"}}
+	createVSAExpertModeReq := &vlm.OntapExpertModeUserConfig{VLMConfig: *vlmConfig}
+
+	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).Return(ontapCredentials, nil).Once()
+	s.env.OnActivity(poolActivity.GetExpertModeCredentials, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).Return(expertCredentials, nil).Once()
+	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).Return(vlmConfig, nil).Once()
+	s.env.OnActivity(poolActivity.PrepareCreateVSAExpertModeReq, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(createVSAExpertModeReq, nil).Once()
+	s.env.OnActivity(poolActivity.UpdateRbacCheckSumInPool, mock.Anything, mock.AnythingOfType("*datamodel.Pool"), mock.AnythingOfType("*hyperscaler.BucketFileDetails")).Return(nil).Once()
+
+	s.env.ExecuteWorkflow(UpdateRbacForSinglePoolWorkflow, "pool-uuid-1")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *RBACWorkflowTestSuite) Test_UpdateRbacForSinglePoolWorkflow_PoolNotFound() {
+	rbacActivity := &expertmodeactivities.RBACUpdateActivity{}
+
+	// Mock GetPoolByUUID to fail
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "non-existent-uuid").
+		Return(nil, errors.New("pool with UUID \"non-existent-uuid\" not found")).Times(3)
+
+	s.env.ExecuteWorkflow(UpdateRbacForSinglePoolWorkflow, "non-existent-uuid")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "not found")
+}
+
+func (s *RBACWorkflowTestSuite) Test_UpdateRbacForSinglePoolWorkflow_NoUpdateNeeded() {
+	rbacActivity := &expertmodeactivities.RBACUpdateActivity{}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+			RbacFileHash: "current-hash",
+		},
+	}
+
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+
+	poolsByVersion := map[string][]expertmodeactivities.PoolDetailWithCurrentHash{
+		"9.18.1": {
+			{PoolUUID: "pool-uuid-1", CurrentHash: "current-hash"},
+		},
+	}
+	s.env.OnActivity(rbacActivity.GetSinglePoolVersionDetails, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).Return(poolsByVersion, nil).Once()
+
+	// Return empty list — no pools need update
+	s.env.OnActivity(rbacActivity.GetLatestRbacHashForAllOntapVersion, mock.Anything, mock.AnythingOfType("map[string][]expertmodeactivities.PoolDetailWithCurrentHash")).
+		Return([]expertmodeactivities.PoolDetailsWithRbacHash{}, nil).Once()
+
+	s.env.ExecuteWorkflow(UpdateRbacForSinglePoolWorkflow, "pool-uuid-1")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *RBACWorkflowTestSuite) Test_UpdateRbacForSinglePoolWorkflow_GetSinglePoolVersionDetailsFails() {
+	rbacActivity := &expertmodeactivities.RBACUpdateActivity{}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: nil,
+	}
+
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+	s.env.OnActivity(rbacActivity.GetSinglePoolVersionDetails, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).
+		Return(nil, errors.New("pool pool-uuid-1 missing ONTAP version")).Times(3)
+
+	s.env.ExecuteWorkflow(UpdateRbacForSinglePoolWorkflow, "pool-uuid-1")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *RBACWorkflowTestSuite) Test_UpdateRbacForSinglePoolWorkflow_ChildWorkflowFails() {
+	rbacActivity := &expertmodeactivities.RBACUpdateActivity{}
+	poolActivity := &activities.PoolActivity{}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+			RbacFileHash: "old-hash-1",
+			RbacFileUrl:  "GCNV/9.18.1/RBAC/gcnvadmin_create_cli",
+		},
+		VLMConfig: `{"deployment":{"deployment_id":"deployment-1"}}`,
+	}
+
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+
+	poolsByVersion := map[string][]expertmodeactivities.PoolDetailWithCurrentHash{
+		"9.18.1": {
+			{PoolUUID: "pool-uuid-1", CurrentHash: "old-hash-1"},
+		},
+	}
+	s.env.OnActivity(rbacActivity.GetSinglePoolVersionDetails, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).Return(poolsByVersion, nil).Once()
+
+	poolListNeedUpdate := []expertmodeactivities.PoolDetailsWithRbacHash{
+		{
+			PoolUUID:       "pool-uuid-1",
+			LatestRbacHash: "new-hash-123",
+			CurrentHash:    "old-hash-1",
+			OntapVersion:   "9.18.1",
+			NeedUpdate:     true,
+		},
+	}
+	s.env.OnActivity(rbacActivity.GetLatestRbacHashForAllOntapVersion, mock.Anything, mock.AnythingOfType("map[string][]expertmodeactivities.PoolDetailWithCurrentHash")).Return(poolListNeedUpdate, nil).Once()
+
+	// Mock child workflow: GetPoolByUUID succeeds, ValidateRbacHash succeeds, but GetOnTapCredentials fails
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+	s.env.OnActivity(poolActivity.ValidateRbacHash, mock.Anything, "9.18.1", mock.AnythingOfType("*hyperscaler.BucketFileDetails")).Return(nil).Once()
+	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).
+		Return(nil, errors.New("failed to get credentials")).Times(3)
+
+	s.env.ExecuteWorkflow(UpdateRbacForSinglePoolWorkflow, "pool-uuid-1")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "pool-uuid-1")
+}
+
+func (s *RBACWorkflowTestSuite) Test_UpdateRbacForSinglePoolWorkflow_GetLatestHashFails() {
+	rbacActivity := &expertmodeactivities.RBACUpdateActivity{}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+			RbacFileHash: "old-hash-1",
+		},
+	}
+
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+
+	poolsByVersion := map[string][]expertmodeactivities.PoolDetailWithCurrentHash{
+		"9.18.1": {
+			{PoolUUID: "pool-uuid-1", CurrentHash: "old-hash-1"},
+		},
+	}
+	s.env.OnActivity(rbacActivity.GetSinglePoolVersionDetails, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).Return(poolsByVersion, nil).Once()
+
+	// Mock GetLatestRbacHashForAllOntapVersion to fail
+	s.env.OnActivity(rbacActivity.GetLatestRbacHashForAllOntapVersion, mock.Anything, mock.AnythingOfType("map[string][]expertmodeactivities.PoolDetailWithCurrentHash")).
+		Return(nil, errors.New("GCP bucket error")).Times(3)
+
+	s.env.ExecuteWorkflow(UpdateRbacForSinglePoolWorkflow, "pool-uuid-1")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *RBACWorkflowTestSuite) Test_UpdateRbacForSinglePoolWorkflow_ValidateRbacHashFails() {
+	rbacActivity := &expertmodeactivities.RBACUpdateActivity{}
+	poolActivity := &activities.PoolActivity{}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+			RbacFileHash: "old-hash-1",
+			RbacFileUrl:  "GCNV/9.18.1/RBAC/gcnvadmin_create_cli",
+		},
+		VLMConfig: `{"deployment":{"deployment_id":"deployment-1"}}`,
+	}
+
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+
+	poolsByVersion := map[string][]expertmodeactivities.PoolDetailWithCurrentHash{
+		"9.18.1": {
+			{PoolUUID: "pool-uuid-1", CurrentHash: "old-hash-1"},
+		},
+	}
+	s.env.OnActivity(rbacActivity.GetSinglePoolVersionDetails, mock.Anything, mock.AnythingOfType("*datamodel.Pool")).Return(poolsByVersion, nil).Once()
+
+	poolListNeedUpdate := []expertmodeactivities.PoolDetailsWithRbacHash{
+		{
+			PoolUUID:       "pool-uuid-1",
+			LatestRbacHash: "new-hash-123",
+			CurrentHash:    "old-hash-1",
+			OntapVersion:   "9.18.1",
+			NeedUpdate:     true,
+		},
+	}
+	s.env.OnActivity(rbacActivity.GetLatestRbacHashForAllOntapVersion, mock.Anything, mock.AnythingOfType("map[string][]expertmodeactivities.PoolDetailWithCurrentHash")).Return(poolListNeedUpdate, nil).Once()
+
+	// Mock child workflow: GetPoolByUUID succeeds, ValidateRbacHash fails (allow retries)
+	s.env.OnActivity(rbacActivity.GetPoolByUUID, mock.Anything, "pool-uuid-1").Return(pool, nil).Once()
+	validateError := errors.New("RBAC hash mismatch for ONTAP version 9.18.1")
+	s.env.OnActivity(poolActivity.ValidateRbacHash, mock.Anything, "9.18.1", mock.AnythingOfType("*hyperscaler.BucketFileDetails")).Return(validateError).Times(3)
+
+	s.env.ExecuteWorkflow(UpdateRbacForSinglePoolWorkflow, "pool-uuid-1")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "RBAC hash mismatch")
 }
 
 func TestCountCompletedFutures(t *testing.T) {

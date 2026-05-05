@@ -814,6 +814,83 @@ func TestV1ExpertModeVolumeFlexCloneSplit(t *testing.T) {
 	})
 }
 
+func TestV1RefreshRbacForExpertModePoolById(t *testing.T) {
+	poolId := "550e8400-e29b-41d4-a716-446655440000"
+
+	t.Run("Success", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+		jobID := "job-uuid-12345"
+		params := oasgenserver.V1RefreshRbacForExpertModePoolByIdParams{PoolId: poolId}
+
+		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, poolId).Return(jobID, nil)
+
+		result, err := handler.V1RefreshRbacForExpertModePoolById(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operation, ok := result.(*oasgenserver.OperationV1)
+		assert.True(t, ok)
+		assert.False(t, operation.Done.Or(true))
+		expectedName := fmt.Sprintf("/v1/expertMode/rbac/refresh/pool/%s/operations/%s", poolId, jobID)
+		assert.Equal(t, expectedName, operation.Name.Or(""))
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("BadRequestError", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+		params := oasgenserver.V1RefreshRbacForExpertModePoolByIdParams{PoolId: poolId}
+
+		badRequestErr := customerrors.NewBadRequestErr("invalid pool id format")
+		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, poolId).Return("", badRequestErr)
+
+		result, err := handler.V1RefreshRbacForExpertModePoolById(context.Background(), params)
+		assert.NoError(t, err)
+
+		badRequest, ok := result.(*oasgenserver.V1RefreshRbacForExpertModePoolByIdBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusBadRequest), badRequest.Code)
+		assert.Contains(t, badRequest.Message, "invalid pool id")
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("NotFoundError", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+		params := oasgenserver.V1RefreshRbacForExpertModePoolByIdParams{PoolId: poolId}
+
+		notFoundErr := customerrors.NewNotFoundErr("pool", &poolId)
+		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, poolId).Return("", notFoundErr)
+
+		result, err := handler.V1RefreshRbacForExpertModePoolById(context.Background(), params)
+		assert.NoError(t, err)
+
+		notFound, ok := result.(*oasgenserver.V1RefreshRbacForExpertModePoolByIdNotFound)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusNotFound), notFound.Code)
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("InternalServerError", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+		params := oasgenserver.V1RefreshRbacForExpertModePoolByIdParams{PoolId: poolId}
+
+		internalErr := errors.New("temporal connection failed")
+		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, poolId).Return("", internalErr)
+
+		result, err := handler.V1RefreshRbacForExpertModePoolById(context.Background(), params)
+		assert.NoError(t, err)
+
+		ise, ok := result.(*oasgenserver.V1RefreshRbacForExpertModePoolByIdInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusInternalServerError), ise.Code)
+		assert.Contains(t, ise.Message, "temporal connection failed")
+		mockOrch.AssertExpectations(t)
+	})
+}
+
 func TestV1RefreshRbacForExpertModePools(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Setup

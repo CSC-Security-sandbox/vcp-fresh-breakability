@@ -145,6 +145,13 @@ type Invoker interface {
 	//
 	// GET /v1/pools
 	V1ListPools(ctx context.Context, params V1ListPoolsParams) (V1ListPoolsRes, error)
+	// V1RefreshRbacForExpertModePoolById invokes v1_refreshRbacForExpertModePoolById operation.
+	//
+	// Triggers a workflow to update RBAC hash for a specific ONTAP mode pool identified by UUID,
+	// comparing with the latest RBAC file from GCS bucket.
+	//
+	// POST /v1/expertMode/rbac/refresh/pool/{poolId}
+	V1RefreshRbacForExpertModePoolById(ctx context.Context, params V1RefreshRbacForExpertModePoolByIdParams) (V1RefreshRbacForExpertModePoolByIdRes, error)
 	// V1RefreshRbacForExpertModePools invokes v1_refreshRbacForExpertModePools operation.
 	//
 	// Triggers a workflow to update RBAC hash for all active ONTAP mode pools by comparing with the
@@ -1612,6 +1619,77 @@ func (c *Client) sendV1ListPools(ctx context.Context, params V1ListPoolsParams) 
 	defer resp.Body.Close()
 
 	result, err := decodeV1ListPoolsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1RefreshRbacForExpertModePoolById invokes v1_refreshRbacForExpertModePoolById operation.
+//
+// Triggers a workflow to update RBAC hash for a specific ONTAP mode pool identified by UUID,
+// comparing with the latest RBAC file from GCS bucket.
+//
+// POST /v1/expertMode/rbac/refresh/pool/{poolId}
+func (c *Client) V1RefreshRbacForExpertModePoolById(ctx context.Context, params V1RefreshRbacForExpertModePoolByIdParams) (V1RefreshRbacForExpertModePoolByIdRes, error) {
+	res, err := c.sendV1RefreshRbacForExpertModePoolById(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1RefreshRbacForExpertModePoolById(ctx context.Context, params V1RefreshRbacForExpertModePoolByIdParams) (res V1RefreshRbacForExpertModePoolByIdRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/expertMode/rbac/refresh/pool/"
+	{
+		// Encode "poolId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "poolId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.PoolId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1RefreshRbacForExpertModePoolByIdResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

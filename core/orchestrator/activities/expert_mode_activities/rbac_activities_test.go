@@ -422,11 +422,125 @@ func (s *RBACActivityTestSuite) TestGetPoolByUUID_StorageError() {
 	assertTemporalApplicationError(s.T(), err, "pool not found", vsaerrors.CustomErrorType, false)
 }
 
+// --- GetSinglePoolVersionDetails tests ---
+
+func (s *RBACActivityTestSuite) TestGetSinglePoolVersionDetails_Success() {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+			RbacFileHash: "hash-1",
+		},
+	}
+
+	result, err := s.activity.GetSinglePoolVersionDetails(s.ctx, pool)
+
+	assert.NoError(s.T(), err)
+	assert.NotNil(s.T(), result)
+	assert.Len(s.T(), result, 1)
+	assert.Len(s.T(), result["9.18.1"], 1)
+	assert.Equal(s.T(), "pool-uuid-1", result["9.18.1"][0].PoolUUID)
+	assert.Equal(s.T(), "hash-1", result["9.18.1"][0].CurrentHash)
+}
+
+func (s *RBACActivityTestSuite) TestGetSinglePoolVersionDetails_NilBuildInfo() {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: nil,
+	}
+
+	result, err := s.activity.GetSinglePoolVersionDetails(s.ctx, pool)
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), result)
+	assertTemporalApplicationError(s.T(), err, "Bad Request", vsaerrors.CustomErrorType, false)
+}
+
+func (s *RBACActivityTestSuite) TestGetSinglePoolVersionDetails_EmptyOntapVersion() {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Name:      "pool-1",
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "",
+		},
+	}
+
+	result, err := s.activity.GetSinglePoolVersionDetails(s.ctx, pool)
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), result)
+	assertTemporalApplicationError(s.T(), err, "Bad Request", vsaerrors.CustomErrorType, false)
+}
+
+// --- extractPoolVersionDetail tests ---
+
+func TestExtractPoolVersionDetail_WithValidPool(t *testing.T) {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+			RbacFileHash: "hash-1",
+		},
+	}
+
+	version, detail := extractPoolVersionDetail(pool)
+
+	assert.Equal(t, "9.18.1", version)
+	assert.NotNil(t, detail)
+	assert.Equal(t, "pool-uuid-1", detail.PoolUUID)
+	assert.Equal(t, "hash-1", detail.CurrentHash)
+}
+
+func TestExtractPoolVersionDetail_NilBuildInfo(t *testing.T) {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		BuildInfo: nil,
+	}
+
+	version, detail := extractPoolVersionDetail(pool)
+
+	assert.Empty(t, version)
+	assert.Nil(t, detail)
+}
+
+func TestExtractPoolVersionDetail_EmptyOntapVersion(t *testing.T) {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "",
+			RbacFileHash: "hash-1",
+		},
+	}
+
+	version, detail := extractPoolVersionDetail(pool)
+
+	assert.Empty(t, version)
+	assert.Nil(t, detail)
+}
+
+func TestExtractPoolVersionDetail_EmptyRbacHash(t *testing.T) {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+			RbacFileHash: "",
+		},
+	}
+
+	version, detail := extractPoolVersionDetail(pool)
+
+	assert.Equal(t, "9.18.1", version)
+	assert.NotNil(t, detail)
+	assert.Equal(t, "pool-uuid-1", detail.PoolUUID)
+	assert.Equal(t, "", detail.CurrentHash)
+}
+
 // Helper function to assert Temporal application errors
 func assertTemporalApplicationError(t *testing.T, err error, expectedMessage string, expectedType string, expectedRetryable bool) {
 	assert.Error(t, err)
 	if err != nil && expectedMessage != "" {
-		// Check that the error message contains the expected message
 		assert.Contains(t, err.Error(), expectedMessage)
 	}
 }

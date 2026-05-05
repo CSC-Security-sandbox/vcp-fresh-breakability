@@ -163,6 +163,14 @@ type V1ListPoolsParams struct {
 	IncludeDeleted OptBool
 }
 
+// V1RefreshRbacForExpertModePoolByIdParams is parameters of v1_refreshRbacForExpertModePoolById operation.
+type V1RefreshRbacForExpertModePoolByIdParams struct {
+	// UUID v4 used to identify the pool.
+	PoolId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1RefreshRbacForExpertModePoolsParams is parameters of v1_refreshRbacForExpertModePools operation.
 type V1RefreshRbacForExpertModePoolsParams struct {
 	// Correlation identifier.

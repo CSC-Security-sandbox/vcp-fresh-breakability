@@ -2038,6 +2038,19 @@ func TestOCIOrchestrator_UpdateRbacForPools(t *testing.T) {
 	})
 }
 
+func TestOCIOrchestrator_UpdateRbacForPoolById(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		result, err := orch.UpdateRbacForPoolById(ctx, "6bed33e1-cc9c-e0b5-ac63-24e9410e64c1")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Empty(tt, result)
+	})
+}
+
 func TestOCIOrchestrator_GetBackupConfigsForPool(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}

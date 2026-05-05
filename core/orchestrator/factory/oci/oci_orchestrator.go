@@ -712,6 +712,10 @@ func (o *OCIOrchestrator) UpdateRbacForPools(ctx context.Context) (string, error
 	return "", utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) UpdateRbacForPoolById(ctx context.Context, poolId string) (string, error) {
+	return "", utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string, locationId string) ([]*models.ExpertModeVolumeBackupConfig, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

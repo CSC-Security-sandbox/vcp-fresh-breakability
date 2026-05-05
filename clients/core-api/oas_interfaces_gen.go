@@ -77,6 +77,10 @@ type V1ListPoolsRes interface {
 	v1ListPoolsRes()
 }
 
+type V1RefreshRbacForExpertModePoolByIdRes interface {
+	v1RefreshRbacForExpertModePoolByIdRes()
+}
+
 type V1RefreshRbacForExpertModePoolsRes interface {
 	v1RefreshRbacForExpertModePoolsRes()
 }

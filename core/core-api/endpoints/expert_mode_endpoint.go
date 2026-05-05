@@ -123,6 +123,34 @@ func (h Handler) V1ExpertModeVolumeFlexCloneSplit(ctx context.Context, req *oasg
 	return &oasgenserver.V1ExpertModeVolumeFlexCloneSplitAccepted{}, nil
 }
 
+// V1RefreshRbacForExpertModePoolById implements the RBAC refresh endpoint for a single pool by UUID
+func (h Handler) V1RefreshRbacForExpertModePoolById(ctx context.Context, params oasgenserver.V1RefreshRbacForExpertModePoolByIdParams) (oasgenserver.V1RefreshRbacForExpertModePoolByIdRes, error) {
+	jobID, err := h.Orchestrator.UpdateRbacForPoolById(ctx, params.PoolId)
+	if err != nil {
+		if customerrors.IsBadRequestErr(err) {
+			return &oasgenserver.V1RefreshRbacForExpertModePoolByIdBadRequest{
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			}, nil
+		}
+		if customerrors.IsNotFoundErr(err) {
+			return &oasgenserver.V1RefreshRbacForExpertModePoolByIdNotFound{
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			}, nil
+		}
+		return &oasgenserver.V1RefreshRbacForExpertModePoolByIdInternalServerError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}, nil
+	}
+
+	return &oasgenserver.OperationV1{
+		Done: oasgenserver.NewOptBool(false),
+		Name: oasgenserver.NewOptString(fmt.Sprintf("/v1/expertMode/rbac/refresh/pool/%s/operations/%s", params.PoolId, jobID)),
+	}, nil
+}
+
 // V1RefreshRbacForExpertModePools implements the RBAC refresh endpoint
 func (h Handler) V1RefreshRbacForExpertModePools(ctx context.Context, params oasgenserver.V1RefreshRbacForExpertModePoolsParams) (oasgenserver.V1RefreshRbacForExpertModePoolsRes, error) {
 	// Trigger the RBAC update workflow

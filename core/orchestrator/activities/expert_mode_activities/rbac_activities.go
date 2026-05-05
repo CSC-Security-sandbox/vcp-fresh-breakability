@@ -71,6 +71,18 @@ func (a *RBACUpdateActivity) ListActiveExpertModePools(ctx context.Context) ([]*
 	return pools, nil
 }
 
+// extractPoolVersionDetail returns the ONTAP version and a PoolDetailWithCurrentHash
+// for a single pool. Returns ("", nil) if the pool has no ONTAP version in BuildInfo.
+func extractPoolVersionDetail(pool *datamodel.Pool) (string, *PoolDetailWithCurrentHash) {
+	if pool.BuildInfo == nil || pool.BuildInfo.OntapVersion == "" {
+		return "", nil
+	}
+	return pool.BuildInfo.OntapVersion, &PoolDetailWithCurrentHash{
+		PoolUUID:    pool.UUID,
+		CurrentHash: pool.BuildInfo.RbacFileHash,
+	}
+}
+
 // GetPoolsDetailsByOntapVersion groups pools by their ONTAP version and returns a map
 // where the key is the ONTAP version and the value is a list of PoolDetailsWithRbacHash
 // containing pool UUID and RBAC hash for that version.
@@ -86,21 +98,12 @@ func (a *RBACUpdateActivity) GetPoolsDetailsByOntapVersion(ctx context.Context, 
 	}
 
 	for _, pool := range pools {
-		// Extract ONTAP version from BuildInfo
-		var ontapVersion string
-		if pool.BuildInfo != nil && pool.BuildInfo.OntapVersion != "" {
-			ontapVersion = pool.BuildInfo.OntapVersion
-		}
-
-		if ontapVersion == "" {
+		version, detail := extractPoolVersionDetail(pool)
+		if detail == nil {
 			logger.Warnf("Skipping pool - ONTAP version not found in BuildInfo poolUUID :%s", pool.UUID)
 			continue
 		}
-
-		poolsByVersion[ontapVersion] = append(poolsByVersion[ontapVersion], PoolDetailWithCurrentHash{
-			PoolUUID:    pool.UUID,
-			CurrentHash: pool.BuildInfo.RbacFileHash,
-		})
+		poolsByVersion[version] = append(poolsByVersion[version], *detail)
 	}
 
 	logger.Infof("Grouped pools by ONTAP version with RBAC hash totalPools :%v", len(pools))
@@ -136,6 +139,21 @@ func (j *RBACUpdateActivity) GetLatestRbacHashForAllOntapVersion(ctx context.Con
 		}
 	}
 	return result, nil
+}
+
+// GetSinglePoolVersionDetails extracts the ONTAP version and current RBAC hash for a
+// single pool, returning the same map structure as GetPoolsDetailsByOntapVersion so
+// downstream activities (GetLatestRbacHashForAllOntapVersion) can be reused as-is.
+func (a *RBACUpdateActivity) GetSinglePoolVersionDetails(ctx context.Context, pool *datamodel.Pool) (map[string][]PoolDetailWithCurrentHash, error) {
+	version, detail := extractPoolVersionDetail(pool)
+	if detail == nil {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("pool %s missing ONTAP version", pool.UUID)))
+	}
+
+	return map[string][]PoolDetailWithCurrentHash{
+		version: {*detail},
+	}, nil
 }
 
 // GetPoolByUUID fetches the pool by UUID

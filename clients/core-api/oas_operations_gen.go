@@ -25,6 +25,7 @@ const (
 	V1ListAddressRangesOperation                     OperationName = "V1ListAddressRanges"
 	V1ListImageVersionsOperation                     OperationName = "V1ListImageVersions"
 	V1ListPoolsOperation                             OperationName = "V1ListPools"
+	V1RefreshRbacForExpertModePoolByIdOperation      OperationName = "V1RefreshRbacForExpertModePoolById"
 	V1RefreshRbacForExpertModePoolsOperation         OperationName = "V1RefreshRbacForExpertModePools"
 	V1RotateGcpKmsConfigOperation                    OperationName = "V1RotateGcpKmsConfig"
 	V1SplitStartVolumeOperation                      OperationName = "V1SplitStartVolume"

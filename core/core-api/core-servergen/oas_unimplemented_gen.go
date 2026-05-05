@@ -194,6 +194,16 @@ func (UnimplementedHandler) V1ListPools(ctx context.Context, params V1ListPoolsP
 	return r, ht.ErrNotImplemented
 }
 
+// V1RefreshRbacForExpertModePoolById implements v1_refreshRbacForExpertModePoolById operation.
+//
+// Triggers a workflow to update RBAC hash for a specific ONTAP mode pool identified by UUID,
+// comparing with the latest RBAC file from GCS bucket.
+//
+// POST /v1/expertMode/rbac/refresh/pool/{poolId}
+func (UnimplementedHandler) V1RefreshRbacForExpertModePoolById(ctx context.Context, params V1RefreshRbacForExpertModePoolByIdParams) (r V1RefreshRbacForExpertModePoolByIdRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1RefreshRbacForExpertModePools implements v1_refreshRbacForExpertModePools operation.
 //
 // Triggers a workflow to update RBAC hash for all active ONTAP mode pools by comparing with the

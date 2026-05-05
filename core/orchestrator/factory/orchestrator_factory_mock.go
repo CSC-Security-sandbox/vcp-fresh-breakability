@@ -10001,6 +10001,63 @@ func (_c *MockOrchestratorFactory_UpdateRbacForPools_Call) RunAndReturn(run func
 	return _c
 }
 
+// UpdateRbacForPoolById provides a mock function with given fields: ctx, poolId
+func (_m *MockOrchestratorFactory) UpdateRbacForPoolById(ctx context.Context, poolId string) (string, error) {
+	ret := _m.Called(ctx, poolId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateRbacForPoolById")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return rf(ctx, poolId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, poolId)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, poolId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_UpdateRbacForPoolById_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateRbacForPoolById'
+type MockOrchestratorFactory_UpdateRbacForPoolById_Call struct {
+	*mock.Call
+}
+
+// UpdateRbacForPoolById is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolId string
+func (_e *MockOrchestratorFactory_Expecter) UpdateRbacForPoolById(ctx interface{}, poolId interface{}) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
+	return &MockOrchestratorFactory_UpdateRbacForPoolById_Call{Call: _e.mock.On("UpdateRbacForPoolById", ctx, poolId)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateRbacForPoolById_Call) Run(run func(ctx context.Context, poolId string)) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateRbacForPoolById_Call) Return(_a0 string, _a1 error) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateRbacForPoolById_Call) RunAndReturn(run func(context.Context, string) (string, error)) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateReplication provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) UpdateReplication(ctx context.Context, params *common.UpdateReplicationParams) (*models.VolumeReplication, string, error) {
 	ret := _m.Called(ctx, params)

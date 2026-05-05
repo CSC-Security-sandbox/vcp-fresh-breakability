@@ -203,6 +203,149 @@ func TestUpdateRbacForPools_ExecuteWorkflowFails_UpdateJobFails(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 	mockTemporal.AssertExpectations(t)
 }
+func TestUpdateRbacForPoolById_Success(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	orchestrator := &GCPOrchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+	expectedJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-job-uuid",
+		},
+		Type:          string(models.JobTypeExpertModeRbacRefresh),
+		State:         string(models.JobsStateNEW),
+		AccountID:     sql.NullInt64{Valid: false},
+		WorkflowID:    "test-workflow-id",
+		CorrelationID: "test-correlation-id",
+		RequestID:     "test-request-id",
+	}
+	poolId := "pool-uuid-123"
+	mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+		return job.Type == string(models.JobTypeExpertModeRbacRefresh) &&
+			job.State == string(models.JobsStateNEW) &&
+			!job.AccountID.Valid &&
+			job.ResourceUUID == poolId
+	})).Return(expectedJob, nil).Once()
+	mockTemporal.EXPECT().ExecuteWorkflow(
+		ctx,
+		mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+			return opts.TaskQueue == workflowengine.BackgroundTaskQueue &&
+				opts.ID == expectedJob.WorkflowID &&
+				opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
+		}),
+		mock.Anything, // Workflow function
+		poolId,
+	).Return(nil, nil).Once()
+	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, poolId)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedJob.UUID, jobID)
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
+func TestUpdateRbacForPoolById_CreateJobFails(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	orchestrator := &GCPOrchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+	expectedError := errors.New("failed to create job")
+	poolId := "pool-uuid-123"
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, expectedError).Once()
+	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, poolId)
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	assert.Empty(t, jobID)
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
+func TestUpdateRbacForPoolById_ExecuteWorkflowFails(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	orchestrator := &GCPOrchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+	expectedJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-job-uuid",
+		},
+		Type:          string(models.JobTypeExpertModeRbacRefresh),
+		State:         string(models.JobsStateNEW),
+		AccountID:     sql.NullInt64{Valid: false},
+		WorkflowID:    "test-workflow-id",
+		TrackingID:    123,
+		CorrelationID: "test-correlation-id",
+		RequestID:     "test-request-id",
+	}
+	workflowError := errors.New("failed to start workflow")
+	poolId := "pool-uuid-123"
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(expectedJob, nil).Once()
+	mockTemporal.EXPECT().ExecuteWorkflow(
+		ctx,
+		mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+			return opts.TaskQueue == workflowengine.BackgroundTaskQueue &&
+				opts.ID == expectedJob.WorkflowID &&
+				opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
+		}),
+		mock.Anything,
+		poolId,
+	).Return(nil, workflowError).Once()
+	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(models.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(nil).Once()
+	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, poolId)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to start single pool RBAC update workflow")
+	assert.Empty(t, jobID)
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
+func TestUpdateRbacForPoolById_ExecuteWorkflowFails_UpdateJobFails(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	orchestrator := &GCPOrchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+	expectedJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-job-uuid",
+		},
+		Type:          string(models.JobTypeExpertModeRbacRefresh),
+		State:         string(models.JobsStateNEW),
+		AccountID:     sql.NullInt64{Valid: false},
+		WorkflowID:    "test-workflow-id",
+		TrackingID:    123,
+		CorrelationID: "test-correlation-id",
+		RequestID:     "test-request-id",
+	}
+	workflowError := errors.New("failed to start workflow")
+	updateJobError := errors.New("failed to update job")
+	poolId := "pool-uuid-123"
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(expectedJob, nil).Once()
+	mockTemporal.EXPECT().ExecuteWorkflow(
+		ctx,
+		mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+			return opts.TaskQueue == workflowengine.BackgroundTaskQueue &&
+				opts.ID == expectedJob.WorkflowID &&
+				opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
+		}),
+		mock.Anything,
+		poolId,
+	).Return(nil, workflowError).Once()
+	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(models.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(updateJobError).Once()
+	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, poolId)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to start single pool RBAC update workflow")
+	assert.Empty(t, jobID)
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
 
 func TestUpdateRbacForPools_JobFields(t *testing.T) {
 	ctx := context.Background()

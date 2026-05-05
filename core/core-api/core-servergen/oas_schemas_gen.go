@@ -2457,12 +2457,13 @@ func (s *OperationV1) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1) v1CreatePoolRes()                    {}
-func (*OperationV1) v1CreateSnapshotRes()                {}
-func (*OperationV1) v1DeletePoolRes()                    {}
-func (*OperationV1) v1RefreshRbacForExpertModePoolsRes() {}
-func (*OperationV1) v1SplitStartVolumeRes()              {}
-func (*OperationV1) v1UpdatePoolRes()                    {}
+func (*OperationV1) v1CreatePoolRes()                       {}
+func (*OperationV1) v1CreateSnapshotRes()                   {}
+func (*OperationV1) v1DeletePoolRes()                       {}
+func (*OperationV1) v1RefreshRbacForExpertModePoolByIdRes() {}
+func (*OperationV1) v1RefreshRbacForExpertModePoolsRes()    {}
+func (*OperationV1) v1SplitStartVolumeRes()                 {}
+func (*OperationV1) v1UpdatePoolRes()                       {}
 
 // NewOptAddressRangeUpdateV1LifeCycleState returns new OptAddressRangeUpdateV1LifeCycleState with value set to v.
 func NewOptAddressRangeUpdateV1LifeCycleState(v AddressRangeUpdateV1LifeCycleState) OptAddressRangeUpdateV1LifeCycleState {
@@ -6102,6 +6103,36 @@ func (*V1ListPoolsTooManyRequests) v1ListPoolsRes() {}
 type V1ListPoolsUnauthorized Error
 
 func (*V1ListPoolsUnauthorized) v1ListPoolsRes() {}
+
+type V1RefreshRbacForExpertModePoolByIdBadRequest Error
+
+func (*V1RefreshRbacForExpertModePoolByIdBadRequest) v1RefreshRbacForExpertModePoolByIdRes() {}
+
+type V1RefreshRbacForExpertModePoolByIdForbidden Error
+
+func (*V1RefreshRbacForExpertModePoolByIdForbidden) v1RefreshRbacForExpertModePoolByIdRes() {}
+
+type V1RefreshRbacForExpertModePoolByIdInternalServerError Error
+
+func (*V1RefreshRbacForExpertModePoolByIdInternalServerError) v1RefreshRbacForExpertModePoolByIdRes() {
+}
+
+type V1RefreshRbacForExpertModePoolByIdNotFound Error
+
+func (*V1RefreshRbacForExpertModePoolByIdNotFound) v1RefreshRbacForExpertModePoolByIdRes() {}
+
+type V1RefreshRbacForExpertModePoolByIdTooManyRequests Error
+
+func (*V1RefreshRbacForExpertModePoolByIdTooManyRequests) v1RefreshRbacForExpertModePoolByIdRes() {}
+
+type V1RefreshRbacForExpertModePoolByIdUnauthorized Error
+
+func (*V1RefreshRbacForExpertModePoolByIdUnauthorized) v1RefreshRbacForExpertModePoolByIdRes() {}
+
+type V1RefreshRbacForExpertModePoolByIdUnprocessableEntity Error
+
+func (*V1RefreshRbacForExpertModePoolByIdUnprocessableEntity) v1RefreshRbacForExpertModePoolByIdRes() {
+}
 
 type V1RefreshRbacForExpertModePoolsBadRequest Error
 

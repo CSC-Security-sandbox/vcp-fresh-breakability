@@ -21,6 +21,11 @@ func (o *GCPOrchestrator) UpdateRbacForPools(ctx context.Context) (string, error
 	return _updateRbacForPools(ctx, o.storage, o.temporal)
 }
 
+// UpdateRbacForPoolById triggers the workflow to update RBAC hash for a single pool identified by UUID
+func (o *GCPOrchestrator) UpdateRbacForPoolById(ctx context.Context, poolId string) (string, error) {
+	return _updateRbacForPoolById(ctx, o.storage, o.temporal, poolId)
+}
+
 // _updateRbacForPools creates a job and triggers the RBAC update workflow
 func _updateRbacForPools(ctx context.Context, se database.Storage, temporal client.Client) (string, error) {
 	logger := util.GetLogger(ctx)
@@ -60,5 +65,47 @@ func _updateRbacForPools(ctx context.Context, se database.Storage, temporal clie
 	}
 
 	logger.Infof("Successfully triggered RBAC update workflow with job ID: %s", createdJob.UUID)
+	return createdJob.UUID, nil
+}
+
+// _updateRbacForPoolById creates a job and triggers the RBAC update workflow for a single pool by UUID
+func _updateRbacForPoolById(ctx context.Context, se database.Storage, temporal client.Client, poolId string) (string, error) {
+	logger := util.GetLogger(ctx)
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeExpertModeRbacRefresh),
+		State:         string(models.JobsStateNEW),
+		AccountID:     sql.NullInt64{Valid: false},
+		ResourceUUID:  poolId,
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job for single pool RBAC update workflow", "error", err)
+		return "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		expertModeWorkflows.UpdateRbacForSinglePoolWorkflow,
+		poolId,
+	)
+
+	if err != nil {
+		logger.Error("Failed to start single pool RBAC update workflow", "workflowID", createdJob.WorkflowID, "poolId", poolId, "error", err)
+		if updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); updateErr != nil {
+			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", updateErr)
+		}
+		return "", fmt.Errorf("failed to start single pool RBAC update workflow: %w", err)
+	}
+
+	logger.Infof("Successfully triggered single pool RBAC update workflow for pool %q with job ID: %s", poolId, createdJob.UUID)
 	return createdJob.UUID, nil
 }

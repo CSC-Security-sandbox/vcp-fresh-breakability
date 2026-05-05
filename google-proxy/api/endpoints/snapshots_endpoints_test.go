@@ -1633,6 +1633,10 @@ func (m *mockInvoker) V1UpdateAddressRangeState(ctx context.Context, request *co
 	return nil, nil
 }
 
+func (m *mockInvoker) V1RefreshRbacForExpertModePoolById(ctx context.Context, params coreapi.V1RefreshRbacForExpertModePoolByIdParams) (coreapi.V1RefreshRbacForExpertModePoolByIdRes, error) {
+	return nil, nil
+}
+
 func TestV1betaCreateSnapshot_WithSyncModeEnabled(t *testing.T) {
 	t.Run("WhenSyncModeEnabled_ForwardsToCoreAPI", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)

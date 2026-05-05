@@ -132,6 +132,13 @@ type Handler interface {
 	//
 	// GET /v1/pools
 	V1ListPools(ctx context.Context, params V1ListPoolsParams) (V1ListPoolsRes, error)
+	// V1RefreshRbacForExpertModePoolById implements v1_refreshRbacForExpertModePoolById operation.
+	//
+	// Triggers a workflow to update RBAC hash for a specific ONTAP mode pool identified by UUID,
+	// comparing with the latest RBAC file from GCS bucket.
+	//
+	// POST /v1/expertMode/rbac/refresh/pool/{poolId}
+	V1RefreshRbacForExpertModePoolById(ctx context.Context, params V1RefreshRbacForExpertModePoolByIdParams) (V1RefreshRbacForExpertModePoolByIdRes, error)
 	// V1RefreshRbacForExpertModePools implements v1_refreshRbacForExpertModePools operation.
 	//
 	// Triggers a workflow to update RBAC hash for all active ONTAP mode pools by comparing with the
