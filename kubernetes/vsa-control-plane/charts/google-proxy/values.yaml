@@ -48,6 +48,7 @@ hybridReplicationEnabled: false
 bidiReplicationEnabled: false
 autoTieringEnabled: false
 blockUpdatePoolToATPool: false # Block updating existing pools to Auto-Tiering pools
+enableLargeCapacityPools: true # Feature flag: allow creating largeCapacity pools
 regionalSupportEnabled: true
 # When true, core/worker use registered address ranges for pool subnet creation; set to match global.coreConfig.addressSpaceMgmtEnabled in deployments.
 addressSpaceMgmtEnabled: "false"

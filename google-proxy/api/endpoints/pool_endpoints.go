@@ -37,6 +37,7 @@ var (
 	blockUpdatePooltoATPool                = env.GetBool("BLOCK_UPDATE_POOL_TO_AT_POOL", false)
 	enableMqos                             = env.GetBool("ENABLE_MQOS", true)
 	enableVolumePerformanceGroupAssignment = env.GetBool("ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT", false)
+	enableLargeCapacityPools               = env.GetBool("ENABLE_LARGE_CAPACITY_POOLS", true)
 )
 
 const (
@@ -1139,6 +1140,13 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,
 			Message: "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)",
+		}
+	}
+
+	if req.LargeCapacity.IsSet() && req.LargeCapacity.Value && !enableLargeCapacityPools {
+		return &gcpgenserver.Error{
+			Code:    http.StatusBadRequest,
+			Message: "Large capacity pools feature is not enabled",
 		}
 	}
 

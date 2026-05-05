@@ -4801,6 +4801,34 @@ func TestValidateCreatePoolParams_AutoTieringValidation(t *testing.T) {
 	})
 }
 
+func TestValidateCreatePoolParams_LargeCapacityFeatureFlag(t *testing.T) {
+	originalEnableLargeCapacityPools := enableLargeCapacityPools
+	defer func() { enableLargeCapacityPools = originalEnableLargeCapacityPools }()
+
+	t.Run("RejectsLargeCapacityWhenFlagDisabled", func(tt *testing.T) {
+		enableLargeCapacityPools = false
+		req := &gcpgenserver.PoolV1beta{
+			Unified:       gcpgenserver.NewOptBool(true),
+			SizeInBytes:   2199023255552, // 2 TiB
+			LargeCapacity: gcpgenserver.NewOptBool(true),
+		}
+		err := validateCreatePoolParams(req, "us-east4-a")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, float64(http.StatusBadRequest), err.Code)
+		assert.Contains(tt, err.Message, "Large capacity pools feature is not enabled")
+	})
+
+	t.Run("AllowsNonLargeCapacityWhenFlagDisabled", func(tt *testing.T) {
+		enableLargeCapacityPools = false
+		req := &gcpgenserver.PoolV1beta{
+			Unified:     gcpgenserver.NewOptBool(true),
+			SizeInBytes: 2199023255552, // 2 TiB
+		}
+		err := validateCreatePoolParams(req, "us-east4-a")
+		assert.Nil(tt, err)
+	})
+}
+
 func TestValidateCreatePoolParams_SecondaryZoneValidation(t *testing.T) {
 	const (
 		validPoolSize = 2199023255552 // 2 TiB
