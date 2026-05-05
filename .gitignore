@@ -30,6 +30,8 @@ go.work
 !.cursor/agents/*/
 !.cursor/skills/
 !.cursor/skills/*/
+!.cursor/commands/
+!.cursor/commands/**/
 !.cursor/triagebot-agents/
 !.cursor/triagebot-agents/**
 !.cursor/deps/

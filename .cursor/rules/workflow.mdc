@@ -1,0 +1,46 @@
+---
+title: Temporal Workflow Development Best Practices
+description: Apply when editing Temporal workflows, activities, or worker code. Workflows must not run long-running logic; all I/O and heavy work go in activities. Covers determinism, retries, vsaerrors, and timeouts.
+globs: ["**/workflows/**", "**/activities/**", "**/orchestrator/**", "**/worker/**"]
+---
+
+# Temporal Workflow Development Best Practices
+
+Workflows and activities use **Temporal** and **core/errors** (vsaerrors) for retry and HTTP mapping. See **doc/workflows/** and **doc/guides/temporal-debugging.md**.
+
+## Workflow design
+- **No long-running logic in workflows**: Workflows must **not** contain long-running or blocking logic. All I/O, API calls, DB access, sleep/delays, and any non-trivial computation belong in **activities**. The workflow only orchestrates: call activities, branch on results, handle signals/queries, and manage state. If it can block or take more than a few milliseconds, it belongs in an activity.
+- **Determinism**: Workflow code must be deterministic. No direct I/O, no `time.Now()` or `rand` in workflow logic; use activities for non-deterministic or external work. Use workflow.Now(ctx) and workflow.SideEffect for time/random when needed.
+- **Orchestration only**: Keep workflow code focused on orchestration (calling activities, branching, signals, queries). Put business logic and I/O in activities.
+- **Versioning**: Use workflow versioning for non-backward-compatible changes; document in **doc/workflows/**.
+
+## Activity design
+- **Single responsibility**: One activity per logical operation or external call. Use appropriate **StartToClose** (and ScheduleToClose if needed) timeouts; align with **doc/workflows/** (e.g. pool, volume, KMS timeouts).
+- **Errors**: Return **TemporalApplicationError** for business/retry semantics. Use **vsaerrors.WrapAsTemporalApplicationError(err)** (or equivalent) so non-retriable errors are marked and HTTP/error codes are preserved. Do not return retriable for permanent failures (e.g. validation, not found).
+- **Context**: Pass workflow context into activities; use it for cancellation and timeouts. Do not start goroutines that outlive the activity without respecting context.
+- **Idempotency**: Design activities to be idempotent where external systems allow; use idempotency keys or conditional writes when documented.
+
+## Retries and timeouts
+- **Retry policy**: Configure per activity/workflow as in **doc/workflows/** (e.g. retry interval, max attempts, backoff). Use **setRetryPolicy** or project helpers where they exist.
+- **Timeouts**: Set workflow and activity timeouts per design (e.g. pool heartbeat 300s, activity 55m, KMS 14m). Avoid overly long workflow run timeouts unless required.
+- **Non-retriable**: Use the project’s pattern (e.g. TemporalApplicationError with non-retryable) for validation, not-found, and other permanent failures so the workflow does not retry indefinitely.
+
+## State and signals
+- **Workflow state**: Keep workflow state in workflow variables; use queries for read-only status. Use signals for external input (e.g. cancellation, user input).
+- **Cancellation**: Handle workflow cancellation and activity cancellation; clean up resources and mark job/workflow state consistently. See **doc/architecture/designs/0018-workflow-cancellation-framework.md** if applicable.
+
+## Logging and observability
+- **Structured logging**: Use **slog** with correlation_id, workflow_id, job_id. See **doc/architecture/decisions/0011-slog-logging-framework.md**. Do not log PII or secrets.
+- **Metrics**: Use existing metrics (e.g. job status, activity duration) where defined; add new ones via the project’s metrics pattern.
+
+## Testing
+- **Unit tests**: Mock activities in workflow tests; mock external services in activity tests. Use **workflow_test** and **activity_test** packages; respect determinism in workflow tests.
+- **Integration**: For end-to-end workflow tests, use test Temporal server and test DB; mock GCP/ONTAP as per project setup.
+
+## Repo pointers
+- **doc/workflows/** — pool, volume, backup, KMS, replication, etc.; timeout and retry values.
+- **doc/guides/temporal-debugging.md** — debugging workflows.
+- **doc/api/error-taxonomy.md** — error ranges and retry semantics.
+- **core/errors/README.md** — WrapAsTemporalApplicationError, CustomError.
+- **utils/setRetryPolicy.go** — retry policy helpers.
+- **core/tasks/workflow_supervisor_task.go**, **doc/architecture/designs/0015-workflow-supervisor-task.md** — supervisor behavior.

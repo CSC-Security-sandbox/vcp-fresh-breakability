@@ -1,0 +1,21 @@
+---
+title: When to apply which project rules
+description: Meta rule – apply the right .cursor rule based on what is being edited or discussed.
+alwaysApply: true
+---
+
+# Apply project rules based on what you're changing
+
+When editing or generating code in this repo, **apply the following rules** if they are in your context (Cursor may add them via globs when the matching files are open or edited):
+
+| Path / file pattern | Rule to follow |
+|----------------------|----------------|
+| Any `**/*.go` (including `*_test.go`) | **go-project-rule.mdc** – context first, errors, logging, core boundary, CODING_GUIDELINES.md |
+| `**/api/**`, `**/endpoints/**`, API YAML/specs | **api-development.mdc** – error taxonomy, validation, no edits to generated code |
+| `**/database/**`, `**/migrations/**`, `**/models.go` | **database.mdc** – GORM, transactions, migrations, DB error range |
+| `**/*_test.go`, `**/testdata/**` | **testing.mdc** – table-driven tests, mocks, AssertExpectations, no global overrides |
+
+- If you are editing a file that matches more than one pattern (e.g. `google-proxy/api/endpoints/pool_endpoints.go`), apply **both** go-project-rule and api-development.
+- If a rule is not in your context but the path clearly matches above, follow the same principles (context first, VCP errors, no globals in tests, etc.) and refer to **CODING_GUIDELINES.md** and the repo pointers in each rule.
+
+**Triagebot:** Only when the user's message **starts with** `triagebot` – then follow **triagebot.mdc** only and do not modify code.

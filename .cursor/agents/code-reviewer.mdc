@@ -82,8 +82,9 @@ Read these files to build the subagent prompt:
 
 1. `.cursor/agents/code-reviewer-standards.md` — the full 16-category review checklist
 2. `.cursor/rules/go-coding-standards.mdc` — Go coding standards with **exemption lists**
+3. `.cursor/commands/includes/review-authority.md` — **shared include** (same as **`.cursor/commands/review.md`**): path table, **error taxonomy**, vsaerrors / `core/errors`, API error shape, OpenAPI error alignment, severity label pointer — **one place to update** when those references change; do not duplicate that material in the orchestrator prompt
 
-Include the **full contents** of both files in the subagent prompt so the subagent has all standards and exemptions available.
+Include the **full contents** of (1) and (2) in the subagent prompt as today. For (3), the subagent template **instructs** a `Read` of the include file (see template step 1b) so the error-taxonomy and API error rules are not re-listed inline.
 
 ---
 
@@ -114,6 +115,7 @@ DIFF_CONTENT
 
 ## Instructions
 1. Read each changed file IN FULL using the Read tool (not just the diff) to understand context, imports, structs, and call sites.
+1b. Read `.cursor/commands/includes/review-authority.md` in full (error taxonomy, vsaerrors, API error model, path references — **single source** shared with the Cursor review command) and apply when reviewing errors, API handlers, workflows, activities, or spec-adjacent changes.
 2. Apply every check from the Review Standards below to the changed lines.
 3. For each finding, output a JSON object on its own line:
 

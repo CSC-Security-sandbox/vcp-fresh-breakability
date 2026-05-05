@@ -1,0 +1,38 @@
+---
+title: Testing Best Practices
+description: Apply when editing or writing tests. Enforces table-driven tests, DI-based mocks, and VCP testing patterns; no global overrides.
+globs: ["**/*_test.go", "**/testdata/**"]
+---
+
+# Testing Best Practices
+
+Follow **CODING_GUIDELINES.md** (testing section) and these rules.
+
+## Test structure and naming
+- **Names**: Use descriptive test names: `Test_FunctionName_Scenario_ExpectedResult`. Group related cases with `t.Run()` subtests.
+- **AAA**: Arrange, Act, Assert. One behavior per test; keep tests focused.
+- **Table-driven tests**: Prefer table-driven tests for multiple inputs/expectations. Use a slice of structs and loop with `t.Run(tc.name, func(t *testing.T) { ... })`.
+
+## Mocking and dependencies
+- **Dependency injection**: Use DI in production code so tests can inject mocks. Prefer `NewXWithDeps(..., config, deps)` over global variables or function pointers that tests override.
+- **Mocks**: Use **mockery**-generated mocks (see `.mockery.yaml`, `.monkeyMocks.yaml`). Call `mock.AssertExpectations(t)` (or equivalent) where appropriate. Reset or create fresh mocks per test to avoid cross-test pollution.
+- **No global overrides**: Do not swap global config or function variables in tests. Use constructor injection and pass test config/deps instead. See CODING_GUIDELINES migration from globals to DI.
+
+## Test data and cleanup
+- **Fixtures**: Use **testdata/** or in-test structs for complex data. Prefer constants for repeated values.
+- **Cleanup**: Use `t.Cleanup()` for teardown. Avoid leaking goroutines, DB connections, or temp resources.
+
+## Error and edge testing
+- **Paths**: Test both success and failure paths. Cover error wrapping and retriable vs non-retriable behavior where relevant.
+- **Assertions**: Use **testify** (assert, require). Use `assert.Error`, `assert.NoError`, `assert.Contains(t, err.Error(), ...)` and `errors.Is` / `errors.As` for error checks.
+- **VCP errors**: When testing code that returns vsaerrors, assert on error code/category or message as appropriate; see core/errors for test helpers if available.
+
+## Coverage and performance
+- **Coverage**: Aim for high coverage on new or modified code; critical paths (workflows, activities, API handlers) should have explicit tests.
+- **Benchmarks**: Add benchmarks for performance-sensitive code when changing it. Keep unit tests fast (no real external services).
+- **Integration**: For workflow/activity integration tests, mock external services and Temporal where possible; use test DB or in-memory stores as documented.
+
+## Repo pointers
+- **CODING_GUIDELINES.md** — “Testing”, “Function-Level Testing”, “Migration Strategies” (DI vs globals).
+- **core/errors/README.md** — “Testing Best Practices” for error tests.
+- Generated mocks: `*_mock.go`; regenerate with `make generate-mocks` / `make generate-monkey-mocks`.

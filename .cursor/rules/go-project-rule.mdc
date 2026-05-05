@@ -1,0 +1,40 @@
+---
+title: Go Project Development Best Practices
+description: Apply when editing Go source. Enforces VCP coding guidelines, imports, context convention, error handling, and core/ hyperscaler boundaries.
+globs: ["**/*.go"]
+alwaysApply: true
+---
+
+# Go Project Development Rules
+
+Follow **CODING_GUIDELINES.md** and these rules. If unsure, ask before changing patterns.
+
+## Imports and layout
+- **Import grouping (GCI)**: Standard library first, then third-party and local; groups separated by a blank line; alphabetical within each group. Generated dirs are excluded from some lint rules.
+- **Import aliases**: Use consistent aliases (e.g. `coremodels`, `vsaerrors`). No duplicate imports of the same package.
+- **Core boundary**: In `core/**/*.go` do **not** import `cloud.google.com/go`, `google.golang.org/api`, `google.golang.org/genproto`, or `hyperscaler/google`. Use `hyperscaler` interfaces only; cloud implementations live in `hyperscaler/google/`.
+- **Hyperscaler boundary**: Outside `hyperscaler/google/`, do not import Google Cloud SDK packages. Keep cloud-specific code behind interfaces.
+
+## Context and function design
+- **Context first**: Any function that takes `context.Context` must have it as the **first** parameter. Return errors as the **last** return value.
+- **Config and DI**: Use structs for configuration (e.g. `Config`, `Dependencies`) and dependency injection in constructors. Prefer `NewXWithDeps(...)` for testability; avoid global variables for config or function pointers.
+- **Decomposition**: Keep functions focused and single-purpose. Break large logic into smaller, testable functions; expose business-logic helpers for unit tests.
+
+## Error handling
+- **VCP errors**: Use `core/errors` (vsaerrors): `errors.NewVCPError(trackingID, err)` for user-facing and retry semantics. See **core/errors/README.md** and **doc/api/error-taxonomy.md** for code ranges and HTTP mapping.
+- **Wrapping**: Use `%w` for wrapping: `fmt.Errorf("operation failed: %w", err)`. Preserve chain for `errors.Is` / `errors.As`.
+- **Unchecked errors**: Handle all errors explicitly or document intentional ignore (e.g. `_ = file.Close()` when safe). No silent `_` for critical errors.
+- **Type assertions**: Use the two-value form: `if x, ok := v.(Type); ok { ... }`.
+
+## Logging
+- **Structured logging**: Use **slog** (log/slog or project logger). See **doc/architecture/decisions/0011-slog-logging-framework.md**. Include correlation_id, workflow_id, job_id where available; no PII or secrets in logs.
+
+## Code quality
+- **Naming**: Meaningful, intent-revealing names. Constants for magic numbers and strings.
+- **Exports**: Add godoc for all exported functions and types. Prefer small, focused packages.
+- **Vet and static analysis**: Code must pass govet, staticcheck (S1021 disabled), errcheck, ineffassign, importas, revive. Do not add code in generated dirs (e.g. `*_gen.go`, `*-servergen/`); change generators or templates instead.
+
+## Repo pointers
+- **CODING_GUIDELINES.md** — imports, boundaries, context, errors, testing, migration patterns.
+- **core/errors/README.md** — CustomError, NewVCPError, Temporal integration.
+- **doc/api/error-taxonomy.md** — error code ranges and HTTP mapping.

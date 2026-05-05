@@ -1,0 +1,40 @@
+---
+title: API Development Best Practices
+description: Apply when editing API handlers, endpoints, or OpenAPI specs. Covers error taxonomy, validation, and google-proxy vs core-api usage.
+globs: ["**/api/**", "**/endpoints/**", "**/*-api*.yaml", "**/gcp-api.yaml", "**/openapi/**"]
+---
+
+# API Development Best Practices
+
+APIs in this repo use **ogen**-generated server/client code and a shared **error taxonomy**. Follow these and **doc/api/error-taxonomy.md**.
+
+## Error responses and taxonomy
+- **Envelope**: All error responses use `{ "code": <number>, "message": "<human readable>" }`. `code` is from the internal categorized range; `message` is safe for clients (no secrets/PII).
+- **Ranges**: Use the correct range for the component: 1000–1999 workflow/orchestration; 2000–2999 database; 3000–3999 GCP/cloud; 4000–4999 VSA cluster; 5000–5999 ONTAP; 6000–6999 validation; 7000–7999 rate/quota; 8000–8999 security/KMS; 9000–9999 internal/unknown. See **doc/api/error-taxonomy.md** for full table.
+- **HTTP mapping**: Validation → 422 (syntax-only → 400); duplicate/exists → 409; not found → 404; retriable infra → 500; auth → 401/403. Use **core/errors** (vsaerrors) and let middleware map CustomError to HTTP status and body.
+- **Ownership**: google-proxy does input validation and error normalization; core-api/orchestrator own business workflow errors; hyperscaler for GCP/cloud errors.
+
+## Request/response and validation
+- **Validation**: Validate all inputs; use struct tags and custom validation where applicable. Return structured validation errors with the correct code range (e.g. 6000–6999 for user/validation).
+- **Logging**: Log requests/responses per middleware; include correlation_id. No PII or secrets in logs.
+- **Content types**: Use JSON consistently; follow OpenAPI spec for request/response shapes. Handle timeouts and request size limits.
+
+## API design
+- **REST**: Resource-oriented URLs; consistent HTTP methods and status codes. Use versioning (e.g. /v1/, /v1beta/) as in the spec.
+- **Backward compatibility**: Avoid breaking changes to existing fields or status codes; extend with new optional fields or new endpoints when needed.
+- **Pagination**: For list endpoints, support page size and token-based or offset pagination as defined in the spec.
+
+## Generated code (ogen)
+- **Do not edit** generated files under `*-servergen/`, `clients/*/oas_*`. Change the OpenAPI YAML (e.g. **google-proxy/api/gcp-api.yaml**) and regenerate (see Makefile targets like `generate-google-proxy`).
+- **Handlers**: Implement the generated handler interfaces in **endpoints/**; keep business logic in core/orchestrator, call from handlers.
+
+## Security and robustness
+- **Auth**: Validate auth at the API layer; use middleware for auth and RBAC. Return 401/403 with appropriate error codes.
+- **Input**: Sanitize and validate; use parameterized queries and safe serialization to avoid injection.
+- **Rate limiting**: Apply where specified; return 429 with rate/quota error range (7000–7999).
+
+## Repo pointers
+- **doc/api/error-taxonomy.md** — code ranges, HTTP mapping, component ownership.
+- **core/errors/README.md** — CustomError, NewVCPError, HTTP mapping.
+- **CODING_GUIDELINES.md** — context, error handling, logging.
+- **google-proxy/api/endpoints/** — handler implementations; **google-proxy/api/gcp-api.yaml** — OpenAPI source.

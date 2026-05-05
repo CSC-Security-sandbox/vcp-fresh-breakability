@@ -1,0 +1,40 @@
+---
+title: Database Development Best Practices
+description: Apply when editing database layer, migrations, or GORM models. Covers transactions, migrations, and error handling.
+globs: ["**/database/**", "**/migrations/**", "**/migrate*", "**/models.go"]
+---
+
+# Database Development Best Practices
+
+Database code uses **GORM** and versioned **migrations**. Follow **core/errors** for error codes in the 2000–2999 range (see **doc/api/error-taxonomy.md**).
+
+## Data model and GORM
+- **Struct tags**: Use GORM struct tags for mapping; define primary keys, foreign keys, and indexes explicitly. Use meaningful table and column names.
+- **Relations**: Use GORM relations (e.g. HasMany, BelongsTo) where appropriate; avoid N+1 by using Preload or Join when needed.
+- **No raw SQL without need**: Prefer GORM APIs; use parameterized queries for any raw SQL to prevent injection.
+
+## Transactions and consistency
+- **Multi-step writes**: Use transactions for operations that touch multiple tables. Commit only after all steps succeed; rollback on error and return a wrapped error (vsaerrors with DB range).
+- **Context**: Pass `context.Context` as first argument; use it for timeouts and cancellation in DB calls.
+- **Isolation**: Use default or explicit isolation levels as required; handle deadlocks with retries where documented.
+
+## Migrations
+- **Versioned migrations**: Store migrations under the path configured in the app (e.g. **migrations/core**). Use sequential, descriptive names. Do not edit applied migrations; add new ones for changes.
+- **Compatibility**: Prefer backward-compatible changes (add columns as nullable or with defaults; avoid dropping columns without a deprecation path). Test migrations on a copy of production-like data when possible.
+- **Tooling**: Use the project’s migrate tool (e.g. **tools/migrate**); see config for migration path and DB connection.
+
+## Error handling
+- **VCP errors**: Use **core/errors** with DB error range (2000–2999) for connection failures, constraint violations, and transaction errors. Mark retriable (e.g. connection lost) vs non-retriable (e.g. constraint violation) appropriately.
+- **Logging**: Log DB errors with context (operation, table/resource); no credentials or full row data in logs.
+- **Retries**: Use retry for transient failures (e.g. connection timeout) as per project patterns; do not retry non-retriable errors.
+
+## Testing
+- **Unit tests**: Mock the database layer (storage interfaces); use in-memory or test DB only where integration tests require it.
+- **Fixtures**: Use test fixtures or factories for complex models; clean up in `t.Cleanup()` so tests stay isolated.
+- **Migrations**: Test migration up/down in CI or locally against a test DB when changing migrations.
+
+## Repo pointers
+- **doc/api/error-taxonomy.md** — DB error range (2000–2999) and HTTP mapping.
+- **core/errors/README.md** — error creation and wrapping.
+- **CODING_GUIDELINES.md** — context, error handling, DI.
+- **database/** — storage interfaces and implementations; **tools/migrate** — migration runner.
