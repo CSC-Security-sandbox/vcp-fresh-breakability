@@ -161,7 +161,7 @@ global:
 environment: gcp
 enabled: true
 enableDbMigration: true
-enableIamLifecycle: true
+enableIamLifecycle: false
 ttlSecondsAfterFinished: 3600
 msiEnabled: false
 msiUser: db-msi-user
