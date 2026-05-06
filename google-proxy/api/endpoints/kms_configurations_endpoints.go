@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -437,7 +438,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		return nil, true
 	}
 
-var done bool
+	var done bool
 	switch kmsConfig.State {
 	case coremodel.LifeCycleStateDeleting, coremodel.LifeCycleStateUpdating, coremodel.LifeCycleStateMigrating:
 		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
@@ -983,38 +984,70 @@ func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenser
 	}
 
 	// SDE path: for UUIDs not found in VCP, fall back to SDE
-	if len(kmsConfigVSAList) != len(kmsConfigUUIDList) {
-		kmsConfigUUIDMissingList := missingKmsConfigIdsInVcp(kmsConfigUUIDList, kmsConfigVSAList)
+	kmsConfigUUIDMissingList := missingKmsConfigIdsInVcp(kmsConfigUUIDList, kmsConfigVSAList)
 
-		// Proceed to call CVP client for those UUIDs which are missing
-		jwtToken := utils.GetJWTTokenFromContext(ctx)
+	// Proceed to call CVP client for all UUIDs
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
 
-		body := &models.KmsConfigIDListV1beta{
-			KmsConfigIDs: kmsConfigUUIDMissingList,
-		}
-		getMultipleKmsConfigsParams := &kms_configurations.V1betaGetMultipleKmsConfigsParams{
-			LocationID:     params.LocationId,
-			ProjectNumber:  params.ProjectNumber,
-			XCorrelationID: &params.XCorrelationID.Value,
-			Body:           body,
-		}
+	body := &models.KmsConfigIDListV1beta{
+		KmsConfigIDs: kmsConfigUUIDList,
+	}
+	getMultipleKmsConfigsParams := &kms_configurations.V1betaGetMultipleKmsConfigsParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID.Value,
+		Body:           body,
+	}
 
-		cvpClient := createClient(logger, jwtToken)
-		cvpResponse, cvpErr := cvpClient.KmsConfigurations.V1betaGetMultipleKmsConfigs(getMultipleKmsConfigsParams)
-		if cvpErr != nil {
-			gcpgenserverResponse := categorizeCvpClientErrorsForGetMultipleKmsConfigs(cvpErr, logger)
-			return gcpgenserverResponse, nil
-		}
-		if cvpResponse == nil {
-			return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
-				Code:    http.StatusInternalServerError,
-				Message: "Unknown error encountered during Get Multiple KMS configurations operation",
-			}, nil
-		}
-		if cvpResponse.Payload != nil {
-			// Missing UUID KMSConfigs fetched from SDE are not being stored in VCP for now
-			for _, kmsConfig := range cvpResponse.Payload.KmsConfigurations {
-				operationResponse.KmsConfigurations = append(operationResponse.KmsConfigurations, *convertToKmsConfigV1beta(kmsConfig))
+	cvpClient := createClient(logger, jwtToken)
+	cvpResponse, cvpErr := cvpClient.KmsConfigurations.V1betaGetMultipleKmsConfigs(getMultipleKmsConfigsParams)
+	if cvpErr != nil {
+		gcpgenserverResponse := categorizeCvpClientErrorsForGetMultipleKmsConfigs(cvpErr, logger)
+		return gcpgenserverResponse, nil
+	}
+	if cvpResponse == nil {
+		return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "Unknown error encountered during Get Multiple KMS configurations operation",
+		}, nil
+	}
+	if cvpResponse.Payload != nil {
+		for _, sdeKmsConfig := range cvpResponse.Payload.KmsConfigurations {
+			if sdeKmsConfig == nil {
+				continue
+			}
+			// Add the missing UUID KMSConfigs into the final list
+			if slices.Contains(kmsConfigUUIDMissingList, sdeKmsConfig.UUID) {
+				operationResponse.KmsConfigurations = append(operationResponse.KmsConfigurations, *convertToKmsConfigV1beta(sdeKmsConfig))
+			} else {
+				// For overlapping UUIDs between VSA and SDE, update the State and State details field
+				sdeKmsConfigState := sdeKmsConfig.KmsState
+				if sdeKmsConfigState == coremodel.LifeCycleStateInUse || sdeKmsConfigState == coremodel.LifeCycleStateError {
+					for i := range operationResponse.KmsConfigurations {
+						finalKmsConfig := &operationResponse.KmsConfigurations[i]
+						if sdeKmsConfig.UUID != finalKmsConfig.UUID.Value {
+							continue
+						}
+						vcpKmsState, vcpKmsStateOk := finalKmsConfig.KmsState.Get()
+						// VCP KMSConfig in Error overrides everything
+						if vcpKmsStateOk && vcpKmsState == gcpgenserver.KmsConfigV1betaKmsStateERROR {
+							break
+						}
+						// VCP already IN_USE: only SDE ERROR may override
+						if vcpKmsStateOk && vcpKmsState == gcpgenserver.KmsConfigV1betaKmsStateINUSE {
+							if sdeKmsConfigState != coremodel.LifeCycleStateError {
+								break
+							}
+						}
+						if sdeKmsConfigState == coremodel.LifeCycleStateInUse {
+							finalKmsConfig.KmsState = gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsStateINUSE)
+						} else {
+							finalKmsConfig.KmsState = gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsStateERROR)
+							finalKmsConfig.KmsStateDetails = gcpgenserver.NewOptString(sdeKmsConfig.KmsStateDetails)
+						}
+						break
+					}
+				}
 			}
 		}
 	}

@@ -944,7 +944,7 @@ func convertKmsConfigStateV1beta(status, stateDetails string) (state, details st
 	case models.LifeCycleStateMigrating:
 		return cvpModels.KmsConfigV1betaKmsStateMIGRATING, "Kms config is in migrating state"
 	default:
-		if strings.Contains(status, "error") {
+		if strings.Contains(strings.ToLower(status), "error") {
 			return cvpModels.KmsConfigV1betaKmsStateERROR, strings.TrimPrefix(stateDetails, "error - ")
 		}
 		return status, ""

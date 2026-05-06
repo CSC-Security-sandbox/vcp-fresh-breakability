@@ -448,6 +448,37 @@ func TestConvertDataStoreKmsConfigToModel(t *testing.T) {
 		assert.Nil(t, result.KmsAttributes)
 		assert.Nil(t, result.DeletedAt)
 	})
+
+	t.Run("MapsERRORStateAndPreservesStateDetailsFromDB", func(t *testing.T) {
+		saID := int64(99)
+		kmsConfig := &datamodel.KmsConfig{
+			Name:              "err-kms",
+			Description:       "",
+			State:             models.LifeCycleStateError,
+			StateDetails:      "VCP Reverted to previous state due to error",
+			KeyRing:           "kr",
+			KeyRingLocation:   "us-east4",
+			KeyName:           "kn",
+			AccountID:         int64(1),
+			CustomerProjectID: "cp",
+			KeyProjectID:      "kp",
+			ServiceAccountID:  &saID,
+			ResourceID:        "res",
+			KmsAttributes:     nil,
+		}
+		kmsConfig.BaseModel = datamodel.BaseModel{
+			UUID:      "cccccccc-cccc-4ccc-cccc-cccccccccccc",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			DeletedAt: nil,
+		}
+
+		result := convertDataStoreKmsConfigToModel(kmsConfig)
+
+		require.NotNil(t, result)
+		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateERROR, result.State)
+		assert.Equal(t, "VCP Reverted to previous state due to error", result.StateDetails)
+	})
 }
 
 func TestUpdateKmsConfig(t *testing.T) {
@@ -2601,6 +2632,18 @@ func TestConvertKmsConfigStateV1beta(t *testing.T) {
 		state, details := convertKmsConfigStateV1beta("unknown_state", "ignored")
 		assert.Equal(t, "unknown_state", state)
 		assert.Equal(t, "", details)
+	})
+
+	t.Run("ReturnsErrorStateWithPreservedDetailsForERROR", func(t *testing.T) {
+		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateError, "VCP-only error detail")
+		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateERROR, state)
+		assert.Equal(t, "VCP-only error detail", details)
+	})
+
+	t.Run("TrimsErrorDashPrefixInDefaultErrorBranch", func(t *testing.T) {
+		state, details := convertKmsConfigStateV1beta("some_error_status", "error - downstream message")
+		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateERROR, state)
+		assert.Equal(t, "downstream message", details)
 	})
 }
 

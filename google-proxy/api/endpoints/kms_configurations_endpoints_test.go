@@ -1088,6 +1088,12 @@ func TestV1betaEncryptVolumes(t *testing.T) {
 		assert.Equal(t, "CMEK policy with UUID uuid99 not found", result.(*gcpgenserver.V1betaEncryptVolumesBadRequest).Message)
 	})
 	t.Run("V1betaEncryptVolumesWhenOrchestratorEncryptVolumesReturnsError", func(t *testing.T) {
+		// GetMultiple always merges from CVP when CVP_HOST is set; this test uses the real
+		// orchestrator and does not stub createClient, so clear CVP_HOST to stay VCP-only.
+		origCVPHost := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+		cvp.CVP_HOST = ""
+
 		params := gcpgenserver.V1betaEncryptVolumesParams{
 			LocationId:     "local",
 			ProjectNumber:  "test-project",
@@ -1144,6 +1150,10 @@ func TestV1betaEncryptVolumes(t *testing.T) {
 		assert.Equal(t, "Account not found", result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Message)
 	})
 	t.Run("V1betaEncryptVolumesWhenOrchestratorEncryptVolumesReturnsEmptyOperation", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+		cvp.CVP_HOST = ""
+
 		params := gcpgenserver.V1betaEncryptVolumesParams{
 			LocationId:     "local",
 			ProjectNumber:  "test-project",
@@ -1176,6 +1186,10 @@ func TestV1betaEncryptVolumes(t *testing.T) {
 		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Code)
 	})
 	t.Run("V1betaEncryptVolumesWhenEncryptVolumesIsSuccessful", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+		cvp.CVP_HOST = ""
+
 		params := gcpgenserver.V1betaEncryptVolumesParams{
 			LocationId:     "local",
 			ProjectNumber:  "test-project",
@@ -3719,6 +3733,135 @@ func TestV1betaGetMultipleKmsConfigs(t *testing.T) {
 		assert.Equal(t, "Resource-Id3-SDE", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[2].ResourceId.Value)
 		assert.Equal(t, "Resource-Id4-SDE", result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[3].ResourceId.Value)
 	})
+}
+
+// TestV1betaGetMultipleKmsConfigs_SdeOverlapMerge covers SDE merge rules when the same UUID exists in VCP and SDE:
+// VCP ERROR wins over SDE (state + VCP stateDetails preserved); VCP IN_USE only SDE ERROR overrides; VCP READY + SDE ERROR merges.
+func TestV1betaGetMultipleKmsConfigs_SdeOverlapMerge(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+	cvp.CVP_HOST = "localhost:8009"
+
+	mockLogger := log.NewLogger()
+	store, err := database.NewTestStorage(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	if err = database.ClearInMemoryDB(store.DB()); err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	orchInstance := factory.GetOrchestratorForProvider(store, nil)
+
+	serviceAccounts := []*datamodel.ServiceAccount{
+		{BaseModel: datamodel.BaseModel{ID: 111, UUID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"}, Name: "SA-merge"},
+	}
+	if err = store.DB().Create(serviceAccounts).Error; err != nil {
+		t.Fatalf("Failed to create Service-Accounts: %v", err)
+	}
+
+	saID := int64(111)
+	uuidVCPError := "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbb1"
+	uuidVCPInUse := "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbb2"
+	uuidVCPReady := "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbb3"
+
+	kmsConfigs := []*datamodel.KmsConfig{
+		{
+			BaseModel: datamodel.BaseModel{UUID: uuidVCPError, DeletedAt: nil},
+			Name: "kms-err", ResourceID: "res-vcp-err", ServiceAccountID: &saID,
+			State: vsaCoreModels.LifeCycleStateError, StateDetails: "vcp-only-error-detail",
+			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: uuidVCPInUse, DeletedAt: nil},
+			Name: "kms-inuse", ResourceID: "res-vcp-inuse", ServiceAccountID: &saID,
+			State: vsaCoreModels.LifeCycleStateInUse, StateDetails: "db-in-use-details",
+			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: uuidVCPReady, DeletedAt: nil},
+			Name: "kms-ready", ResourceID: "res-vcp-ready", ServiceAccountID: &saID,
+			State: vsaCoreModels.LifeCycleStateREADY, StateDetails: vsaCoreModels.LifeCycleStateReadyDetails,
+			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
+		},
+	}
+	if err = store.DB().Create(kmsConfigs).Error; err != nil {
+		t.Fatalf("Failed to create KMS configs: %v", err)
+	}
+
+	keyPath := "projects/kp/locations/us-east4/keyRings/kr/cryptoKeys/kn"
+	nowTime := strfmt.DateTime(time.Now())
+	makeSDE := func(uuid, kmsState, details string) *models.KmsConfigV1beta {
+		return &models.KmsConfigV1beta{
+			UUID:                uuid,
+			KmsState:            kmsState,
+			KmsStateDetails:     details,
+			KeyFullPath:         &keyPath,
+			CreatedTime:         nowTime,
+			UpdatedTime:         &nowTime,
+			ServiceAccountEmail: "sa@sde.com",
+		}
+	}
+	sdeList := []*models.KmsConfigV1beta{
+		makeSDE(uuidVCPError, vsaCoreModels.LifeCycleStateInUse, "sde-in-use-should-not-appear"),
+		makeSDE(uuidVCPInUse, vsaCoreModels.LifeCycleStateError, "sde-error-detail"),
+		makeSDE(uuidVCPReady, vsaCoreModels.LifeCycleStateError, "sde-error-for-ready"),
+	}
+
+	mockClient := kms_configurations.NewMockClientService(t)
+	mockClient.EXPECT().
+		V1betaGetMultipleKmsConfigs(mock.Anything).
+		Return(&kms_configurations.V1betaGetMultipleKmsConfigsOK{
+			Payload: &kms_configurations.V1betaGetMultipleKmsConfigsOKBody{KmsConfigurations: sdeList},
+		}, nil)
+
+	cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+	originalCreateClient := createClient
+	defer func() { createClient = originalCreateClient }()
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	handler := Handler{Orchestrator: orchInstance}
+	params := gcpgenserver.V1betaGetMultipleKmsConfigsParams{
+		LocationId:       "us-east4",
+		ProjectNumber:    "12345",
+		XCorrelationID:   gcpgenserver.NewOptString("corr-id"),
+	}
+	req := &gcpgenserver.KmsConfigIdListV1beta{
+		KmsConfigIds: []string{uuidVCPError, uuidVCPInUse, uuidVCPReady},
+	}
+
+	result, err := handler.V1betaGetMultipleKmsConfigs(context.Background(), req, params)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	ok := result.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK)
+	assert.Len(t, ok.KmsConfigurations, 3)
+
+	find := func(uuid string) *gcpgenserver.KmsConfigV1beta {
+		for i := range ok.KmsConfigurations {
+			if ok.KmsConfigurations[i].UUID.Value == uuid {
+				return &ok.KmsConfigurations[i]
+			}
+		}
+		t.Fatalf("kms config %s not found in response", uuid)
+		return nil
+	}
+
+	gotErr := find(uuidVCPError)
+	assert.Equal(t, gcpgenserver.KmsConfigV1betaKmsStateERROR, gotErr.KmsState.Value)
+	assert.Equal(t, "vcp-only-error-detail", gotErr.KmsStateDetails.Value)
+
+	gotInUse := find(uuidVCPInUse)
+	assert.Equal(t, gcpgenserver.KmsConfigV1betaKmsStateERROR, gotInUse.KmsState.Value)
+	assert.Equal(t, "sde-error-detail", gotInUse.KmsStateDetails.Value)
+
+	gotReady := find(uuidVCPReady)
+	assert.Equal(t, gcpgenserver.KmsConfigV1betaKmsStateERROR, gotReady.KmsState.Value)
+	assert.Equal(t, "sde-error-for-ready", gotReady.KmsStateDetails.Value)
 }
 
 func TestV1betaGetMultipleKmsConfigsErrorConditions(t *testing.T) {
