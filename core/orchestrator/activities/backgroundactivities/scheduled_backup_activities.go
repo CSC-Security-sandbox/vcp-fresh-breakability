@@ -151,7 +151,13 @@ func (j *ScheduledBackupActivity) HydrateCreatedBackupsToCCFE(ctx context.Contex
 	var sourceStoragePool string
 	if volume.Pool != nil && volume.Pool.APIAccessMode == "ONTAP" {
 		mode = models.BackupHydrationModeONTAP
-		sourceStoragePool = fmt.Sprintf("projects/%s/locations/%s/storagePools/%s", projectId, volume.Pool.PoolAttributes.PrimaryZone, volume.Pool.Name)
+		var location string
+		if volume.Pool.PoolAttributes.IsRegionalHA {
+			location = region
+		} else {
+			location = volume.Pool.PoolAttributes.PrimaryZone
+		}
+		sourceStoragePool = fmt.Sprintf("projects/%s/locations/%s/storagePools/%s", projectId, location, volume.Pool.Name)
 	}
 	requests := common.ConvertToGCPHydrateBackupCreateRequests(backups, mode, sourceStoragePool)
 	err = common.HydrateCreatedBackups(ctx, logger, requests, backupVaultName, region, projectId, token)
@@ -234,8 +240,8 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 	expertModeConditions := [][]interface{}{
 		{"account_id = ?", accountID},
 		{"state = ?", models.LifeCycleStateAvailable},
-		{"backup_config->>'backup_policy_id' = ?", backupPolicyUUID},
-		{"backup_config->>'scheduled_backup_enabled' = 'true'"},
+		{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
+		{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 	}
 	// Also fetch expert mode volumes with the same backup policy
 	// Expert mode volumes are stored separately but need to be included for scheduled backups
