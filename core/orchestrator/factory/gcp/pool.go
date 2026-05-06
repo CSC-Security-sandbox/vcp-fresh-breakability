@@ -853,6 +853,9 @@ func (o *GCPOrchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID s
 	if pool.State == models.LifeCycleStateCreating {
 		return nil, coreerrors.NewVCPError(coreerrors.ErrPoolInCreatingState, fmt.Errorf("pool %s is in creating state", pool.UUID))
 	}
+	if pool.State == models.LifeCycleStateDeleting {
+		return nil, coreerrors.NewVCPError(coreerrors.ErrPoolInDeletingState, fmt.Errorf("pool %s is in deleting state", pool.UUID))
+	}
 
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {

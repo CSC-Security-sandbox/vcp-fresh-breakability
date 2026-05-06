@@ -104,6 +104,8 @@ func TestClassifyBackendError(t *testing.T) {
 		{"timeout", &errWithMessage{"read timeout"}, BackendErrorTransport},
 		{"no such host", &errWithMessage{"no such host"}, BackendErrorTransport},
 		{"tls handshake", &errWithMessage{"tls: handshake failure"}, BackendErrorTransport},
+		{"proxy http 404", &ProxyHTTPError{Status: 404, Message: "Pool not found"}, BackendErrorTransport},
+		{"proxy http 400 deleting", &ProxyHTTPError{Status: 400, Message: "Pool is in deleting state"}, BackendErrorTransport},
 		{"other", &errWithMessage{"something else"}, BackendErrorTransport},
 	}
 	for _, tt := range tests {
@@ -125,6 +127,8 @@ func TestBackendErrorCodeForMetric(t *testing.T) {
 		{"http 500", 500, nil, "500"},
 		{"http 400", 400, nil, "400"},
 		{"no response, transport err", 0, &errWithMessage{"connection refused"}, BackendErrorTransport},
+		{"no response, proxy http 404", 0, &ProxyHTTPError{Status: 404, Message: "Pool not found"}, BackendErrorTransport},
+		{"no response, proxy http 400 deleting", 0, &ProxyHTTPError{Status: 400, Message: "Pool is in deleting state"}, BackendErrorTransport},
 		{"no response, nil err", 0, nil, ""},
 		{"success 200 no err", 200, nil, ""},
 	}

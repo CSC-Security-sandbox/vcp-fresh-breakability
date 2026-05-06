@@ -591,6 +591,21 @@ func TestGenerateCacheKey(t *testing.T) {
 	})
 }
 
+func TestParseAuthDataCacheKey(t *testing.T) {
+	t.Run("roundtrip with generateCacheKey", func(t *testing.T) {
+		key := generateCacheKey("531265380079", "77b35f7a-0985-1ffb-bcab-d076d35e689f", "gcnvadmin")
+		pn, pid, un, err := parseAuthDataCacheKey(key)
+		require.NoError(t, err)
+		assert.Equal(t, "531265380079", pn)
+		assert.Equal(t, "77b35f7a-0985-1ffb-bcab-d076d35e689f", pid)
+		assert.Equal(t, "gcnvadmin", un)
+	})
+	t.Run("invalid key", func(t *testing.T) {
+		_, _, _, err := parseAuthDataCacheKey("bad")
+		assert.Error(t, err)
+	})
+}
+
 func TestGetStringValue(t *testing.T) {
 	t.Run("WhenValueIsSet_ShouldReturnValue", func(t *testing.T) {
 		opt := coreapiclient.NewOptString("test-value")

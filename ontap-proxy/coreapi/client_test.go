@@ -3,12 +3,15 @@ package coreapi
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	ontaputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -73,6 +76,108 @@ func TestFetchCredentials(t *testing.T) {
 	assert.True(t, got.AuthType.IsSet())
 	assert.Equal(t, 2, got.AuthType.Value)
 	mockInvoker.AssertExpectations(t)
+}
+
+func TestFetchCredentials_ErrorMappings(t *testing.T) {
+	originalCreateClient := createCoreAPIClient
+	originalHost := coreAPIHost
+	defer func() {
+		createCoreAPIClient = originalCreateClient
+		coreAPIHost = originalHost
+	}()
+
+	var logger log.Logger = noopTestLogger{}
+	poolDetails := &models.PoolDetails{
+		PoolID:      "pool-1",
+		AccountName: "acct-1",
+		UserName:    "user-1",
+	}
+
+	t.Run("WhenCoreInvokerReturnsTransportError_ShouldReturnServiceUnavailable", func(t *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(t)
+		coreAPIHost = "test-host"
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+		mockInvoker.On("V1GetOntapCredentials", mock.Anything, mock.Anything).
+			Return(nil, errors.New("transport down")).Once()
+
+		_, err := FetchCredentials(context.Background(), poolDetails, "jwt", logger)
+		require.Error(t, err)
+		var he interface{ GetStatus() int }
+		_ = he
+		assert.Contains(t, err.Error(), "Service unavailable")
+	})
+
+	t.Run("WhenCoreReturnsTypedResponses_ShouldMapToExpectedStatusAndMessage", func(t *testing.T) {
+		cases := []struct {
+			name        string
+			response    any
+			wantStatus  int
+			wantMessage string
+		}{
+			{
+				name:        "WhenResponseIsNotFound_ShouldReturnNotFound",
+				response:    &coreapi.V1GetOntapCredentialsNotFound{Code: 404, Message: "missing"},
+				wantStatus:  http.StatusNotFound,
+				wantMessage: "Pool not found",
+			},
+			{
+				name:        "WhenResponseIsBadRequestWithMessage_ShouldPreserveMessage",
+				response:    &coreapi.V1GetOntapCredentialsBadRequest{Code: 400, Message: "Pool is in deleting state"},
+				wantStatus:  http.StatusBadRequest,
+				wantMessage: "Pool is in deleting state",
+			},
+			{
+				name:        "WhenResponseIsBadRequestWithoutMessage_ShouldUseFallbackMessage",
+				response:    &coreapi.V1GetOntapCredentialsBadRequest{Code: 400, Message: "   "},
+				wantStatus:  http.StatusBadRequest,
+				wantMessage: "Invalid pool details",
+			},
+			{
+				name:        "WhenResponseIsUnauthorized_ShouldReturnUnauthorized",
+				response:    &coreapi.V1GetOntapCredentialsUnauthorized{Code: 401, Message: "no auth"},
+				wantStatus:  http.StatusUnauthorized,
+				wantMessage: "Unauthorized access",
+			},
+			{
+				name:        "WhenResponseIsForbidden_ShouldReturnForbidden",
+				response:    &coreapi.V1GetOntapCredentialsForbidden{Code: 403, Message: "forbidden"},
+				wantStatus:  http.StatusForbidden,
+				wantMessage: "Forbidden access",
+			},
+			{
+				name:        "WhenResponseIsInternalServerError_ShouldReturnInternalServerError",
+				response:    &coreapi.V1GetOntapCredentialsInternalServerError{Code: 500, Message: "oops"},
+				wantStatus:  http.StatusInternalServerError,
+				wantMessage: "Internal server error",
+			},
+			{
+				name:        "WhenResponseTypeIsUnexpected_ShouldReturnInternalServerError",
+				response:    &coreapi.V1GetOntapCredentialsConflict{Code: 409, Message: "conflict"},
+				wantStatus:  http.StatusInternalServerError,
+				wantMessage: "Internal server error",
+			},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				mockInvoker := coreapi.NewMockInvoker(t)
+				createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+					return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+				}
+				mockInvoker.On("V1GetOntapCredentials", mock.Anything, mock.Anything).
+					Return(tc.response, nil).Once()
+
+				_, err := FetchCredentials(context.Background(), poolDetails, "jwt", logger)
+				require.Error(t, err)
+				httpErr, ok := err.(*ontaputils.HTTPError)
+				require.True(t, ok)
+				assert.Equal(t, tc.wantStatus, httpErr.Status)
+				assert.Equal(t, tc.wantMessage, httpErr.Message)
+			})
+		}
+	})
 }
 
 func TestSubmitExpertModeVolumeOperation(t *testing.T) {

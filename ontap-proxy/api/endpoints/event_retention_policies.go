@@ -49,12 +49,18 @@ func (h Handler) V1ListEventRetentionPolicies(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1ListEventRetentionPoliciesResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	cliCommand := handlers.BuildEventRetentionPolicyShowCommand("")
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
 		logger.ErrorContext(ctx, "CLI execution failed", "error", err)
+		if res, ok := v1ListEventRetentionPoliciesResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
 	}
 
@@ -124,6 +130,9 @@ func (h Handler) V1CreateEventRetentionPolicy(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1CreateEventRetentionPolicyResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1CreateEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	retentionCLI := handlers.RetentionPeriodAPIToCLI(req.RetentionPeriod)
@@ -133,6 +142,9 @@ func (h Handler) V1CreateEventRetentionPolicy(
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
 		logger.ErrorContext(ctx, "CLI execution failed", "policyName", req.Name, "error", err)
+		if res, ok := v1CreateEventRetentionPolicyResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			return &oasgenserver.V1CreateEventRetentionPolicyBadRequest{Code: handlers.OntapCodeToInt(cliErr.Code), Message: cliErr.Message}, nil
@@ -185,12 +197,18 @@ func (h Handler) V1GetEventRetentionPolicy(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1GetEventRetentionPolicyResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	cliCommand := handlers.BuildEventRetentionPolicyShowCommand(params.PolicyName)
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
 		logger.ErrorContext(ctx, "CLI execution failed", "error", err)
+		if res, ok := v1GetEventRetentionPolicyResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) && (cliErr.Code == "4" || strings.Contains(strings.ToLower(cliErr.Message), "doesn't exist") || strings.Contains(strings.ToLower(cliErr.Message), "does not exist")) {
 			return &oasgenserver.V1GetEventRetentionPolicyNotFound{Code: http.StatusNotFound, Message: cliErr.Message}, nil
@@ -261,6 +279,9 @@ func (h Handler) V1UpdateEventRetentionPolicy(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1UpdateEventRetentionPolicyResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1UpdateEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	if !req.RetentionPeriod.IsSet() {
@@ -274,6 +295,9 @@ func (h Handler) V1UpdateEventRetentionPolicy(
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
 		logger.ErrorContext(ctx, "CLI execution failed", "policyName", params.PolicyName, "error", err)
+		if res, ok := v1UpdateEventRetentionPolicyResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			return &oasgenserver.V1UpdateEventRetentionPolicyBadRequest{Code: handlers.OntapCodeToInt(cliErr.Code), Message: cliErr.Message}, nil
@@ -326,6 +350,9 @@ func (h Handler) V1DeleteEventRetentionPolicy(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1DeleteEventRetentionPolicyResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1DeleteEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	cliCommand := handlers.BuildEventRetentionPolicyDeleteCommand(params.PolicyName)
@@ -334,6 +361,9 @@ func (h Handler) V1DeleteEventRetentionPolicy(
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
 		logger.ErrorContext(ctx, "CLI execution failed", "policyName", params.PolicyName, "error", err)
+		if res, ok := v1DeleteEventRetentionPolicyResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			return &oasgenserver.V1DeleteEventRetentionPolicyBadRequest{Code: handlers.OntapCodeToInt(cliErr.Code), Message: cliErr.Message}, nil

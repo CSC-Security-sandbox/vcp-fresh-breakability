@@ -155,9 +155,36 @@ func TestV1GetOntapCredentials(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		response, ok := result.(*oasgenserver.V1GetOntapCredentialsConflict)
+		response, ok := result.(*oasgenserver.V1GetOntapCredentialsBadRequest)
 		assert.True(t, ok)
 		assert.Equal(t, "Pool is in creating state", response.Message)
+		assert.Equal(t, float64(400), response.Code)
+	})
+	t.Run("WhenPoolInDeletingState", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		poolID := "test-pool-uuid"
+		accountName := "test-account"
+		userName := "test-user"
+		poolDeletingError := vsaerrors.NewVCPError(vsaerrors.ErrPoolInDeletingState, stderrors.New("pool is in deleting state"))
+
+		params := oasgenserver.V1GetOntapCredentialsParams{
+			PoolId:      poolID,
+			AccountName: oasgenserver.NewOptString(accountName),
+			UserName:    oasgenserver.NewOptString(userName),
+		}
+
+		mockOrch.EXPECT().GetExpertModePoolCreds(mock.Anything, poolID, accountName, userName).Return(nil, poolDeletingError)
+
+		ctx := context.Background()
+		result, err := handler.V1GetOntapCredentials(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		response, ok := result.(*oasgenserver.V1GetOntapCredentialsBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, "Pool is in deleting state", response.Message)
 		assert.Equal(t, float64(400), response.Code)
 	})
 	t.Run("WhenPoolInCreatingState_WithEmptyMessage", func(t *testing.T) {
@@ -181,7 +208,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		response, ok := result.(*oasgenserver.V1GetOntapCredentialsConflict)
+		response, ok := result.(*oasgenserver.V1GetOntapCredentialsBadRequest)
 		assert.True(t, ok)
 		assert.Equal(t, "Pool is in creating state", response.Message)
 		assert.Equal(t, float64(400), response.Code)

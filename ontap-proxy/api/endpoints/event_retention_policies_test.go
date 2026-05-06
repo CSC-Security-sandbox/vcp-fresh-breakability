@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 )
 
 var (
@@ -157,6 +158,30 @@ func TestListEventRetentionPolicies(t *testing.T) {
 		require.True(t, ok, "expected InternalServerError, got %T", res)
 		assert.Equal(t, 500, internal.Code)
 		assert.Contains(t, internal.Message, "failed to connect to ONTAP")
+	})
+
+	t.Run("WhenNewOntapClientFailsWithProxyHTTPError_ReturnsMappedResponse", func(t *testing.T) {
+		oldSetup := setupCredentialsForHandler
+		oldEnsure := ensureCertificateOrPassword
+		oldClient := newOntapClientFromContext
+		defer func() {
+			setupCredentialsForHandler = oldSetup
+			ensureCertificateOrPassword = oldEnsure
+			newOntapClientFromContext = oldClient
+		}()
+		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
+		ensureCertificateOrPassword = func(context.Context) error { return nil }
+		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) {
+			return nil, &middleware.ProxyHTTPError{Status: http.StatusBadRequest, Message: "Pool is in deleting state"}
+		}
+
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesBadRequest)
+		require.True(t, ok, "expected BadRequest, got %T", res)
+		assert.Equal(t, http.StatusBadRequest, badReq.Code)
+		assert.Equal(t, "Pool is in deleting state", badReq.Message)
 	})
 
 	t.Run("WhenCLISuccess_ReturnsRecords", func(t *testing.T) {

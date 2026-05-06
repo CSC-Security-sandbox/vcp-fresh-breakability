@@ -143,6 +143,9 @@ func (h Handler) SnaplockFileDelete(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := snaplockFileDeleteResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.SnaplockFileDeleteInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -156,6 +159,9 @@ func (h Handler) SnaplockFileDelete(
 			"volumeUuid", params.VolumeUuid.String(),
 			"error", err,
 		)
+		if res, ok := snaplockFileDeleteResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.SnaplockFileDeleteNotFound{
 			Code:    404,
 			Message: fmt.Sprintf("volume not found: %s", err.Error()),
@@ -192,6 +198,9 @@ func (h Handler) SnaplockFileDelete(
 			"volumeUuid", params.VolumeUuid.String(),
 			"error", err,
 		)
+		if res, ok := snaplockFileDeleteResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 
 		// Check if it's an ONTAP CLI error with structured response
 		var cliErr *handlers.OntapCLIError
@@ -318,6 +327,9 @@ func (h Handler) V1SnaplockLitigationBegin(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1SnaplockLitigationBeginResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationBeginInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -330,6 +342,9 @@ func (h Handler) V1SnaplockLitigationBegin(
 		info, err := ontapClient.GetVolume(ctx, volumeUUID)
 		if err != nil {
 			logger.ErrorContext(ctx, "Failed to get volume info", "volumeUuid", volumeUUID, "error", err)
+			if res, ok := v1SnaplockLitigationBeginResFromProxyHTTP(ctx, err); ok {
+				return res, nil
+			}
 			return &oasgenserver.V1SnaplockLitigationBeginNotFound{
 				Code:    404,
 				Message: fmt.Sprintf("volume not found: %s", err.Error()),
@@ -340,6 +355,9 @@ func (h Handler) V1SnaplockLitigationBegin(
 		volumes, err := ontapClient.ListVolumesWithSvm(ctx, 1000)
 		if err != nil {
 			logger.ErrorContext(ctx, "Failed to list volumes", "error", err)
+			if res, ok := v1SnaplockLitigationBeginResFromProxyHTTP(ctx, err); ok {
+				return res, nil
+			}
 			return &oasgenserver.V1SnaplockLitigationBeginInternalServerError{
 				Code:    500,
 				Message: fmt.Sprintf("failed to list volumes: %s", err.Error()),
@@ -369,6 +387,9 @@ func (h Handler) V1SnaplockLitigationBegin(
 	cliCommand := handlers.BuildSnaplockLegalHoldBeginCommand(req.LitigationName, volumeInfo.Name, req.Path, volumeInfo.SVM.Name)
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
+		if res, ok := v1SnaplockLitigationBeginResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			ontapCode := 400
@@ -446,6 +467,9 @@ func (h Handler) V1SnaplockLitigationCollectionGet(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1SnaplockLitigationCollectionGetResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationCollectionGetInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -455,6 +479,9 @@ func (h Handler) V1SnaplockLitigationCollectionGet(
 	volumes, err := ontapClient.ListVolumesWithSvm(ctx, 1000)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to list volumes for litigation discovery", "error", err)
+		if res, ok := v1SnaplockLitigationCollectionGetResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationCollectionGetInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to list volumes: %s", err.Error()),
@@ -470,6 +497,9 @@ func (h Handler) V1SnaplockLitigationCollectionGet(
 		cliCommand := handlers.BuildSnaplockLegalHoldShowCommand(vol.SVM.Name, vol.Name)
 		cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 		if err != nil {
+			if res, ok := v1SnaplockLitigationCollectionGetResFromProxyHTTP(ctx, err); ok {
+				return res, nil
+			}
 			logger.WarnContext(ctx, "CLI legal-hold show failed for volume, skipping", "volume", vol.Name, "error", err)
 			continue
 		}
@@ -580,6 +610,9 @@ func (h Handler) V1SnaplockLitigationEnd(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1SnaplockLitigationEndResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationEndInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -589,6 +622,9 @@ func (h Handler) V1SnaplockLitigationEnd(
 	volumeInfo, err := ontapClient.GetVolume(ctx, volumeUUID)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get volume info", "volumeUuid", volumeUUID, "error", err)
+		if res, ok := v1SnaplockLitigationEndResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationEndNotFound{
 			Code:    404,
 			Message: fmt.Sprintf("volume not found: %s", err.Error()),
@@ -604,6 +640,9 @@ func (h Handler) V1SnaplockLitigationEnd(
 	cliCommand := handlers.BuildSnaplockLegalHoldEndPathCommand(litigationName, volumeInfo.Name, "/", volumeInfo.SVM.Name)
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
+		if res, ok := v1SnaplockLitigationEndResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			ontapCode := 400
@@ -686,6 +725,9 @@ func (h Handler) V1SnaplockLitigationGet(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1SnaplockLitigationGetResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationGetInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -695,6 +737,9 @@ func (h Handler) V1SnaplockLitigationGet(
 	vol, err := ontapClient.GetVolume(ctx, volumeUUID)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get volume info", "volumeUuid", volumeUUID, "error", err)
+		if res, ok := v1SnaplockLitigationGetResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationGetNotFound{
 			Code:    404,
 			Message: fmt.Sprintf("volume lookup failed: %s", err.Error()),
@@ -711,6 +756,9 @@ func (h Handler) V1SnaplockLitigationGet(
 	cliResp, err := ontapClient.ExecuteCLI(ctx, cmd, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
 		logger.ErrorContext(ctx, "Litigation get CLI failed", "error", err)
+		if res, ok := v1SnaplockLitigationGetResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationGetInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("litigation get CLI failed: %s", err.Error()),
@@ -857,6 +905,9 @@ func (h Handler) V1SnaplockLitigationOperationCreate(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1SnaplockLitigationOperationCreateResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationOperationCreateInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -866,6 +917,9 @@ func (h Handler) V1SnaplockLitigationOperationCreate(
 	volumeInfo, err := ontapClient.GetVolume(ctx, volumeUUID)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get volume info", "volumeUuid", volumeUUID, "error", err)
+		if res, ok := v1SnaplockLitigationOperationCreateResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationOperationCreateNotFound{
 			Code:    404,
 			Message: fmt.Sprintf("volume lookup failed: %s", err.Error()),
@@ -893,6 +947,9 @@ func (h Handler) V1SnaplockLitigationOperationCreate(
 
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
+		if res, ok := v1SnaplockLitigationOperationCreateResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			ontapCode := 400
@@ -973,6 +1030,9 @@ func (h Handler) V1SnaplockLitigationOperationGet(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1SnaplockLitigationOperationGetResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationOperationGetInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -983,6 +1043,9 @@ func (h Handler) V1SnaplockLitigationOperationGet(
 	cliResp, err := ontapClient.ExecuteCLI(ctx, cmd, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
 		logger.ErrorContext(ctx, "ONTAP litigation operation get CLI failed", "error", err)
+		if res, ok := v1SnaplockLitigationOperationGetResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationOperationGetInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("CLI request failed: %s", err.Error()),
@@ -1080,6 +1143,9 @@ func (h Handler) V1SnaplockLitigationOperationAbort(
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1SnaplockLitigationOperationAbortResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationOperationAbortInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -1089,6 +1155,9 @@ func (h Handler) V1SnaplockLitigationOperationAbort(
 	volumeInfo, err := ontapClient.GetVolume(ctx, volumeUUID)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get volume info", "volumeUuid", volumeUUID, "error", err)
+		if res, ok := v1SnaplockLitigationOperationAbortResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1SnaplockLitigationOperationAbortNotFound{
 			Code:    404,
 			Message: fmt.Sprintf("volume lookup failed: %s", err.Error()),
@@ -1104,6 +1173,9 @@ func (h Handler) V1SnaplockLitigationOperationAbort(
 	cliCommand := handlers.BuildSnaplockLegalHoldAbortCommand(params.OperationId, volumeInfo.SVM.Name)
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
+		if res, ok := v1SnaplockLitigationOperationAbortResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			msg := handlers.ParseSnaplockAbortError(cliErr.Message)

@@ -2,12 +2,16 @@ package endpoints
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/cli"
 )
 
@@ -79,6 +83,80 @@ func TestV1PrivateCli_OperationDisabled(t *testing.T) {
 		require.True(t, ok, "Expected V1PrivateCliBadRequest, got %T", res)
 		assert.Equal(t, 400, badReq.Code, "Code should be 400")
 		assert.Equal(t, "Private CLI operation is disabled", badReq.Message, "Message should match")
+	})
+}
+
+func TestV1PrivateCliResFromProxyHTTP_MapsProxyHTTPError(t *testing.T) {
+	res, ok := v1PrivateCliResFromProxyHTTP(context.Background(), &middleware.ProxyHTTPError{
+		Status:  http.StatusBadRequest,
+		Message: "Pool is in deleting state",
+	})
+	require.True(t, ok)
+	badReq, typeOK := res.(*oasgenserver.V1PrivateCliBadRequest)
+	require.True(t, typeOK, "expected V1PrivateCliBadRequest, got %T", res)
+	assert.Equal(t, http.StatusBadRequest, badReq.Code)
+	assert.Equal(t, "Pool is in deleting state", badReq.Message)
+}
+
+func TestV1PrivateCli_NewClientAndExecuteCLI_ProxyHTTPMapping(t *testing.T) {
+	h := Handler{}
+	poolID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	params := oasgenserver.V1PrivateCliParams{
+		ProjectNumber: "123456789",
+		LocationId:    "us-east1",
+		PoolId:        poolID,
+	}
+	req := &oasgenserver.CLIExecuteRequest{Input: "volume show"}
+
+	origSetup := setupCredentialsForPrivateCLI
+	origEnsure := ensureCertificateOrPasswordForCLI
+	origClient := newOntapClientFromContextForCLI
+	t.Cleanup(func() {
+		setupCredentialsForPrivateCLI = origSetup
+		ensureCertificateOrPasswordForCLI = origEnsure
+		newOntapClientFromContextForCLI = origClient
+	})
+
+	setupCredentialsForPrivateCLI = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
+	ensureCertificateOrPasswordForCLI = func(context.Context) error { return nil }
+
+	t.Run("WhenNewOntapClientFromContextFailsWithProxyHTTPError_ShouldReturnMappedBadRequest", func(t *testing.T) {
+		origEnabled := privateCliOperationEnabled
+		privateCliOperationEnabled = true
+		t.Cleanup(func() { privateCliOperationEnabled = origEnabled })
+
+		newOntapClientFromContextForCLI = func(context.Context) (handlers.OntapClient, error) {
+			return nil, &middleware.ProxyHTTPError{Status: http.StatusBadRequest, Message: "Pool is in deleting state"}
+		}
+
+		res, err := h.V1PrivateCli(context.Background(), req, params)
+		require.NoError(t, err)
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "expected V1PrivateCliBadRequest, got %T", res)
+		assert.Equal(t, http.StatusBadRequest, badReq.Code)
+		assert.Equal(t, "Pool is in deleting state", badReq.Message)
+	})
+
+	t.Run("WhenExecuteCLIFailsWithProxyHTTPError_ShouldReturnMappedBadRequest", func(t *testing.T) {
+		origEnabled := privateCliOperationEnabled
+		privateCliOperationEnabled = true
+		t.Cleanup(func() { privateCliOperationEnabled = origEnabled })
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, mock.Anything).
+			Return(nil, &middleware.ProxyHTTPError{Status: http.StatusBadRequest, Message: "Pool is in deleting state"}).
+			Once()
+		newOntapClientFromContextForCLI = func(context.Context) (handlers.OntapClient, error) {
+			return mockClient, nil
+		}
+
+		res, err := h.V1PrivateCli(context.Background(), req, params)
+		require.NoError(t, err)
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "expected V1PrivateCliBadRequest, got %T", res)
+		assert.Equal(t, http.StatusBadRequest, badReq.Code)
+		assert.Equal(t, "Pool is in deleting state", badReq.Message)
+		mockClient.AssertExpectations(t)
 	})
 }
 

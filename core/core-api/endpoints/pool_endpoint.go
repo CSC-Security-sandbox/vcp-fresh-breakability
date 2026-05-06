@@ -33,7 +33,17 @@ func (h Handler) V1GetOntapCredentials(ctx context.Context, params oasgenserver.
 				if msg == "" {
 					msg = "Pool is in creating state"
 				}
-				return &oasgenserver.V1GetOntapCredentialsConflict{
+				return &oasgenserver.V1GetOntapCredentialsBadRequest{
+					Message: msg,
+					Code:    400,
+				}, nil
+			}
+			if customErr.IsError(errors.ErrPoolInDeletingState) {
+				msg := customErr.GetMessage()
+				if msg == "" {
+					msg = "Pool is in deleting state"
+				}
+				return &oasgenserver.V1GetOntapCredentialsBadRequest{
 					Message: msg,
 					Code:    400,
 				}, nil

@@ -19,9 +19,9 @@ import (
 type ontapMetricsContextKey string
 
 const (
-	ontapMetricsProjectIDKey  ontapMetricsContextKey = "ontap_metrics_project_id"
-	ontapMetricsPoolIDKey     ontapMetricsContextKey = "ontap_metrics_pool_id"
-	ontapMetricsNormalizedKey ontapMetricsContextKey = "ontap_metrics_normalized_path"
+	ontapMetricsProjectIDKey    ontapMetricsContextKey = "ontap_metrics_project_id"
+	ontapMetricsPoolIDKey       ontapMetricsContextKey = "ontap_metrics_pool_id"
+	ontapMetricsNormalizedKey   ontapMetricsContextKey = "ontap_metrics_normalized_path"
 	ontapMetricsBackendStartKey ontapMetricsContextKey = "ontap_metrics_backend_start"
 )
 
@@ -44,7 +44,7 @@ var (
 	// Backend metrics (requests sent to the pool's backend cluster, their duration, and backend errors)
 	ontapProxyBackendRequestsTotal          metric.Int64Counter
 	ontapProxyBackendRequestDurationSeconds metric.Float64Histogram
-	ontapProxyBackendErrorsTotal             metric.Int64Counter
+	ontapProxyBackendErrorsTotal            metric.Int64Counter
 
 	// Numeric ID pattern (for volume IDs, etc.)
 	numericIDPattern = regexp.MustCompile(`/\d+`)
@@ -259,13 +259,12 @@ func backendAttrs(method, projectID, poolID, path, statusCode string) []attribut
 // All transport failures (connection refused, timeout, host not found, TLS, etc.) are server-side/reachability errors → use 500.
 // For HTTP 4xx/5xx, we pass the actual status code as string (e.g. "404", "500") from the backend.
 const (
-	BackendErrorTransport = "500"   // all transport/connection errors (no response from backend)
+	BackendErrorTransport = "500"     // all transport/connection errors (no response from backend)
 	BackendErrorUnknown   = "unknown" // only when err is nil (callers should not record in that case)
 )
 
-// ClassifyBackendError maps any transport/connection error to an error_code for ontap_proxy_backend_errors_total.
-// All such errors (connection refused, timeout, host not found, TLS, etc.) are server-side → we use "500".
-// Use when no HTTP response is received (RoundTrip error, handleProxyError path). For HTTP 4xx/5xx use the actual status code instead.
+// ClassifyBackendError maps any error when there is no backend HTTP response to an error_code for ontap_proxy_backend_errors_total.
+// We use "500" for all such cases. When the backend did return 4xx/5xx, BackendErrorCodeForMetric uses statusCode from the response instead.
 func ClassifyBackendError(err error) string {
 	if err == nil {
 		return BackendErrorUnknown

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -112,17 +113,7 @@ func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetai
 		return fmt.Errorf("failed to fetch credentials: %w", err)
 	}
 
-	authData := &models.AuthData{
-		AuthType:       credentials.AuthType.Value,
-		SecretID:       getStringValue(credentials.SecretID),
-		CertificateID:  getStringValue(credentials.CertificateID),
-		Password:       getStringValue(credentials.Password),
-		PoolID:         poolDetails.PoolID,
-		AccountName:    poolDetails.AccountName,
-		Username:       getStringValue(credentials.Username),
-		OntapEndpoints: convertOntapEndpoints(credentials.OntapEndpoints),
-		CaURI:          getStringValue(credentials.CaURI),
-	}
+	authData := authDataFromFetchedCredentials(poolDetails, credentials)
 
 	cache.AddToAuthDataCache(cacheKey, authData)
 
@@ -135,13 +126,35 @@ func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetai
 	return nil
 }
 
+func authDataFromFetchedCredentials(poolDetails *models.PoolDetails, credentials *coreapiclient.OntapCredentialsV1) *models.AuthData {
+	return &models.AuthData{
+		AuthType:       credentials.AuthType.Value,
+		SecretID:       getStringValue(credentials.SecretID),
+		CertificateID:  getStringValue(credentials.CertificateID),
+		Password:       getStringValue(credentials.Password),
+		PoolID:         poolDetails.PoolID,
+		AccountName:    poolDetails.AccountName,
+		Username:       getStringValue(credentials.Username),
+		OntapEndpoints: convertOntapEndpoints(credentials.OntapEndpoints),
+		CaURI:          getStringValue(credentials.CaURI),
+	}
+}
+
 func handleCredentialError(w http.ResponseWriter, err error) {
+	var fe *ontapproxyutils.HTTPError
+	if errors.As(err, &fe) {
+		ontapproxyutils.WriteErrorResponse(w, fe.Status, fe.Message)
+		return
+	}
+
 	errorMsg := err.Error()
 
 	switch {
 	case contains(errorMsg, "pool not found"):
 		ontapproxyutils.WriteErrorResponse(w, http.StatusNotFound, "Pool not found")
-	case contains(errorMsg, "pool is in creating state"):
+	case contains(errorMsg, "deleting state"):
+		ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, "Pool is in deleting state")
+	case contains(errorMsg, "creating state"):
 		ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, "Pool is in creating state")
 	case contains(errorMsg, "invalid pool details"):
 		ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, "Invalid pool details")
@@ -177,6 +190,18 @@ func contains(s, substr string) bool {
 
 func generateCacheKey(projectNumber, poolID, userName string) string {
 	return fmt.Sprintf("%s:%s:%s", projectNumber, poolID, userName)
+}
+
+// parseAuthDataCacheKey is the inverse of generateCacheKey. Normal requests derive
+// pool identity from the request URI via extractPoolDetailsFromRequest; RoundTrip
+// only has the cache key in context (after Director may have rewritten the path), so
+// reconcile uses this split to rebuild PoolDetails for Core.
+func parseAuthDataCacheKey(cacheKey string) (projectNumber, poolID, userName string, err error) {
+	parts := strings.SplitN(cacheKey, ":", 3)
+	if len(parts) != 3 {
+		return "", "", "", fmt.Errorf("invalid auth cache key")
+	}
+	return parts[0], parts[1], parts[2], nil
 }
 
 func getStringValue(opt coreapiclient.OptString) string {

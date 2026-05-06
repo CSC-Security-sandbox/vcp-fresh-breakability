@@ -19,6 +19,12 @@ import (
 // Covers ONTAP CLI: alphanumeric, hyphen, underscore, path chars, operators, quotes, help token (?), space, tab.
 var cliInputAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,:;/*><=!@+%'"? \t]+$`)
 
+var (
+	setupCredentialsForPrivateCLI       = middleware.SetupCredentialsForHandler
+	ensureCertificateOrPasswordForCLI   = middleware.EnsureCertificateOrPassword
+	newOntapClientFromContextForCLI     = handlers.NewOntapClientFromContext
+)
+
 // V1PrivateCli executes an ONTAP CLI command through the private CLI API.
 func (h Handler) V1PrivateCli(
 	ctx context.Context,
@@ -122,7 +128,7 @@ func (h Handler) V1PrivateCli(
 		}
 	}
 
-	ctx, err = middleware.SetupCredentialsForHandler(
+	ctx, err = setupCredentialsForPrivateCLI(
 		ctx,
 		params.ProjectNumber,
 		params.PoolId.String(),
@@ -136,7 +142,7 @@ func (h Handler) V1PrivateCli(
 		}, nil
 	}
 
-	if err := middleware.EnsureCertificateOrPassword(ctx); err != nil {
+	if err := ensureCertificateOrPasswordForCLI(ctx); err != nil {
 		logger.ErrorContext(ctx, "Failed to setup certificate/password", "error", err)
 		return &oasgenserver.V1PrivateCliUnauthorized{
 			Code:    401,
@@ -175,9 +181,12 @@ func (h Handler) V1PrivateCli(
 		}
 	}
 
-	ontapClient, err := handlers.NewOntapClientFromContext(ctx)
+	ontapClient, err := newOntapClientFromContextForCLI(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
+		if res, ok := v1PrivateCliResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		return &oasgenserver.V1PrivateCliInternalServerError{
 			Code:    500,
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error()),
@@ -191,6 +200,9 @@ func (h Handler) V1PrivateCli(
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, fullCommand, privilege)
 	if err != nil {
 		logger.ErrorContext(ctx, "CLI execution failed", "command", cliCmd.FullCommand, "error", log.Sanitize(err.Error()))
+		if res, ok := v1PrivateCliResFromProxyHTTP(ctx, err); ok {
+			return res, nil
+		}
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			switch cliErr.StatusCode {

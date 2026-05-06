@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -498,7 +499,8 @@ func (pat *PooledAuthTransport) RoundTrip(req *http.Request) (*http.Response, er
 	logger.DebugContext(req.Context(), "Using pooled connection",
 		"ontapAddress", selectedEndpoint,
 		"authType", authData.AuthType,
-		"poolID", authData.PoolID)
+		"poolID", authData.PoolID,
+	)
 
 	logCurlCommand(newReq, selectedEndpoint)
 
@@ -567,17 +569,26 @@ func handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
 	logger := util.GetLogger(r.Context())
 	logger.ErrorContext(r.Context(), "Error handling request", "error", err, "path", r.URL.Path)
 
-	// Record backend error metric (same rule as ProcessResponseAndRecordBackendMetrics: actual status when we have response, classified error otherwise)
+	err = middleware.TryReconcileHostLookupErrorIfApplicable(r.Context(), err)
+
 	projectID, poolID, path := middleware.GetBackendMetricsFromContext(r.Context())
-	if code := middleware.BackendErrorCodeForMetric(0, err); code != "" {
-		middleware.RecordBackendError(r.Context(), r.Method, projectID, poolID, path, code)
+	if err != nil {
+		if code := middleware.BackendErrorCodeForMetric(0, err); code != "" {
+			middleware.RecordBackendError(r.Context(), r.Method, projectID, poolID, path, code)
+		}
+	}
+
+	var proxyHTTP *middleware.ProxyHTTPError
+	if errors.As(err, &proxyHTTP) {
+		utils.WriteErrorResponse(w, proxyHTTP.Status, proxyHTTP.Message)
+		return
 	}
 
 	if strings.Contains(err.Error(), "context canceled") {
 		utils.WriteErrorResponse(w, http.StatusGatewayTimeout, "Request timeout - ONTAP cluster not responding")
 	} else if strings.Contains(err.Error(), "connection refused") {
 		utils.WriteErrorResponse(w, http.StatusBadGateway, "Cannot connect to ONTAP cluster")
-	} else if strings.Contains(err.Error(), "no such host") {
+	} else if strings.Contains(strings.ToLower(err.Error()), "no such host") {
 		utils.WriteErrorResponse(w, http.StatusBadGateway, "ONTAP cluster host not found")
 	} else if strings.Contains(err.Error(), "Missing ONTAP credentials") {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "ONTAP credentials not configured")

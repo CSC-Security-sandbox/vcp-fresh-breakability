@@ -3,6 +3,7 @@ package endpoints
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 )
 
 func enableSnaplockForEventRetentionTests(t *testing.T) context.Context {
@@ -159,6 +161,30 @@ func TestListEventRetentionOperations(t *testing.T) {
 		internal, ok := res.(*oasgenserver.V1ListEventRetentionOperationsInternalServerError)
 		require.True(t, ok, "expected InternalServerError, got %T", res)
 		assert.Equal(t, 500, internal.Code)
+	})
+
+	t.Run("WhenNewOntapClientFailsWithProxyHTTPError_ReturnsMappedResponse", func(t *testing.T) {
+		oldSetup := setupCredentialsForHandler
+		oldEnsure := ensureCertificateOrPassword
+		oldClient := newOntapClientFromContext
+		defer func() {
+			setupCredentialsForHandler = oldSetup
+			ensureCertificateOrPassword = oldEnsure
+			newOntapClientFromContext = oldClient
+		}()
+		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
+		ensureCertificateOrPassword = func(context.Context) error { return nil }
+		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) {
+			return nil, &middleware.ProxyHTTPError{Status: http.StatusBadRequest, Message: "Pool is in deleting state"}
+		}
+
+		res, err := handler.V1ListEventRetentionOperations(ctx, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1ListEventRetentionOperationsBadRequest)
+		require.True(t, ok, "expected BadRequest, got %T", res)
+		assert.Equal(t, http.StatusBadRequest, badReq.Code)
+		assert.Equal(t, "Pool is in deleting state", badReq.Message)
 	})
 
 	t.Run("WhenCLISuccess_ReturnsRecords", func(t *testing.T) {

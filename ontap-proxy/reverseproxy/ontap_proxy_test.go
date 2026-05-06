@@ -994,6 +994,7 @@ func TestErrorHandlerResponses(t *testing.T) {
 		{"ContextCanceled", fmt.Errorf("context canceled"), http.StatusGatewayTimeout, "Request timeout"},
 		{"ConnectionRefused", fmt.Errorf("connection refused"), http.StatusBadGateway, "Cannot connect"},
 		{"NoSuchHost", fmt.Errorf("no such host"), http.StatusBadGateway, "host not found"},
+		{"ProxyHTTPDeleting", &middleware.ProxyHTTPError{Status: http.StatusBadRequest, Message: "Pool is in deleting state"}, http.StatusBadRequest, "deleting"},
 		{"MissingCredentials", fmt.Errorf("Missing ONTAP credentials"), http.StatusInternalServerError, "credentials not configured"},
 		{"OtherError", fmt.Errorf("some other error"), http.StatusBadGateway, "Proxy error: some other error"},
 	}

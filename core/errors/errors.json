@@ -215,6 +215,12 @@
     "retriable": false,
     "http_code": 409
   },
+  "2107": {
+    "description": "Pool is in deleting state; ONTAP proxy operations are not allowed",
+    "message": "Pool is in deleting state",
+    "retriable": false,
+    "http_code": 400
+  },
   "3001": {
     "description": "GCP Client Initialization Error",
     "message": "An internal error occurred.",
