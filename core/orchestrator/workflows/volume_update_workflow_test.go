@@ -4094,10 +4094,19 @@ func TestIsExportPolicyRulesUpdateRequired(t *testing.T) {
 		assert.True(t, result)
 	})
 
+	t.Run("WhenCurrentPolicyNotNilWithZeroRuleAndUpdatePolicyNil_ShouldReturnTrue", func(t *testing.T) {
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules:      nil,
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, nil)
+		assert.False(t, result)
+	})
+
 	t.Run("WhenCurrentPolicyNotNilAndUpdatePolicyNil_ShouldReturnTrue", func(t *testing.T) {
 		currentPolicy := &datamodel.ExportPolicy{
 			ExportPolicyName: "test-policy",
-			ExportRules:      []*datamodel.ExportRule{},
+			ExportRules:      []*datamodel.ExportRule{{UnixReadOnly: true}},
 		}
 		result := isExportPolicyRulesUpdateRequired(currentPolicy, nil)
 		assert.True(t, result)
@@ -9452,4 +9461,79 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_SetupCrossProjec
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_UpdateVolumeWorkflow_ExportPolicy_NilInParams_WithExistingRules covers lines 395-396:
+// when params.FileProperties.ExportPolicy is nil but the volume already has export rules,
+// isExportPolicyRulesUpdateRequired returns true and the workflow initialises an empty
+// ExportPolicy before setting the policy name and calling UpdateExportPolicyRulesInONTAP.
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_ExportPolicy_NilInParams_WithExistingRules() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateExportPolicyRulesInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	// The nil-guard at lines 395-396 creates a new &models.ExportPolicy{} and sets its
+	// ExportPolicyName from the existing volume policy before the activity is invoked.
+	s.env.OnActivity(updateActivity.UpdateExportPolicyRulesInONTAP,
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Volume has FileProperties with an ExportPolicy containing existing rules.
+	existingExportPolicy := &datamodel.ExportPolicy{
+		ExportPolicyName: "existing-policy",
+		ExportRules: []*datamodel.ExportRule{
+			{
+				AllowedClients: "10.0.0.0/8",
+				AccessType:     "ReadWrite",
+				NFSv3:          true,
+			},
+		},
+	}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: existingExportPolicy,
+			},
+		},
+	}
+	// params.FileProperties.ExportPolicy is nil — this is the triggering condition for
+	// the nil-guard at lines 395-396 because isExportPolicyRulesUpdateRequired returns
+	// true when currentPolicy has rules but updatePolicy is nil.
+	params := &common.UpdateVolumeParams{
+		FileProperties: &models.FileProperties{
+			ExportPolicy: nil,
+		},
+	}
+
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }

@@ -392,6 +392,9 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 		// Update export policy rules only if it is provided in the params
 		if params.FileProperties != nil && isExportPolicyRulesUpdateRequired(volume.VolumeAttributes.FileProperties.ExportPolicy, params.FileProperties.ExportPolicy) {
+			if params.FileProperties.ExportPolicy == nil {
+				params.FileProperties.ExportPolicy = &models.ExportPolicy{}
+			}
 			params.FileProperties.ExportPolicy.ExportPolicyName = volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
 			rollbackManager.AddActivity(updateActivity.UpdateExportPolicyRulesInONTAP, &volume, volume.VolumeAttributes.FileProperties.ExportPolicy, &node)
 			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateExportPolicyRulesInONTAP, &volume, params.FileProperties.ExportPolicy, &node).Get(ctx, nil)
@@ -850,7 +853,10 @@ func isExportPolicyRulesUpdateRequired(currentPolicy *datamodel.ExportPolicy, up
 	if currentPolicy == nil && updatePolicy != nil {
 		return true
 	}
-	if currentPolicy != nil && updatePolicy == nil {
+	if currentPolicy != nil && len(currentPolicy.ExportRules) == 0 && updatePolicy == nil {
+		return false
+	}
+	if currentPolicy != nil && len(currentPolicy.ExportRules) > 0 && updatePolicy == nil {
 		return true
 	}
 	if currentPolicy == nil && updatePolicy == nil {
