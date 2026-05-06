@@ -163,6 +163,66 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if err != nil {
 			return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror: %w", err))
 		}
+
+		// Remove the latest backup snapshot for the vault being left (same pattern as delete backup workflow).
+		backupActivity := &activities.BackupActivity{}
+		var oldBackupVault *datamodel.BackupVault
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetBackupVault, volume.DataProtection.BackupVaultID).Get(ctx, &oldBackupVault)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		var latestBackup *datamodel.Backup
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetLatestBackupByVolumeAndVault, volume.UUID, oldBackupVault.ID).Get(ctx, &latestBackup)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		if latestBackup != nil && latestBackup.Attributes != nil && volume.VolumeAttributes != nil {
+			var isExpertModeVolume bool
+			err = workflow.ExecuteActivity(ctx, backupActivity.IsExpertModeVolume, volume.UUID).Get(ctx, &isExpertModeVolume)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+			err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotForBackup, node, latestBackup.Attributes.SnapshotID, volume.VolumeAttributes.ExternalUUID, latestBackup.Attributes.UseExistingSnapshot).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+			if !isExpertModeVolume {
+				snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, latestBackup).Get(ctx, nil)
+				if snapshotErr != nil {
+					workflow.GetLogger(ctx).Error("Failed to delete snapshot from database", "error", snapshotErr)
+				}
+			}
+
+			// Hydrate snapshot deletion to CCFE (same pattern as DeleteBackupWorkflow last-backup direct ONTAP path).
+			if latestBackup.Attributes != nil && volume.Account != nil && !isExpertModeVolume {
+				snapshot := &datamodel.Snapshot{
+					BaseModel: datamodel.BaseModel{
+						UUID:      latestBackup.Attributes.SnapshotID,
+						CreatedAt: latestBackup.CreatedAt,
+					},
+					Name:         latestBackup.Name,
+					State:        models.LifeCycleStateDeleted,
+					StateDetails: models.LifeCycleStateDeletedDetails,
+					Description:  latestBackup.Description,
+					Volume:       volume,
+					Account:      volume.Account,
+					SnapshotAttributes: &datamodel.SnapshotAttributes{
+						SizeInBytes: latestBackup.SizeInBytes,
+					},
+				}
+
+				location := utils.GetLocation(*snapshot)
+				hydrateSnapshotErr := workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotDeletionToCCFEActivity,
+					snapshot,
+					volume.Name,
+					location,
+					volume.Account.Name).Get(ctx, nil)
+				if hydrateSnapshotErr != nil {
+					workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", latestBackup.Name, hydrateSnapshotErr))
+				}
+			}
+		}
+
 		volume.DataProtection.BackupVaultID = *params.DataProtection.BackupVaultID
 	}
 

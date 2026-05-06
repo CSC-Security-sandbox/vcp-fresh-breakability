@@ -3220,8 +3220,21 @@ func TestPersistenceStore_BackupVaultAndBackupDelegateMethods(t *testing.T) {
 	// IsLatestBackupInVault - wrapper at 1122
 	_, _ = store.IsLatestBackupInVault(ctx, "backup-uuid", "volume-uuid", 0)
 
+	// IsLatestBackupInVaultAndInEndpoint - PersistenceStore wrapper for endpoint-scoped latest check
+	_, _ = store.IsLatestBackupInVaultAndInEndpoint(ctx, "backup-uuid", "volume-uuid", 0, "endpoint-uuid")
+
 	// GetBackupCountByVolumeAndVault - wrapper at 1322
 	count, err := store.GetBackupCountByVolumeAndVault(ctx, "volume-uuid", 0)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, count, int64(0))
+
+	// GetBackupCountByVolumeVaultAndEndpoint - PersistenceStore wrapper for endpoint-scoped count
+	count, err = store.GetBackupCountByVolumeVaultAndEndpoint(ctx, "volume-uuid", 0, "endpoint-uuid")
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, count, int64(0))
+
+	// BackupCountByVolumeIDVaultAndEndpoint - PersistenceStore wrapper used by delete-validation flow
+	count, err = store.BackupCountByVolumeIDVaultAndEndpoint(ctx, "volume-uuid", 0, "endpoint-uuid")
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, count, int64(0))
 

@@ -1553,6 +1553,59 @@ func TestGetBackupCountByVolumeVaultAndEndpoint(t *testing.T) {
 	})
 }
 
+func TestGetLatestBackupByVolumeAndVault(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		backupVaultID := int64(42)
+		expected := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:      "latest-backup",
+		}
+
+		store.On("GetLatestBackupByVolumeAndVault", ctx, volumeUUID, backupVaultID).Return(expected, nil)
+
+		got, err := activity.GetLatestBackupByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expected, got)
+		store.AssertExpectations(t)
+	})
+	t.Run("onRecordNotFoundReturnsNil", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		backupVaultID := int64(42)
+
+		store.On("GetLatestBackupByVolumeAndVault", ctx, volumeUUID, backupVaultID).Return((*datamodel.Backup)(nil), gorm.ErrRecordNotFound)
+
+		got, err := activity.GetLatestBackupByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+
+		assert.NoError(t, err)
+		assert.Nil(t, got)
+		store.AssertExpectations(t)
+	})
+	t.Run("onDBFailure", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		backupVaultID := int64(42)
+
+		store.On("GetLatestBackupByVolumeAndVault", ctx, volumeUUID, backupVaultID).Return((*datamodel.Backup)(nil), errors.New("db connection failed"))
+
+		got, err := activity.GetLatestBackupByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assertOriginalErrContains(t, err, "db connection failed")
+		store.AssertExpectations(t)
+	})
+}
+
 func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 	t.Run("onSuccessWithJob", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite

@@ -928,6 +928,19 @@ func (a BackupActivity) GetBackupCountByVolumeVaultAndEndpoint(ctx context.Conte
 	return se.GetBackupCountByVolumeVaultAndEndpoint(ctx, volumeUUID, backupVaultID, endpointUUID)
 }
 
+// GetLatestBackupByVolumeAndVault returns the latest available backup for the volume in the given vault, or nil if none.
+func (a BackupActivity) GetLatestBackupByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (*datamodel.Backup, error) {
+	se := a.SE
+	backup, err := se.GetLatestBackupByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+	if err != nil {
+		if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return backup, nil
+}
+
 // DeleteSnapshotFromObjectStore Enhanced DeleteSnapshotFromObjectStore with idempotency
 func (a BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
 	activity.RecordHeartbeat(ctx, "delete snapshot from object store started")
