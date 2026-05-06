@@ -94,7 +94,7 @@ Used for long-running deployments (does not include graceful shutdown flags)
 {{- define "google-proxy.databaseProxyContainer" -}}
 {{- if .Values.global.cloudSqlIamAuthEnabled }}
 {{- $instanceName := "" }}
-{{- $proxyImage := "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" }}
+{{- $proxyImage := "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1" }}
 {{- if and .Values.global.cloudSqlProxy .Values.global.cloudSqlProxy.image }}
   {{- $proxyImage = .Values.global.cloudSqlProxy.image }}
 {{- end }}

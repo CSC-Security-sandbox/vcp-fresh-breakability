@@ -35,7 +35,7 @@ on:
         description: "A list of images to build. If not provided, all images will be built"
         required: false
         type: string
-        default: "core,google-proxy,vcp-db-migrate,vcp-worker,telemetry,vcp-cloudrun-deployer,ontap-proxy"
+        default: "core,google-proxy,vcp-db-migrate,vcp-iam-lifecycle,vcp-worker,telemetry,vcp-cloudrun-deployer,ontap-proxy"
       additional_images_toscan:
         description: "A list of additional images to scan. If not provided, no additional images will be scanned"
         required: false
@@ -73,6 +73,12 @@ on:
       GCP_vcp_db_migrate_URL:
         description: "URL of the vcp-db-migrate image in GCP"
         value: ${{ jobs.build_and_publish.outputs.GCP_vcp_db_migrate_URL }}
+      GHCR_vcp_iam_lifecycle_URL:
+        description: "URL of the vcp-iam-lifecycle image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_iam_lifecycle_URL }}
+      GCP_vcp_iam_lifecycle_URL:
+        description: "URL of the vcp-iam-lifecycle image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_iam_lifecycle_URL }}
       GHCR_vcp_cloudrun_deployer_URL:
         description: "URL of the vcp-cloudrun-deployer image in GHCR"
         value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_cloudrun_deployer_URL }}
@@ -170,6 +176,8 @@ jobs:
       GCP_google_proxy_URL: ${{ steps.generate_output_urls.outputs.GCP_google-proxy_URL }}
       GHCR_vcp_db_migrate_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-db-migrate_URL }}
       GCP_vcp_db_migrate_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-db-migrate_URL }}
+      GHCR_vcp_iam_lifecycle_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-iam-lifecycle_URL }}
+      GCP_vcp_iam_lifecycle_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-iam-lifecycle_URL }}
       GHCR_vcp_cloudrun_deployer_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-cloudrun-deployer_URL }}
       GCP_vcp_cloudrun_deployer_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-cloudrun-deployer_URL }}
       GHCR_vcp_worker_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_URL }}
@@ -242,6 +250,7 @@ jobs:
           # done
           # wait
           make vcp-db-migrate-image imageVersion=${{ inputs.tag }}
+          make vcp-iam-lifecycle-image imageVersion=${{ inputs.tag }}
           make vcp-cloudrun-deployer-linux-image imageVersion=${{ inputs.tag }}
         shell: bash -e {0}
 
@@ -435,6 +444,7 @@ jobs:
           core_ARTIFACT_URL: ${{ env.core_ARTIFACT_URL }}
           google_proxy_ARTIFACT_URL: ${{ env.google_proxy_ARTIFACT_URL }}
           vcp_db_migrate_ARTIFACT_URL: ${{ env.vcp_db_migrate_ARTIFACT_URL }}
+          vcp_iam_lifecycle_ARTIFACT_URL: ${{ env.vcp_iam_lifecycle_ARTIFACT_URL }}
           telemetry_deployer_ARTIFACT_URL: ${{ env.vcp_cloudrun_deployer_ARTIFACT_URL }}
           telemetry_digest_gcp_ARTIFACT_URL: ${{ env.telemetry_ARTIFACT_URL }}
           ontap_proxy_ARTIFACT_URL: ${{ env.ontap_proxy_ARTIFACT_URL }}
@@ -444,6 +454,7 @@ jobs:
           echo "core_digest_gcp=$(echo "${core_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
           echo "google_proxy_digest_gcp=$(echo "${google_proxy_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
           echo "vcp_db_migrate_digest_gcp=$(echo "${vcp_db_migrate_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
+          echo "vcp_iam_lifecycle_digest_gcp=$(echo "${vcp_iam_lifecycle_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
           echo "telemetry_deployer_digest_gcp=$(echo "${telemetry_deployer_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
           echo "telemetry_digest_gcp=$(echo "${telemetry_digest_gcp_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt 
           echo "ontap_proxy_digest_gcp=$(echo "${ontap_proxy_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt

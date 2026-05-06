@@ -82,7 +82,7 @@ Only included when global.cloudSqlIamAuthEnabled is true
 {{- $instanceConnectionName = printf "%s:%s:%s" $project $region $instance }}
 {{- end }}
 - name: cloud-sql-proxy
-  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" | quote }}
+  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1" | quote }}
   args:
     - "--private-ip"
     - "--auto-iam-authn"

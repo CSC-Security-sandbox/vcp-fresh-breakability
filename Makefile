@@ -1,5 +1,6 @@
 imageVersion ?= latest
 IMAGE_TAG_GOOGLE_PROXY_MIGRATE := vcp-db-migrate:${imageVersion}
+IMAGE_TAG_IAM_LIFECYCLE := vcp-iam-lifecycle:${imageVersion}
 IMAGE_TAG_GOOGLE_CLOUD_RUN:= vcp-cloudrun-deployer:${imageVersion}
 GHVSA_PAT := ${GHVSA_PAT}
 
@@ -75,6 +76,13 @@ vcp-db-migrate-image: vcp-db-migrate-linux
 vcp-db-migrate-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o core/build/linux/bin/vcp-db-migrate ./tools/migrate
 
+.PHONY: vcp-iam-lifecycle-image
+vcp-iam-lifecycle-image: vcp-iam-lifecycle-linux
+	docker buildx build -t ${IMAGE_TAG_IAM_LIFECYCLE} --platform linux/amd64 -f core/iam-lifecycle.Dockerfile .
+
+.PHONY: vcp-iam-lifecycle-linux
+vcp-iam-lifecycle-linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o core/build/linux/bin/vcp-iam-lifecycle ./tools/iam-lifecycle
 
 .PHONY: vcp-cloudrun-deployer-linux-image
 vcp-cloudrun-deployer-linux-image: vcp-cloudrun-deployer-linux

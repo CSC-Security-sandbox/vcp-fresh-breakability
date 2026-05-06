@@ -19,7 +19,7 @@ global:
   cloudSqlIamAuthEnabled: false
   # Central Cloud SQL Proxy image used across charts when IAM DB auth is enabled
   cloudSqlProxy:
-    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
+    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1"
   coreConfig:
     gcp: {}
     gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
@@ -161,6 +161,7 @@ global:
 environment: gcp
 enabled: true
 enableDbMigration: true
+enableIamLifecycle: true
 ttlSecondsAfterFinished: 3600
 msiEnabled: false
 msiUser: db-msi-user
@@ -205,6 +206,12 @@ images:
     pullPolicy: IfNotPresent
   vcpDbMigrate:
     name: vcp-db-migrate
+    tag: 0.0.0
+    digest: ""
+    secondary: true
+    pullPolicy: IfNotPresent
+  vcpIamLifecycle:
+    name: vcp-iam-lifecycle
     tag: 0.0.0
     digest: ""
     secondary: true
@@ -334,7 +341,7 @@ telemetryDeployer:
   bizopsReportName : "google_vsa_analytics_report"
   bizopsBucketName: "harvest-farm-pv-au-se1"
   cloudSqlConnector: "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres"
-  cloudSqlImage: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
+  cloudSqlImage: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1"
   monitoringProject: "vsa-monitoring-au-se1-ap-tst"
   customPrefix: "custom.googleapis.com"
   enableScheduler: true

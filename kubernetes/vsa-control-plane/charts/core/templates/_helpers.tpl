@@ -241,7 +241,7 @@ Used for long-running deployments (does not include graceful shutdown flags)
 {{- define "core.databaseProxyContainer" -}}
 {{- if .Values.global.cloudSqlIamAuthEnabled }}
 - name: cloud-sql-proxy
-  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" | quote }}
+  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1" | quote }}
   args:
     - "--private-ip"
     - "--auto-iam-authn"
@@ -268,7 +268,7 @@ Includes graceful shutdown flags (--quitquitquit and --admin-port=9091) for Jobs
 {{- define "core.databaseProxyContainerForJob" -}}
 {{- if .Values.global.cloudSqlIamAuthEnabled }}
 - name: cloud-sql-proxy
-  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" | quote }}
+  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1" | quote }}
   args:
     - "--private-ip"
     - "--auto-iam-authn"
@@ -287,4 +287,30 @@ Includes graceful shutdown flags (--quitquitquit and --admin-port=9091) for Jobs
       cpu: 100m
       memory: 128Mi
 {{- end }}
+{{- end -}}
+
+{{/*
+Cloud SQL Proxy sidecar for IAM lifecycle job — ALWAYS injected regardless of
+cloudSqlIamAuthEnabled because rollback needs IAM auth even when the flag is false.
+*/}}
+{{- define "core.databaseProxyContainerAlways" -}}
+- name: cloud-sql-proxy
+  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1" | quote }}
+  args:
+    - "--private-ip"
+    - "--auto-iam-authn"
+    - "--structured-logs"
+    - "--quitquitquit"
+    - "--admin-port=9091"
+    - "--port=5432"
+    - "{{ .Values.global.coreConfig.gcp.instanceConnectionName | default .Values.telemetryDeployer.cloudSqlConnector }}"
+  securityContext:
+    runAsNonRoot: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
 {{- end -}}

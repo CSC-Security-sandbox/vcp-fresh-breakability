@@ -18,10 +18,9 @@ global:
   # When disabled: Uses traditional username/password authentication
   # Default: false - override in deployment-specific values files to enable
   cloudSqlIamAuthEnabled: false
-  # Central Cloud SQL Proxy image used across charts when IAM DB auth is enabled
-  # Override in deployment-specific values to pin/upgrade proxy versions consistently.
+  gcpHydrateAuthServiceAccount: ""
   cloudSqlProxy:
-    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
+    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1"
     # Instance connection name in format: project:region:instance
     # Required when cloudSqlIamAuthEnabled=true
     # Example: "my-project:us-central1:my-instance"

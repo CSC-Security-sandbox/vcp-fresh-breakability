@@ -363,7 +363,7 @@ Checks .Values.global.cloudSqlIamAuthEnabled first (for umbrella charts), then .
 {{- end -}}
 {{- end -}}
 {{- if eq $img "" -}}
-{{- $img = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" -}}
+{{- $img = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1" -}}
 {{- end }}
 - name: cloud-sql-proxy
   image: {{ $img | quote }}

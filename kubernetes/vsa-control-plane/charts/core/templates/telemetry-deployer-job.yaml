@@ -59,7 +59,7 @@ spec:
             - "--enable-scheduler={{ .Values.telemetryDeployer.enableScheduler | default "true"  }}"
             - "--vpc-connector={{ .Values.telemetryDeployer.vpcConnector | default "" }}"
             - "--cloud-sql-instances={{ .Values.telemetryDeployer.cloudSqlConnector | default "" }}"
-            - "--cloud-sql-image={{ .Values.telemetryDeployer.cloudSqlImage | default (dig "cloudSqlProxy" "image" "" .Values.global | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1") }}"
+            - "--cloud-sql-image={{ .Values.telemetryDeployer.cloudSqlImage | default (dig "cloudSqlProxy" "image" "" .Values.global | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1") }}"
             - "--otel-cpu={{ .Values.telemetryDeployer.otelCPU | default "1" }}"
             - "--otel-memory={{ .Values.telemetryDeployer.otelMemory | default "512Mi" }}"
             - "--monitoring-project-id={{ .Values.telemetryDeployer.monitoringProject | default "" }}"

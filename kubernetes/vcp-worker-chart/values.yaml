@@ -17,7 +17,7 @@ global:
   cloudSqlIamAuthEnabled: false
   # Central Cloud SQL Proxy image used across charts when IAM DB auth is enabled
   cloudSqlProxy:
-    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
+    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.1"
 
 cloudSql:
   # Format: PROJECT_ID:REGION:INSTANCE_NAME

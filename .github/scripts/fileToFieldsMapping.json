@@ -37,7 +37,7 @@
   },
   {
     "filePath": "kubernetes/vsa-control-plane/charts/core/values.yaml",
-    "yamlPath": ["images.core.tag", "images.core.digest","images.vcpDbMigrate.tag", "images.vcpDbMigrate.digest", "images.telemetryDeployer.tag", "images.telemetryDeployer.digest","images.telemetry.tag", "images.telemetry.digest"]
+    "yamlPath": ["images.core.tag", "images.core.digest","images.vcpDbMigrate.tag", "images.vcpDbMigrate.digest", "images.vcpIamLifecycle.tag", "images.vcpIamLifecycle.digest", "images.telemetryDeployer.tag", "images.telemetryDeployer.digest","images.telemetry.tag", "images.telemetry.digest"]
   },
   {
     "filePath": "kubernetes/OCI/oci-proxy/Chart.yaml",
