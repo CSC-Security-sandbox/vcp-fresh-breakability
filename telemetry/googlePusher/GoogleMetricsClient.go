@@ -40,15 +40,16 @@ const (
 )
 
 var (
-	googleContinents     = env.GetString("GOOGLE_CONTINENTS", "")
-	getContinentMap      = bizops.GetContinentMap
-	getResourceUUID      = _getResourceUUID
-	getFrequency         = _getFrequency
-	getReplicationType   = _getReplicationType
-	getContinent         = _getContinent
-	getSourceRegion      = _getSourceRegion
-	getDestinationRegion = _getDestinationRegion
-	getServiceLevel      = _getServiceLevel
+	googleContinents                = env.GetString("GOOGLE_CONTINENTS", "")
+	useNewLabelForHybridReplication = env.GetBool("USE_NEW_LABEL_FOR_HYBRID_REPLICATION", false)
+	getContinentMap                 = bizops.GetContinentMap
+	getResourceUUID                 = _getResourceUUID
+	getFrequency                    = _getFrequency
+	getReplicationType              = _getReplicationType
+	getContinent                    = _getContinent
+	getSourceRegion                 = _getSourceRegion
+	getDestinationRegion            = _getDestinationRegion
+	getServiceLevel                 = _getServiceLevel
 
 	// allowedEmptyLabels defines labels that are allowed to have empty values in metrics
 	allowedEmptyLabels = []string{
@@ -943,7 +944,7 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		case "/replication/destination_service_level":
 			return "FLEX_UNIFIED", nil
 		case "/replication/replication_type":
-			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
+			if useNewLabelForHybridReplication && (repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM)) {
 				return ReplicationTypeDataMigration, nil
 			}
 			return repType, nil

@@ -1222,7 +1222,11 @@ func Test_GetLabelValue(t *testing.T) {
 		}
 		migrationRepType, err := GetLabelValue("/replication/replication_type", googleMetric, logger)
 		assert.NoError(t, err)
-		assert.Equal(t, ReplicationTypeDataMigration, migrationRepType)
+		expectedMigrationRepType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		if useNewLabelForHybridReplication {
+			expectedMigrationRepType = ReplicationTypeDataMigration
+		}
+		assert.Equal(t, expectedMigrationRepType, migrationRepType)
 		dstCont, err := GetLabelValue("/replication/destination_continent", googleMetric, logger)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, dstCont, "destination_continent still derived for MIGRATION")
@@ -1245,7 +1249,77 @@ func Test_GetLabelValue(t *testing.T) {
 		}
 		onPremRepType, err := GetLabelValue("/replication/replication_type", googleMetric, logger)
 		assert.NoError(t, err)
-		assert.Equal(t, ReplicationTypeDataMigration, onPremRepType)
+		expectedOnPremRepType := string(models.HybridReplicationParametersReplicationTypeONPREM)
+		if useNewLabelForHybridReplication {
+			expectedOnPremRepType = ReplicationTypeDataMigration
+		}
+		assert.Equal(t, expectedOnPremRepType, onPremRepType)
+	})
+
+	t.Run("replication_type label hybrid DATA_MIGRATION when USE_NEW_LABEL_FOR_HYBRIDREPLICATION", func(t *testing.T) {
+		origFlag := useNewLabelForHybridReplication
+		origGetReplicationType := getReplicationType
+		defer func() {
+			useNewLabelForHybridReplication = origFlag
+			getReplicationType = origGetReplicationType
+		}()
+
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.VolumeReplicationRelationship,
+		}
+		hydratedM := &entity.HydratedMetric{Metadata: rm}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		tests := []struct {
+			name       string
+			flagOn     bool
+			repType    string
+			wantLabel  string
+		}{
+			{
+				name:      "MIGRATION with flag off returns raw replication type",
+				flagOn:    false,
+				repType:   string(models.HybridReplicationParametersReplicationTypeMIGRATION),
+				wantLabel: string(models.HybridReplicationParametersReplicationTypeMIGRATION),
+			},
+			{
+				name:      "ONPREM_REPLICATION with flag off returns raw replication type",
+				flagOn:    false,
+				repType:   string(models.HybridReplicationParametersReplicationTypeONPREM),
+				wantLabel: string(models.HybridReplicationParametersReplicationTypeONPREM),
+			},
+			{
+				name:      "MIGRATION with flag on returns DATA_MIGRATION",
+				flagOn:    true,
+				repType:   string(models.HybridReplicationParametersReplicationTypeMIGRATION),
+				wantLabel: ReplicationTypeDataMigration,
+			},
+			{
+				name:      "ONPREM_REPLICATION with flag on returns DATA_MIGRATION",
+				flagOn:    true,
+				repType:   string(models.HybridReplicationParametersReplicationTypeONPREM),
+				wantLabel: ReplicationTypeDataMigration,
+			},
+			{
+				name:      "CROSS_REGION_REPLICATION unchanged when flag on",
+				flagOn:    true,
+				repType:   "CROSS_REGION_REPLICATION",
+				wantLabel: "CROSS_REGION_REPLICATION",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				useNewLabelForHybridReplication = tt.flagOn
+				rt := tt.repType
+				getReplicationType = func(m common.GoogleMetric) (string, error) {
+					return rt, nil
+				}
+				result, err := GetLabelValue("/replication/replication_type", googleMetric, logger)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantLabel, result)
+			})
+		}
 	})
 
 	t.Run("VolumeReplicationRelationship getReplicationType error", func(t *testing.T) {

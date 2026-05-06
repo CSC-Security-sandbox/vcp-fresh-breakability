@@ -301,6 +301,7 @@ telemetryDeployer:
   otelCPU: "1"       # CPU allocation for otel container (e.g., "1", "500m", "2")
   otelMemory: "512Mi" # Memory allocation for otel container (e.g., "512Mi", "256Mi", "1Gi")
   runMigrationOnStart: false
+  useNewLabelForHybridReplication: false
   performanceRootUrl: "https://servicecontrol.googleapis.com"
   usageRootUrl: "https://servicecontrol.googleapis.com"
   operationBatchSize: 200

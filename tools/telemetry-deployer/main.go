@@ -531,6 +531,7 @@ func getDefaultEnvVars() map[string]string {
 		"MAX_GOOGLE_BILLING_PUSH_RETRY":                    getEnvOrDefault("MAX_GOOGLE_BILLING_PUSH_RETRY", "5"),
 		"PAGE_SIZE":                                        getEnvOrDefault("PAGE_SIZE", "1000"),
 		"GOOGLE_CONTINENTS":                                getEnvOrDefault("GOOGLE_CONTINENTS", ""),
+		"USE_NEW_LABEL_FOR_HYBRID_REPLICATION":             getEnvOrDefault("USE_NEW_LABEL_FOR_HYBRID_REPLICATION", "false"),
 		"BIZOPS_ACCOUNT_PAGINATION_LIMIT":                  getEnvOrDefault("BIZOPS_ACCOUNT_PAGINATION_LIMIT", "1000"),
 		"BIZOPS_REPORT_NAME":                               getEnvOrDefault("BIZOPS_REPORT_NAME", ""),
 		"BIZOPS_BUCKET_NAME":                               getEnvOrDefault("BIZOPS_BUCKET_NAME", ""),
