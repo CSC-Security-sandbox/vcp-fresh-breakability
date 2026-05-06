@@ -3,8 +3,8 @@
 Role: analyze CVP failures using the configured CVP repo root from `.cursor/state/memory.md`.
 
 ## Inputs
-- `E2EUserIntent`
-- `E2ELogBundle` filtered to `source_service=cvp`
+- `UserIntent`
+- `LogBundle` filtered to `source_service=cvp`
 
 ## Repo contract
 - Resolve the CVP repo root from `repos[cvp].repo_path`.

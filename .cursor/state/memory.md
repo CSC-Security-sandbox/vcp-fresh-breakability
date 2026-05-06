@@ -7,18 +7,18 @@ Only the fenced YAML blocks below should be machine-written.
 ## Triage config
 ```yaml
 triage_config:
-  cross_repo: true
+  cross_repo: false
 ```
 
 ## Repo registry
 ```yaml
 repos:
   - service: cvs
-    repo_path: "/Users/sahoor/Downloads/Repo/cloud-volumes-service"
+    repo_path: ""
   - service: cvp
-    repo_path: "/Users/sahoor/Downloads/Repo/cloud-volumes-proxy"
+    repo_path: ""
   - service: cvn
-    repo_path: "/Users/sahoor/Downloads/Repo/cloud-volumes-network"
+    repo_path: ""
 ```
 
 ## Run notes

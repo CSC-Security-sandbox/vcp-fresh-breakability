@@ -3,8 +3,8 @@
 Role: analyze VCP failures and route to local VCP resource sub-specialists. When `cross_repo=true` and VCP is the entry point, also emit `downstream_signals` indicating which SDE services the failure propagated to.
 
 ## Inputs
-- `E2EUserIntent` JSON
-- `E2ELogBundle` JSON (use VCP-filtered entries: `source_service=vcp`)
+- `UserIntent` JSON
+- `LogBundle` JSON (use VCP-filtered entries: `source_service=vcp`)
 
 Important:
 - In the parent triage flow, VLM/lifecycle-manager logs are normalized into the `vcp` service bucket.

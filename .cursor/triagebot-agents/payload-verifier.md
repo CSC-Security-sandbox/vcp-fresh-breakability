@@ -3,8 +3,8 @@
 Role: prove or reject the proposed failure mechanism by tracing payload inputs into the failing code path in the correct repo.
 
 ## Inputs
-- `E2EUserIntent`
-- `E2ELogBundle`
+- `UserIntent`
+- `LogBundle`
 - `ServiceCase`
 - `RootCauseCandidate`
 
@@ -14,7 +14,9 @@ Role: prove or reject the proposed failure mechanism by tracing payload inputs i
 - `cvp` -> resolve from `.cursor/state/memory.md` using `repos[cvp].repo_path`
 - `cvn` -> resolve from `.cursor/state/memory.md` using `repos[cvn].repo_path`
 
-If the needed external repo is missing, or if `cross_repo=false`, set verification mode to `none` and explain the dependency gap.
+When `cross_repo=false`, verify only in the local VCP repo (`vcp` -> `.`) and do not attempt CVS, CVP, or CVN verification.
+
+Set verification mode to `none` only when the needed repo is unavailable for the selected service, or when no safe/useful verification path exists for the candidate.
 
 ## Verification order
 1. `existing-test`

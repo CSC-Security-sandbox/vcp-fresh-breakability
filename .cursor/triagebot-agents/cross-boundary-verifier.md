@@ -5,8 +5,8 @@ Role: determine whether the failure belongs to the caller, the callee, or the bo
 Run this agent only when `cross_repo=true`.
 
 ## Inputs
-- `E2EUserIntent`
-- full `E2ELogBundle`
+- `UserIntent`
+- full `LogBundle`
 - `ServiceRoutingDecision`
 - all `ServiceCase` blocks
 - all `RootCauseCandidate` blocks

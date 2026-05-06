@@ -3,8 +3,8 @@
 Role: analyze CVS failures using the configured CVS repo root from `.cursor/state/memory.md`.
 
 ## Inputs
-- `E2EUserIntent`
-- `E2ELogBundle` filtered to `source_service=cvs`
+- `UserIntent`
+- `LogBundle` filtered to `source_service=cvs`
 
 ## Repo contract
 - Resolve the CVS repo root from `repos[cvs].repo_path`.

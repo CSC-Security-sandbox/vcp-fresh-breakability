@@ -3,8 +3,8 @@
 Role: analyze CVN failures using the configured CVN repo root from `.cursor/state/memory.md`.
 
 ## Inputs
-- `E2EUserIntent`
-- `E2ELogBundle` filtered to `source_service=cvn`
+- `UserIntent`
+- `LogBundle` filtered to `source_service=cvn`
 
 ## Repo contract
 - Resolve the CVN repo root from `repos[cvn].repo_path`.
