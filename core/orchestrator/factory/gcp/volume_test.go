@@ -10252,13 +10252,13 @@ func TestDeleteVolume(t *testing.T) {
 			},
 		}
 		volume := &datamodel.Volume{
-			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
-			Name:         "test_volume",
-			AccountID:    account.ID,
-			Account:      account,
-			PoolID:       pool.ID,
-			Pool:         pool,
-			State: models.LifeCycleStatePreparing,
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			State:     models.LifeCycleStatePreparing,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols:         []string{utils.ProtocolNFSv3},
 				SnapReserve:       0,
@@ -21518,6 +21518,69 @@ func TestConvertDatastoreVolumeToModel_CloneFields(t *testing.T) {
 
 		// Assert
 		assert.Equal(tt, uint64(104857600), result.CloneSharedBytes, "CloneSharedBytes should match the datamodel value")
+	})
+}
+
+func TestConvertDatastoreVolumeToModel_IsRegionHA(t *testing.T) {
+	t.Run("MapsVolumeAttributesIsRegionalHAToModel", func(t *testing.T) {
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:   "us-central1-a",
+				SecondaryZone: "us-central1-b",
+				IsRegionalHA:  true,
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test_volume",
+			State:       models.LifeCycleStateREADY,
+			Account:     account,
+			Pool:        pool,
+			SizeInBytes: 1073741824,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsRegionalHA: true,
+			},
+		}
+		result := _convertDatastoreVolumeToModel(volume, nil)
+		require.NotNil(t, result)
+		assert.True(t, result.IsRegionalHA)
+		assert.Equal(t, "us-central1-b", result.SecondaryZone)
+	})
+	t.Run("ZonalVolumeDoesNotSetIsRegionHAButKeepsPoolSecondaryZoneOnModel", func(t *testing.T) {
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:   "us-central1-a",
+				SecondaryZone: "us-central1-c",
+				IsRegionalHA:  false,
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test_volume",
+			State:       models.LifeCycleStateREADY,
+			Account:     account,
+			Pool:        pool,
+			SizeInBytes: 1073741824,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsRegionalHA: false,
+			},
+		}
+		result := _convertDatastoreVolumeToModel(volume, nil)
+		require.NotNil(t, result)
+		assert.False(t, result.IsRegionalHA)
+		assert.Equal(t, "us-central1-c", result.SecondaryZone)
 	})
 }
 

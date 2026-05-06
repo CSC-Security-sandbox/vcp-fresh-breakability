@@ -51,6 +51,7 @@ type Volume struct {
 	ThroughputMibps             *int64
 	Iops                        *int64
 	VolumePerformanceGroupId    string
+	IsRegionalHA                bool
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

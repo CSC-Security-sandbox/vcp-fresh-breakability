@@ -7284,6 +7284,52 @@ func TestV1betaCreateVolume(t *testing.T) {
 }
 
 func TestConvertModelToVCPVolume(t *testing.T) {
+	t.Run("RegionalHAWithSecondaryZoneSetsAPISecondaryZone", func(t *testing.T) {
+		vol := &models.Volume{
+			IsRegionalHA:   true,
+			Zone:           "us-central1-a",
+			SecondaryZone:  "us-central1-b",
+			CreationToken:  "token",
+			PoolID:         "pool",
+			QuotaInBytes:   1024,
+			ProtocolTypes:  []string{"NFSV3"},
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		out := convertModelToVCPVolume(vol)
+		require.NotNil(t, out)
+		assert.True(t, out.SecondaryZone.IsSet())
+		assert.Equal(t, "us-central1-b", out.SecondaryZone.Value)
+	})
+	t.Run("RegionalHAButEmptySecondaryZoneOmitsAPISecondaryZone", func(t *testing.T) {
+		vol := &models.Volume{
+			IsRegionalHA:   true,
+			Zone:           "us-central1-a",
+			SecondaryZone:  "",
+			CreationToken:  "token",
+			PoolID:         "pool",
+			QuotaInBytes:   1024,
+			ProtocolTypes:  []string{"NFSV3"},
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		out := convertModelToVCPVolume(vol)
+		require.NotNil(t, out)
+		assert.False(t, out.SecondaryZone.IsSet())
+	})
+	t.Run("ZonalVolumeOmitsAPISecondaryZoneEvenWhenPoolHadSecondaryZone", func(t *testing.T) {
+		vol := &models.Volume{
+			IsRegionalHA:   false,
+			Zone:           "us-central1-a",
+			SecondaryZone:  "us-central1-c",
+			CreationToken:  "token",
+			PoolID:         "pool",
+			QuotaInBytes:   1024,
+			ProtocolTypes:  []string{"NFSV3"},
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		out := convertModelToVCPVolume(vol)
+		require.NotNil(t, out)
+		assert.False(t, out.SecondaryZone.IsSet())
+	})
 	t.Run("AllFieldsSet", func(t *testing.T) {
 		vol := &models.Volume{
 			CreationToken:             "token",

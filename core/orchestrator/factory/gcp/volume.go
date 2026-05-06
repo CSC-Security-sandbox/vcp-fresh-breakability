@@ -41,32 +41,32 @@ import (
 )
 
 var (
-	minCVSizeInBytes                     = env.GetUint64("MIN_CONSTITUENT_VOLUME_SIZE_BYTES", 100*bytesPerGB)
-	maxCVSizeInBytes                     = env.GetUint64("MAX_CONSTITUENT_VOLUME_SIZE_BYTES", 300*utils.TiBInBytes)
-	numOfLvHAPairs                       = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
-	defaultConstituentsPerAggregate      = env.GetInt64("DEFAULT_CONSTITUENTS_PER_AGGREGATE", 8)
-	isActivePassive                      = env.GetBool("NON_LINEAR_SCALING_ACTIVE_PASSIVE", true)
-	volumeRefreshIntervalMinutes         = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
-	maxThinClonesPerPool                 = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
-	thinCloneGASupport                   = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
-	validateCloneATPolicyMatchParent     = env.GetBool("VALIDATE_CLONE_AT_POLICY_MATCH_PARENT", false)
-	minQuotaInBytesVolume                = utils.MinQuotaInBytesVolumeForVolume
-	maxQuotaInBytesVolume                = utils.MaxQuotaInBytesVolumeForVolume
-	maxQuotaInBytesFilesVolume           = utils.MaxQuotaInBytesForFileVolume
-	createVolume                         = _createVolume
-	revertVolume                         = _revertVolume
-	splitStartVolume                     = _splitStartVolume
-	updateCloneState                     = _updateCloneState
-	validateCreateVolumeParams           = _validateCreateVolumeParams
-	validateVolumeQosParams              = mqos.ValidateVolumeQosParams
-	validateSplitStartVolumeParams       = _validateSplitStartVolumeParams
-	getIPAddressForVolume                = _getIPAddressForVolume
-	updateVolume                         = _updateVolume
-	deleteVolume                         = _deleteVolume
-	validateDeleteVolumeParams           = _validateDeleteVolumeParams
-	updateVolumeStatus                   = _updateVolumeStatus
-	convertDatastoreVolumeToModel        = _convertDatastoreVolumeToModel
-	minPrimeNumberConfigAllowed          = 7
+	minCVSizeInBytes                 = env.GetUint64("MIN_CONSTITUENT_VOLUME_SIZE_BYTES", 100*bytesPerGB)
+	maxCVSizeInBytes                 = env.GetUint64("MAX_CONSTITUENT_VOLUME_SIZE_BYTES", 300*utils.TiBInBytes)
+	numOfLvHAPairs                   = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
+	defaultConstituentsPerAggregate  = env.GetInt64("DEFAULT_CONSTITUENTS_PER_AGGREGATE", 8)
+	isActivePassive                  = env.GetBool("NON_LINEAR_SCALING_ACTIVE_PASSIVE", true)
+	volumeRefreshIntervalMinutes     = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
+	maxThinClonesPerPool             = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
+	thinCloneGASupport               = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	validateCloneATPolicyMatchParent = env.GetBool("VALIDATE_CLONE_AT_POLICY_MATCH_PARENT", false)
+	minQuotaInBytesVolume            = utils.MinQuotaInBytesVolumeForVolume
+	maxQuotaInBytesVolume            = utils.MaxQuotaInBytesVolumeForVolume
+	maxQuotaInBytesFilesVolume       = utils.MaxQuotaInBytesForFileVolume
+	createVolume                     = _createVolume
+	revertVolume                     = _revertVolume
+	splitStartVolume                 = _splitStartVolume
+	updateCloneState                 = _updateCloneState
+	validateCreateVolumeParams       = _validateCreateVolumeParams
+	validateVolumeQosParams          = mqos.ValidateVolumeQosParams
+	validateSplitStartVolumeParams   = _validateSplitStartVolumeParams
+	getIPAddressForVolume            = _getIPAddressForVolume
+	updateVolume                     = _updateVolume
+	deleteVolume                     = _deleteVolume
+	validateDeleteVolumeParams       = _validateDeleteVolumeParams
+	updateVolumeStatus               = _updateVolumeStatus
+	convertDatastoreVolumeToModel    = _convertDatastoreVolumeToModel
+	minPrimeNumberConfigAllowed      = 7
 
 	envIsLocalEnv                              = env.IsLocalEnv
 	cvpCreateClient                            = cvp.CreateClient
@@ -1715,6 +1715,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 	if attributes != nil {
 		res.KerberosEnabled = attributes.KerberosEnabled
 		res.LdapEnabled = attributes.LdapEnabled
+		res.IsRegionalHA = attributes.IsRegionalHA
 	}
 	if volume.Pool != nil {
 		if volume.Pool.PoolAttributes != nil {

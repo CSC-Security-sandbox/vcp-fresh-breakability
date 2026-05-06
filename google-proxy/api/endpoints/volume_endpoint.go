@@ -1673,6 +1673,9 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 		LargeCapacity:      gcpgenserver.NewOptNilBool(volume.LargeCapacity),
 	}
+	if volume.IsRegionalHA && volume.SecondaryZone != "" {
+		res.SecondaryZone = gcpgenserver.NewOptNilString(volume.SecondaryZone)
+	}
 
 	// inReplication: only set when true (source or destination); omit when not in replication
 	if volume.InReplication != nil && *volume.InReplication {
