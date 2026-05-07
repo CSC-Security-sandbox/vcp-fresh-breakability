@@ -302,7 +302,7 @@ func startBackgroundTaskScheduler(ctx context.Context, se database.Storage, temp
 	if env.GetBool("LEAKED_RESOURCES_MONITORING_ENABLED", false) {
 		leakedResourcesCronExpr := env.GetString("LEAKED_RESOURCES_MONITORING_CRON_EXPRESSION", leakedResourcesMonitoringCronExpressionDefault)
 		logger.InfoContext(ctx, "Leaked resources monitoring cron", "expression", leakedResourcesCronExpr)
-		leakedResourcesErr := cronScheduler.AddFunc(leakedResourcesCronExpr, func() { runLockedLeakedResourcesMonitoringTask(ctx, se, logger) })
+		leakedResourcesErr := cronScheduler.AddFunc(leakedResourcesCronExpr, func() { runLockedLeakedResourcesMonitoringTask(ctx, se, temporal, logger) })
 		if leakedResourcesErr != nil {
 			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "schedule_registration")
 			logger.ErrorContext(ctx, "Failed to schedule Leaked Resources Monitoring Task", "error", leakedResourcesErr)
@@ -481,7 +481,7 @@ func runLockedWorkflowSupervisorTask(ctx context.Context, se database.Storage, t
 	}
 }
 
-func runLockedLeakedResourcesMonitoringTask(ctx context.Context, se database.Storage, logger log.Logger) {
+func runLockedLeakedResourcesMonitoringTask(ctx context.Context, se database.Storage, temporal client.Client, logger log.Logger) {
 	logger.InfoContext(ctx, "Starting leaked resources monitoring task with lock")
 
 	cronExpr := env.GetString("LEAKED_RESOURCES_MONITORING_CRON_EXPRESSION", leakedResourcesMonitoringCronExpressionDefault)
@@ -500,7 +500,7 @@ func runLockedLeakedResourcesMonitoringTask(ctx context.Context, se database.Sto
 		defer releaseAdminJobSpecLock(ctx, se, leakedResourcesMonitoringJobType, leakedResourcesMonitoringLockTimeoutSeconds, logger)
 		runCtx, cancel := context.WithTimeout(ctx, time.Duration(leakedResourcesMonitoringRunTimeoutSeconds)*time.Second)
 		defer cancel()
-		if err := leakedresources.Run(runCtx, se); err != nil {
+		if err := leakedresources.Run(runCtx, se, temporal); err != nil {
 			logger.ErrorContext(ctx, "Leaked resources monitoring failed", "error", err)
 			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "run")
 		}
@@ -539,7 +539,7 @@ func runLockedLeakedResourcesMonitoringTask(ctx context.Context, se database.Sto
 		defer releaseAdminJobSpecLock(ctx, se, leakedResourcesMonitoringJobType, leakedResourcesMonitoringLockTimeoutSeconds, logger)
 		runCtx, cancel := context.WithTimeout(ctx, time.Duration(leakedResourcesMonitoringRunTimeoutSeconds)*time.Second)
 		defer cancel()
-		if err := leakedresources.Run(runCtx, se); err != nil {
+		if err := leakedresources.Run(runCtx, se, temporal); err != nil {
 			logger.ErrorContext(ctx, "Leaked resources monitoring failed", "error", err)
 			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "run")
 		}

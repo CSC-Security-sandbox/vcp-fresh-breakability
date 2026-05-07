@@ -10,6 +10,7 @@ import (
 	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/client"
 )
 
 var newRegionalAddressLister = hyperscalerleakedresources.NewRegionalAddressLister
@@ -85,12 +86,24 @@ func (p *Pipeline) Run(ctx context.Context, storage database.Storage) error {
 	return nil
 }
 
-// Run executes the default pipeline with registered detectors (pool CCFE vs VCP; volume, snapshot in follow-up).
-// Invoked by the cron in core/app.go.
-func Run(ctx context.Context, storage database.Storage) error {
+// Run executes the default pipeline with registered detectors (pool: live
+// CCFE fetch via FetchCCFEPoolsWorkflow; volume, snapshot in follow-up).
+// Invoked by the cron in core/app.go. The pool detector now triggers two
+// Temporal workflows synchronously per tick — one GetRegionZonesWorkflow
+// to enumerate zones in LOCAL_REGION and one FetchCCFEPoolsWorkflow per
+// VCP account (which fans the per-(project, location) CCFE list calls out
+// as parallel activities inside the workflow) — so CCFE data is always
+// fresh and every zone in the region is diffed (including zones VCP has
+// no rows in yet). There is no longer a clh_resources cache or a separate
+// sync schedule. The CCFE client is still used directly by the
+// BackupVaultDetector until that one is migrated to the same pattern.
+func Run(ctx context.Context, storage database.Storage, temporalClient client.Client) error {
 	p := NewPipeline()
 	ccfeClient := ccfe.NewClient(auth.GenerateCallbackToken)
-	p.RegisterDetector(detectors.NewPoolDetector(ccfeClient))
+	ccfePoolFetcher := detectors.NewTemporalCCFEPoolFetcher(temporalClient)
+	zoneFetcher := detectors.NewTemporalZoneFetcher(temporalClient)
+	keyLister := detectors.NewProjectLocationLister(storage, zoneFetcher)
+	p.RegisterDetector(detectors.NewPoolDetector(ccfePoolFetcher, keyLister))
 	p.RegisterDetector(detectors.NewVolumeOrphanDetector())
 	p.RegisterDetector(detectors.NewSnapshotOrphanDetector())
 	p.RegisterDetector(detectors.NewBackupVaultDetector(ccfeClient))

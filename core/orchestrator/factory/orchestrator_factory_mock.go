@@ -5758,6 +5758,65 @@ func (_c *MockOrchestratorFactory_GetMultipleVolumes_Call) RunAndReturn(run func
 	return _c
 }
 
+// GetNodesByPoolUUID provides a mock function with given fields: ctx, poolUUID
+func (_m *MockOrchestratorFactory) GetNodesByPoolUUID(ctx context.Context, poolUUID string) ([]*datamodel.Node, error) {
+	ret := _m.Called(ctx, poolUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNodesByPoolUUID")
+	}
+
+	var r0 []*datamodel.Node
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Node, error)); ok {
+		return rf(ctx, poolUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Node); ok {
+		r0 = rf(ctx, poolUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Node)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, poolUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetNodesByPoolUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNodesByPoolUUID'
+type MockOrchestratorFactory_GetNodesByPoolUUID_Call struct {
+	*mock.Call
+}
+
+// GetNodesByPoolUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolUUID string
+func (_e *MockOrchestratorFactory_Expecter) GetNodesByPoolUUID(ctx interface{}, poolUUID interface{}) *MockOrchestratorFactory_GetNodesByPoolUUID_Call {
+	return &MockOrchestratorFactory_GetNodesByPoolUUID_Call{Call: _e.mock.On("GetNodesByPoolUUID", ctx, poolUUID)}
+}
+
+func (_c *MockOrchestratorFactory_GetNodesByPoolUUID_Call) Run(run func(ctx context.Context, poolUUID string)) *MockOrchestratorFactory_GetNodesByPoolUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetNodesByPoolUUID_Call) Return(_a0 []*datamodel.Node, _a1 error) *MockOrchestratorFactory_GetNodesByPoolUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetNodesByPoolUUID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Node, error)) *MockOrchestratorFactory_GetNodesByPoolUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetPoolByName provides a mock function with given fields: ctx, poolName, accountName, queryDepth
 func (_m *MockOrchestratorFactory) GetPoolByName(ctx context.Context, poolName string, accountName string, queryDepth int) (*models.Pool, error) {
 	ret := _m.Called(ctx, poolName, accountName, queryDepth)
@@ -6288,65 +6347,6 @@ func (_c *MockOrchestratorFactory_GetSnapshot_Call) Return(_a0 *models.Snapshot,
 }
 
 func (_c *MockOrchestratorFactory_GetSnapshot_Call) RunAndReturn(run func(context.Context, *common.GetSnapshotParams) (*models.Snapshot, error)) *MockOrchestratorFactory_GetSnapshot_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetNodesByPoolUUID provides a mock function with given fields: ctx, poolUUID
-func (_m *MockOrchestratorFactory) GetNodesByPoolUUID(ctx context.Context, poolUUID string) ([]*datamodel.Node, error) {
-	ret := _m.Called(ctx, poolUUID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetNodesByPoolUUID")
-	}
-
-	var r0 []*datamodel.Node
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Node, error)); ok {
-		return rf(ctx, poolUUID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Node); ok {
-		r0 = rf(ctx, poolUUID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*datamodel.Node)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, poolUUID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockOrchestratorFactory_GetNodesByPoolUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNodesByPoolUUID'
-type MockOrchestratorFactory_GetNodesByPoolUUID_Call struct {
-	*mock.Call
-}
-
-// GetNodesByPoolUUID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - poolUUID string
-func (_e *MockOrchestratorFactory_Expecter) GetNodesByPoolUUID(ctx interface{}, poolUUID interface{}) *MockOrchestratorFactory_GetNodesByPoolUUID_Call {
-	return &MockOrchestratorFactory_GetNodesByPoolUUID_Call{Call: _e.mock.On("GetNodesByPoolUUID", ctx, poolUUID)}
-}
-
-func (_c *MockOrchestratorFactory_GetNodesByPoolUUID_Call) Run(run func(ctx context.Context, poolUUID string)) *MockOrchestratorFactory_GetNodesByPoolUUID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_GetNodesByPoolUUID_Call) Return(_a0 []*datamodel.Node, _a1 error) *MockOrchestratorFactory_GetNodesByPoolUUID_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_GetNodesByPoolUUID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Node, error)) *MockOrchestratorFactory_GetNodesByPoolUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }

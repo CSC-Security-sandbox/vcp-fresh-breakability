@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -25,14 +26,20 @@ const (
 )
 
 // listStoragePoolsResponse represents a minimal CCFE list storage pools response.
+// CCFE's internal list endpoint returns pools under "internalStoragePools".
 // Name is typically "projects/{project}/locations/{location}/storagePools/{poolResourceId}".
+// NetappUUID is the value VCP wrote when CCFE first hydrated the pool and is the
+// identifier we compare against datamodel.Pool.UUID — names can be reused across
+// recreations, UUIDs cannot, so the leaked-resources diff keys off UUID.
 type listStoragePoolsResponse struct {
-	StoragePools []ccfeStoragePoolItem `json:"storagePools"`
+	StoragePools []ccfeStoragePoolItem `json:"internalStoragePools"`
 }
 
 type ccfeStoragePoolItem struct {
-	Name   string `json:"name"`
-	PoolID string `json:"poolId,omitempty"`
+	Name       string `json:"name"`
+	NetappUUID string `json:"netappUuid,omitempty"`
+	PoolID     string `json:"poolId,omitempty"`
+	State      string `json:"state,omitempty"`
 }
 
 // listBackupVaultsResponse represents a minimal CCFE list backup vaults response.
@@ -101,9 +108,19 @@ func NewClient(getToken func(context.Context) (string, error), opts ...ClientOpt
 	return c
 }
 
-// ListStoragePools returns pool resource names (last segment of name path) for the given project and location.
-// Location is typically a region (e.g. us-central1) or zone. Returns nil slice and nil error if base URL is empty (CCFE disabled).
-func (c *Client) ListStoragePools(ctx context.Context, projectID, location string) ([]string, error) {
+// ListStoragePools returns one poolpairs.CachedPool per pool that CCFE knows about
+// for the given project and location. Each element carries the pool's netappUuid
+// (the comparison key, equal to VCP's Pool.UUID) and its short resource name (the
+// last segment of CCFE's "name" field, kept for human-readable leak records).
+// Pools missing a netappUuid — typically those still being created — are dropped
+// with a debug log so they cannot drive false leak signals before CCFE has a
+// stable identifier for them.
+//
+// Location is typically a region (e.g. us-central1) or zone. Returns (nil, nil)
+// if the base URL is empty (CCFE disabled), so callers can distinguish "CCFE
+// returned no pools" from "we never asked CCFE". The activity layer relies on
+// that distinction to avoid clobbering a previously-good cache snapshot.
+func (c *Client) ListStoragePools(ctx context.Context, projectID, location string) ([]poolpairs.CachedPool, error) {
 	logger := util.GetLogger(ctx)
 	relPath := fmt.Sprintf(c.listStoragePoolsPathTemplate, projectID, location)
 
@@ -148,15 +165,24 @@ func (c *Client) ListStoragePools(ctx context.Context, projectID, location strin
 	if err := json.Unmarshal(body, &listResp); err != nil {
 		return nil, fmt.Errorf("parse response: %w", err)
 	}
-	names := make([]string, 0, len(listResp.StoragePools))
+	pools := make([]poolpairs.CachedPool, 0, len(listResp.StoragePools))
+	skippedNoUUID := 0
 	for _, p := range listResp.StoragePools {
-		resourceName := poolResourceNameFromCCFEItem(p)
-		if resourceName != "" {
-			names = append(names, resourceName)
+		uuid := strings.TrimSpace(p.NetappUUID)
+		if uuid == "" {
+			skippedNoUUID++
+			logger.Debugf("leaked resources CCFE: skipping pool without netappUuid project=%s location=%s name=%q state=%q",
+				projectID, location, p.Name, p.State)
+			continue
 		}
+		pools = append(pools, poolpairs.CachedPool{
+			UUID: uuid,
+			Name: poolResourceNameFromCCFEItem(p),
+		})
 	}
-	logger.Infof("leaked resources CCFE: ListStoragePools ok project=%s location=%s pool_count=%d", projectID, location, len(names))
-	return names, nil
+	logger.Infof("leaked resources CCFE: ListStoragePools ok project=%s location=%s pool_count=%d skipped_no_uuid=%d",
+		projectID, location, len(pools), skippedNoUUID)
+	return pools, nil
 }
 
 // ListBackupVaults returns backup vault resource identifiers for the given project and location
@@ -313,8 +339,11 @@ func (c *Client) ListBackupVaults(ctx context.Context, projectID, location strin
 // 	return names, nil
 // }
 
-// poolResourceNameFromCCFEItem returns the pool resource ID/name for comparison with VCP.
-// Prefers the last segment of name path (projects/.../storagePools/<id>); falls back to poolId if set.
+// poolResourceNameFromCCFEItem returns the pool's short resource name (the
+// last segment of CCFE's "name" path, e.g. "satya1-tcase-24-a1"). It is used
+// purely for human-readable leak records and operational logs — the leaked
+// resources diff itself keys off NetappUUID. Falls back to poolId when the
+// "name" field is missing.
 func poolResourceNameFromCCFEItem(p ccfeStoragePoolItem) string {
 	if p.Name != "" {
 		const prefix = "storagePools/"

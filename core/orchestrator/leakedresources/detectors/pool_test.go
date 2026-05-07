@@ -7,21 +7,51 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
-type mockCCFEPoolLister struct {
+// mockCCFEPoolFetcher is the testing-side implementation of CCFEPoolFetcher.
+// We keep it small enough to inline rather than bringing in a full
+// mockery-generated mock.
+type mockCCFEPoolFetcher struct {
 	mock.Mock
 }
 
-func (m *mockCCFEPoolLister) ListStoragePools(ctx context.Context, projectID, location string) ([]string, error) {
-	args := m.Called(ctx, projectID, location)
+func (m *mockCCFEPoolFetcher) FetchCCFEPools(ctx context.Context, projectID string, locations []string) (map[string][]poolpairs.CachedPool, error) {
+	args := m.Called(ctx, projectID, locations)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]string), args.Error(1)
+	return args.Get(0).(map[string][]poolpairs.CachedPool), args.Error(1)
+}
+
+// mockKeyLister is a constructor-driven ProjectLocationLister so each test
+// can pin the exact list of (project, location) pairs the detector should
+// iterate.
+type mockKeyLister struct {
+	pairs []poolpairs.PoolProjectLocation
+	err   error
+	calls int
+}
+
+func (m *mockKeyLister) ListProjectLocations(_ context.Context) ([]poolpairs.PoolProjectLocation, error) {
+	m.calls++
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.pairs, nil
+}
+
+func newKeyLister(pairs ...poolpairs.PoolProjectLocation) *mockKeyLister {
+	return &mockKeyLister{pairs: pairs}
+}
+
+func pair(project, location string) poolpairs.PoolProjectLocation {
+	return poolpairs.PoolProjectLocation{ProjectID: project, Location: location}
 }
 
 func poolView(id int64, uuid, name, projectID, primaryZone string, isRegionalHA bool) *datamodel.PoolView {
@@ -31,139 +61,248 @@ func poolView(id int64, uuid, name, projectID, primaryZone string, isRegionalHA 
 			Name:      name,
 			Account:   &datamodel.Account{Name: projectID},
 			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone:   primaryZone,
-				IsRegionalHA:  isRegionalHA,
+				PrimaryZone:  primaryZone,
+				IsRegionalHA: isRegionalHA,
 			},
 		},
 	}
 }
 
 func TestPoolDetector_Name(t *testing.T) {
-	ccfe := &mockCCFEPoolLister{}
-	d := NewPoolDetector(ccfe)
+	d := NewPoolDetector(&mockCCFEPoolFetcher{}, newKeyLister())
 	assert.Equal(t, "pool", d.Name())
 }
 
 func TestPoolDetector_Detect_ListPoolsFails(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, errors.New("db error"))
-	ccfe := &mockCCFEPoolLister{}
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
+	fetcher := &mockCCFEPoolFetcher{}
 
-	d := NewPoolDetector(ccfe)
+	d := NewPoolDetector(fetcher, newKeyLister())
 	records, err := d.Detect(ctx, storage)
 	assert.Error(t, err)
 	assert.Nil(t, records)
 }
 
-func TestPoolDetector_Detect_NoPools(t *testing.T) {
+func TestPoolDetector_Detect_KeyListerFails_ReturnsError(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	ccfe := &mockCCFEPoolLister{}
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	fetcher := &mockCCFEPoolFetcher{}
 
-	d := NewPoolDetector(ccfe)
+	d := NewPoolDetector(fetcher, &mockKeyLister{err: errors.New("env not set")})
+	records, err := d.Detect(ctx, storage)
+	assert.Error(t, err)
+	assert.Nil(t, records)
+	fetcher.AssertNotCalled(t, "FetchCCFEPools")
+}
+
+// TestPoolDetector_Detect_NoEnumeratedPairs_NoFetches is the empty-shard
+// case (no accounts → no enumerated pairs). The detector must skip the
+// CCFE diff entirely.
+func TestPoolDetector_Detect_NoEnumeratedPairs_NoFetches(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	fetcher := &mockCCFEPoolFetcher{}
+
+	d := NewPoolDetector(fetcher, newKeyLister())
 	records, err := d.Detect(ctx, storage)
 	assert.NoError(t, err)
 	assert.Empty(t, records)
-	ccfe.AssertNotCalled(t, "ListStoragePools")
+	fetcher.AssertNotCalled(t, "FetchCCFEPools")
 }
 
-func TestPoolDetector_Detect_PoolsSkipped_NoAccountOrPrimaryZone(t *testing.T) {
+// TestPoolDetector_Detect_OneWorkflowPerProject is the marquee structural
+// guarantee: enumerated pairs that share a project must collapse into a
+// single FetchCCFEPools call carrying every location for that project.
+// Different projects each get their own call.
+func TestPoolDetector_Detect_OneWorkflowPerProject(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
-	// Pool without Account and PoolAttributes is skipped, so no groups -> no CCFE calls
-	pools := []*datamodel.PoolView{
-		{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "p1"}},
-	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 
-	d := NewPoolDetector(ccfe)
+	fetcher := &mockCCFEPoolFetcher{}
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1", "us-central1-a", "us-central1-b"}).
+		Return(map[string][]poolpairs.CachedPool{
+			"us-central1":   {},
+			"us-central1-a": {},
+			"us-central1-b": {},
+		}, nil).Once()
+	fetcher.On("FetchCCFEPools", ctx, "proj2", []string{"us-central1"}).
+		Return(map[string][]poolpairs.CachedPool{"us-central1": {}}, nil).Once()
+
+	d := NewPoolDetector(fetcher, newKeyLister(
+		pair("proj1", "us-central1"),
+		pair("proj1", "us-central1-a"),
+		pair("proj1", "us-central1-b"),
+		pair("proj2", "us-central1"),
+	))
 	records, err := d.Detect(ctx, storage)
 	assert.NoError(t, err)
 	assert.Empty(t, records)
-	ccfe.AssertNotCalled(t, "ListStoragePools")
+	fetcher.AssertExpectations(t)
 }
 
-func TestPoolDetector_Detect_CCFEReturnsNil_SkipsPair(t *testing.T) {
+// TestPoolDetector_Detect_NilCCFEResult_SkipsPair covers the "CCFE
+// disabled or transient miss" branch — the activity returned (nil, nil)
+// after Temporal's retries gave up. The workflow keeps the location in
+// the map with a nil value; the detector must skip that pair.
+func TestPoolDetector_Detect_NilCCFEResult_SkipsPair(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
 		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a", false),
 	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1-a").Return(nil, nil) // CCFE disabled; location is zone for zonal pool
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
+	fetcher := &mockCCFEPoolFetcher{}
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
+		Return(map[string][]poolpairs.CachedPool{"us-central1-a": nil}, nil)
 
-	d := NewPoolDetector(ccfe)
+	d := NewPoolDetector(fetcher, newKeyLister(pair("proj1", "us-central1-a")))
 	records, err := d.Detect(ctx, storage)
 	assert.NoError(t, err)
 	assert.Empty(t, records)
-	ccfe.AssertExpectations(t)
+	fetcher.AssertExpectations(t)
+}
+
+// TestPoolDetector_Detect_MissingLocationKey_SkipsPair covers the
+// "workflow couldn't fetch this location" case: an activity exhausted
+// retries and the workflow omitted the location from the map. The
+// detector must skip that pair too.
+func TestPoolDetector_Detect_MissingLocationKey_SkipsPair(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	pools := []*datamodel.PoolView{
+		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a", false),
+	}
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
+	fetcher := &mockCCFEPoolFetcher{}
+	// us-central1-a was requested but workflow returned an empty map (or a map
+	// without the key) because the activity exhausted retries.
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
+		Return(map[string][]poolpairs.CachedPool{}, nil)
+
+	d := NewPoolDetector(fetcher, newKeyLister(pair("proj1", "us-central1-a")))
+	records, err := d.Detect(ctx, storage)
+	assert.NoError(t, err)
+	assert.Empty(t, records)
+	fetcher.AssertExpectations(t)
 }
 
 func TestPoolDetector_Detect_InCCFENotInVCP(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "vcp-only-pool", "proj1", "us-central1-a", false),
+		poolView(1, "uuid-vcp", "vcp-pool", "proj1", "us-central1-a", false),
 	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1-a").Return([]string{"vcp-only-pool", "ccfe-extra-pool"}, nil)
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
+	fetcher := &mockCCFEPoolFetcher{}
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
+		Return(map[string][]poolpairs.CachedPool{
+			"us-central1-a": {
+				{UUID: "uuid-vcp", Name: "vcp-pool"},
+				{UUID: "uuid-ccfe-only", Name: "ccfe-extra-pool"},
+			},
+		}, nil)
 
-	d := NewPoolDetector(ccfe)
+	d := NewPoolDetector(fetcher, newKeyLister(pair("proj1", "us-central1-a")))
 	records, err := d.Detect(ctx, storage)
 	assert.NoError(t, err)
 	assert.Len(t, records, 1)
 	assert.Equal(t, model.ResourceTypePool, records[0].ResourceType)
-	assert.Equal(t, "ccfe-extra-pool", records[0].ResourceID)
+	assert.Equal(t, "uuid-ccfe-only", records[0].ResourceID)
 	assert.Equal(t, "ccfe-extra-pool", records[0].ResourceName)
 	assert.Equal(t, "proj1", records[0].ProjectID)
 	assert.Equal(t, "us-central1-a", records[0].Region)
 	assert.Equal(t, ReasonInCCFENotInVCP, records[0].Reason)
+	assert.Equal(t, "uuid-ccfe-only", records[0].Extra["uuid"])
 }
 
 func TestPoolDetector_Detect_InVCPNotInCCFE(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid-1", "vcp-pool-1", "proj1", "us-central1-a", false),
-		poolView(2, "pool-uuid-2", "vcp-pool-2", "proj1", "us-central1-a", false),
+		poolView(1, "uuid-1", "vcp-pool-1", "proj1", "us-central1-a", false),
+		poolView(2, "uuid-2", "vcp-pool-2", "proj1", "us-central1-a", false),
 	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1-a").Return([]string{"vcp-pool-1"}, nil) // vcp-pool-2 missing in CCFE
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
+	fetcher := &mockCCFEPoolFetcher{}
+	// CCFE only knows about uuid-1 -> uuid-2 must be flagged as in_vcp_not_in_ccfe.
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
+		Return(map[string][]poolpairs.CachedPool{
+			"us-central1-a": {{UUID: "uuid-1", Name: "vcp-pool-1"}},
+		}, nil)
 
-	d := NewPoolDetector(ccfe)
+	d := NewPoolDetector(fetcher, newKeyLister(pair("proj1", "us-central1-a")))
 	records, err := d.Detect(ctx, storage)
 	assert.NoError(t, err)
 	assert.Len(t, records, 1)
-	assert.Equal(t, model.ResourceTypePool, records[0].ResourceType)
-	assert.Equal(t, "pool-uuid-2", records[0].ResourceID)
+	assert.Equal(t, "uuid-2", records[0].ResourceID)
 	assert.Equal(t, "vcp-pool-2", records[0].ResourceName)
-	assert.Equal(t, "proj1", records[0].ProjectID)
-	assert.Equal(t, "us-central1-a", records[0].Region)
 	assert.Equal(t, ReasonInVCPNotInCCFE, records[0].Reason)
-	assert.Equal(t, "pool-uuid-2", records[0].Extra["uuid"])
 }
 
-func TestPoolDetector_Detect_CCFEFails_SkipsPair(t *testing.T) {
+// TestPoolDetector_Detect_NameReusedAcrossUUIDs guards the "name can be
+// reused" case the UUID-keyed comparison is meant to catch.
+func TestPoolDetector_Detect_NameReusedAcrossUUIDs(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a", false),
+		poolView(1, "uuid-vcp", "shared-name", "proj1", "us-central1-a", false),
 	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1-a").Return(nil, errors.New("ccfe error"))
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
+	fetcher := &mockCCFEPoolFetcher{}
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
+		Return(map[string][]poolpairs.CachedPool{
+			"us-central1-a": {{UUID: "uuid-ccfe", Name: "shared-name"}},
+		}, nil)
 
-	d := NewPoolDetector(ccfe)
+	d := NewPoolDetector(fetcher, newKeyLister(pair("proj1", "us-central1-a")))
+	records, err := d.Detect(ctx, storage)
+	assert.NoError(t, err)
+	require.Len(t, records, 2)
+
+	byReason := map[string]model.LeakRecord{}
+	for _, r := range records {
+		byReason[r.Reason] = r
+	}
+	require.Contains(t, byReason, ReasonInCCFENotInVCP)
+	require.Contains(t, byReason, ReasonInVCPNotInCCFE)
+	assert.Equal(t, "uuid-ccfe", byReason[ReasonInCCFENotInVCP].ResourceID)
+	assert.Equal(t, "uuid-vcp", byReason[ReasonInVCPNotInCCFE].ResourceID)
+}
+
+// TestPoolDetector_Detect_FetchFails_SkipsProject ensures a permanent
+// workflow failure (e.g. Temporal infra error or workflow reported error)
+// is logged and the project is skipped rather than aborting the whole
+// detector — other projects can still produce useful leak records.
+func TestPoolDetector_Detect_FetchFails_SkipsProject(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	pools := []*datamodel.PoolView{
+		poolView(1, "uuid-1", "pool-1", "proj1", "us-central1-a", false),
+		poolView(2, "uuid-2", "pool-2", "proj2", "us-central1-a", false),
+	}
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
+	fetcher := &mockCCFEPoolFetcher{}
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
+		Return(nil, errors.New("temporal boom"))
+	// Other project still gets fetched.
+	fetcher.On("FetchCCFEPools", ctx, "proj2", []string{"us-central1-a"}).
+		Return(map[string][]poolpairs.CachedPool{
+			"us-central1-a": {{UUID: "uuid-2", Name: "pool-2"}},
+		}, nil)
+
+	d := NewPoolDetector(fetcher, newKeyLister(
+		pair("proj1", "us-central1-a"),
+		pair("proj2", "us-central1-a"),
+	))
 	records, err := d.Detect(ctx, storage)
 	assert.NoError(t, err)
 	assert.Empty(t, records)
-	ccfe.AssertExpectations(t)
+	fetcher.AssertExpectations(t)
 }
 
 func TestPoolDetector_Detect_NoLeaks_SameInBoth(t *testing.T) {
@@ -172,92 +311,74 @@ func TestPoolDetector_Detect_NoLeaks_SameInBoth(t *testing.T) {
 	pools := []*datamodel.PoolView{
 		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a", false),
 	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1-a").Return([]string{"pool-name"}, nil)
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
+	fetcher := &mockCCFEPoolFetcher{}
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
+		Return(map[string][]poolpairs.CachedPool{
+			"us-central1-a": {{UUID: "pool-uuid", Name: "pool-name"}},
+		}, nil)
 
-	d := NewPoolDetector(ccfe)
+	d := NewPoolDetector(fetcher, newKeyLister(pair("proj1", "us-central1-a")))
 	records, err := d.Detect(ctx, storage)
 	assert.NoError(t, err)
 	assert.Empty(t, records)
 }
 
-// TestPoolDetector_Detect_RegionalPool_PrimaryZoneIsZone_CallsCCFEWithRegion ensures that when a regional HA
-// pool has PrimaryZone stored as a zone string (e.g. us-central1-a), CCFE is called with the derived region
-// (us-central1), not the zone. This is the typical real-world case for regional pools.
-func TestPoolDetector_Detect_RegionalPool_PrimaryZoneIsZone_CallsCCFEWithRegion(t *testing.T) {
+// TestPoolDetector_Detect_FetchesEnumeratedZonesEvenWhenVCPHasNoPools
+// locks in the design intent: even zones VCP has no rows in must be
+// fetched and diffed, so CCFE-only pools surface as in_ccfe_not_in_vcp.
+func TestPoolDetector_Detect_FetchesEnumeratedZonesEvenWhenVCPHasNoPools(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
+	// VCP only has a pool in zone-a; the enumeration also includes region,
+	// zone-b, and zone-c. The detector must still fetch all four locations
+	// in one workflow call and report any CCFE-only pools the workflow
+	// returned.
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "regional-pool", "proj1", "us-central1-a", true), // IsRegionalHA=true, PrimaryZone is zone
+		poolView(1, "uuid-vcp", "vcp-pool", "proj1", "australia-southeast1-a", false),
 	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1").Return([]string{"regional-pool"}, nil)
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
 
-	d := NewPoolDetector(ccfe)
+	fetcher := &mockCCFEPoolFetcher{}
+	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{
+		"australia-southeast1",
+		"australia-southeast1-a",
+		"australia-southeast1-b",
+		"australia-southeast1-c",
+	}).Return(map[string][]poolpairs.CachedPool{
+		"australia-southeast1":   {},
+		"australia-southeast1-a": {{UUID: "uuid-vcp", Name: "vcp-pool"}},
+		"australia-southeast1-b": {},
+		"australia-southeast1-c": {{UUID: "uuid-zone-c-only", Name: "ccfe-only-zone-c"}},
+	}, nil).Once()
+
+	d := NewPoolDetector(fetcher, newKeyLister(
+		pair("proj1", "australia-southeast1"),
+		pair("proj1", "australia-southeast1-a"),
+		pair("proj1", "australia-southeast1-b"),
+		pair("proj1", "australia-southeast1-c"),
+	))
 	records, err := d.Detect(ctx, storage)
 	assert.NoError(t, err)
-	assert.Empty(t, records)
-	ccfe.AssertExpectations(t)
+	require.Len(t, records, 1)
+	assert.Equal(t, "uuid-zone-c-only", records[0].ResourceID)
+	assert.Equal(t, "australia-southeast1-c", records[0].Region)
+	assert.Equal(t, ReasonInCCFENotInVCP, records[0].Reason)
+	fetcher.AssertExpectations(t)
 }
 
-// TestPoolDetector_Detect_RegionalPool_UseRegionAsLocation ensures pools with PrimaryZone as a region
-// (e.g. us-central1 with no zone suffix) trigger CCFE list with region as location.
-func TestPoolDetector_Detect_RegionalPool_UseRegionAsLocation(t *testing.T) {
-	ctx := context.Background()
-	storage := database.NewMockStorage(t)
-	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "regional-pool", "proj1", "us-central1", true),
-	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1").Return([]string{"regional-pool"}, nil)
-
-	d := NewPoolDetector(ccfe)
-	records, err := d.Detect(ctx, storage)
-	assert.NoError(t, err)
-	assert.Empty(t, records)
-	ccfe.AssertExpectations(t)
+func TestNewTemporalCCFEPoolFetcher_NilClient_ReturnsError(t *testing.T) {
+	f := NewTemporalCCFEPoolFetcher(nil)
+	require.NotNil(t, f)
+	pools, err := f.FetchCCFEPools(context.Background(), "proj-a", []string{"us-central1"})
+	assert.Error(t, err)
+	assert.Nil(t, pools)
 }
 
-// TestPoolDetector_Detect_ZonalPool_PrimaryZoneRegionOnly_UsesRegionAsFallback ensures a zonal pool
-// (IsRegionalHA=false) with PrimaryZone as region-only (e.g. us-central1) still gets a CCFE call using
-// region as location fallback when zone parses empty.
-func TestPoolDetector_Detect_ZonalPool_PrimaryZoneRegionOnly_UsesRegionAsFallback(t *testing.T) {
-	ctx := context.Background()
-	storage := database.NewMockStorage(t)
-	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "zonal-pool", "proj1", "us-central1", false), // zone parses empty, fallback to region
-	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1").Return([]string{"zonal-pool"}, nil)
-
-	d := NewPoolDetector(ccfe)
-	records, err := d.Detect(ctx, storage)
-	assert.NoError(t, err)
-	assert.Empty(t, records)
-	ccfe.AssertExpectations(t)
-}
-
-// TestPoolDetector_Detect_ZonalAndRegional_SeparateGroups ensures zonal and regional pools in the same
-// project/region result in separate CCFE calls (one per location scope).
-func TestPoolDetector_Detect_ZonalAndRegional_SeparateGroups(t *testing.T) {
-	ctx := context.Background()
-	storage := database.NewMockStorage(t)
-	pools := []*datamodel.PoolView{
-		poolView(1, "uuid-zonal", "zonal-pool", "proj1", "australia-southeast1-a", false),
-		poolView(2, "uuid-regional", "regional-pool", "proj1", "australia-southeast1", true),
-	}
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
-	ccfe := &mockCCFEPoolLister{}
-	ccfe.On("ListStoragePools", ctx, "proj1", "australia-southeast1-a").Return([]string{"zonal-pool"}, nil)
-	ccfe.On("ListStoragePools", ctx, "proj1", "australia-southeast1").Return([]string{"regional-pool"}, nil)
-
-	d := NewPoolDetector(ccfe)
-	records, err := d.Detect(ctx, storage)
-	assert.NoError(t, err)
-	assert.Empty(t, records)
-	ccfe.AssertExpectations(t)
+func TestNewTemporalZoneFetcher_NilClient_ReturnsError(t *testing.T) {
+	f := NewTemporalZoneFetcher(nil)
+	require.NotNil(t, f)
+	zones, err := f.GetRegionZones(context.Background(), "us-central1")
+	assert.Error(t, err)
+	assert.Nil(t, zones)
 }

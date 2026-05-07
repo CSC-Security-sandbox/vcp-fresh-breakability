@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/ccfe"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
@@ -33,6 +34,7 @@ import (
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -511,6 +513,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.RotatePoolCertificateWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.RotatePoolPasswordWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.BackupSizeDetailsWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.FetchCCFEPoolsWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.GetRegionZonesWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeCreateReconciliationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeDeleteReconciliationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeUpdateReconciliationWorkflow)
@@ -549,6 +553,10 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.FlexCachePrepopulateActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.RotateVcpToVsaCertificateActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ControlWorkflowActivity{})
+	worker.RegisterActivity(&backgroundactivities.FetchStoragePoolsActivity{
+		CCFE: ccfe.NewClient(auth.GenerateCallbackToken),
+	})
+	worker.RegisterActivity(&backgroundactivities.GetRegionZonesActivity{})
 	worker.RegisterActivity(&expertmodeactivities.ExpertModeVolumeActivity{SE: conn})
 	worker.RegisterActivity(&expertmodeactivities.RBACUpdateActivity{SE: conn})
 	worker.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{SE: conn})
