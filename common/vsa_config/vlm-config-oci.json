@@ -1,0 +1,209 @@
+{
+  "cloud": {
+    "ha_pair": []
+  },
+  "deployment": {
+    "provider": "oci",
+    "deployment_id": "",
+    "serial_number_prefix": "",
+    "vm_serial_numbers": [],
+    "region": "us-ashburn-1",
+    "zone": {
+      "zone1": "",
+      "zone2": "",
+      "mediator_zone": ""
+    },
+    "images": {
+      "vsa_image_name": "",
+      "mediator_image_name": ""
+    },
+    "tags": "",
+    "labels": {},
+    "user_boot_args": "",
+    "user_custom_data": {},
+    "deployment_type": "non_shared_ha",
+    "num_ha_pair": 1,
+    "vsa_instance_type": "VM.DenseIO.E5.Flex",
+    "mediator_instance_type": "VM.DenseIO.E5.Flex",
+    "data_disk_type": "",
+    "system_disk_type": "",
+    "mediator_disk_type": "",
+    "data_disk_count": 8,
+    "vsa_system_disk_config": {
+      "boot": {
+        "name": "",
+        "size": 0,
+        "access_mode": "",
+        "type": "",
+        "disk_iops": 0,
+        "disk_throughput": 0,
+        "resource_status": "",
+        "zone": ""
+      },
+      "nvram": {
+        "name": "",
+        "size": 0,
+        "access_mode": "",
+        "type": "",
+        "disk_iops": 0,
+        "disk_throughput": 0,
+        "resource_status": "",
+        "zone": ""
+      },
+      "core": {
+        "name": "",
+        "size": 0,
+        "access_mode": "",
+        "type": "",
+        "disk_iops": 0,
+        "disk_throughput": 0,
+        "resource_status": "",
+        "zone": ""
+      },
+      "root": {
+        "name": "",
+        "size": 0,
+        "access_mode": "",
+        "type": "",
+        "disk_iops": 0,
+        "disk_throughput": 0,
+        "resource_status": "",
+        "zone": ""
+      },
+      "rootcopy": {
+        "name": "",
+        "size": 0,
+        "access_mode": "",
+        "type": "",
+        "disk_iops": 0,
+        "disk_throughput": 0,
+        "resource_status": "",
+        "zone": ""
+      },
+      "data": {
+        "name": "",
+        "size": 0,
+        "access_mode": "",
+        "type": "",
+        "disk_iops": 0,
+        "disk_throughput": 0,
+        "resource_status": "",
+        "zone": ""
+      }
+    },
+    "net_config": {
+      "nodemgmt": {
+        "vpc": "",
+        "subnet": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      },
+      "nodemgmtinternal": {
+        "subnet": "",
+        "vpc": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      },
+      "ic": {
+        "vpc": "",
+        "subnet": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      },
+      "clus": {
+        "subnet": "",
+        "vpc": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      },
+      "intercluster": {
+        "subnet": "",
+        "vpc": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      },
+      "rsm": {
+        "vpc": "",
+        "subnet": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      },
+      "san": {
+        "subnet": "",
+        "vpc": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      },
+      "nas": {
+        "subnet": "",
+        "vpc": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      },
+      "mediator": {
+        "subnet": "",
+        "vpc": "",
+        "gateway": "",
+        "gcp_network_config": {
+          "subnet_project_id": ""
+        }
+      }
+    },
+    "ociconfig": {
+      "compartment_id": "",
+      "tenancy_id": "",
+      "region": "us-ashburn-1",
+      "image_id": "",
+      "mediator_image_id": ""
+    },
+    "spconfig": {
+      "size": "1Ti",
+      "iops": 16000,
+      "tput": 800
+    },
+    "dev_flags": {
+      "ext_ip_for_node_mgmt": false,
+      "disable_data_nic_tier1": false,
+      "enable_premium_tier_data": false,
+      "DisableGVNIC": false,
+      "enable_nfs_v3_support": false
+    },
+    "ontap_credentials": {
+      "certificate": {
+        "certificate": "",
+        "private_key": "",
+        "intermediate_certificate": "",
+        "common_name": ""
+      },
+      "admin_password": "",
+      "username": "",
+      "password": ""
+    }
+  },
+  "vsa_cluster": {
+    "cluster_mgmt_netmask": "",
+    "cluster_mgmt_gateway": "",
+    "cust_broadcast_domain": "",
+    "cust_ip_space": "",
+    "object_store_name": "",
+    "cluster_name": ""
+  },
+  "data_aggr": [],
+  "svm": {}
+}

@@ -723,7 +723,39 @@ jobs:
                 --arg sourcePath "${DF_DIR}/Dockerfile" \
                 '. + [{"name":$name,"sourcePath":$sourcePath}]')
             fi
+            if [ -f "${DF_DIR}/Dockerfile.oci" ]; then
+              DOCKERFILES_JSON=$(echo "$DOCKERFILES_JSON" | jq \
+                --arg name "Dockerfile.oci.${DF_DIR}" \
+                --arg sourcePath "${DF_DIR}/Dockerfile.oci" \
+                '. + [{"name":$name,"sourcePath":$sourcePath}]')
+            fi
           done
+
+          # --- Build context bundle (OCI Dockerfiles + OCI config for binary-based image rebuild) ---
+          # Ships OCI-specific Dockerfiles (Dockerfile.oci) so existing GCP Dockerfiles are untouched.
+          BUNDLE_NAME="release-build-context-${IMAGES_TAG}.tar.gz"
+          BUNDLE_FILES=""
+          for DF_DIR in worker oci-proxy; do
+            [ -f "${DF_DIR}/Dockerfile.oci" ] && BUNDLE_FILES="${BUNDLE_FILES} ${DF_DIR}/Dockerfile.oci"
+          done
+          [ -d "common/vsa_config" ] && BUNDLE_FILES="${BUNDLE_FILES} common/vsa_config/"
+          [ -f "config/vmrs_oci.yaml" ] && BUNDLE_FILES="${BUNDLE_FILES} config/vmrs_oci.yaml"
+          if [ -n "$BUNDLE_FILES" ]; then
+            tar czf "artifacts/${BUNDLE_NAME}" ${BUNDLE_FILES}
+            BUNDLE_SHA=$(sha256sum "artifacts/${BUNDLE_NAME}" | awk '{print $1}')
+            BUNDLE_SIZE=$(stat -c%s "artifacts/${BUNDLE_NAME}" 2>/dev/null || stat -f%z "artifacts/${BUNDLE_NAME}")
+            BUNDLE_OCI="ghcr.io/${GHCR_ORG}/${BINARY_PATH}/release-build-context:${IMAGES_TAG}"
+            BUILD_CONTEXT_JSON=$(jq -n \
+              --arg oci "$BUNDLE_OCI" \
+              --arg sha256 "$BUNDLE_SHA" \
+              --argjson sizeBytes "$BUNDLE_SIZE" \
+              --arg filename "$BUNDLE_NAME" \
+              '{"oci":$oci,"sha256":$sha256,"sizeBytes":$sizeBytes,"filename":$filename}')
+            echo "Build context bundle: ${BUNDLE_NAME} (${BUNDLE_SIZE} bytes, sha256=${BUNDLE_SHA})"
+          else
+            BUILD_CONTEXT_JSON="null"
+            echo "Warning: No build context files found — buildContext will be null in manifest"
+          fi
 
           # --- Assemble manifest ---
           jq -n \
@@ -740,6 +772,7 @@ jobs:
             --argjson ocirImages "$OCIR_IMAGES_JSON" \
             --argjson helmCharts "$CHARTS_JSON" \
             --argjson dockerfiles "$DOCKERFILES_JSON" \
+            --argjson buildContext "$BUILD_CONTEXT_JSON" \
             --arg minOntap "$MIN_ONTAP" \
             --arg maxOntap "$MAX_ONTAP" \
             '{
@@ -763,7 +796,8 @@ jobs:
                   "images": $ocirImages
                 },
                 "helmCharts": $helmCharts,
-                "dockerfiles": $dockerfiles
+                "dockerfiles": $dockerfiles,
+                "buildContext": $buildContext
               },
               "compatibility": {
                 "minimumOntapVersion": $minOntap,
@@ -801,6 +835,36 @@ jobs:
           COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key "ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest@${DIGEST}" --tlog-upload=false
           cosign verify --key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${MANIFEST_PATH}/release-manifest@${DIGEST}" --insecure-ignore-tlog=true
           echo "Signed and verified release manifest"
+        shell: bash -e {0}
+
+      - name: Push release build context bundle to GHCR
+        if: ${{ inputs.create_release }}
+        env:
+          GHCR_ORG: vcp-vsa-control-plane
+          BINARY_PATH: ${{ vars.AR_BINARY_PATH }}
+          IMAGES_TAG: ${{ inputs.tag }}
+        run: |
+          BUNDLE="artifacts/release-build-context-${IMAGES_TAG}.tar.gz"
+          if [ ! -f "$BUNDLE" ]; then
+            echo "No build context bundle found — skipping push"
+            exit 0
+          fi
+          ARTIFACT_REF="ghcr.io/${GHCR_ORG}/${BINARY_PATH}/release-build-context:${IMAGES_TAG}"
+          echo "Pushing build context bundle -> ${ARTIFACT_REF}"
+          oras push "$ARTIFACT_REF" \
+            --artifact-type "application/vnd.netapp.vcp.build-context.v1+tar+gzip" \
+            "${BUNDLE}:application/gzip"
+          echo "Pushed ${ARTIFACT_REF}"
+
+          DIGEST=$(oras resolve "$ARTIFACT_REF")
+          if [ -z "$DIGEST" ]; then
+            echo "Error: Failed to resolve digest for release build context OCI artifact"
+            exit 1
+          fi
+          echo "Signing release build context: release-build-context@${DIGEST}"
+          COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/release-build-context@${DIGEST}" --tlog-upload=false
+          cosign verify --key /tmp/cosign.pub "ghcr.io/${GHCR_ORG}/${BINARY_PATH}/release-build-context@${DIGEST}" --insecure-ignore-tlog=true
+          echo "Signed and verified release build context"
         shell: bash -e {0}
 
       - name: Create a release

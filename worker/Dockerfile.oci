@@ -1,0 +1,9 @@
+ARG BASE
+FROM $BASE
+
+COPY artifacts/vcp-worker /app
+COPY common/vsa_config/vlm-config-oci.json /common/vsa_config/vlm-config.json
+COPY config/vmrs_oci.yaml /config/vmrs_oci.yaml
+
+USER nonroot:nonroot
+CMD ["/app"]

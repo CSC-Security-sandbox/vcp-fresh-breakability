@@ -37,6 +37,7 @@ data:
   VSA_OPERATION_TIMEOUT: {{ $.Values.workerConfig.vsaOperationTimeout | quote }}
   LOGGER_LEVEL: {{ $.Values.workerConfig.loggerLevel | quote }}
   VLM_CONFIG_FILE_PATH: {{ $.Values.workerConfig.vlmConfigFilePath | quote }}
+  VMRS_CONFIG_PATH: {{ $.Values.workerConfig.vmrsConfigPath | quote }}
   CERTIFICATE_LIFETIME: {{ $.Values.workerConfig.certificateLifetime | quote }}
   CA_NAME: {{ $.Values.workerConfig.caName | quote }}
   ENABLE_VSA_CERTIFICATE_ROTATION: {{ $.Values.workerConfig.enableVsaCertificateRotation | quote }}

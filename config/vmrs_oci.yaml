@@ -1,0 +1,146 @@
+# ===============================================================================
+# VMRS (VM Right Sizing) Configuration for OCI
+# ===============================================================================
+#
+# PLACEHOLDER: This file is a structural copy of vmrs_gcp.yaml.
+# Update with OCI-qualified VM shapes, block volume limits, and perf-team
+# data before using in production OCI deployments.
+#
+# This file describes VMRS (VM Right Sizing) module related configuration.
+# It merges facts provided by our perf team and hyperscaler documented limits into a single source of truth.
+#
+# We nest all these details under a parent `vmrs` tag to avoid namespace clashes.
+#
+# STRATEGY SELECTION:
+# - Change 'selection_strategy' below to choose the decision-making algorithm
+# - Each strategy uses different subsets of the configuration sections
+#
+# ===============================================================================
+#
+# The structure of this config is as follows:
+#
+# vmrs: # top level namespace disambiguator
+#   max_num_ha_pairs: 12 # The max. number of HA pairs that we are allowed. This field constraints the max. performance/capacity that a single storage pool can be provisioned for.
+#   ontap_overheads: # This data is provided by the perf team. The data in this section should be hyperscaler agnostic.
+#     amplification_factors:
+#     # We expect a multiplication factor.
+#     # For example, if we want to allocate a 10% overhead, please input 1.1
+#       iops: 1.1 # Overhead to overprovision by to guarantee that customer observes the IOPs they requested.
+#       throughput: 1.1 # Overhead to overprovision by to guarantee that customer observes the throughput they requested.
+#       capacity: 1.1 # WAFL overhead.
+#     num_disks_per_zone: 8 # The number of disks that will be attached to each HA-pair (shared zonal mode), or VM (non-shared regional mode) to form an aggregate.
+#     workload_headroom: # If the headroom values are 0, do not include this field at all.
+#       - workload: backup # The name of the feature which is enabled.
+#         headroom: # Additional headroom to provision in case this feature is enabled.
+#           iops : 0.05
+#           throughput: 0.05
+#     hotspot_prevention_factors: # Additional overhead to provision to prevent hot-spotting.
+#     # We expect a multiplication factor.
+#     # For example, if we want to allocate a 10% overhead, please input 1.1
+#       iops: 1.1
+#       throughput: 1.1
+#   - disk_type: oci_block_volume # OCI block volume type
+#     qualified_vms:
+#     - vm_type: VM.DenseIO.E5.Flex # OCI shape
+#       ontap_perf:
+#         iops: I
+#         throughput_in_mibs: T
+#         capacity_in_gib: C
+#       disk_perf:
+#         iops: I
+#         throughput_in_mibs: T
+#         capacity_in_gib: C
+#       relative_cost: 1
+vmrs:
+  # ============================================================================
+  # STRATEGY SELECTION (Required)
+  # ============================================================================
+  selection_strategy: "least_cost_single_vm"
+
+  # ============================================================================
+  # SHARED CONFIGURATION (Used by ALL strategies)
+  # ============================================================================
+
+  max_num_ha_pairs: 12
+
+  max_disk_overprovisioning_factors:
+    iops: 1.1
+    throughput: 1.1
+
+  # ============================================================================
+  # LARGE VOLUME CLUSTER STRATEGY CONFIGURATION
+  # ============================================================================
+  non_linear_scaling_active_passive:
+    base_factor: 1.0
+    max_scaling_factor: 10.0
+
+    iops_factors:
+      1: 1.0
+      2: 1.8
+      6: 4.8
+      12: 4.9
+
+    throughput_factors:
+      1: 1.0
+      2: 1.8
+      6: 4.8
+      12: 5.8
+
+  non_linear_scaling_active_active:
+    base_factor: 1.0
+    max_scaling_factor: 10.0
+
+    iops_factors:
+      1: 1.0
+      2: 1.8
+      6: 4.0
+      12: 4.9
+
+    throughput_factors:
+      1: 1.0
+      2: 1.8
+      6: 4.5
+      12: 5.8
+
+  # ============================================================================
+  # ONTAP Overheads (hyperscaler-agnostic)
+  # ============================================================================
+  ontap_overheads:
+    amplification_factors:
+      iops: 1.8
+      throughput: 2.15
+      capacity: 1.2
+    workload_headroom:
+      - workload: all
+        headroom:
+          iops: 0.3
+          throughput: 0.3
+    num_disks_per_zone: 8
+    hotspot_prevention_factors:
+      iops: 1.1
+      throughput: 1.1
+
+  # ============================================================================
+  # VM AND DISK PERFORMANCE LIMITS — OCI
+  # ============================================================================
+  #
+  # TODO: Replace with OCI-qualified shapes and block volume limits from perf team.
+  # Current values are GCP placeholders and will not produce correct sizing on OCI.
+  #
+  # OCI block volume docs:
+  #   https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/blockvolumeperformance.htm
+  #
+  disk_limits:
+    - disk_type: oci_block_volume
+      qualified_vms:
+
+      - vm_type: VM.DenseIO.E5.Flex
+        ontap_perf:
+          iops: 12085
+          throughput_in_mibs: 106
+          capacity_in_gib: 213000
+        disk_perf:
+          iops: 25000
+          throughput_in_mibs: 400
+          capacity_in_gib: 257000
+        relative_cost: 4
