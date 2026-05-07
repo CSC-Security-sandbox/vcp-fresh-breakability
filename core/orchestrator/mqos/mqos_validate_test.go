@@ -47,6 +47,18 @@ func TestValidateVolumeQosParams(t *testing.T) {
 		assert.Contains(tt, err.Error(), utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg)
 	})
 
+	t.Run("Manual Pool blocked for replication when throughput and VPG not provided", func(tt *testing.T) {
+		replicationPoolWithTotals := PoolQosInput{
+			QosType:             utils.QosTypeManual,
+			PoolThroughputMibps: 10000,
+			PoolIops:            50000,
+			ForReplication:      true,
+		}
+		_, err := ValidateVolumeQosParams(replicationPoolWithTotals, nil, nil, nil)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), utils.ErrMsgMQoSDestPoolNotAllowed)
+	})
+
 	t.Run("Manual Pool Allows VPG ID Without Throughput", func(tt *testing.T) {
 		orig := enableVolumePerformanceGroupAssignment
 		enableVolumePerformanceGroupAssignment = true

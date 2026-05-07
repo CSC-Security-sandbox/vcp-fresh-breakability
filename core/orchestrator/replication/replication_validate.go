@@ -334,7 +334,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	}
 
 	// Validate QoS parameters (MQoS rules and throughput range); pool capacity is validated below
-	poolQos := mqos.PoolQosInput{QosType: destPool.QosType.Value}
+	poolQos := mqos.PoolQosInput{QosType: destPool.QosType.Value, ForReplication: true}
 	poolQos.PoolThroughputMibps = int64(destPool.TotalThroughputMibps.Value)
 	poolQos.PoolIops = int64(destPool.TotalIops.Value)
 	calculatedIops, err := validateVolumeQosParamsForReplication(poolQos, destVolumeParams.ThroughputMibps, destVolumeParams.Iops, destVolumeParams.VolumePerformanceGroupId)

@@ -20,6 +20,8 @@ var (
 )
 
 type PoolQosInput struct {
+	// Determines if we are validating for replication or not - replication uses a different error message
+	ForReplication      bool
 	QosType             string
 	PoolThroughputMibps int64
 	PoolIops            int64
@@ -51,7 +53,11 @@ func ValidateVolumeQosParams(pool PoolQosInput, throughputMibps *int64, iops *in
 	// Manual pools require either throughputMibps or volumePerformanceGroupId (if MQOS is enabled)
 	if pool.QosType == utils.QosTypeManual {
 		if enableMqos && !hasThroughput && !hasVpgId {
-			return nil, customerrors.NewUserInputValidationErr(utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg)
+			errMsg := utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg
+			if pool.ForReplication {
+				errMsg = utils.ErrMsgMQoSDestPoolNotAllowed
+			}
+			return nil, customerrors.NewUserInputValidationErr(errMsg)
 		}
 	}
 
