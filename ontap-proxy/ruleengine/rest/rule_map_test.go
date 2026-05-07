@@ -1155,6 +1155,34 @@ func TestSecurityCertificatesRule(t *testing.T) {
 		assert.True(t, allowed, "POST with type=client should be allowed")
 	})
 
+	t.Run("WhenPOSTWithTypeServerCA_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		body := bytes.NewBufferString(`{"type": "server_ca", "common_name": "test.example.com"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with type=server_ca should be allowed")
+	})
+
+	t.Run("WhenPOSTWithTypeClientCA_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		body := bytes.NewBufferString(`{"type": "client_ca", "common_name": "test.example.com"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with type=client_ca should be allowed")
+	})
+
 	t.Run("WhenPOSTWithTypeRootCA_ShouldDeny", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/security/certificates"]

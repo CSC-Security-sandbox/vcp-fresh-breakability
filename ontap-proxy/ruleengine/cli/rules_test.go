@@ -1233,33 +1233,33 @@ func TestSecurityCertificateCreateRule_BlocksRootCA(t *testing.T) {
 		}
 	})
 
-	t.Run("WhenTypeServerCA_ShouldDeny", func(t *testing.T) {
+	t.Run("WhenTypeServerCA_ShouldAllow", func(t *testing.T) {
 		cmd := &CLICommand{
 			FullCommand: "security certificate create",
 			Arguments: map[string]string{
 				"-vserver":     "vs1",
-				"-common-name": "rogue-ca",
+				"-common-name": "my-ca",
 				"-type":        "server-ca",
 			},
 		}
-		allowed, _ := EvaluateRule(rule, cmd)
-		if allowed {
-			t.Error("Expected denied for -type server-ca")
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed for -type server-ca, got denied: %s", reason)
 		}
 	})
 
-	t.Run("WhenTypeClientCA_ShouldDeny", func(t *testing.T) {
+	t.Run("WhenTypeClientCA_ShouldAllow", func(t *testing.T) {
 		cmd := &CLICommand{
 			FullCommand: "security certificate create",
 			Arguments: map[string]string{
 				"-vserver":     "vs1",
-				"-common-name": "rogue-ca",
+				"-common-name": "my-ca",
 				"-type":        "client-ca",
 			},
 		}
-		allowed, _ := EvaluateRule(rule, cmd)
-		if allowed {
-			t.Error("Expected denied for -type client-ca")
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed for -type client-ca, got denied: %s", reason)
 		}
 	})
 

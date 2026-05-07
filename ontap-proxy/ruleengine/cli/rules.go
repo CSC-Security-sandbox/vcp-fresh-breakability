@@ -378,12 +378,12 @@ var cliRules = []CLIRule{
 	{
 		Pattern:   "security certificate create",
 		Allow:     true,
-		Condition: CLIIfPresentThenValue("-type", "server", "client"),
+		Condition: CLIIfPresentThenValue("-type", "server", "client", "server-ca", "client-ca"),
 	},
 	{
 		Pattern:   "sec certificate create",
 		Allow:     true,
-		Condition: CLIIfPresentThenValue("-type", "server", "client"),
+		Condition: CLIIfPresentThenValue("-type", "server", "client", "server-ca", "client-ca"),
 	},
 	{
 		Pattern: "security certificate install",

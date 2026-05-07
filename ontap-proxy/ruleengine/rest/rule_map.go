@@ -394,7 +394,7 @@ func GetProxyRules() map[string]Rule {
 			GET: AllowAll{},
 			POST: When{
 				Name:      "Certificate creation validation",
-				Condition: IfPresentThenValue("type", "server", "client"),
+				Condition: IfPresentThenValue("type", "server", "client", "server_ca", "client_ca"),
 				IsTrue:    AllowAll{},
 			},
 			PATCH:  Deny{Name: "Certificate collection modification not allowed"},
