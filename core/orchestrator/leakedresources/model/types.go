@@ -11,6 +11,7 @@ const (
 	ResourceTypeSnapshot           ResourceType = "snapshot"
 	ResourceTypeInternalReservedIP ResourceType = "internal_reserved_ip"
 	ResourceTypeBackupVault        ResourceType = "backup_vault"
+	ResourceTypeDisk               ResourceType = "disk"
 )
 
 // LeakRecord is the unified record for a single leaked resource, produced by

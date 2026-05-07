@@ -80,6 +80,8 @@ type (
 		GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error)
 		GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error)
 		ListTpProjects(ctx context.Context) ([]string, error)
+		// ListAllTpProjects returns all distinct RTP values, including soft-deleted.
+		ListAllTpProjects(ctx context.Context) ([]string, error)
 
 		// GetKmsConfigsByUUIDs fetches KMS configs by UUID without relation preloads; callers derive
 		// all batch-KMS fields from the base row and the KmsAttributes JSON column.

@@ -116,5 +116,8 @@ func Run(ctx context.Context, storage database.Storage, temporalClient client.Cl
 		p.RegisterDetector(detectors.NewInternalReservedIPDetector(lister, detectors.DefaultInternalReservedIPMinAge()))
 	}
 
+	// Disk detector: invokes GCE Compute API via Temporal workflow, diffs disks vs active pools
+	p.RegisterDetector(detectors.NewDiskDetector())
+
 	return p.Run(ctx, storage)
 }

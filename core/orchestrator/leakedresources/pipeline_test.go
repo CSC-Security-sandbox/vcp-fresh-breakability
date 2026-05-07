@@ -162,14 +162,17 @@ func TestRun(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	pinLocalRegionEmpty(t)
 
-	orig := newRegionalAddressLister
+	origAddr := newRegionalAddressLister
 	newRegionalAddressLister = func(ctx context.Context) (hyperscalerleakedresources.RegionalAddressLister, error) {
 		return nil, errors.New("test: force skip internal detector")
 	}
-	t.Cleanup(func() { newRegionalAddressLister = orig })
+	t.Cleanup(func() {
+		newRegionalAddressLister = origAddr
+	})
 
-	// TestRun intentionally does not require cloud access; internal_reserved_ip detector may be skipped
-	// when regional address lister cannot initialize (e.g., local/no credentials).
+	// The disk detector is registered unconditionally. It calls ListAllTpProjects first;
+	// returning empty skips the scan without needing Temporal.
+	storage.EXPECT().ListAllTpProjects(ctx).Return(nil, nil).Once()
 	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(nil, nil).Once() // pool detector
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, nil).Once()                        // volume detector
 	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once()               // snapshot detector accountID→name map
@@ -192,12 +195,15 @@ func TestRun_WithInternalReservedIPDetectorRegistered(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	pinLocalRegionEmpty(t)
 
-	orig := newRegionalAddressLister
+	origAddr := newRegionalAddressLister
 	newRegionalAddressLister = func(ctx context.Context) (hyperscalerleakedresources.RegionalAddressLister, error) {
 		return &emptyRegionalAddressLister{}, nil
 	}
-	t.Cleanup(func() { newRegionalAddressLister = orig })
+	t.Cleanup(func() {
+		newRegionalAddressLister = origAddr
+	})
 
+	storage.EXPECT().ListAllTpProjects(ctx).Return(nil, nil).Once()
 	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(nil, nil).Once() // pool detector
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, nil).Times(2)                      // volume + internal_reserved_ip
 	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once()               // snapshot detector accountID→name map

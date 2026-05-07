@@ -520,6 +520,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeUpdateReconciliationWorkflow)
 	worker.RegisterWorkflow(workflows.VolumePollSplitWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.ExpertModeFlexCloneSplitWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.ScanGCEDisksWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -564,4 +565,5 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(backgroundactivities.EmitPasswordRotationFailureMetric)
 	worker.RegisterActivity(backgroundactivities.EmitKmsKeyLimitReachedMetric)
 	worker.RegisterActivity(backgroundactivities.EmitKmsRotationFailureMetric)
+	worker.RegisterActivity(&backgroundactivities.ScanGCEDisksActivity{})
 }

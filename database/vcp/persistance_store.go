@@ -1441,6 +1441,10 @@ func (s *PersistenceStore) ListTpProjects(ctx context.Context) ([]string, error)
 	return s.dataStore.ListTpProjects(ctx)
 }
 
+func (s *PersistenceStore) ListAllTpProjects(ctx context.Context) ([]string, error) {
+	return s.dataStore.ListAllTpProjects(ctx)
+}
+
 func (s *PersistenceStore) GetSoftDeleteAccount(ctx context.Context, name string) (*datamodel.Account, error) {
 	return s.dataStore.GetSoftDeleteAccount(ctx, name)
 }

@@ -710,6 +710,24 @@ func (d *DataStoreRepository) ListTpProjects(ctx context.Context) ([]string, err
 	return projects, nil
 }
 
+// ListAllTpProjects returns distinct regional_tenant_project values including
+// from soft-deleted pools (unscoped). This ensures leaked resource detection
+// covers RTPs where all pools have been deleted but cloud resources remain.
+func (d *DataStoreRepository) ListAllTpProjects(ctx context.Context) ([]string, error) {
+	db := d.db.Unscoped().GORM().WithContext(ctx)
+	var projects []string
+	err := db.
+		Model(&datamodel.Pool{}).
+		Where("cluster_details->>'regional_tenant_project' <> ''").
+		Where("cluster_details->>'regional_tenant_project' IS NOT NULL").
+		Distinct().
+		Pluck("cluster_details->>'regional_tenant_project'", &projects).Error
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
 // PoolIdentifier contains pool identification information
 type PoolIdentifier struct {
 	UUID      string
