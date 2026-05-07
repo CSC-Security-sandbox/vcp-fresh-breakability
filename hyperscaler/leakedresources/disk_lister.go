@@ -3,7 +3,6 @@ package leakedresources
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/diskscan"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -54,6 +53,7 @@ func (l *gcpDiskLister) ListDisks(ctx context.Context, projectID string) ([]disk
 	var out []diskscan.GCEDiskItem
 	err = computeSvc.Disks.AggregatedList(projectID).Pages(ctx, func(resp *compute.DiskAggregatedList) error {
 		for scopeKey, scopedList := range resp.Items {
+			// zoneFromScopeKey is shared in this package (instance_lister.go).
 			zone := zoneFromScopeKey(scopeKey)
 			for _, d := range scopedList.Disks {
 				if d == nil {
@@ -78,14 +78,4 @@ func (l *gcpDiskLister) ListDisks(ctx context.Context, projectID string) ([]disk
 		return out, err
 	}
 	return out, nil
-}
-
-// zoneFromScopeKey extracts the zone name from an aggregated list scope key
-// (e.g. "zones/us-central1-a" -> "us-central1-a").
-func zoneFromScopeKey(key string) string {
-	const prefix = "zones/"
-	if strings.HasPrefix(key, prefix) {
-		return key[len(prefix):]
-	}
-	return key
 }

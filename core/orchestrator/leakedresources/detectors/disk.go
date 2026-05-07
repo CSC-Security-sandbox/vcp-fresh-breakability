@@ -7,15 +7,17 @@ import (
 	"strings"
 	"time"
 
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/diskscan"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/client"
 )
+
+var getEnvInt = env.GetInt
 
 const (
 	ReasonDiskOrphanPoolMissing = "disk_orphan_pool_missing"
@@ -67,7 +69,7 @@ func NewDiskDetector() *DiskDetector {
 }
 
 func defaultDiskMinAge() time.Duration {
-	h := envGetInt("LEAKED_RESOURCES_DISK_MIN_AGE_HOURS", defaultDiskMinAgeHours)
+	h := getEnvInt("LEAKED_RESOURCES_DISK_MIN_AGE_HOURS", defaultDiskMinAgeHours)
 	if h < 1 {
 		h = defaultDiskMinAgeHours
 	}

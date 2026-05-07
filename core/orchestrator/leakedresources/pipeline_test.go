@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
@@ -155,59 +154,26 @@ func TestPipeline_Run_ReporterFails_ReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "report failed")
 }
 
-// TestRun exercises the package-level Run (default pipeline with pool, volume, snapshot detectors).
-// Uses mock storage returning empty data so no auth/CCFE is required; ensures the default pipeline path is covered.
+// TestRun exercises the package-level Run (default pipeline with all detectors registered).
+// Uses mock storage returning empty data so no auth/CCFE/Temporal is required; ensures the
+// default pipeline path is covered. With the IP/VM/Disk detectors all submitting their
+// Compute API calls via Temporal, the empty-pools fast path means no workflow is ever submitted.
 func TestRun(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pinLocalRegionEmpty(t)
 
-	origAddr := newRegionalAddressLister
-	newRegionalAddressLister = func(ctx context.Context) (hyperscalerleakedresources.RegionalAddressLister, error) {
-		return nil, errors.New("test: force skip internal detector")
-	}
-	t.Cleanup(func() {
-		newRegionalAddressLister = origAddr
-	})
-
-	// The disk detector is registered unconditionally. It calls ListAllTpProjects first;
-	// returning empty skips the scan without needing Temporal.
-	storage.EXPECT().ListAllTpProjects(ctx).Return(nil, nil).Once()
-	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(nil, nil).Once() // pool detector
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, nil).Once()                        // volume detector
-	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once()               // snapshot detector accountID→name map
-	storage.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, nil).Times(2)                    // volume detector + snapshot detector
-	storage.EXPECT().GetSnapshotsWithCondition(ctx, mock.Anything).Return(nil, nil).Once()
-	storage.EXPECT().GetMultipleBackupVaults(ctx, mock.Anything).Return(nil, nil).Once()
-
-	err := Run(ctx, storage, nil)
-	assert.NoError(t, err)
-}
-
-type emptyRegionalAddressLister struct{}
-
-func (l *emptyRegionalAddressLister) ListRegionalAddresses(ctx context.Context, projectID, region string) ([]hyperscalerleakedresources.RegionalAddress, error) {
-	return []hyperscalerleakedresources.RegionalAddress{}, nil
-}
-
-func TestRun_WithInternalReservedIPDetectorRegistered(t *testing.T) {
-	ctx := context.Background()
-	storage := database.NewMockStorage(t)
-	pinLocalRegionEmpty(t)
-
-	origAddr := newRegionalAddressLister
-	newRegionalAddressLister = func(ctx context.Context) (hyperscalerleakedresources.RegionalAddressLister, error) {
-		return &emptyRegionalAddressLister{}, nil
-	}
-	t.Cleanup(func() {
-		newRegionalAddressLister = origAddr
-	})
-
-	storage.EXPECT().ListAllTpProjects(ctx).Return(nil, nil).Once()
-	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(nil, nil).Once() // pool detector
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, nil).Times(2)                      // volume + internal_reserved_ip
-	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once()               // snapshot detector accountID→name map
-	storage.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, nil).Times(2)                    // volume + snapshot
+	// pool detector calls ListPoolsSelective first, then fails to enumerate
+	// zones/accounts because pinLocalRegionEmpty forces LOCAL_REGION empty.
+	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(nil, nil).Once()
+	// internal_reserved_ip + volume detectors
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, nil).Times(2)
+	// snapshot + volume detectors
+	storage.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, nil).Times(2)
+	// snapshot detector accountID→name map
+	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once()
+	// vm_orphan + disk_orphan detectors call ListAllTpProjects and exit on empty
+	storage.EXPECT().ListAllTpProjects(ctx).Return(nil, nil).Times(2)
 	storage.EXPECT().GetSnapshotsWithCondition(ctx, mock.Anything).Return(nil, nil).Once()
 	storage.EXPECT().GetMultipleBackupVaults(ctx, mock.Anything).Return(nil, nil).Once()
 

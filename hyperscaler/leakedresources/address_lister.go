@@ -3,13 +3,12 @@ package leakedresources
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	googlehyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/compute/v1"
+	"strings"
+	"time"
 )
 
 var (
@@ -47,7 +46,15 @@ type computeServiceGetter interface {
 }
 
 // NewRegionalAddressLister creates a GCP-backed lister through hyperscaler abstraction.
+//
+// COMPUTE_API_ENDPOINT takes precedence: when set we route Compute API calls
+// through a local proxy (see cmd/local-compute-proxy) and skip both the
+// ENV=local guard and the real GCP client init. That lets the leaked-resources
+// pipeline run end-to-end on a developer laptop without GCP credentials.
 func NewRegionalAddressLister(ctx context.Context) (RegionalAddressLister, error) {
+	if ep := getEnvString("COMPUTE_API_ENDPOINT", ""); ep != "" {
+		return &gcpRegionalAddressLister{svc: newLocalComputeServiceGetter(ep)}, nil
+	}
 	if getEnvString("ENV", "") == "local" {
 		return nil, fmt.Errorf("regional address lister disabled when ENV=local")
 	}

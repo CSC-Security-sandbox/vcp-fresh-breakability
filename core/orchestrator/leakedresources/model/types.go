@@ -11,6 +11,7 @@ const (
 	ResourceTypeSnapshot           ResourceType = "snapshot"
 	ResourceTypeInternalReservedIP ResourceType = "internal_reserved_ip"
 	ResourceTypeBackupVault        ResourceType = "backup_vault"
+	ResourceTypeVM                 ResourceType = "vm"
 	ResourceTypeDisk               ResourceType = "disk"
 )
 

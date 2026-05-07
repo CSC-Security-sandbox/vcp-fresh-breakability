@@ -3,40 +3,52 @@ package detectors
 import (
 	"context"
 	"errors"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/ipscan"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
+	"testing"
+	"time"
 )
 
-type mockRegionalAddressLister struct {
-	mock.Mock
-}
-
-func (m *mockRegionalAddressLister) ListRegionalAddresses(ctx context.Context, projectID, region string) ([]hyperscalerleakedresources.RegionalAddress, error) {
-	args := m.Called(ctx, projectID, region)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+// newInternalReservedIPDetectorForTest constructs a detector with the
+// workflow-submission path swapped out, mirroring the helper pattern used by
+// the VM and disk detector tests.
+func newInternalReservedIPDetectorForTest(submit func(ctx context.Context, in ipscan.ScanInput) (*ipscan.ScanOutput, error), minAge time.Duration) *InternalReservedIPDetector {
+	if minAge <= 0 {
+		minAge = time.Hour
 	}
-	return args.Get(0).([]hyperscalerleakedresources.RegionalAddress), args.Error(1)
+	return &InternalReservedIPDetector{
+		submitWorkflow:    submit,
+		minReservationAge: minAge,
+		taskQueue:         "test-queue",
+	}
 }
 
-var _ RegionalAddressLister = (*mockRegionalAddressLister)(nil)
+// staticIPSubmitter returns a submit function that always yields the same scan output.
+func staticIPSubmitter(out *ipscan.ScanOutput, err error) func(context.Context, ipscan.ScanInput) (*ipscan.ScanOutput, error) {
+	return func(_ context.Context, _ ipscan.ScanInput) (*ipscan.ScanOutput, error) { return out, err }
+}
+
+// scanResultFor builds a one-group ScanOutput for a (project, region) pair.
+func scanResultFor(project, region string, addrs []hyperscalerleakedresources.RegionalAddress) *ipscan.ScanOutput {
+	return &ipscan.ScanOutput{
+		Results: []ipscan.ScanResult{{Project: project, Region: region, Addresses: addrs}},
+	}
+}
 
 func TestInternalReservedIPDetector_Name(t *testing.T) {
-	d := NewInternalReservedIPDetector(&mockRegionalAddressLister{}, time.Hour)
+	d := NewInternalReservedIPDetector(time.Hour)
 	assert.Equal(t, "internal_reserved_ip", d.Name())
 }
 
 func TestNewInternalReservedIPDetector_DefaultMinAge(t *testing.T) {
-	d := NewInternalReservedIPDetector(&mockRegionalAddressLister{}, 0)
+	d := NewInternalReservedIPDetector(0)
 	assert.Equal(t, 6*time.Hour, d.minReservationAge)
 }
 
@@ -65,12 +77,31 @@ func TestInternalReservedIPDetector_Detect_ListPoolsFails(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, errors.New("db error"))
 
-	l := &mockRegionalAddressLister{}
-	d := NewInternalReservedIPDetector(l, time.Hour)
+	called := false
+	d := newInternalReservedIPDetectorForTest(func(context.Context, ipscan.ScanInput) (*ipscan.ScanOutput, error) {
+		called = true
+		return nil, nil
+	}, time.Hour)
 	records, err := d.Detect(ctx, storage)
 	assert.Error(t, err)
 	assert.Nil(t, records)
-	l.AssertNotCalled(t, "ListRegionalAddresses")
+	assert.False(t, called, "submit must not run when listing pools fails")
+}
+
+func TestInternalReservedIPDetector_Detect_NoTargets_SkipsScan(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+
+	called := false
+	d := newInternalReservedIPDetectorForTest(func(context.Context, ipscan.ScanInput) (*ipscan.ScanOutput, error) {
+		called = true
+		return nil, nil
+	}, time.Hour)
+	records, err := d.Detect(ctx, storage)
+	require.NoError(t, err)
+	assert.Empty(t, records)
+	assert.False(t, called, "submit must not run when there are no (project,region) targets")
 }
 
 func readyPoolWithSubnet(tenantProject, subnet, zone string) *datamodel.PoolView {
@@ -111,10 +142,12 @@ func TestInternalReservedIPDetector_Detect_LeakOldUnassignedInternal(t *testing.
 		},
 	}
 
-	l := &mockRegionalAddressLister{}
-	l.On("ListRegionalAddresses", ctx, "proj-tenant", "us-central1").Return(addrs, nil)
+	var captured ipscan.ScanInput
+	d := newInternalReservedIPDetectorForTest(func(_ context.Context, in ipscan.ScanInput) (*ipscan.ScanOutput, error) {
+		captured = in
+		return scanResultFor("proj-tenant", "us-central1", addrs), nil
+	}, time.Hour)
 
-	d := NewInternalReservedIPDetector(l, 1*time.Hour)
 	records, err := d.Detect(ctx, storage)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
@@ -126,6 +159,10 @@ func TestInternalReservedIPDetector_Detect_LeakOldUnassignedInternal(t *testing.
 	assert.Equal(t, "10.1.1.5", records[0].Extra["ip"])
 	assert.Equal(t, "mysub", records[0].Extra["subnet"])
 	assert.Contains(t, records[0].Extra["pool_uuids"], "pool-1")
+
+	require.Len(t, captured.Targets, 1)
+	assert.Equal(t, "proj-tenant", captured.Targets[0].Project)
+	assert.Equal(t, "us-central1", captured.Targets[0].Region)
 }
 
 func TestInternalReservedIPDetector_Detect_SkipsTooNewReservation(t *testing.T) {
@@ -149,10 +186,7 @@ func TestInternalReservedIPDetector_Detect_SkipsTooNewReservation(t *testing.T) 
 		},
 	}
 
-	l := &mockRegionalAddressLister{}
-	l.On("ListRegionalAddresses", ctx, "proj-tenant", "us-central1").Return(addrs, nil)
-
-	d := NewInternalReservedIPDetector(l, 1*time.Hour)
+	d := newInternalReservedIPDetectorForTest(staticIPSubmitter(scanResultFor("proj-tenant", "us-central1", addrs), nil), time.Hour)
 	records, err := d.Detect(ctx, storage)
 	require.NoError(t, err)
 	assert.Empty(t, records)
@@ -185,10 +219,7 @@ func TestInternalReservedIPDetector_Detect_SkipsExternalAndInUse(t *testing.T) {
 		},
 	}
 
-	l := &mockRegionalAddressLister{}
-	l.On("ListRegionalAddresses", ctx, "proj-tenant", "us-central1").Return(addrs, nil)
-
-	d := NewInternalReservedIPDetector(l, 1*time.Hour)
+	d := newInternalReservedIPDetectorForTest(staticIPSubmitter(scanResultFor("proj-tenant", "us-central1", addrs), nil), time.Hour)
 	records, err := d.Detect(ctx, storage)
 	require.NoError(t, err)
 	assert.Empty(t, records)
@@ -223,19 +254,13 @@ func TestInternalReservedIPDetector_Detect_CoversAdditionalSkipBranches(t *testi
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 
 	addrs := []hyperscalerleakedresources.RegionalAddress{
-		// non-RESERVED branch
 		{Name: "in-use-status", AddressType: "INTERNAL", Status: "IN_USE", Subnetwork: "https://www.googleapis.com/compute/v1/projects/tp/regions/us-central1/subnetworks/sn1"},
-		// unparsed timestamp branch
 		{Name: "bad-time", AddressType: "INTERNAL", Status: "RESERVED", Subnetwork: "https://www.googleapis.com/compute/v1/projects/tp/regions/us-central1/subnetworks/sn1", CreationTimeParsed: false},
-		// no subnetwork base branch
 		{Name: "no-subnet-base", AddressType: "INTERNAL", Status: "RESERVED", Subnetwork: "", CreationTimeParsed: true, CreationTime: time.Now().Add(-2 * time.Hour)},
-		// no resource name branch (fallback key generation)
 		{Name: "fallback-key", ResourceName: "", AddressType: "INTERNAL", Status: "RESERVED", Subnetwork: "https://www.googleapis.com/compute/v1/projects/tp/regions/us-central1/subnetworks/sn1", CreationTimeParsed: true, CreationTime: time.Now().Add(-2 * time.Hour)},
 	}
-	l := &mockRegionalAddressLister{}
-	l.On("ListRegionalAddresses", ctx, "tp", "us-central1").Return(addrs, nil)
 
-	d := NewInternalReservedIPDetector(l, time.Hour)
+	d := newInternalReservedIPDetectorForTest(staticIPSubmitter(scanResultFor("tp", "us-central1", addrs), nil), time.Hour)
 	records, err := d.Detect(ctx, storage)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
@@ -249,24 +274,102 @@ func TestInternalReservedIPDetector_Detect_SkipsNonReadyPool(t *testing.T) {
 	p.State = "CREATING"
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return([]*datamodel.PoolView{p}, nil)
 
-	l := &mockRegionalAddressLister{}
-	d := NewInternalReservedIPDetector(l, time.Hour)
+	called := false
+	d := newInternalReservedIPDetectorForTest(func(context.Context, ipscan.ScanInput) (*ipscan.ScanOutput, error) {
+		called = true
+		return nil, nil
+	}, time.Hour)
 	records, err := d.Detect(ctx, storage)
 	require.NoError(t, err)
 	assert.Empty(t, records)
-	l.AssertNotCalled(t, "ListRegionalAddresses")
+	assert.False(t, called, "non-READY pools must not produce any (project,region) target")
 }
 
-func TestInternalReservedIPDetector_Detect_ListAddressesErrorContinuesEmpty(t *testing.T) {
+func TestInternalReservedIPDetector_Detect_WorkflowError(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{readyPoolWithSubnet("proj-tenant", "mysub", "us-central1-a")}
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 
-	l := &mockRegionalAddressLister{}
-	l.On("ListRegionalAddresses", ctx, "proj-tenant", "us-central1").Return(nil, errors.New("api error"))
+	d := newInternalReservedIPDetectorForTest(staticIPSubmitter(nil, errors.New("temporal unavailable")), time.Hour)
+	records, err := d.Detect(ctx, storage)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "scan workflow")
+	assert.Nil(t, records)
+}
 
-	d := NewInternalReservedIPDetector(l, time.Hour)
+func TestInternalReservedIPDetector_Detect_NilOutput(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	pools := []*datamodel.PoolView{readyPoolWithSubnet("proj-tenant", "mysub", "us-central1-a")}
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+
+	d := newInternalReservedIPDetectorForTest(staticIPSubmitter(nil, nil), time.Hour)
+	records, err := d.Detect(ctx, storage)
+	require.NoError(t, err)
+	assert.Nil(t, records)
+}
+
+func TestInternalReservedIPDetector_Detect_PartialFailures_DoNotAbort(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	pools := []*datamodel.PoolView{
+		readyPoolWithSubnet("proj-a", "sn-a", "us-central1-a"),
+	}
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+
+	old := time.Now().UTC().Add(-3 * time.Hour)
+	out := &ipscan.ScanOutput{
+		Results: []ipscan.ScanResult{
+			{
+				Project: "proj-a",
+				Region:  "us-central1",
+				Addresses: []hyperscalerleakedresources.RegionalAddress{
+					{
+						Name: "leaked", IP: "10.0.0.5",
+						Subnetwork:         "https://www.googleapis.com/compute/v1/projects/proj-a/regions/us-central1/subnetworks/sn-a",
+						AddressType:        "INTERNAL",
+						Status:             "RESERVED",
+						CreationTime:       old,
+						CreationTimeParsed: true,
+					},
+				},
+			},
+		},
+		PartialFailures: []ipscan.ProjectRegionFailure{
+			{Project: "other", Region: "europe-west1", Error: "permission denied"},
+		},
+	}
+
+	d := newInternalReservedIPDetectorForTest(staticIPSubmitter(out, nil), time.Hour)
+	records, err := d.Detect(ctx, storage)
+	require.NoError(t, err, "partial failures must not abort detection")
+	require.Len(t, records, 1)
+	assert.Equal(t, "leaked", records[0].ResourceName)
+}
+
+func TestInternalReservedIPDetector_Detect_IgnoresUnaskedResultGroup(t *testing.T) {
+	// Defensive: workflow returns a (project, region) we never asked about.
+	// Detector should silently drop it rather than panic / index miss.
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	pools := []*datamodel.PoolView{readyPoolWithSubnet("proj-a", "sn-a", "us-central1-a")}
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+
+	old := time.Now().UTC().Add(-3 * time.Hour)
+	out := &ipscan.ScanOutput{
+		Results: []ipscan.ScanResult{
+			{
+				Project: "stranger",
+				Region:  "us-east4",
+				Addresses: []hyperscalerleakedresources.RegionalAddress{
+					{Name: "x", AddressType: "INTERNAL", Status: "RESERVED", CreationTime: old, CreationTimeParsed: true,
+						Subnetwork: "https://www.googleapis.com/compute/v1/projects/stranger/regions/us-east4/subnetworks/sn-a"},
+				},
+			},
+		},
+	}
+	d := newInternalReservedIPDetectorForTest(staticIPSubmitter(out, nil), time.Hour)
 	records, err := d.Detect(ctx, storage)
 	require.NoError(t, err)
 	assert.Empty(t, records)

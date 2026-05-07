@@ -7,13 +7,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/detectors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
 )
-
-var newRegionalAddressLister = hyperscalerleakedresources.NewRegionalAddressLister
 
 // Pipeline runs the leaked resources flow: for each registered detector, run Detect,
 // aggregate all leak records, then call the reporter.
@@ -108,13 +105,11 @@ func Run(ctx context.Context, storage database.Storage, temporalClient client.Cl
 	p.RegisterDetector(detectors.NewSnapshotOrphanDetector())
 	p.RegisterDetector(detectors.NewBackupVaultDetector(ccfeClient))
 
-	// Internal reserved IP detection is part of the same pipeline; enable/disable with LEAKED_RESOURCES_MONITORING_ENABLED (core/app.go).
-	lister, err := newRegionalAddressLister(ctx)
-	if err != nil {
-		util.GetLogger(ctx).Warnf("Leaked resources: internal reserved IP detector skipped (compute lister): %v", err)
-	} else {
-		p.RegisterDetector(detectors.NewInternalReservedIPDetector(lister, detectors.DefaultInternalReservedIPMinAge()))
-	}
+	// Internal reserved IP detector: invokes GCE Compute API via Temporal workflow on worker pod
+	p.RegisterDetector(detectors.NewInternalReservedIPDetector(detectors.DefaultInternalReservedIPMinAge()))
+
+	// VM detector: invokes GCE Compute API via Temporal workflow, diffs VMs vs active pools
+	p.RegisterDetector(detectors.NewVMDetector())
 
 	// Disk detector: invokes GCE Compute API via Temporal workflow, diffs disks vs active pools
 	p.RegisterDetector(detectors.NewDiskDetector())

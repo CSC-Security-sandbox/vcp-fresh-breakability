@@ -364,12 +364,12 @@ func TestDiskIsOlderThanHelper(t *testing.T) {
 }
 
 func TestDefaultDiskMinAge(t *testing.T) {
-	orig := envGetInt
-	t.Cleanup(func() { envGetInt = orig })
+	orig := getEnvInt
+	t.Cleanup(func() { getEnvInt = orig })
 
-	envGetInt = func(key string, defaultVal int) int { return 0 }
+	getEnvInt = func(key string, defaultVal int) int { return 0 }
 	assert.Equal(t, 6*time.Hour, defaultDiskMinAge())
 
-	envGetInt = func(key string, defaultVal int) int { return 12 }
+	getEnvInt = func(key string, defaultVal int) int { return 12 }
 	assert.Equal(t, 12*time.Hour, defaultDiskMinAge())
 }
