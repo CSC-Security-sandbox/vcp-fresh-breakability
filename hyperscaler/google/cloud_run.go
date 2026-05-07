@@ -62,6 +62,34 @@ func (gcpService *GcpServices) CreateCloudRunService(ctx context.Context, config
 		}
 	}
 
+	// Add startup probe if specified
+	if config.StartupProbe != nil {
+		probe := &cloudrun.GoogleCloudRunV2Probe{
+			InitialDelaySeconds: config.StartupProbe.InitialDelaySeconds,
+			PeriodSeconds:       config.StartupProbe.PeriodSeconds,
+			TimeoutSeconds:      config.StartupProbe.TimeoutSeconds,
+			FailureThreshold:    config.StartupProbe.FailureThreshold,
+		}
+		if config.StartupProbe.TCPSocket != nil {
+			probe.TcpSocket = &cloudrun.GoogleCloudRunV2TCPSocketAction{
+				Port: int64(config.StartupProbe.TCPSocket.Port),
+			}
+		}
+		if config.StartupProbe.HTTPGet != nil {
+			probe.HttpGet = &cloudrun.GoogleCloudRunV2HTTPGetAction{
+				Path: config.StartupProbe.HTTPGet.Path,
+				Port: int64(config.StartupProbe.HTTPGet.Port),
+			}
+		}
+		if config.StartupProbe.GRPC != nil {
+			probe.Grpc = &cloudrun.GoogleCloudRunV2GRPCAction{
+				Port:    int64(config.StartupProbe.GRPC.Port),
+				Service: config.StartupProbe.GRPC.Service,
+			}
+		}
+		container.StartupProbe = probe
+	}
+
 	// Convert volumes
 	volumes := make([]*cloudrun.GoogleCloudRunV2Volume, 0, len(config.Volumes))
 	for _, vol := range config.Volumes {

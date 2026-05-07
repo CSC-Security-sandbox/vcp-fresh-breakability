@@ -593,6 +593,152 @@ func TestCreateCloudRunServiceWithResources(t *testing.T) {
 	})
 }
 
+func TestCreateCloudRunServiceWithStartupProbe(t *testing.T) {
+	t.Run("withTCPSocketProbe", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			operation := &cloudrun.GoogleLongrunningOperation{
+				Name: "operations/test-operation-123",
+				Done: false,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(w).Encode(operation)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		httpClient := &http.Client{Timeout: time.Second}
+		svc, err := cloudrun.NewService(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create Cloud Run client: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudRunService: svc,
+			},
+			Ctx:    context.Background(),
+			Logger: log.NewLogger(),
+		}
+
+		config := &models.CloudRunServiceConfig{
+			ProjectID:   "test-project",
+			LocationID:  "us-central1",
+			ServiceName: "test-service",
+			Image:       "gcr.io/test-project/test-image:latest",
+			StartupProbe: &models.ProbeConfig{
+				InitialDelaySeconds: 0,
+				PeriodSeconds:       10,
+				TimeoutSeconds:      5,
+				FailureThreshold:    30,
+				TCPSocket:           &models.TCPSocketAction{Port: 80},
+			},
+		}
+
+		result, err := gService.CreateCloudRunService(context.Background(), config)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "operations/test-operation-123", result.OperationName)
+	})
+
+	t.Run("withHTTPGetProbe", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			operation := &cloudrun.GoogleLongrunningOperation{
+				Name: "operations/test-operation-123",
+				Done: false,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(w).Encode(operation)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		httpClient := &http.Client{Timeout: time.Second}
+		svc, err := cloudrun.NewService(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create Cloud Run client: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudRunService: svc,
+			},
+			Ctx:    context.Background(),
+			Logger: log.NewLogger(),
+		}
+
+		config := &models.CloudRunServiceConfig{
+			ProjectID:   "test-project",
+			LocationID:  "us-central1",
+			ServiceName: "test-service",
+			Image:       "gcr.io/test-project/test-image:latest",
+			StartupProbe: &models.ProbeConfig{
+				InitialDelaySeconds: 5,
+				PeriodSeconds:       10,
+				TimeoutSeconds:      3,
+				FailureThreshold:    10,
+				HTTPGet:             &models.HTTPGetAction{Path: "/health", Port: 8080},
+			},
+		}
+
+		result, err := gService.CreateCloudRunService(context.Background(), config)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "operations/test-operation-123", result.OperationName)
+	})
+
+	t.Run("withGRPCProbe", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			operation := &cloudrun.GoogleLongrunningOperation{
+				Name: "operations/test-operation-123",
+				Done: false,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(w).Encode(operation)
+			if err != nil {
+				return
+			}
+		}))
+		defer server.Close()
+
+		httpClient := &http.Client{Timeout: time.Second}
+		svc, err := cloudrun.NewService(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create Cloud Run client: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudRunService: svc,
+			},
+			Ctx:    context.Background(),
+			Logger: log.NewLogger(),
+		}
+
+		config := &models.CloudRunServiceConfig{
+			ProjectID:   "test-project",
+			LocationID:  "us-central1",
+			ServiceName: "test-service",
+			Image:       "gcr.io/test-project/test-image:latest",
+			StartupProbe: &models.ProbeConfig{
+				InitialDelaySeconds: 0,
+				PeriodSeconds:       5,
+				TimeoutSeconds:      2,
+				FailureThreshold:    5,
+				GRPC:                &models.GRPCAction{Port: 50051, Service: "grpc.health.v1.Health"},
+			},
+		}
+
+		result, err := gService.CreateCloudRunService(context.Background(), config)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "operations/test-operation-123", result.OperationName)
+	})
+}
+
 func TestDeleteCloudRunService(t *testing.T) {
 	t.Run("onSuccess", func(tt *testing.T) {
 		// Create a test server

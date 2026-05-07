@@ -13,6 +13,7 @@ type CloudRunServiceConfig struct {
 	VolumeMounts []VolumeMount
 	Volumes      []Volume
 	Resources    *ResourceConfig
+	StartupProbe *ProbeConfig
 }
 
 // ProbeConfig represents a probe configuration (startup, liveness, or readiness)
