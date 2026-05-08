@@ -1814,6 +1814,7 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 	vlmConfig.Deployment.SPConfig.Size = fmt.Sprintf("%dGi", decision.StoragePoolRequirements.DesiredCapacityInGiB)
 	vlmConfig.Deployment.VSAInstanceType = decision.ChosenVMs[0] // VLM currently only supports a single VM type for VSA clusters (homogeneous clusters).
 	if VsaInstanceTypeOverride {
+		vlmConfig.Deployment.DeploymentConfigFlags.EnableNonLssdInstanceType = true
 		vlmConfig.Deployment.VSAInstanceType = strings.TrimSuffix(decision.ChosenVMs[0], "-lssd") // Remove the "-lssd" suffix if it exists, as the region does not support SSDs.
 	}
 

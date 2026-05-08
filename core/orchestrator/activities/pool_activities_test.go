@@ -640,6 +640,7 @@ func Test_prepareVlmConfig_StripLssd(t *testing.T) {
 	assert.Equal(t, int64(1024), cfg.Deployment.SPConfig.IOps)
 	assert.Equal(t, "1024Gi", cfg.Deployment.SPConfig.Size)
 	assert.Equal(t, "c3-standard-16", cfg.Deployment.VSAInstanceType, "Expected '-lssd' to be stripped from the instance type")
+	assert.True(t, cfg.Deployment.DeploymentConfigFlags.EnableNonLssdInstanceType, "Expected enable_non_lssd_instance_type to be enabled when stripping -lssd")
 }
 
 func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
