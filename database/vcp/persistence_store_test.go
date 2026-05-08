@@ -2958,7 +2958,7 @@ func TestCreateAdminJobSpecIfNotExists_Persistence_Store(t *testing.T) {
 		assert.Equal(t, "CREATING", newJobSpec.State)
 	})
 
-	t.Run("WhenAdminJobSpecAlreadyExists_Fails", func(t *testing.T) {
+	t.Run("WhenAdminJobSpecAlreadyExists_ReturnsAlreadyExists", func(t *testing.T) {
 		logger := log.NewLogger()
 		store, err := SetupStorageForTest(logger)
 		require.NoError(t, err)
@@ -2977,19 +2977,17 @@ func TestCreateAdminJobSpecIfNotExists_Persistence_Store(t *testing.T) {
 		_, err = store.CreateAdminJobSpecIfNotExists(context.Background(), jobSpec)
 		assert.NoError(t, err)
 
-		// Second creation with same JobType should fail
+		// Second creation with same JobType must return ErrAdminJobSpecAlreadyExists
+		// (not a raw database error) so cron callers can fall through to lock acquisition.
 		duplicateJobSpec := &datamodel.AdminJobSpec{
 			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-duplicate"},
-			JobType:        "TEST_JOB_EXISTS", // Same JobType
+			JobType:        "TEST_JOB_EXISTS",
 			CronExpression: "*/5 * * * *",
 			State:          "SCHEDULED",
 		}
 
 		newJobSpec, err := store.CreateAdminJobSpecIfNotExists(context.Background(), duplicateJobSpec)
-		assert.Error(t, err)
-		var customErr *vsaerrors.CustomError
-		assert.True(t, vsaerrors.As(err, &customErr))
-		assert.Equal(t, vsaerrors.ErrDatabaseDataInsertError, customErr.TrackingID)
+		assert.ErrorIs(t, err, vsaerrors.ErrAdminJobSpecAlreadyExists)
 		assert.Nil(t, newJobSpec)
 	})
 }

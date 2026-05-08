@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -12,6 +11,24 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// reviveSoftDeletedAdminJobSpec is a package-level indirection so tests can inject a
+// failure for the revival UPDATE without resorting to driver-level fault injection.
+// It mirrors the function-variable testability pattern used elsewhere in this package
+// (e.g. getHostGroupWithDetails, getMultipleHostGroups).
+var reviveSoftDeletedAdminJobSpec = _reviveSoftDeletedAdminJobSpec
+
+// _reviveSoftDeletedAdminJobSpec clears deleted_at on a soft-deleted admin_job_specs row
+// and updates its state, returning the number of rows affected and any error.
+// Touching only deleted_at and state preserves the existing updated_at value so the
+// caller's lock timer remains accurate.
+func _reviveSoftDeletedAdminJobSpec(tx *gorm.DB, jobType, state string) (int64, error) {
+	result := tx.Exec(
+		"UPDATE admin_job_specs SET deleted_at = NULL, state = ? WHERE job_type = ? AND deleted_at IS NOT NULL",
+		state, jobType,
+	)
+	return result.RowsAffected, result.Error
+}
 
 func (d *DataStoreRepository) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	db := d.db.GORM().WithContext(ctx)
@@ -61,18 +78,37 @@ func (d *DataStoreRepository) CreateAdminJobSpecIfNotExists(ctx context.Context,
 
 	jobSpec.DeletedAt = nil
 
-	if createErr := tx.Create(&jobSpec).Error; createErr != nil {
-		err = createErr
-		if errors.Is(createErr, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(createErr.Error()), "unique constraint failed") {
-			var existing datamodel.AdminJobSpec
-			lookupErr := db.Where("job_type = ?", jobSpec.JobType).First(&existing).Error
-			if lookupErr == nil {
-				return &existing, vsaerrors.ErrAdminJobSpecAlreadyExists
-			}
-			logger.Warnf("Failed to load existing admin job spec for jobType %s after duplicate detection: %v", jobSpec.JobType, lookupErr)
+	// ON CONFLICT (job_type) DO NOTHING prevents PostgreSQL from raising a duplicate-key
+	// error entirely on the expected job_type collision, which eliminates the noisy GORM
+	// SQL-level "Database error" logs on every cron tick. We explicitly target job_type so
+	// any *other* unique-constraint violation on this table (e.g. uuid from BaseModel)
+	// continues to surface as an error instead of being silently swallowed.
+	result := tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "job_type"}},
+		DoNothing: true,
+	}).Create(&jobSpec)
+	if result.Error != nil {
+		err = result.Error
+		logger.Errorf("Failed to create admin job spec for jobType: %s, error: %v", jobSpec.JobType, result.Error)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		// A row with this job_type already exists (active or soft-deleted).
+		// Attempt revival in case it is soft-deleted: a soft-deleted row is invisible to
+		// GORM's UpdateAdminJobSpecWithLock (which adds "AND deleted_at IS NULL"), so without
+		// revival every cron tick would return rowsAffected=0 indefinitely.
+		// We do NOT touch updated_at so the lock timer stays intact.
+		rowsRevived, reviveErr := reviveSoftDeletedAdminJobSpec(tx, jobSpec.JobType, jobSpec.State)
+		if reviveErr != nil {
+			err = reviveErr
+			logger.Errorf("Failed to revive soft-deleted admin job spec for jobType: %s, error: %v", jobSpec.JobType, reviveErr)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, reviveErr)
 		}
-		logger.Errorf("Failed to create admin job spec for jobType: %s, error: %v", jobSpec.JobType, createErr)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, createErr)
+		if rowsRevived > 0 {
+			logger.Infof("Revived soft-deleted admin job spec for jobType: %s – lock acquisition can now proceed", jobSpec.JobType)
+		}
+		return nil, vsaerrors.ErrAdminJobSpecAlreadyExists
 	}
 
 	return jobSpec, nil
