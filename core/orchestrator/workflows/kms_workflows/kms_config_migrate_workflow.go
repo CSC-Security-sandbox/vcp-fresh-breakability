@@ -126,7 +126,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		// KmsConfig State is not dependent on an outcome of migration;
 		// KmsConfig state is determined by Verify operation (same as SDE workflow)
 		disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-		workflow.ExecuteActivity(disconnectedCtx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, kmsConfigUUID, false)
+		_ = workflow.ExecuteActivity(disconnectedCtx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, kmsConfigUUID, false).Get(disconnectedCtx, nil)
 		if vsaCmekMigrationSkippedPoolReason != MigrationInfoPrefix {
 			kmsWorkflow.Logger.Info(vsaCmekMigrationSkippedPoolReason)
 		}

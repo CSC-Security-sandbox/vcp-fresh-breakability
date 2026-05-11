@@ -104,6 +104,7 @@ func (j *KmsConfigActivity) ListKmsConfigActivity(ctx context.Context, projectNu
 func ConvertToCreateKmsConfigParams(params *models.KmsConfigV1beta, createPoolParams *common.CreatePoolParams) *common.CreateKmsConfigParams {
 	createConfigParams := &common.CreateKmsConfigParams{}
 
+	createConfigParams.AccountName = createPoolParams.AccountName
 	createConfigParams.ProjectNumber = createPoolParams.AccountName
 	createConfigParams.UUID = params.UUID
 	createConfigParams.KmsState = params.KmsState

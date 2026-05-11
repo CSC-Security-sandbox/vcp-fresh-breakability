@@ -459,7 +459,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&vsaKmsConfig, nil)
-		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		// Defer awaits VerifyVsaKmsReachabilityActivity before workflow completes; require exactly one call
+		// (regression guard for fire-and-forget verify leaving KMS stuck in MIGRATING).
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 

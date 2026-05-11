@@ -362,3 +362,73 @@ func TestGetSDEKmsConfiguration_NonActivityContext(t *testing.T) {
 		})
 	})
 }
+
+func TestConvertToCreateKmsConfigParams(t *testing.T) {
+	t.Run("MapsSdeKmsFieldsAndPoolParamsIncludingAccountName", func(tt *testing.T) {
+		accountName := "846223794136"
+		region := "us-east4"
+		keyFullPath := "projects/p/locations/us-east4/keyRings/r/cryptoKeys/k"
+		resourceID := "cmek-east4"
+		desc := "KMS description"
+		kmsUUID := "646df1f1-896c-cc0b-c22c-0d1e65ce64dd"
+		saEmail := "n-cmek-auso1-644189374367@429679891893.iam.gserviceaccount.com"
+		instructions := "run gcloud ..."
+		kmsState := "READY"
+		kmsStateDetails := "Ready for use"
+
+		params := &models.KmsConfigV1beta{
+			UUID:                kmsUUID,
+			KmsState:            kmsState,
+			KmsStateDetails:     kmsStateDetails,
+			ServiceAccountEmail: saEmail,
+			Instructions:        instructions,
+			KeyFullPath:         &keyFullPath,
+			Description:         &desc,
+			ResourceID:          &resourceID,
+		}
+		createPoolParams := &common.CreatePoolParams{
+			AccountName: accountName,
+			Region:      region,
+		}
+
+		got := ConvertToCreateKmsConfigParams(params, createPoolParams)
+
+		assert.Equal(tt, accountName, got.AccountName, "AccountName must match pool AccountName for GetAccount / DB attribution")
+		assert.Equal(tt, accountName, got.ProjectNumber)
+		assert.Equal(tt, kmsUUID, got.UUID)
+		assert.Equal(tt, kmsState, got.KmsState)
+		assert.Equal(tt, kmsStateDetails, got.KmsStateDetails)
+		assert.Equal(tt, saEmail, got.ServiceAccountEmail)
+		assert.Equal(tt, instructions, got.Instructions)
+		assert.Equal(tt, region, got.LocationID)
+		assert.Equal(tt, desc, got.Description)
+		assert.Equal(tt, keyFullPath, got.KeyFullPath)
+		assert.Equal(tt, resourceID, got.ResourceID)
+	})
+
+	t.Run("MapsWhenOptionalDescriptionResourceIdNil", func(tt *testing.T) {
+		accountName := "123456789"
+		keyFullPath := "projects/p/locations/loc/keyRings/r/cryptoKeys/k"
+		params := &models.KmsConfigV1beta{
+			UUID:                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+			KmsState:            "IN_USE",
+			KmsStateDetails:     "Available for use",
+			ServiceAccountEmail: "svc@example.com",
+			Instructions:        "inst",
+			KeyFullPath:         &keyFullPath,
+			Description:         nil,
+			ResourceID:          nil,
+		}
+		createPoolParams := &common.CreatePoolParams{
+			AccountName: accountName,
+			Region:      "europe-west1",
+		}
+
+		got := ConvertToCreateKmsConfigParams(params, createPoolParams)
+
+		assert.Equal(tt, accountName, got.AccountName)
+		assert.Equal(tt, accountName, got.ProjectNumber)
+		assert.Empty(tt, got.Description)
+		assert.Empty(tt, got.ResourceID)
+	})
+}
