@@ -51,6 +51,14 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            {{- $effectiveResources := default $.Values.server.resources $serviceValues.resources }}
+            {{- if dig "limits" "memory" "" $effectiveResources }}
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+                  divisor: "1"
+            {{- end }}
             - name: SERVICES
               value: {{ $service }}
             {{- if $.Values.server.goDebug }}
