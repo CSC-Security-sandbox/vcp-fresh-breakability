@@ -88,10 +88,12 @@ var _ workflows.WorkflowInterface = &ociCreatePoolWorkflow{}
 
 // OCICreatePoolWorkflow processes pool related requests from a customer for OCI.
 func OCICreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) error {
+	start := workflow.Now(ctx)
 	createPoolWF := new(ociCreatePoolWorkflow)
 	log := util.GetLogger(ctx)
 	err := createPoolWF.Setup(ctx, params)
 	if err != nil {
+		emitDuration(ctx, wfCreatePool, queueCustomer, start)
 		return err
 	}
 
@@ -100,9 +102,11 @@ func OCICreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams
 	if errRun != nil {
 		log.Errorf("error in ociCreatePoolWorkflow: %v", errRun)
 		createPoolWF.Status = workflows.WorkflowStatusFailed
+		emitDuration(ctx, wfCreatePool, queueCustomer, start)
 		return errRun
 	}
 	createPoolWF.Status = workflows.WorkflowStatusCompleted
+	emitDuration(ctx, wfCreatePool, queueCustomer, start)
 	return nil
 }
 
@@ -221,8 +225,10 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest, vlmWorkerQueue)
 	if err != nil {
 		logger.Errorf("Failed to create VSA cluster deployment: %v", err)
+		emitStage(ctx, wfCreatePool, queueCustomer, stageVLMDeploy, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfCreatePool, queueCustomer, stageVLMDeploy, resultSuccess)
 
 	// Apply shared activity options for DB operations.
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -275,15 +281,19 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SaveVSANodeDetails, pool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, &hostMap).Get(dbHbCtx, nil)
 	if err != nil {
 		logger.Errorf("Failed to save VSA node details to database: %v", err)
+		emitStage(ctx, wfCreatePool, queueCustomer, stageSaveNodeDetails, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfCreatePool, queueCustomer, stageSaveNodeDetails, resultSuccess)
 
 	// Mark pool as ready and persist VLM config for future workflows.
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.CreatedPool, pool, &createVSAClusterDeploymentResponse.VLMConfig).Get(dbHbCtx, nil)
 	if err != nil {
 		logger.Errorf("Failed to mark pool as created: %v", err)
+		emitStage(ctx, wfCreatePool, queueCustomer, stageMarkReady, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfCreatePool, queueCustomer, stageMarkReady, resultSuccess)
 
 	return nil, nil
 }
@@ -427,10 +437,12 @@ var _ workflows.WorkflowInterface = &ociDeletePoolWorkflow{}
 
 // OCIDeletePoolWorkflow processes pool deletion requests for OCI.
 func OCIDeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams, pool *datamodel.Pool) error {
+	start := workflow.Now(ctx)
 	deletePoolWF := new(ociDeletePoolWorkflow)
 	log := util.GetLogger(ctx)
 	err := deletePoolWF.Setup(ctx, params)
 	if err != nil {
+		emitDuration(ctx, wfDeletePool, queueCustomer, start)
 		return err
 	}
 
@@ -439,9 +451,11 @@ func OCIDeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams
 	if errRun != nil {
 		log.Errorf("error in ociDeletePoolWorkflow: %v", errRun)
 		deletePoolWF.Status = workflows.WorkflowStatusFailed
+		emitDuration(ctx, wfDeletePool, queueCustomer, start)
 		return errRun
 	}
 	deletePoolWF.Status = workflows.WorkflowStatusCompleted
+	emitDuration(ctx, wfDeletePool, queueCustomer, start)
 	return nil
 }
 
@@ -507,6 +521,7 @@ func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		HeartbeatTimeout:    utils.GetHeartbeatTimeoutForHyperscaler(),
 		RetryPolicy:         utils.GetHyperscalerLRORetryPolicy(),
 	})
+
 	// Call DeleteVSAClusterDeployment
 	vsaClientWorkflowManager := workflows.GetNewVSAClientWorkflowManager()
 	deleteRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
@@ -514,14 +529,18 @@ func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	ontapVersion := utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(params.AccountName))
 	err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(hyperscalerCtx, deleteRequest, ontapVersion)
 	if err != nil {
+		emitStage(ctx, wfDeletePool, queueCustomer, stageVLMDelete, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfDeletePool, queueCustomer, stageVLMDelete, resultSuccess)
 
 	// Mark pool as deleted
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.DeletePoolResources, pool).Get(dbHbCtx, nil)
 	if err != nil {
+		emitStage(ctx, wfDeletePool, queueCustomer, stageDBCleanup, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfDeletePool, queueCustomer, stageDBCleanup, resultSuccess)
 
 	return nil, nil
 }

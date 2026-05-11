@@ -5,7 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/oci-proxy/metrics"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -134,4 +137,164 @@ func TestWrapWithOCIAndLogging_InnerHandlerSeesTemporal(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, opc, temporal["requestCorrelationID"])
 	require.True(t, ctxLoggerOK, "inner handler should see ContextSLoggerKey from ociPrepareRequestMiddleware")
+}
+
+// --- ociMetricsMiddleware tests ---
+
+func TestOciMetricsMiddleware_IncrementsCounterOnSuccess(t *testing.T) {
+	region := metrics.Region()
+	before := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/v1beta/pools", "POST", "200", region))
+
+	h := ociMetricsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/v1beta/pools", nil)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+
+	after := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/v1beta/pools", "POST", "200", region))
+	assert.Equal(t, before+1, after)
+}
+
+func TestOciMetricsMiddleware_NormalizesPoolOCIDPath(t *testing.T) {
+	region := metrics.Region()
+	normalized := "/v1beta/pools/{poolOCID}"
+	before := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues(normalized, "DELETE", "404", region))
+
+	h := ociMetricsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	req := httptest.NewRequest(http.MethodDelete, "/v1beta/pools/ocid1.pool.oc1..abc", nil)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+
+	after := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues(normalized, "DELETE", "404", region))
+	assert.Equal(t, before+1, after)
+}
+
+func TestOciMetricsMiddleware_Captures5xxStatus(t *testing.T) {
+	region := metrics.Region()
+	before := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/v1beta/pools", "POST", "500", region))
+
+	h := ociMetricsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/v1beta/pools", nil)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+
+	after := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/v1beta/pools", "POST", "500", region))
+	assert.Equal(t, before+1, after)
+}
+
+func TestOciMetricsMiddleware_DefaultsTo200WhenNoWriteHeader(t *testing.T) {
+	region := metrics.Region()
+	before := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/v1beta/pools", "GET", "200", region))
+
+	h := ociMetricsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/v1beta/pools", nil)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+
+	after := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/v1beta/pools", "GET", "200", region))
+	assert.Equal(t, before+1, after)
+}
+
+func TestOciMetricsMiddleware_SkipsMetricsPath(t *testing.T) {
+	region := metrics.Region()
+	before := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/metrics", "GET", "200", region))
+
+	h := ociMetricsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+
+	after := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/metrics", "GET", "200", region))
+	assert.Equal(t, before, after)
+}
+
+func TestOciMetricsMiddleware_RecordsDuration(t *testing.T) {
+	beforeCount := testutil.CollectAndCount(metrics.APIRequestDurationSeconds)
+
+	h := ociMetricsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/v1beta/pools", nil)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+
+	afterCount := testutil.CollectAndCount(metrics.APIRequestDurationSeconds)
+	assert.GreaterOrEqual(t, afterCount, beforeCount)
+}
+
+func TestOciMetricsMiddleware_MultipleRequestsAccumulate(t *testing.T) {
+	region := metrics.Region()
+	before := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/v1beta/pools", "GET", "200", region))
+
+	h := ociMetricsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/v1beta/pools", nil)
+		h.ServeHTTP(httptest.NewRecorder(), req)
+	}
+
+	after := testutil.ToFloat64(metrics.APIRequestsTotal.WithLabelValues("/v1beta/pools", "GET", "200", region))
+	assert.Equal(t, before+3, after)
+}
+
+// --- statusCapturingWriter tests ---
+
+func TestStatusCapturingWriter_CapturesFirstWriteHeader(t *testing.T) {
+	rr := httptest.NewRecorder()
+	w := &statusCapturingWriter{ResponseWriter: rr, statusCode: http.StatusOK}
+
+	w.WriteHeader(http.StatusNotFound)
+	w.WriteHeader(http.StatusInternalServerError)
+
+	assert.Equal(t, http.StatusNotFound, w.statusCode)
+	assert.True(t, w.wroteHeader)
+}
+
+func TestStatusCapturingWriter_DefaultsTo200(t *testing.T) {
+	rr := httptest.NewRecorder()
+	w := &statusCapturingWriter{ResponseWriter: rr, statusCode: http.StatusOK}
+
+	assert.Equal(t, http.StatusOK, w.statusCode)
+	assert.False(t, w.wroteHeader)
+}
+
+func TestStatusCapturingWriter_WriteSetsFlagButKeepsDefault(t *testing.T) {
+	rr := httptest.NewRecorder()
+	w := &statusCapturingWriter{ResponseWriter: rr, statusCode: http.StatusOK}
+
+	n, err := w.Write([]byte("hello"))
+
+	require.NoError(t, err)
+	assert.Equal(t, 5, n)
+	assert.True(t, w.wroteHeader)
+	assert.Equal(t, http.StatusOK, w.statusCode)
+}
+
+func TestStatusCapturingWriter_WriteAfterWriteHeaderKeepsOriginal(t *testing.T) {
+	rr := httptest.NewRecorder()
+	w := &statusCapturingWriter{ResponseWriter: rr, statusCode: http.StatusOK}
+
+	w.WriteHeader(http.StatusCreated)
+	_, _ = w.Write([]byte("body"))
+
+	assert.Equal(t, http.StatusCreated, w.statusCode)
+}
+
+func TestOciMetricsMiddleware_DurationUsesNormalizedEndpoint(t *testing.T) {
+	h := ociMetricsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	req := httptest.NewRequest(http.MethodDelete, "/v1beta/pools/ocid-op-test", nil)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+
+	region := metrics.Region()
+	assert.NotPanics(t, func() {
+		metrics.APIRequestDurationSeconds.WithLabelValues("DELETE", "/v1beta/pools/{poolOCID}", region)
+	})
+	assert.GreaterOrEqual(t, testutil.CollectAndCount(metrics.APIRequestDurationSeconds), 1)
 }
