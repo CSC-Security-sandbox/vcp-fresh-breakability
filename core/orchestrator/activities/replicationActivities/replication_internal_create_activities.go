@@ -122,6 +122,9 @@ func (a *InternalVolumeReplicationActivity) HydrateReplicationCreate(ctx context
 		err := HydrateVolumeReplication(ctx, convertReplicationDbModelToDataModel(replicationDb), accountName)
 		if err != nil {
 			util.GetLogger(ctx).Error("Error hydrating replication create", "error", err)
+			if quotaLimitErrRegex.MatchString(err.Error()) {
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrReplicationQuotaLimitExceeded, err))
+			}
 			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrHydrateVolumeReplicationCreate, err))
 		}
 	}

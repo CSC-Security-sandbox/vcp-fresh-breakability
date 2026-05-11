@@ -242,6 +242,32 @@ func TestHydrateReplicationCreate(t *testing.T) {
 		assert.Contains(t, err.Error(), "Failed to hydrate volume Replication creation")
 		mockStorage.AssertExpectations(tt)
 	})
+	t.Run("WhenFlexReplicatedVolumesQuotaLimitExceeded", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		hydrationEnabled = true
+		activity := InternalVolumeReplicationActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		accountName := "project-name"
+		replication := &datamodel.VolumeReplication{
+			Name:  "name",
+			State: "creating",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:        "destination-location",
+				DestinationReplicationUUID: "uuid",
+			},
+		}
+		originalHydrateVolumeReplication := HydrateVolumeReplication
+		defer func() { HydrateVolumeReplication = originalHydrateVolumeReplication }()
+
+		HydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			return errors.New("Quota limit 'FlexReplicatedVolumesPerRegion' has been exceeded. Limit: 5 in region us-central1.")
+		}
+		err := activity.HydrateReplicationCreate(ctx, replication, accountName)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Replication quota limit exceeded")
+		mockStorage.AssertExpectations(tt)
+	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		hydrationEnabled = true

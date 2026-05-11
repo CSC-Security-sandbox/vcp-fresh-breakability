@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -24,6 +25,7 @@ var (
 	mapVolumeBetaToVolumeHydrateObject                          = _mapVolumeBetaToVolumeHydrateObject
 	HydrateVolumeReplication                                    = _hydrateVolumeReplication
 	hydrationEnabled                                            = env.GetBool("GCP_HYDRATE_ENABLED", true)
+	quotaLimitErrRegex                                          = regexp.MustCompile(`^Quota limit`)
 	hydrateReplicationCreate                                    = common.ReplicationCreate
 	hydrateVolumeCreate                                         = common.VolumeCreate
 	hydrateVolumeDelete                                         = common.VolumeDelete
