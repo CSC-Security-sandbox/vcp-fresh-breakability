@@ -79,7 +79,7 @@ manifests:
     releases:
       - name: local-temporal
         remoteChart: temporal
-        version: 0.73.1
+        version: 1.2.0
         namespace: default
         repo: https://temporalio.github.io/helm-charts
         valuesFiles:

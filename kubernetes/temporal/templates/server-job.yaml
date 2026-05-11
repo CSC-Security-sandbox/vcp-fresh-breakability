@@ -39,7 +39,7 @@ spec:
 
               {{- if $.Values.schema.istio.enabled }}
               # Wait for istio-proxy to be ready
-              until curl -fsI http://localhost:15021/healthz/ready; do
+              until wget -q -O /dev/null http://localhost:15021/healthz/ready 2>/dev/null; do
                 echo "Waiting for istio-proxy to be ready..."
                 sleep 2
               done
@@ -81,13 +81,13 @@ spec:
               {{- if $.Values.schema.istio.enabled }}
               # Stop istio-proxy container
               echo "Stopping istio-proxy for {{ $store }} store..."
-              curl -X POST http://localhost:15000/quitquitquit
+              wget -q -O /dev/null --post-data='' http://localhost:15000/quitquitquit
               {{- end }}
 
               {{- if include "temporal.cloudSqlIamAuthEnabled" (list $) | toString | eq "true" }}
               # Stop cloud-sql-proxy container
               echo "Stopping cloud-sql-proxy for {{ $store }} store..."
-              curl -X POST http://localhost:9091/quitquitquit || true
+              wget -q -O /dev/null --post-data='' http://localhost:9091/quitquitquit || true
               {{- end }}
 
               echo "{{ $store }} store setup completed successfully!"

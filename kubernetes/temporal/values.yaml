@@ -48,7 +48,7 @@ server:
   goDebug: "fips140=on,tlsmlkem=0"
   image:
     repository: ghcr.io/vcp-vsa-control-plane/temporalio-server
-    tag: 1.29.1
+    tag: 1.31.0
     pullPolicy: IfNotPresent
 
   # ---------------------------------------------------------------------------
@@ -482,7 +482,7 @@ admintools:
   enabled: true
   image:
     repository: ghcr.io/vcp-vsa-control-plane/temporalio-admin-tools
-    tag: 1.29.1-tctl-1.18.4-cli-1.5.0
+    tag: 1.31.0
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -511,7 +511,7 @@ web:
   replicaCount: 1
   image:
     repository: ghcr.io/vcp-vsa-control-plane/temporalio-ui
-    tag: 2.44.0
+    tag: 2.49.1
     pullPolicy: IfNotPresent
   service:
     # set type to NodePort if access to web needs access from outside the cluster
