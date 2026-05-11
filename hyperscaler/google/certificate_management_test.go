@@ -299,6 +299,49 @@ func Test_RevokeCertificate(t *testing.T) {
 			tt.Errorf("Expected nil operation but got: %+v", cert)
 		}
 	})
+	t.Run("WhenRevokeCertificateFailsWithCAQuotaLimit", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+
+		url := fmt.Sprintf("/v1/projects/%s/locations/%s/caPools/%s/certificates/%s:revoke", projectId, region, pooID, certID)
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodPost {
+				rw.Header().Set("Content-Type", "application/json")
+				rw.WriteHeader(http.StatusBadRequest)
+				_, _ = rw.Write([]byte(`{"error":{"code":400,"message":"Maximum number of unexpired revoked certificates per CA reached. Please try again after revoked certificates expire.","status":"FAILED_PRECONDITION"}}`))
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := privateca.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				privateCaService: svc,
+			},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+
+		certificate := &hyperscaler.CustomCertificate{
+			CaGroupName:      pooID,
+			Region:           region,
+			CertOwningEntity: projectId,
+			CertificateID:    certID,
+		}
+		resourceName, err := gService.RevokeCertificate(certificate)
+		if err != nil {
+			tt.Errorf("Expected nil error for CA revocation quota limit, got: %v", err)
+		}
+		expectedResourceName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s/certificates/%s", projectId, region, pooID, certID)
+		if resourceName != expectedResourceName {
+			tt.Errorf("Expected resourceName %s but got: %s", expectedResourceName, resourceName)
+		}
+	})
 	t.Run("WhenRevokeCertificateSuccess", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
