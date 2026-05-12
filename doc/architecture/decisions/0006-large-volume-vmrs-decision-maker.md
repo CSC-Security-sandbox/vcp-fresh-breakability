@@ -55,7 +55,7 @@ We have implemented a dedicated `LeastCostLargeVolumeClusterDecisionMaker` that 
    - Clear error messages indicating missing active-passive or active-active configuration
 
 6. **Shared Utilities**:
-   - Common `FindVMsByType` utility function for VM lookup
+   - Common `FindVMsByType` for scaling-direction lookup; `CanonicalVMTypeInCatalog` when comparing catalog `vm_type` to pool/VLM instance strings (non-`-lssd` override); internal resolver prefers exact `vm_type` before trying a synthetic `-lssd` suffix
    - Standardized error handling across both decision makers
    - Early break optimization for performance
 
@@ -124,7 +124,7 @@ vmrs:
 - `core/vmrs/decision/testdata/valid_large_volume_no_scaling.yaml` - Test configuration without scaling
 
 ### Modified Files
-- `core/vmrs/types.go` - Added `NonLinearScalingActivePassive` and `NonLinearScalingActiveActive` fields, shared `FindVMsByType` utility
+- `core/vmrs/types.go` - Added `NonLinearScalingActivePassive` and `NonLinearScalingActiveActive` fields, shared `FindVMsByType` / `CanonicalVMTypeInCatalog` utilities
 - `core/vmrs/decision/least_cost_single_vm.go` - Fixed range loop bug in `sortVMsByCost`, updated to use shared utilities
 - `core/vmrs/decision/factory.go` - Added comprehensive docstrings
 - `core/orchestrator/activities/pool_activities.go` - Added dedicated `CreateLargeVolumeVMRSConfig` function for config modification

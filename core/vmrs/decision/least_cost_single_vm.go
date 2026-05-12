@@ -56,11 +56,16 @@ func (d *LeastCostSingleVMDecisionMaker) FindOptimalVMs(config *vmrs.VMRSConfig,
 		currentInstance = customerRequest.ConfigForPoolInstanceScaling.CurrentInstanceType
 	}
 
+	canonicalCurrent, haveCanonicalCurrent := "", false
+	if currentInstance != "" {
+		canonicalCurrent, haveCanonicalCurrent = vmrs.CanonicalVMTypeInCatalog(d.vmsSortedByCost, currentInstance)
+	}
+
 	for _, vm := range d.vmsSortedByCost {
 		if customerRequest.DesiredIOPS <= vm.OntapLimits.IOPS && customerRequest.DesiredThroughputInMiBs <= vm.OntapLimits.ThroughputInMiBs &&
 			customerRequest.DesiredCapacityInGiB <= vm.OntapLimits.CapacityInGiB {
 			if currentVolumeCount > 0 { // operation related to volume count limits
-				if (currentInstance != "" && vm.VMType == currentInstance) ||
+				if (haveCanonicalCurrent && vm.VMType == canonicalCurrent) ||
 					currentVolumeCount < volumeLimits[vm.VMType].MinVolumeCount || currentVolumeCount > volumeLimits[vm.VMType].MaxVolumeCount { // skip the current instance type to avoid no-op scaling
 					continue
 				}

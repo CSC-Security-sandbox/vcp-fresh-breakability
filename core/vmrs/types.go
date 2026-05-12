@@ -4,6 +4,7 @@ package vmrs
 
 import (
 	"math"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -17,6 +18,12 @@ const (
 	// LeastCostLargeVolumeCluster selects the optimal homogeneous cluster configuration for large volumes.
 	LeastCostLargeVolumeCluster VMSelectionStrategy = "least_cost_large_volume_cluster"
 )
+
+// LssdVMTypeSuffix is the suffix on GCP machine type strings in VMRS vm_type entries that
+// use local SSD. VLM may omit it when VSA_INSTANCE_TYPE_OVERRIDE_LSSD is enabled (see
+// pool activities that trim this suffix). VMRS resolution treats bare names as this suffix
+// when matching catalog rows.
+const LssdVMTypeSuffix = "-lssd"
 
 // VMRS configuration object that holds performance limits for different hyperscalers.
 type VMRSConfig struct {
@@ -205,24 +212,53 @@ type ClusterMetadata struct {
 	IOPSPerNode int64
 }
 
-// FindVMsByType finds two VM types from a slice of VMs and returns pointers to them.
-// Returns nil for VMs that are not found.
-// Uses early break optimization when both VMs are found.
-func FindVMsByType(vms []VMPerfLimit, currentType, newType string) (*VMPerfLimit, *VMPerfLimit) {
-	var currentVM, newVM *VMPerfLimit
-
+// resolveVMPerfLimit returns the VMRS row for instanceType, or nil if none matches.
+// It tries an exact VMType match first (so a bare name wins over a synthetic suffix
+// when both rows exist). If none matches and instanceType does not already end with
+// LssdVMTypeSuffix, it tries again with that suffix appended. That aligns VLM instance strings
+// (e.g. when VSA_INSTANCE_TYPE_OVERRIDE_LSSD strips the suffix) with canonical VMRS
+// vm_type values. Use FindVMsByType for scaling direction; use CanonicalVMTypeInCatalog
+// once before hot loops when comparing many catalog rows to one pool instance type.
+func resolveVMPerfLimit(vms []VMPerfLimit, instanceType string) *VMPerfLimit {
+	if instanceType == "" {
+		return nil
+	}
 	for i := range vms {
-		if vms[i].VMType == currentType {
-			currentVM = &vms[i]
-		}
-		if vms[i].VMType == newType {
-			newVM = &vms[i]
-		}
-		// Early break when both found - optimization for performance
-		if currentVM != nil && newVM != nil {
-			break
+		if vms[i].VMType == instanceType {
+			return &vms[i]
 		}
 	}
+	if strings.HasSuffix(instanceType, LssdVMTypeSuffix) {
+		return nil
+	}
+	withLSSD := instanceType + LssdVMTypeSuffix
+	for i := range vms {
+		if vms[i].VMType == withLSSD {
+			return &vms[i]
+		}
+	}
+	return nil
+}
 
-	return currentVM, newVM
+// CanonicalVMTypeInCatalog returns the canonical VMType string for instanceType after
+// applying the same resolution rules as resolveVMPerfLimit. If instanceType is empty or
+// does not match any catalog row, it returns ("", false). Call once before iterating
+// catalog rows to avoid O(n²) rescans per candidate VM.
+func CanonicalVMTypeInCatalog(vms []VMPerfLimit, instanceType string) (string, bool) {
+	if instanceType == "" {
+		return "", false
+	}
+	r := resolveVMPerfLimit(vms, instanceType)
+	if r == nil {
+		return "", false
+	}
+	return r.VMType, true
+}
+
+// FindVMsByType resolves currentType and newType independently against vms and returns the
+// matching VMRS rows. Matching uses resolveVMPerfLimit (exact match first, then appending
+// LssdVMTypeSuffix when no row matches). Intended for CompareVMScalingDirection; other call
+// sites should use CanonicalVMTypeInCatalog (once per pool instance type before looping) or exact keys.
+func FindVMsByType(vms []VMPerfLimit, currentType, newType string) (*VMPerfLimit, *VMPerfLimit) {
+	return resolveVMPerfLimit(vms, currentType), resolveVMPerfLimit(vms, newType)
 }

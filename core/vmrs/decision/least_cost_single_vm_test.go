@@ -513,6 +513,46 @@ func TestLeastCostSingleVMDecisionMaker_HigherMachineType(t *testing.T) {
 	}
 }
 
+func TestLeastCostSingleVMDecisionMaker_HigherMachineType_StrippedCurrentInstanceType(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_single_vm.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostSingleVMDecisionMaker(config)
+
+	// Same scenario as HigherMachineType but CurrentInstanceType omits "-lssd" (VSA_INSTANCE_TYPE_OVERRIDE_LSSD).
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             12,
+		DesiredThroughputInMiBs: 424,
+		DesiredCapacityInGiB:    10,
+		ConfigForPoolInstanceScaling: &vmrs.PoolInstanceScalingConfig{
+			CurrentVolCount:     247,
+			CurrentInstanceType: "c3-standard-4",
+			VolLimitPerInstanceMap: map[string]common.VolumeCountRange{
+				"c3-standard-4-lssd": {
+					MinVolumeCount: 0,
+					MaxVolumeCount: 245,
+				},
+				"c3-standard-8-lssd": {
+					MinVolumeCount: 246,
+					MaxVolumeCount: 495,
+				},
+				"c3-standard-16-lssd": {
+					MinVolumeCount: 496,
+					MaxVolumeCount: 995,
+				},
+			},
+		},
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, &vlm.VLMConfig{})
+
+	assert.Nil(t, err, "expected no error")
+	assert.NotNil(t, decision, "expected a decision")
+	if decision != nil {
+		assert.Equal(t, "c3-standard-8-lssd", decision.ChosenVMs[0], "must skip current tier even when instance type string is stripped")
+	}
+}
+
 func TestLeastCostSingleVMDecisionMaker_LowerMachineType(t *testing.T) {
 	config, err := config.LoadConfig("testdata/valid_single_vm.yaml")
 	assert.Nil(t, err, "failed to load config")
