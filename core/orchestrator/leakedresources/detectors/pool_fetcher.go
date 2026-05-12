@@ -8,7 +8,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	temporalutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 )
@@ -42,7 +41,6 @@ func NewTemporalCCFEPoolFetcher(c client.Client) CCFEPoolFetcher {
 // (the location is omitted from the returned map) so a single transient
 // CCFE error doesn't poison the whole project's diff.
 func (f *temporalCCFEPoolFetcher) FetchCCFEPools(ctx context.Context, projectID string, locations []string) (map[string][]poolpairs.CachedPool, error) {
-	logger := util.GetLogger(ctx)
 	if f.client == nil {
 		return nil, fmt.Errorf("temporal client is not configured")
 	}
@@ -60,13 +58,11 @@ func (f *temporalCCFEPoolFetcher) FetchCCFEPools(ctx context.Context, projectID 
 
 	run, err := f.client.ExecuteWorkflow(ctx, opts, backgroundworkflows.FetchCCFEPoolsWorkflow, projectID, locations)
 	if err != nil {
-		logger.Warnf("temporalCCFEPoolFetcher: ExecuteWorkflow failed project=%s locations=%d: %v", projectID, len(locations), err)
 		return nil, err
 	}
 
 	var poolsByLocation map[string][]poolpairs.CachedPool
 	if err := run.Get(ctx, &poolsByLocation); err != nil {
-		logger.Warnf("temporalCCFEPoolFetcher: workflow Get failed project=%s locations=%d: %v", projectID, len(locations), err)
 		return nil, err
 	}
 	return poolsByLocation, nil

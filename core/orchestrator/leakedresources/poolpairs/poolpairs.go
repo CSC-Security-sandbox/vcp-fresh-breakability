@@ -176,7 +176,5 @@ func EnumerateProjectLocationKeys(ctx context.Context, storage database.Storage,
 			add(a.Name, z)
 		}
 	}
-	logger.Infof("poolpairs.EnumerateProjectLocationKeys: built %d pair(s) from %d account(s), region=%s, zones=%d",
-		len(pairs), len(accounts), region, len(zones))
 	return pairs, nil
 }

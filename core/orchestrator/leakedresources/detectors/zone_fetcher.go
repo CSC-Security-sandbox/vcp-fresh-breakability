@@ -9,7 +9,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	temporalutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 )
@@ -35,7 +34,6 @@ func NewTemporalZoneFetcher(c client.Client) poolpairs.ZoneFetcher {
 // connection) yields (nil, error) instead of panicking, so the caller
 // gracefully falls back to region-only enumeration.
 func (f *temporalZoneFetcher) GetRegionZones(ctx context.Context, region string) ([]string, error) {
-	logger := util.GetLogger(ctx)
 	if f.client == nil {
 		return nil, fmt.Errorf("temporal client is not configured")
 	}
@@ -50,13 +48,11 @@ func (f *temporalZoneFetcher) GetRegionZones(ctx context.Context, region string)
 
 	run, err := f.client.ExecuteWorkflow(ctx, opts, backgroundworkflows.GetRegionZonesWorkflow, region)
 	if err != nil {
-		logger.Warnf("temporalZoneFetcher: ExecuteWorkflow failed region=%s: %v", region, err)
 		return nil, err
 	}
 
 	var zones []string
 	if err := run.Get(ctx, &zones); err != nil {
-		logger.Warnf("temporalZoneFetcher: workflow Get failed region=%s: %v", region, err)
 		return nil, err
 	}
 	return zones, nil

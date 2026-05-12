@@ -78,10 +78,10 @@ func (d *PoolDetector) Name() string {
 // poolpairs.GroupPoolsByProjectLocation and emits in_ccfe_not_in_vcp /
 // in_vcp_not_in_ccfe records.
 //
-// A nil/missing entry for a location causes that pair to be skipped
-// (logged) so a transient CCFE outage cannot false-flag every VCP pool as
-// a leak. Any error from ProjectLocationLister surfaces as a detector
-// error so the pipeline can log it once and move on to the next detector.
+// A nil/missing entry for a location causes that pair to be skipped so a
+// transient CCFE outage cannot false-flag every VCP pool as a leak. Any
+// error from ProjectLocationLister surfaces as a detector error so the
+// pipeline can log it once and move on to the next detector.
 func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]model.LeakRecord, error) {
 	logger := util.GetLogger(ctx)
 	var records []model.LeakRecord
@@ -100,11 +100,7 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 	if err != nil {
 		return nil, err
 	}
-
-	logger.Infof("leaked resources pool detector: starting CCFE compare (vcp_pool_rows=%d vcp_groups=%d fetch_pairs=%d)",
-		len(pools), len(groups), len(pairs))
 	if len(pairs) == 0 {
-		logger.Infof("leaked resources pool detector: no (project,location) pairs enumerated; skipping CCFE diff")
 		return records, nil
 	}
 
@@ -120,98 +116,97 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 		locationsByProject[pair.ProjectID] = append(locationsByProject[pair.ProjectID], pair.Location)
 	}
 
-	for _, projectID := range projectOrder {
+	failedProjects := 0
+	skippedLocations := 0
+	totalProjects := len(projectOrder)
+	lastDecile := 0
+	for i, projectID := range projectOrder {
 		locations := locationsByProject[projectID]
-
-		logger.Infof("leaked resources pool detector: fetching CCFE pools project=%s locations=%d",
-			projectID, len(locations))
 
 		poolsByLocation, err := d.fetcher.FetchCCFEPools(ctx, projectID, locations)
 		if err != nil {
-			logger.Warnf("pool detector: CCFE fetch failed for project=%s locations=%d: %v", projectID, len(locations), err)
-			continue
-		}
+			logger.Warnf("pool detector: FetchCCFEPools failed project=%s: %v", projectID, err)
+			failedProjects++
+		} else {
+			for _, location := range locations {
+				key := poolpairs.PoolProjectLocation{ProjectID: projectID, Location: location}
 
-		for _, location := range locations {
-			key := poolpairs.PoolProjectLocation{ProjectID: projectID, Location: location}
-			recordsBefore := len(records)
-
-			ccfePools, present := poolsByLocation[location]
-			if !present {
-				// Workflow couldn't fetch this location after retries; the
-				// per-location activity failure is logged inside the
-				// workflow. Skip so we don't emit false leaks.
-				logger.Infof("leaked resources pool detector: workflow returned no entry for project=%s location=%s; skipping diff",
-					projectID, location)
-				continue
-			}
-			if ccfePools == nil {
-				// CCFE disabled or transient miss already retried; skip the
-				// pair to avoid false in_vcp_not_in_ccfe.
-				logger.Infof("leaked resources pool detector: nil CCFE result for project=%s location=%s; skipping diff",
-					projectID, location)
-				continue
-			}
-
-			// Build the VCP-side comparison set keyed on Pool.UUID — names
-			// can be reused across recreations, UUIDs cannot, so UUID is
-			// the only stable identity for the diff. Pools without a UUID
-			// are dropped defensively (legacy rows shouldn't exist given
-			// the unique index, but we don't want a stray "" to collide
-			// with a CCFE entry that also happened to have an empty
-			// netappUuid).
-			vcpPools := groups[key]
-			vcpByUUID := make(map[string]*datamodel.PoolView, len(vcpPools))
-			for _, p := range vcpPools {
-				if p.UUID != "" {
-					vcpByUUID[p.UUID] = p
-				}
-			}
-			ccfeByUUID := make(map[string]poolpairs.CachedPool, len(ccfePools))
-			for _, cp := range ccfePools {
-				if cp.UUID == "" {
+				ccfePools, present := poolsByLocation[location]
+				if !present || ccfePools == nil {
+					skippedLocations++
 					continue
 				}
-				ccfeByUUID[cp.UUID] = cp
-			}
 
-			// In CCFE but not in VCP — UUID is the leaked identifier; carry
-			// the CCFE-side resource name into the record so operators can
-			// see a human-readable handle without having to cross-reference
-			// the UUID.
-			for uuid, cp := range ccfeByUUID {
-				if _, inVCP := vcpByUUID[uuid]; !inVCP {
-					records = append(records, model.LeakRecord{
-						ResourceType: model.ResourceTypePool,
-						ResourceID:   uuid,
-						ResourceName: cp.Name,
-						ProjectID:    projectID,
-						Region:       location,
-						Reason:       ReasonInCCFENotInVCP,
-						Extra:        map[string]string{"uuid": uuid},
-					})
+				// Build the VCP-side comparison set keyed on Pool.UUID — names
+				// can be reused across recreations, UUIDs cannot, so UUID is
+				// the only stable identity for the diff. Pools without a UUID
+				// are dropped defensively (legacy rows shouldn't exist given
+				// the unique index, but we don't want a stray "" to collide
+				// with a CCFE entry that also happened to have an empty
+				// netappUuid).
+				vcpPools := groups[key]
+				vcpByUUID := make(map[string]*datamodel.PoolView, len(vcpPools))
+				for _, p := range vcpPools {
+					if p.UUID != "" {
+						vcpByUUID[p.UUID] = p
+					}
+				}
+				ccfeByUUID := make(map[string]poolpairs.CachedPool, len(ccfePools))
+				for _, cp := range ccfePools {
+					if cp.UUID == "" {
+						continue
+					}
+					ccfeByUUID[cp.UUID] = cp
+				}
+
+				// In CCFE but not in VCP — UUID is the leaked identifier; carry
+				// the CCFE-side resource name into the record so operators can
+				// see a human-readable handle without having to cross-reference
+				// the UUID.
+				for uuid, cp := range ccfeByUUID {
+					if _, inVCP := vcpByUUID[uuid]; !inVCP {
+						records = append(records, model.LeakRecord{
+							ResourceType: model.ResourceTypePool,
+							ResourceID:   uuid,
+							ResourceName: cp.Name,
+							ProjectID:    projectID,
+							Region:       location,
+							Reason:       ReasonInCCFENotInVCP,
+							Extra:        map[string]string{"uuid": uuid},
+						})
+					}
+				}
+				// In VCP but not in CCFE.
+				for uuid, p := range vcpByUUID {
+					if _, inCCFE := ccfeByUUID[uuid]; !inCCFE {
+						records = append(records, model.LeakRecord{
+							ResourceType: model.ResourceTypePool,
+							ResourceID:   uuid,
+							ResourceName: p.Name,
+							ProjectID:    projectID,
+							Region:       location,
+							Reason:       ReasonInVCPNotInCCFE,
+							Extra:        map[string]string{"uuid": uuid},
+						})
+					}
 				}
 			}
-			// In VCP but not in CCFE.
-			for uuid, p := range vcpByUUID {
-				if _, inCCFE := ccfeByUUID[uuid]; !inCCFE {
-					records = append(records, model.LeakRecord{
-						ResourceType: model.ResourceTypePool,
-						ResourceID:   uuid,
-						ResourceName: p.Name,
-						ProjectID:    projectID,
-						Region:       location,
-						Reason:       ReasonInVCPNotInCCFE,
-						Extra:        map[string]string{"uuid": uuid},
-					})
-				}
-			}
+		}
 
-			leaksThisGroup := len(records) - recordsBefore
-			logger.Infof("leaked resources pool detector: finished group project=%s location=%s ccfe_pools=%d leaks_added=%d",
-				projectID, location, len(ccfeByUUID), leaksThisGroup)
+		// Progress logging at 10% gaps. Each decile boundary is reported at
+		// most once; when totalProjects is small, multiple deciles can be
+		// crossed in one iteration and we only log the highest one reached.
+		done := i + 1
+		decile := (done * 10) / totalProjects
+		if decile > lastDecile {
+			logger.Infof("pool detector: progress %d%% (accounts_done=%d accounts_left=%d)",
+				decile*10, done, totalProjects-done)
+			lastDecile = decile
 		}
 	}
+
+	logger.Infof("pool detector: completed vcp_rows=%d pairs=%d projects=%d failed_projects=%d skipped_locations=%d leaks=%d",
+		len(pools), len(pairs), len(projectOrder), failedProjects, skippedLocations, len(records))
 
 	return records, nil
 }
