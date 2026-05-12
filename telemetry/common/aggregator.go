@@ -128,7 +128,7 @@ func CounterDelta(points []DataPoint, logger log.Logger, measuredType metadata.M
 				logger.Warnf("Skipping cold tier write size sample value for pool uuid %s since value decreased from %.2f to %.2f", resourceUUID, lastPoint.Quantity, point.Quantity)
 				// Don't update lastPoint for delta calculation, but track this as the last counter value
 				continue
-			} else if (measuredType == metadata.CoolTierDataReadSizeRaw || measuredType == metadata.XregionReplicationTotalTransferBytes || measuredType == metadata.CbsCrossRegionVolumeBackupTransferBytes) && point.Quantity == 0 {
+			} else if (measuredType == metadata.CoolTierDataReadSizeRaw || measuredType == metadata.XregionReplicationTotalTransferBytes) && point.Quantity == 0 {
 				logger.Warnf("Skipping cold tier read size sample value for pool uuid %s since value decreased from %.2f to zero", resourceUUID, lastPoint.Quantity)
 				// Don't update lastPoint for delta calculation, but track this as the last counter value
 				continue
@@ -136,7 +136,7 @@ func CounterDelta(points []DataPoint, logger log.Logger, measuredType metadata.M
 				// If the current quantity is less than 25% of the previous quantity, then we assume a counter
 				// reset and use the quantity of the current data point. Otherwise, we assume an anomalous dip
 				// and skip the current data point.
-				if point.Quantity < lastPoint.Quantity*0.25 {
+				if point.Quantity < lastPoint.Quantity*0.25 || (measuredType == metadata.CbsCrossRegionVolumeBackupTransferBytes) {
 					logger.Warnf("Counter reset detected for resource uuid %s: previous value %.2f, current value %.2f at timestamp %v", resourceUUID,
 						lastPoint.Quantity, point.Quantity, point.Timestamp)
 					quantity = point.Quantity

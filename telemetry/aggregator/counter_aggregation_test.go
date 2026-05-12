@@ -80,6 +80,227 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 		assert.Equal(t, float64(0), res.billed)
 	})
 
+	t.Run("CBS backup transfer cache miss prepends zero baseline", func(t *testing.T) {
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 272043},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 387575},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 387575},
+		}
+
+		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+
+		backupResourceKey := ResourceKey{
+			ResourceName: "test-backup",
+			ConsumerID:   "customer-123",
+			ResourceType: metadata.Backup,
+		}
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, backupResourceKey, dataPoints, metadata.CbsCrossRegionVolumeBackupTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		// Zero baseline prepended: [0, 272043, 387575, 387575]
+		// Delta = 272043 + 115532 + 0 = 387575
+		assert.InDelta(t, 387575.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.Equal(t, 387575.0, *res.lastCounter)
+	})
+
+	t.Run("CBS backup transfer cache hit uses cached value not zero", func(t *testing.T) {
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 503159},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 618707},
+		}
+
+		lastCounterValue := float64(387575)
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
+		}
+		counterCache := map[CounterAggregationCacheResourceKey]*float64{
+			cacheKey: &lastCounterValue,
+		}
+
+		backupResourceKey := ResourceKey{
+			ResourceName: "test-backup",
+			ConsumerID:   "customer-123",
+			ResourceType: metadata.Backup,
+		}
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, backupResourceKey, dataPoints, metadata.CbsCrossRegionVolumeBackupTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		// Cached 387575 prepended: [387575, 503159, 618707]
+		// Delta = 115584 + 115548 = 231132
+		assert.InDelta(t, 231132.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.Equal(t, 618707.0, *res.lastCounter)
+	})
+
+	t.Run("CBS backup transfer cache miss single data point", func(t *testing.T) {
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 272043},
+		}
+
+		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+
+		backupResourceKey := ResourceKey{
+			ResourceName: "test-backup",
+			ConsumerID:   "customer-123",
+			ResourceType: metadata.Backup,
+		}
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, backupResourceKey, dataPoints, metadata.CbsCrossRegionVolumeBackupTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		// Zero baseline prepended: [0, 272043] → delta = 272043
+		assert.InDelta(t, 272043.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.Equal(t, 272043.0, *res.lastCounter)
+	})
+
+	t.Run("Non-CBS metric cache miss does not prepend zero baseline", func(t *testing.T) {
+		// Same data as CBS test above but with a non-CBS metric type.
+		// Without zero baseline: [272043, 387575] → delta = 115532
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 272043},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 387575},
+		}
+
+		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.CoolTierDataReadSizeRaw, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		assert.InDelta(t, 115532.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.Equal(t, 387575.0, *res.lastCounter)
+	})
+
+	t.Run("CBS backup transfer cache hit with cross-window reset", func(t *testing.T) {
+		// Previous window cached at 618707. New data starts lower due to a new backup.
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 150000},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 300000},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 450000},
+		}
+
+		lastCounterValue := float64(618707)
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
+		}
+		counterCache := map[CounterAggregationCacheResourceKey]*float64{
+			cacheKey: &lastCounterValue,
+		}
+
+		backupResourceKey := ResourceKey{
+			ResourceName: "test-backup",
+			ConsumerID:   "customer-123",
+			ResourceType: metadata.Backup,
+		}
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, backupResourceKey, dataPoints, metadata.CbsCrossRegionVolumeBackupTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		// Cached 618707 prepended: [618707, 150000, 300000, 450000]
+		// reset(150000) + (300000-150000) + (450000-300000) = 150000 + 150000 + 150000 = 450000
+		assert.InDelta(t, 450000.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.Equal(t, 450000.0, *res.lastCounter)
+	})
+
+	t.Run("CBS backup transfer cache miss with all zero data points", func(t *testing.T) {
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 0},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 0},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 0},
+		}
+
+		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+
+		backupResourceKey := ResourceKey{
+			ResourceName: "test-backup",
+			ConsumerID:   "customer-123",
+			ResourceType: metadata.Backup,
+		}
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, backupResourceKey, dataPoints, metadata.CbsCrossRegionVolumeBackupTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		// Zero baseline prepended: [0, 0, 0, 0] → all flat, delta = 0
+		assert.InDelta(t, 0.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.Equal(t, 0.0, *res.lastCounter)
+	})
+
+	t.Run("CBS backup transfer cache hit with reset to zero in data", func(t *testing.T) {
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 500000},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 0},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 200000},
+		}
+
+		lastCounterValue := float64(387575)
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
+		}
+		counterCache := map[CounterAggregationCacheResourceKey]*float64{
+			cacheKey: &lastCounterValue,
+		}
+
+		backupResourceKey := ResourceKey{
+			ResourceName: "test-backup",
+			ConsumerID:   "customer-123",
+			ResourceType: metadata.Backup,
+		}
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, backupResourceKey, dataPoints, metadata.CbsCrossRegionVolumeBackupTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		// Cached 387575 prepended: [387575, 500000, 0, 200000]
+		// (500000-387575) + reset(0) + (200000-0) = 112425 + 0 + 200000 = 312425
+		assert.InDelta(t, 312425.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.Equal(t, 200000.0, *res.lastCounter)
+	})
+
+	t.Run("CBS backup transfer cache miss empty data points", func(t *testing.T) {
+		dataPoints := []common.DataPoint{}
+		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+
+		backupResourceKey := ResourceKey{
+			ResourceName: "test-backup",
+			ConsumerID:   "customer-123",
+			ResourceType: metadata.Backup,
+		}
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, backupResourceKey, dataPoints, metadata.CbsCrossRegionVolumeBackupTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		// Empty data returns zero, no zero baseline prepended for empty input
+		assert.Equal(t, 0.0, res.billed)
+		assert.Nil(t, res.lastCounter)
+	})
+
+	t.Run("CBS backup transfer cache hit with multiple resets in window", func(t *testing.T) {
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(5 * time.Minute), Quantity: 500000},
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 300000}, // reset
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 400000},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 100000}, // reset
+			{Timestamp: aggregationStartTime.Add(25 * time.Minute), Quantity: 250000},
+		}
+
+		lastCounterValue := float64(400000)
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
+		}
+		counterCache := map[CounterAggregationCacheResourceKey]*float64{
+			cacheKey: &lastCounterValue,
+		}
+
+		backupResourceKey := ResourceKey{
+			ResourceName: "test-backup",
+			ConsumerID:   "customer-123",
+			ResourceType: metadata.Backup,
+		}
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, backupResourceKey, dataPoints, metadata.CbsCrossRegionVolumeBackupTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, false)
+
+		// Cached 400000 prepended: [400000, 500000, 300000, 400000, 100000, 250000]
+		// (500000-400000) + reset(300000) + (400000-300000) + reset(100000) + (250000-100000)
+		// = 100000 + 300000 + 100000 + 100000 + 150000 = 750000
+		assert.InDelta(t, 750000.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.Equal(t, 250000.0, *res.lastCounter)
+	})
+
 	t.Run("Replication initialize splits skipped vs billed before first positive", func(t *testing.T) {
 		initTT := TransferTypeInitial
 		dataPoints := []common.DataPoint{

@@ -1974,6 +1974,17 @@ func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context
 
 		logger.Debugf("Added last counter value %.2f from cache as starting point for resource %s, measured type %s",
 			*lastAggregatedCounterValue, resourceUUID, measuredType)
+	} else if isCbsCrossRegionBackupTransferMetric(measuredType) {
+		// First aggregation window for a cross-region backup: no prior counter
+		// in the cache yet, so use zero as the baseline. This ensures the full
+		// initial transfer bytes are counted instead of being dropped.
+		zeroBaseline := common.DataPoint{
+			Timestamp: aggregationStartTime.Add(-1 * time.Minute),
+			Quantity:  0,
+		}
+		pointsForDelta = append([]common.DataPoint{zeroBaseline}, dataPoints...)
+
+		logger.Debugf("Using zero baseline for CBS cross-region backup transfer resource %s (no prior counter in cache)", resourceUUID)
 	}
 
 	if skipUntilFirstPositive {
@@ -2131,4 +2142,8 @@ func determineOntapReplicationType(sourceRegion, destinationRegion *string, sour
 		return string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION)
 	}
 	return string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION)
+}
+
+func isCbsCrossRegionBackupTransferMetric(mt metadata.MeasuredType) bool {
+	return mt == metadata.CbsCrossRegionVolumeBackupTransferBytes
 }
