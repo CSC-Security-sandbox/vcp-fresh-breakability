@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core/servergen"
 )
 
 // V1ExpertModeVolume implements the expert mode volume creation endpoint

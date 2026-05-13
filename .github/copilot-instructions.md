@@ -156,7 +156,7 @@ env.OnActivity("SomeActivity", mock.Anything, mock.Anything).Return(&activities.
 ### Code Generation Commands
 ```bash
 make generate-mocks          # Generate all mocks using mockery
-make generate-core-api       # Generate OpenAPI server from core/core-api/api.yaml
+make generate-core-api       # Generate OpenAPI server from vcp-core/api.yaml
 make generate-google-proxy   # Generate from google-proxy/api/gcp-api.yaml
 make test                    # Run tests with coverage
 ```

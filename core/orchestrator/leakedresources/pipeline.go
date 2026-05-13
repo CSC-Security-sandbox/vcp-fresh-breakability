@@ -44,7 +44,7 @@ func (p *Pipeline) SetReporter(r Reporter) {
 }
 
 // Run executes all registered detectors and then reports the aggregated leak records.
-// It is invoked by the cron-triggered locked task in core/app.go.
+// It is invoked by the cron-triggered locked task in vcp-core/cmd/main.go
 func (p *Pipeline) Run(ctx context.Context, storage database.Storage) error {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Leaked resources pipeline started (detectors=%d)", len(p.detectors))
@@ -85,7 +85,7 @@ func (p *Pipeline) Run(ctx context.Context, storage database.Storage) error {
 
 // Run executes the default pipeline with registered detectors (pool: live
 // CCFE fetch via FetchCCFEPoolsWorkflow; volume, snapshot in follow-up).
-// Invoked by the cron in core/app.go. The pool detector now triggers two
+// Invoked by the cron in vcp-core/cmd/main.go. The pool detector now triggers two
 // Temporal workflows synchronously per tick — one GetRegionZonesWorkflow
 // to enumerate zones in LOCAL_REGION and one FetchCCFEPoolsWorkflow per
 // VCP account (which fans the per-(project, location) CCFE list calls out

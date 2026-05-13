@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core/servergen"
 )
 
 func TestGetHealth(t *testing.T) {

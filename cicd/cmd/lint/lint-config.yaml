@@ -43,6 +43,7 @@ linters:
         core-restrictions:
           files:
             - "**/core/**/*.go"
+            - "**/vcp-core/**/*.go"
             - "!../../../common/resource_deployer.go"
             - "!**/core/orchestrator/activities/kms_activities/kms_common_activities_test.go"
             - "!**/core/orchestrator/activities/pool_activities.go"
@@ -97,7 +98,7 @@ run:
     - clients/cvp
     - clients/ontap-rest
     - clients/cvp
-    - core/core-api/core-servergen
+    - vcp-core/servergen
     - google-proxy/api/gcp-servergen
     # ogen output: import grouping and brace spacing do not match custom checkGoFormat() rules
     - oci-proxy/api/oci-servergen

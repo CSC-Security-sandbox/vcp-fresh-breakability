@@ -14,7 +14,7 @@ packages:
       dir: "{{.InterfaceDir}}"
     interfaces:
       Invoker:
-  github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core/servergen:
     config:
       dir: "{{.InterfaceDir}}"
       inpackage: True

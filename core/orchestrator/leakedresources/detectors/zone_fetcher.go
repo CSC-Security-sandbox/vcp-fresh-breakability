@@ -6,8 +6,8 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	temporalutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
@@ -24,7 +24,7 @@ type temporalZoneFetcher struct {
 
 // NewTemporalZoneFetcher returns a Temporal-backed ZoneFetcher. The
 // supplied client is the same one core constructs at startup (see
-// core/app.go) and shares with the rest of the orchestrator.
+// vcp-core/cmd/main.go) and shares with the rest of the orchestrator.
 func NewTemporalZoneFetcher(c client.Client) poolpairs.ZoneFetcher {
 	return &temporalZoneFetcher{client: c}
 }

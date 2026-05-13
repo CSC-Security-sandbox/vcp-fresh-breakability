@@ -17,7 +17,7 @@ The framework is **extensible**: new detectors and reporters can be added withou
 ## Where It Runs
 
 - **Process:** Core (same process that serves the API and runs the workflow supervisor).
-- **Trigger:** Cron scheduled in `core/app.go` via the same background task scheduler used by the workflow supervisor.
+- **Trigger:** Cron scheduled in `vcp-core/cmd/main.go` via the same background task scheduler used by the workflow supervisor.
 - **Schedule:** Every 6 hours (configurable via cron expression).
 - **Concurrency:** A database-backed lock (admin job spec) ensures only one instance runs at a time across pods.
 
@@ -150,7 +150,7 @@ The **CCFE client** (`leakedresources/ccfe/client.go`) is used **only** by the p
 
 | Item | Source | Notes |
 |------|--------|--------|
-| Schedule | Cron expression in core/app.go | Default: every 6 hours. |
+| Schedule | Cron expression in vcp-core/cmd/main.go | Default: every 6 hours. |
 | Lock timeout | `leakedResourcesMonitoringLockTimeoutSeconds` | How long the lock is held so other pods skip. |
 | CCFE base URL | `GCP_HYDRATE_BASE_URL` | If unset, pool detector skips CCFE list. |
 | CCFE auth | Same as hydration | e.g. `auth.GenerateCallbackToken`. |

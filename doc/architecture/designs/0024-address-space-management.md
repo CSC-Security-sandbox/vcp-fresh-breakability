@@ -29,8 +29,8 @@ When `ADDRESS_SPACE_MGMT_ENABLED=true`, these registered ranges are automaticall
 | **Pool Factory (GCP)** | `core/orchestrator/factory/gcp/pool.go` | `RequestedRanges` lookup on pool create |
 | **Pool Activities** | `core/orchestrator/activities/pool_activities.go` | `MarkAddressRangeInUse`, `MarkAddressRangesCreated`, `getPoolAllocatedSubnetCIDR` |
 | **Pool Workflows** | `core/orchestrator/workflows/pool_workflows.go` | `MarkAddressRangeInUse` call post-subnet-create; `MarkAddressRangesCreated` call post-subnet-delete; `DataSubnetSequentialPoller` returns `TenancyInfo` for both create and delete; `PoolDataSubnetWorkFlow` stores pre-deletion CIDR in query handler |
-| **Core API Handler** | `core/core-api/endpoints/address_range_endpoint.go` | Full REST handler (CRUD + state update) |
-| **OpenAPI Schema** | `core/core-api/api.yaml` | New paths + schemas |
+| **Core API Handler** | `vcp-core/handlers/address_range_endpoint.go` | Full REST handler (CRUD + state update) |
+| **OpenAPI Schema** | `vcp-core/api.yaml` | New paths + schemas |
 | **Skaffold Config** | `skaffold/k8s/core.yaml`, `skaffold/k8s/vcp-worker.yaml` | `ADDRESS_SPACE_MGMT_ENABLED=true` |
 
 ---
@@ -386,8 +386,8 @@ Multiple pools can be created using the same registered IP range. GCP allocates 
 | `getPoolAllocatedSubnetCIDR` | `core/orchestrator/activities/pool_activities.go` (~line 3986) |
 | `DataSubnetSequentialPoller` (create + delete) | `core/orchestrator/workflows/pool_workflows.go` (~line 1807) |
 | `PoolDataSubnetWorkFlow` (delete case + `wf.TenancyDetails`) | `core/orchestrator/workflows/pool_workflows.go` (~line 1764) |
-| REST handler | `core/core-api/endpoints/address_range_endpoint.go` |
-| OpenAPI spec | `core/core-api/api.yaml` |
+| REST handler | `vcp-core/handlers/address_range_endpoint.go` |
+| OpenAPI spec | `vcp-core/api.yaml` |
 
 ---
 

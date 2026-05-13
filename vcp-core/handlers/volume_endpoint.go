@@ -9,51 +9,51 @@ import (
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
-	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core/servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 // volumeResponse represents the volume data in the Operation response
 type volumeResponse struct {
-	VolumeId           string                  `json:"volumeId,omitempty"`
-	ResourceId         string                  `json:"resourceId,omitempty"`
-	Created            time.Time               `json:"created,omitempty"`
-	CreationToken      string                  `json:"creationToken,omitempty"`
-	PoolId             string                  `json:"poolId,omitempty"`
-	PoolResourceId     string                  `json:"poolResourceId,omitempty"`
-	Network            string                  `json:"network,omitempty"`
-	ServiceLevel       string                  `json:"serviceLevel,omitempty"`
-	UsedBytes          float64                 `json:"usedBytes"`
-	QuotaInBytes       float64                 `json:"quotaInBytes,omitempty"`
-	SnapReserve        int64                   `json:"snapReserve"`
-	SnapshotDirectory  bool                    `json:"snapshotDirectory"`
-	VolumeState        string                  `json:"volumeState,omitempty"`
-	VolumeStateDetails string                  `json:"volumeStateDetails,omitempty"`
-	IsDataProtection   bool                    `json:"isDataProtection"`
-	SnapshotPolicy     *volumeSnapshotPolicy   `json:"snapshotPolicy,omitempty"`
-	StorageClass       string                  `json:"storageClass,omitempty"`
-	ExportPolicy       *volumeExportPolicy     `json:"exportPolicy,omitempty"`
-	Protocols          []string                `json:"protocols,omitempty"`
-	Labels             map[string]string       `json:"labels,omitempty"`
-	KerberosEnabled    bool                    `json:"kerberosEnabled"`
-	LdapEnabled        bool                    `json:"ldapEnabled"`
-	EncryptionType     string                  `json:"encryptionType,omitempty"`
-	Description        string                  `json:"description,omitempty"`
-	Zone               string                  `json:"zone,omitempty"`
-	LargeCapacity      bool                    `json:"largeCapacity"`
-	CloneDetails       *volumeCloneDetails     `json:"cloneDetails,omitempty"`
+	VolumeId           string                `json:"volumeId,omitempty"`
+	ResourceId         string                `json:"resourceId,omitempty"`
+	Created            time.Time             `json:"created,omitempty"`
+	CreationToken      string                `json:"creationToken,omitempty"`
+	PoolId             string                `json:"poolId,omitempty"`
+	PoolResourceId     string                `json:"poolResourceId,omitempty"`
+	Network            string                `json:"network,omitempty"`
+	ServiceLevel       string                `json:"serviceLevel,omitempty"`
+	UsedBytes          float64               `json:"usedBytes"`
+	QuotaInBytes       float64               `json:"quotaInBytes,omitempty"`
+	SnapReserve        int64                 `json:"snapReserve"`
+	SnapshotDirectory  bool                  `json:"snapshotDirectory"`
+	VolumeState        string                `json:"volumeState,omitempty"`
+	VolumeStateDetails string                `json:"volumeStateDetails,omitempty"`
+	IsDataProtection   bool                  `json:"isDataProtection"`
+	SnapshotPolicy     *volumeSnapshotPolicy `json:"snapshotPolicy,omitempty"`
+	StorageClass       string                `json:"storageClass,omitempty"`
+	ExportPolicy       *volumeExportPolicy   `json:"exportPolicy,omitempty"`
+	Protocols          []string              `json:"protocols,omitempty"`
+	Labels             map[string]string     `json:"labels,omitempty"`
+	KerberosEnabled    bool                  `json:"kerberosEnabled"`
+	LdapEnabled        bool                  `json:"ldapEnabled"`
+	EncryptionType     string                `json:"encryptionType,omitempty"`
+	Description        string                `json:"description,omitempty"`
+	Zone               string                `json:"zone,omitempty"`
+	LargeCapacity      bool                  `json:"largeCapacity"`
+	CloneDetails       *volumeCloneDetails   `json:"cloneDetails,omitempty"`
 }
 
 type volumeSnapshotPolicy struct {
-	Enabled         bool                          `json:"enabled"`
-	HourlySchedule  volumeHourlySchedule          `json:"hourlySchedule"`
-	DailySchedule   volumeDailySchedule           `json:"dailySchedule"`
-	WeeklySchedule  volumeWeeklySchedule          `json:"weeklySchedule"`
-	MonthlySchedule volumeMonthlySchedule         `json:"monthlySchedule"`
+	Enabled         bool                  `json:"enabled"`
+	HourlySchedule  volumeHourlySchedule  `json:"hourlySchedule"`
+	DailySchedule   volumeDailySchedule   `json:"dailySchedule"`
+	WeeklySchedule  volumeWeeklySchedule  `json:"weeklySchedule"`
+	MonthlySchedule volumeMonthlySchedule `json:"monthlySchedule"`
 }
 
 type volumeHourlySchedule struct {
@@ -86,19 +86,19 @@ type volumeExportPolicy struct {
 }
 
 type volumeExportRule struct {
-	AllowedClients      string  `json:"allowedClients,omitempty"`
-	HasRootAccess       string  `json:"hasRootAccess,omitempty"`
-	AccessType          string  `json:"accessType,omitempty"`
-	Nfsv3               bool    `json:"nfsv3"`
-	Nfsv4               bool    `json:"nfsv4"`
-	Kerberos5ReadOnly   bool    `json:"kerberos5ReadOnly"`
-	Kerberos5ReadWrite  bool    `json:"kerberos5ReadWrite"`
-	Kerberos5iReadOnly  bool    `json:"kerberos5iReadOnly"`
-	Kerberos5iReadWrite bool    `json:"kerberos5iReadWrite"`
-	Kerberos5pReadOnly  bool    `json:"kerberos5pReadOnly"`
-	Kerberos5pReadWrite bool    `json:"kerberos5pReadWrite"`
-	AllSquash           *bool   `json:"allSquash,omitempty"`
-	AnonUid             *int64  `json:"anonUid,omitempty"`
+	AllowedClients      string `json:"allowedClients,omitempty"`
+	HasRootAccess       string `json:"hasRootAccess,omitempty"`
+	AccessType          string `json:"accessType,omitempty"`
+	Nfsv3               bool   `json:"nfsv3"`
+	Nfsv4               bool   `json:"nfsv4"`
+	Kerberos5ReadOnly   bool   `json:"kerberos5ReadOnly"`
+	Kerberos5ReadWrite  bool   `json:"kerberos5ReadWrite"`
+	Kerberos5iReadOnly  bool   `json:"kerberos5iReadOnly"`
+	Kerberos5iReadWrite bool   `json:"kerberos5iReadWrite"`
+	Kerberos5pReadOnly  bool   `json:"kerberos5pReadOnly"`
+	Kerberos5pReadWrite bool   `json:"kerberos5pReadWrite"`
+	AllSquash           *bool  `json:"allSquash,omitempty"`
+	AnonUid             *int64 `json:"anonUid,omitempty"`
 }
 
 type volumeCloneDetails struct {
@@ -286,7 +286,7 @@ func convertModelToVolumeSnapshotPolicy(pol *coremodels.SnapshotPolicy) *volumeS
 			}
 			result.WeeklySchedule = volumeWeeklySchedule{
 				SnapshotsToKeep: count,
-				Day:             strings.Join(func() []string {
+				Day: strings.Join(func() []string {
 					var s []string
 					for _, d := range sc.Schedule.DaysOfWeek {
 						s = append(s, strconv.Itoa(d))

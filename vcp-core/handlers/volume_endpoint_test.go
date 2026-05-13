@@ -8,13 +8,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core/servergen"
 )
 
 // mockParseAndValidateRegionAndZone replaces the package-level parseAndValidateRegionAndZone
@@ -307,8 +307,8 @@ func TestConvertModelToVolumeResponse_WithSnapshotPolicy(t *testing.T) {
 				{
 					Count: 5,
 					Schedule: &coremodels.Schedule{
-						Minutes: []int{30},
-						Hours:   []int{2},
+						Minutes:     []int{30},
+						Hours:       []int{2},
 						DaysOfMonth: []int{1, 15},
 					},
 				},
@@ -450,8 +450,8 @@ func TestConvertModelToVolumeCloneDetails_EmptyStateDetails(t *testing.T) {
 	parentVolumeId := "pv-uuid"
 	emptyStateDetails := ""
 	cp := &coremodels.CloneParentInfo{
-		ParentVolumeId:  &parentVolumeId,
-		StateDetails:    &emptyStateDetails,
+		ParentVolumeId: &parentVolumeId,
+		StateDetails:   &emptyStateDetails,
 	}
 	result := convertModelToVolumeCloneDetails(cp, 0)
 	assert.NotNil(t, result)
@@ -502,10 +502,10 @@ func TestConvertModelToVolumeExportPolicy_SuperuserFalse(t *testing.T) {
 
 func TestEncodeVolumeResponse(t *testing.T) {
 	volResp := &volumeResponse{
-		VolumeId:     "test-uuid",
-		ResourceId:   "test-volume",
+		VolumeId:      "test-uuid",
+		ResourceId:    "test-volume",
 		CreationToken: "test-token",
-		Created:      time.Now(),
+		Created:       time.Now(),
 	}
 	data, err := encodeVolumeResponse(volResp)
 	assert.NoError(t, err)
@@ -903,4 +903,3 @@ func TestEncodeVolumeResponse_AllFields(t *testing.T) {
 	assert.Contains(t, string(data), "my-volume")
 	assert.Contains(t, string(data), "parent-uuid")
 }
-

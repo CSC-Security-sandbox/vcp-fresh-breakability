@@ -129,7 +129,7 @@ func FetchTag(tagPattern string) string {
 	cmd := exec.Command("git", "tag", "-l", "--sort=-v:refname", tagPattern)
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Error executing git command:", err)
+		log.Printf("Error executing git command: %v", err)
 		os.Exit(1)
 	}
 	tags := strings.Split(strings.TrimSpace(string(output)), "\n")

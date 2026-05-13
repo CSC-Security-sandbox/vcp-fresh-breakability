@@ -47,7 +47,7 @@ build:
     - image: core
       context: .
       docker:
-        dockerfile: core/Dockerfile
+        dockerfile: vcp-core/Dockerfile
         buildArgs:
           noCache: true
           GHVSA_PAT: "{{.GHVSA_PAT}}"
@@ -154,7 +154,7 @@ profiles:
               - src: artifacts/core
                 dest: "/app"
           docker:
-            dockerfile: core/Dockerfile.dev
+            dockerfile: vcp-core/Dockerfile.dev
           requires:
             - image: base
               alias: BASE
@@ -223,7 +223,7 @@ profiles:
         - image: core
           context: .
           docker:
-            dockerfile: core/Dockerfile.dev
+            dockerfile: vcp-core/Dockerfile.dev
           requires:
             - image: base
               alias: BASE

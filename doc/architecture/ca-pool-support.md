@@ -143,7 +143,7 @@ For existing pools that need to migrate to database-stored CA configuration:
 - **Pool Creation**: `core/orchestrator/pool.go` - Handles pool creation and CA URI population
 - **Certificate Management**: `hyperscaler/ontap_provider.go` - Uses CA URI for certificate operations
 - **Node Creation**: `hyperscaler/ontap_provider.go` - Populates CA URI in Node struct
-- **API Endpoints**: `core/core-api/endpoints/pool_endpoint.go` - Exposes CA URI in API responses
+- **API Endpoints**: `vcp-core/handlers/pool_endpoint.go` - Exposes CA URI in API responses
 
 ## Debugging
 

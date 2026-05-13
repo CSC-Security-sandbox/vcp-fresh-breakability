@@ -25,7 +25,7 @@ type temporalCCFEPoolFetcher struct {
 
 // NewTemporalCCFEPoolFetcher returns a Temporal-backed CCFEPoolFetcher.
 // The supplied client is the same client that core constructs at startup
-// (see core/app.go) and shares with the rest of the orchestrator.
+// (see vcp-core/cmd/main.go) and shares with the rest of the orchestrator.
 func NewTemporalCCFEPoolFetcher(c client.Client) CCFEPoolFetcher {
 	return &temporalCCFEPoolFetcher{client: c}
 }

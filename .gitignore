@@ -11,8 +11,6 @@
 #vsa-binaries
 cicd/bin
 
-# Go workspace file
-go.work
 
 # GoLand project files
 .idea/

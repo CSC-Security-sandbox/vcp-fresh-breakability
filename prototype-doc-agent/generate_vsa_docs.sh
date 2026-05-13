@@ -30,7 +30,7 @@ fi
 log_success "Repository structure validated"
 
 # Validate required API specification files
-CORE_API="$REPO_ROOT/core/core-api/api.yaml"
+CORE_API="$REPO_ROOT/vcp-core/api.yaml"
 GOOGLE_PROXY="$REPO_ROOT/google-proxy/api/gcp-api.yaml" 
 TELEMETRY_API="$REPO_ROOT/telemetry/api/telemetry-api.yaml"
 

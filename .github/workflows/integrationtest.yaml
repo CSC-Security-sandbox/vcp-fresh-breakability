@@ -186,7 +186,7 @@ jobs:
           UNIT_TEST_THRESHOLD: ${{vars.UNIT_TEST_THRESHOLD}}
         run: |
           go env
-          cd $PROJECT_ROOT/src/main && go run .
+          cd $PROJECT_ROOT/src/main && GOWORK=off go run .
 
       # - name: Notify on Infra Failure
       #   if: failure() && steps.starting_tests.outcome != 'failure'

@@ -716,7 +716,7 @@ jobs:
 
           # --- Dockerfiles (existing in repo) ---
           DOCKERFILES_JSON='[]'
-          for DF_DIR in core worker oci-proxy; do
+          for DF_DIR in vcp-core worker oci-proxy; do
             if [ -f "${DF_DIR}/Dockerfile" ]; then
               DOCKERFILES_JSON=$(echo "$DOCKERFILES_JSON" | jq \
                 --arg name "Dockerfile.${DF_DIR}" \

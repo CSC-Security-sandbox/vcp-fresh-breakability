@@ -6,7 +6,7 @@ COPY common/vsa_config /common/vsa_config
 COPY utils/harvest-template.yaml /app/harvest-template.yaml
 
 # Copy Air config for live reload
-COPY core/air.toml /app/air.toml
+COPY vcp-core/air.toml /app/air.toml
 
 ENV GOTRACEBACK=all
 ENTRYPOINT ["air", "-c", "/app/air.toml"]

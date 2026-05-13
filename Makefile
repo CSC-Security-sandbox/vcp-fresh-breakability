@@ -11,6 +11,7 @@ MOCKERY_VERSION := v2.53.4
 DEV_REGISTRY ?= ghcr.io/vcp-vsa-control-plane
 TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
 IMAGE_TAG := $(TIMESTAMP)
+WORKSPACE_MODULES := . ./cicd ./core
 
 .PHONY: fix-imports
 fix-imports:
@@ -70,27 +71,27 @@ generate-cvp-client:
 
 .PHONY: vcp-db-migrate-image
 vcp-db-migrate-image: vcp-db-migrate-linux
-	docker buildx build -t ${IMAGE_TAG_GOOGLE_PROXY_MIGRATE} --platform linux/amd64 -f core/migrate.Dockerfile .
+	docker buildx build -t ${IMAGE_TAG_GOOGLE_PROXY_MIGRATE} --platform linux/amd64 -f vcp-core/migrate.Dockerfile .
 
 .PHONY: vcp-db-migrate-linux
 vcp-db-migrate-linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o core/build/linux/bin/vcp-db-migrate ./tools/migrate
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o vcp-core/build/linux/bin/vcp-db-migrate ./tools/migrate
 
 .PHONY: vcp-iam-lifecycle-image
 vcp-iam-lifecycle-image: vcp-iam-lifecycle-linux
-	docker buildx build -t ${IMAGE_TAG_IAM_LIFECYCLE} --platform linux/amd64 -f core/iam-lifecycle.Dockerfile .
+	docker buildx build -t ${IMAGE_TAG_IAM_LIFECYCLE} --platform linux/amd64 -f vcp-core/iam-lifecycle.Dockerfile .
 
 .PHONY: vcp-iam-lifecycle-linux
 vcp-iam-lifecycle-linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o core/build/linux/bin/vcp-iam-lifecycle ./tools/iam-lifecycle
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o vcp-core/build/linux/bin/vcp-iam-lifecycle ./tools/iam-lifecycle
 
 .PHONY: vcp-cloudrun-deployer-linux-image
 vcp-cloudrun-deployer-linux-image: vcp-cloudrun-deployer-linux
-	docker buildx build -t ${IMAGE_TAG_GOOGLE_CLOUD_RUN} --platform linux/amd64 -f core/cloud-run-deployer.Dockerfile .
+	docker buildx build -t ${IMAGE_TAG_GOOGLE_CLOUD_RUN} --platform linux/amd64 -f vcp-core/cloud-run-deployer.Dockerfile .
 
 .PHONY: vcp-cloudrun-deployer-linux
 vcp-cloudrun-deployer-linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o core/build/linux/bin/vcp-cloudrun-deployer ./tools/telemetry-deployer
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o vcp-core/build/linux/bin/vcp-cloudrun-deployer ./tools/telemetry-deployer
 
 .PHONY: generate-google-proxy
 generate-google-proxy:
@@ -103,9 +104,8 @@ generate-ontap-proxy:
 
 .PHONY: generate-core-api
 generate-core-api:
-	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapiserver --config core/core-api/.ogenserver.yml --target core/core-api/core-servergen core/core-api/api.yaml
-	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapi --config clients/core-api/.ogenclient.yml --target clients/core-api core/core-api/api.yaml
-
+	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapiserver --config vcp-core/.ogenserver.yml --target vcp-core/servergen vcp-core/api.yaml
+	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapi --config clients/core-api/.ogenclient.yml --target clients/core-api vcp-core/api.yaml
 .PHONY: generate-metrics-api
 generate-metrics-api:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapiserver --config telemetry/api/.ogenserver.yml --target telemetry/api/telemetry-servergen telemetry/api/metrics-api.yaml
@@ -125,10 +125,6 @@ verify-generated: generate
 verify-generated:
 	cd scripts; ./verify-generated.sh
 
-.PHONY: test
-PACKAGES="./..."
-test:
-	go test -coverprofile=vcp-coverage.out $(shell go list $(PACKAGES) | grep -v scripts/sanity)
 
 GOMODCACHE := $(shell go env GOMODCACHE)
 GOCACHE := $(shell go env GOCACHE)
@@ -148,7 +144,7 @@ build-all-binaries-dev:
 		go build -gcflags="all=-N -l" -o /src/app/vcp-worker ./worker/ && \
 		go build -gcflags="all=-N -l" -o /src/app/google-proxy ./google-proxy/ && \
 		go build -gcflags="all=-N -l" -o /src/app/oci-proxy ./oci-proxy/ && \
-		go build -gcflags="all=-N -l" -o /src/app/core ./core && \
+		go build -gcflags="all=-N -l" -o /src/app/core ./vcp-core/cmd && \
 		go build -gcflags="all=-N -l" -o /src/app/telemetry ./telemetry/ && \
 		go build -gcflags="all=-N -l" -o /src/app/ontap-proxy ./ontap-proxy/'
 
@@ -167,7 +163,7 @@ build-all-binaries-test:
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/vcp-worker ./worker/ && \
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/google-proxy ./google-proxy/ && \
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/oci-proxy ./oci-proxy/ && \
-		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/core ./core && \
+		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/core ./vcp-core/cmd && \
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/telemetry ./telemetry/ && \
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/ontap-proxy ./ontap-proxy/'
 
@@ -192,7 +188,7 @@ build-all-binaries-prod:
 		go build -o /src/artifacts/vcp-worker ./worker/ && \
 		go build -o /src/artifacts/google-proxy ./google-proxy/ && \
 		go build -o /src/artifacts/oci-proxy ./oci-proxy/ && \
-		go build -o /src/artifacts/core ./core && \
+		go build -o /src/artifacts/core ./vcp-core/cmd && \
 		go build -o /src/artifacts/telemetry ./telemetry/ && \
         go build -o /src/artifacts/ontap-proxy ./ontap-proxy/'
 	docker cp vsa-binaries-builder-run:/src/artifacts/. ./artifacts/
@@ -215,7 +211,7 @@ build-all-binaries-prod-on-mac:
 		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/vcp-worker ./worker/ && \
 		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/google-proxy ./google-proxy/ && \
 		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/oci-proxy ./oci-proxy/ && \
-		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/core ./core && \
+		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/core ./vcp-core/cmd && \
 		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/telemetry ./telemetry/ && \
         GOOS=linux GOARCH=amd64  go build -o /src/artifacts/ontap-proxy ./ontap-proxy/'
 	docker cp vsa-binaries-builder-run:/src/artifacts/. ./artifacts/
@@ -283,7 +279,7 @@ build-core:
 		-v $(GOMODCACHE):/go/pkg/mod \
 		-e GOCACHE=/go-build-cache \
 		-e GOMODCACHE=/go/pkg/mod \
-		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/core ./core'
+		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/core ./vcp-core/cmd'
 
 .PHONY: build-worker
 build-worker:
@@ -312,7 +308,7 @@ google-proxy-dev-image: build-google-proxy base-image
 .PHONY: core-dev-image
 core-dev-image: build-core base-image
 	@echo "Building core development Docker image..."
-	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f core/Dockerfile.dev -t $(DEV_REGISTRY)/core:$(IMAGE_TAG) .
+	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f vcp-core/Dockerfile.dev -t $(DEV_REGISTRY)/core:$(IMAGE_TAG) .
 
 .PHONY: worker-dev-image
 worker-dev-image: build-worker base-image
@@ -362,7 +358,36 @@ error-status:
 %:
 	@:
 
+.PHONY: test
+test:
+	@rm -f vcp-coverage.out
+	@echo "mode: set" > vcp-coverage.out
+	@for mod in $(WORKSPACE_MODULES); do \
+		echo "==> testing $$mod"; \
+		pkgs=$$(cd $$mod && go list ./... 2>/dev/null | grep -v scripts/sanity); \
+		if [ -z "$$pkgs" ]; then echo "  (no packages, skipping)"; continue; fi; \
+		( cd $$mod && go test -covermode=set -coverprofile=coverage.tmp.out $$pkgs ) || exit 1; \
+		if [ -f $$mod/coverage.tmp.out ]; then \
+			tail -n +2 $$mod/coverage.tmp.out >> vcp-coverage.out; \
+			rm -f $$mod/coverage.tmp.out; \
+		fi; \
+	done
+
 .PHONY: run-single-test
-PACKAGES="./..."
 run-single-test:
-	go test -coverprofile=vcp-coverage.out $(shell go list $(PACKAGES) | grep -v scripts/sanity) -run $(TEST_NAME)
+	@for mod in $(WORKSPACE_MODULES); do \
+		( cd $$mod && go test ./... -run $(TEST_NAME) ) || exit 1; \
+	done
+
+.PHONY: tidy
+tidy:
+	@for mod in $(WORKSPACE_MODULES); do \
+		echo "==> tidying $$mod"; \
+		( cd $$mod && go mod tidy ) || exit 1; \
+	done
+
+.PHONY: verify-tidy
+verify-tidy: tidy
+	@git diff --exit-code -- '**/go.mod' '**/go.sum' || { \
+		echo "go.mod/go.sum drift detected. Run 'make tidy' and amend."; exit 1; \
+	}

@@ -312,7 +312,7 @@ When generating diagrams from code, read these source locations:
 | Activity details | `core/orchestrator/activities/` — trace external calls, DB ops |
 | Data models | `core/datamodel/models.go` (alias: `database/vcp/datamodel/`) |
 | Lifecycle states | `core/models/` — `LifeCycleState*` constants |
-| API endpoints | `core/core-api/endpoints/` — request/response flow |
+| API endpoints | `vcp-core/handlers` — request/response flow |
 | Factory orchestration | `core/orchestrator/factory/gcp/` or `oci/` — how operations are initiated |
 | Hyperscaler calls | `hyperscaler/` — cloud provider abstractions |
 | Cancellation flow | `core/orchestrator/common/cancellation.go` — signal/rollback pattern |

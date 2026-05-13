@@ -342,7 +342,7 @@ The following are automatically excluded from linting:
 - `clients/core-api/` - Generated API clients
 - `clients/cvp/` - Generated CVP clients
 - `clients/ontap-rest/` - Generated ONTAP clients
-- `core/core-api/core-servergen/` - Generated server code
+- `vcp-core/servergen` - Generated server code
 - `google-proxy/api/gcp-servergen/` - Generated GCP server code
 - `telemetry/api/telemetry-servergen/` - Generated telemetry server code
 - `cicd/cmd/lint/` - Linting tools

@@ -1,7 +1,7 @@
 clients/core-api/
 clients/cvp/
 clients/ontap-rest/
-core/core-api/core-servergen/
+vcp-core/servergen/
 google-proxy/api/gcp-servergen/
 telemetry/api/telemetry-servergen/
 ontap-proxy/api/ontap-proxy-servergen/
