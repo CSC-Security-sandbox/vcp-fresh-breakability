@@ -11273,6 +11273,89 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 		mockInvoker.AssertExpectations(t)
 	})
+
+	t.Run("Success_BackupNotFoundInVCP_RemoteVCPFallback_WithSnapshotUuid", func(t *testing.T) {
+		// This test covers line 2627: snapshotUUID = b.SnapshotUuid.Value
+		// when SnapshotUuid.IsSet() is true in convertGoogleProxyBackupToDatamodel
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+			Name:      "my-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+			},
+		}
+
+		// Backup not found in VCP DB
+		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-central1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Remote backup includes SnapshotUuid to exercise line 2627
+		createdTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+		backupFromRemote := &googleproxyclient.BackupV1beta{
+			BackupId:         googleproxyclient.NewOptString("backup-uuid-remote"),
+			ResourceId:       googleproxyclient.NewOptString("my-backup"),
+			VolumeId:         googleproxyclient.NewOptString("volume-uuid-456"),
+			State:            googleproxyclient.NewOptBackupV1betaState(googleproxyclient.BackupV1betaStateREADY),
+			Created:          googleproxyclient.NewOptDateTime(createdTime),
+			Description:      googleproxyclient.NewOptString("Remote backup with snapshot"),
+			BackupType:       googleproxyclient.NewOptBackupV1betaBackupType(googleproxyclient.BackupV1betaBackupTypeMANUAL),
+			VolumeUsageBytes: googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			SnapshotUuid:     googleproxyclient.OptString{Value: "snap-uuid-abc123", Set: true},
+			Protocols: []googleproxyclient.ProtocolsV1beta{
+				googleproxyclient.ProtocolsV1betaNFSV3,
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{*backupFromRemote},
+		}
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "my-backup", result.Name)
+		assert.Equal(t, "backup-uuid-remote", result.UUID)
+		assert.NotNil(t, result.Attributes)
+		assert.Equal(t, "snap-uuid-abc123", result.Attributes.SnapshotID)
+		mockStorage.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
+	})
 }
 
 // TestBackupRestoreMetadataStruct tests the BackupRestoreMetadata struct

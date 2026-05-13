@@ -841,7 +841,7 @@ func (s *BackupV1beta) SetFake() {
 	}
 	{
 		{
-			s.SnapshotUUID.SetFake()
+			s.SnapshotUuid.SetFake()
 		}
 	}
 	{

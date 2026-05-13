@@ -2065,7 +2065,7 @@ func (s *BackupV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.SnapshotUUID.Get(); ok {
+		if value, ok := s.SnapshotUuid.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:    36,
@@ -2086,7 +2086,7 @@ func (s *BackupV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "snapshotUUID",
+			Name:  "snapshotUuid",
 			Error: err,
 		})
 	}

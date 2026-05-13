@@ -2614,8 +2614,8 @@ func convertGoogleProxyBackupToDatamodel(ctx context.Context, b *googleproxyclie
 	}
 
 	var snapshotUUID string
-	if b.SnapshotUUID.IsSet() {
-		snapshotUUID = b.SnapshotUUID.Value
+	if b.SnapshotUuid.IsSet() {
+		snapshotUUID = b.SnapshotUuid.Value
 	}
 
 	// Fetch protocols from API response or CVP (for SDE backups)

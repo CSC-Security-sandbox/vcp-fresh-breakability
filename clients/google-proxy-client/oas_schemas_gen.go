@@ -1741,7 +1741,7 @@ type BackupV1beta struct {
 	// UUID v4 of the endpoint that was used to create the backup.
 	EndPointUUID OptString `json:"endPointUUID"`
 	// UUID v4 of the snapshot that was used to create the backup.
-	SnapshotUUID OptString `json:"snapshotUUID"`
+	SnapshotUuid OptString `json:"snapshotUuid"`
 	// Protocol types supported by the source volume.
 	Protocols             []ProtocolsV1beta          `json:"protocols"`
 	AssetLocationMetadata OptAssetLocationMetadataV2 `json:"assetLocationMetadata"`
@@ -1847,9 +1847,9 @@ func (s *BackupV1beta) GetEndPointUUID() OptString {
 	return s.EndPointUUID
 }
 
-// GetSnapshotUUID returns the value of SnapshotUUID.
-func (s *BackupV1beta) GetSnapshotUUID() OptString {
-	return s.SnapshotUUID
+// GetSnapshotUuid returns the value of SnapshotUuid.
+func (s *BackupV1beta) GetSnapshotUuid() OptString {
+	return s.SnapshotUuid
 }
 
 // GetProtocols returns the value of Protocols.
@@ -1962,9 +1962,9 @@ func (s *BackupV1beta) SetEndPointUUID(val OptString) {
 	s.EndPointUUID = val
 }
 
-// SetSnapshotUUID sets the value of SnapshotUUID.
-func (s *BackupV1beta) SetSnapshotUUID(val OptString) {
-	s.SnapshotUUID = val
+// SetSnapshotUuid sets the value of SnapshotUuid.
+func (s *BackupV1beta) SetSnapshotUuid(val OptString) {
+	s.SnapshotUuid = val
 }
 
 // SetProtocols sets the value of Protocols.

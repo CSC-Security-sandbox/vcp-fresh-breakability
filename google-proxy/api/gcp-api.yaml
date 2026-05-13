@@ -15276,8 +15276,8 @@ components:
           minLength: 36
           example: 53fb64d6-ae8d-4166-b054-9f601a62e9fb
           x-nullable: true
-        snapshotUUID:
-          title: snapshotUUID
+        snapshotUuid:
+          title: snapshotUuid
           type: string
           readOnly: true
           description: UUID v4 of the snapshot that was used to create the backup
