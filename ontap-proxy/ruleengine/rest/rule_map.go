@@ -44,7 +44,7 @@ func GetProxyRules() map[string]Rule {
 				// All conditions return (bool, reason) - And() returns the first failure reason
 				Condition: And(
 					HasFields("name"),
-					RejectFields("autosize"),
+					IfPresentThenValue("autosize.mode", "off"),
 					volumePostCreateSizeFieldsCondition, // TODO: Implement volumePostCreateSizeFieldsCondition logic in the rule engine DSL pattern.
 					IfPresentThenValue("guarantee.type", "none"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
@@ -126,7 +126,7 @@ func GetProxyRules() map[string]Rule {
 				Name: "Volume modification validation",
 				Condition: And(
 					HasAtMostOneOf("size", "space.size", "cannot specify both 'size' and 'space.size'; use one or the other"),
-					RejectFields("autosize"),
+					IfPresentThenValue("autosize.mode", "off"),
 					IfPresentThenValue("guarantee.type", "none"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					validateVolumeModification,

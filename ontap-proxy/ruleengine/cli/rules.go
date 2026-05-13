@@ -633,7 +633,7 @@ func CLIArgRequiredEquals(argName, expectedValue string) CLICondition {
 		if strings.EqualFold(value, expectedValue) {
 			return true, ""
 		}
-		return false, fmt.Sprintf("argument %s must be %q for bucket create, got %q", argName, expectedValue, value)
+		return false, fmt.Sprintf("argument %s must be %q, got %q", argName, expectedValue, value)
 	}
 }
 

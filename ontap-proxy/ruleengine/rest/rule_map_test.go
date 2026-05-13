@@ -644,7 +644,7 @@ func TestStorageVolumesRule(t *testing.T) {
 		assert.NotEmpty(t, reason)
 	})
 
-	t.Run("WhenPOSTWithAutosize_ShouldDeny", func(t *testing.T) {
+	t.Run("WhenPOSTWithAutosizeModeGrow_ShouldDeny", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes"]
 		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "autosize": {"mode": "grow"}}`)
@@ -655,9 +655,22 @@ func TestStorageVolumesRule(t *testing.T) {
 
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
-		assert.False(t, allowed, "POST with autosize should be denied")
-		assert.Contains(t, reason, "autosize")
-		assert.Contains(t, reason, "not allowed")
+		assert.False(t, allowed, "POST with autosize.mode=grow should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOSTWithAutosizeModeOff_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes"]
+		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "autosize": {"mode": "off"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with autosize.mode=off should be allowed")
 	})
 
 	t.Run("WhenPOSTCloneWithIsFlexcloneWithoutSize_ShouldAllow", func(t *testing.T) {
@@ -814,7 +827,7 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 		assert.True(t, allowed, "PATCH with only comment should be allowed")
 	})
 
-	t.Run("WhenPATCHWithAutosize_ShouldDeny", func(t *testing.T) {
+	t.Run("WhenPATCHWithAutosizeModeGrow_ShouldDeny", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes/{uuid}"]
 		body := bytes.NewBufferString(`{"autosize": {"maximum": 2147483648, "mode": "grow"}}`)
@@ -825,9 +838,22 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
-		assert.False(t, allowed, "PATCH with autosize should be denied")
-		assert.Contains(t, reason, "autosize")
-		assert.Contains(t, reason, "not allowed")
+		assert.False(t, allowed, "PATCH with autosize.mode=grow should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPATCHWithAutosizeModeOff_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes/{uuid}"]
+		body := bytes.NewBufferString(`{"autosize": {"mode": "off"}}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH with autosize.mode=off should be allowed")
 	})
 
 	t.Run("WhenPATCHWithBothSizeAndSpaceSize_ShouldDeny", func(t *testing.T) {
