@@ -339,6 +339,80 @@ func uploadYAMLFile(ctx context.Context, input UploadYAMLFileInput) (*http.Respo
 	return resp, nil
 }
 
+// uploadHarvestNodeMapping updates HarvestConfig credentials from pool, optionally persists the mapping, renders YAML,
+// and POSTs multipart YAML to the harvest config upload endpoint (same path as register-node-to-harvest-farm).
+// When persist is false, the DB is not updated (used for poller rebalance: upload before commit).
+func uploadHarvestNodeMapping(ctx context.Context, se database.Storage, mapping *datamodel.NodeNodeGroupMap, uploadURL string, pool *datamodel.Pool, credentials *vlm.OntapCredentials, renderFunc func(*datamodel.HarvestConfig) (string, error), persist bool) error {
+	logger := util.GetLogger(ctx)
+	if mapping == nil {
+		return errors.New("invalid node mapping: nil mapping")
+	}
+	if mapping.NodeGroup == nil || mapping.NodeGroup.LeaseName == "" {
+		return errors.New("invalid node mapping: NodeGroup is nil or LeaseName is empty; cannot upload YAML")
+	}
+	if mapping.HarvestConfig == nil {
+		return errors.New("invalid node mapping: nil HarvestConfig")
+	}
+	if renderFunc == nil {
+		renderFunc = utils.RenderHarvestTemplate
+	}
+
+	if !smHarvestAuthEnabled && credentials != nil {
+		mapping.HarvestConfig.PASSWORD = strconv.Quote(credentials.AdminPassword)
+	} else {
+		mapping.HarvestConfig.PASSWORD = ""
+		mapping.HarvestConfig.AUTH_TYPE = pool.PoolCredentials.AuthType
+		mapping.HarvestConfig.SECRET_ID = pool.PoolCredentials.SecretID
+		mapping.HarvestConfig.SECRET_PROJECT = env.SecretManagerProjectID
+	}
+
+	if persist {
+		if _, err := se.UpdateNodeNodeGroupMap(ctx, mapping); err != nil {
+			logger.Errorf("Failed to update harvest config info in DB for node id %d: %v", mapping.NodeID, err)
+			return err
+		}
+	}
+
+	tmplStr, err := renderFunc(mapping.HarvestConfig)
+	if err != nil {
+		logger.Errorf("Failed to render template for node id %d: %v", mapping.NodeID, err)
+		return errors.New("template render failed for node mapping: " + err.Error())
+	}
+
+	leaseName := mapping.NodeGroup.LeaseName
+	resp, err := uploadYAMLFile(ctx, UploadYAMLFileInput{
+		URL:       uploadURL,
+		YAML:      tmplStr,
+		LeaseName: leaseName,
+		NodeID:    mapping.NodeID,
+	})
+	if err != nil {
+		logger.Errorf("Failed to upload YAML template for node id %d: %v", mapping.NodeID, err)
+		return errors.New("upload failed for node mapping: " + err.Error())
+	}
+	if resp == nil {
+		return errors.New("no response received from upload endpoint")
+	}
+
+	body, readErr := io.ReadAll(resp.Body)
+	closeErr := resp.Body.Close()
+	if readErr != nil {
+		logger.Warnf("Failed to read response body for node id %d: %v", mapping.NodeID, readErr)
+	}
+	if closeErr != nil {
+		logger.Errorf("Failed to close response body for node id %d: %v", mapping.NodeID, closeErr)
+	} else {
+		logger.Debugf("Closed response body for node id %d", mapping.NodeID)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		logger.Errorf("Upload failed for node id %d with status: %s, response: %s", mapping.NodeID, resp.Status, string(body))
+		return fmt.Errorf("upload failed for node id %d: %s", mapping.NodeID, resp.Status)
+	}
+	logger.Infof("Successfully uploaded rendered template for node id %d as YAML file", mapping.NodeID)
+	return nil
+}
+
 // UploadHarvestTemplate uploads the rendered template as a YAML file via REST call for each node mapping
 func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Context, input UploadHarvestTemplateInput) error {
 	logger := util.GetLogger(ctx)
@@ -371,81 +445,9 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 
 	for i, mapping := range input.NodeMappings {
 		activity.RecordHeartbeat(ctx, fmt.Sprintf("Uploading template for node mapping %d/%d", i+1, len(input.NodeMappings)))
-		if mapping == nil {
-			logger.Errorf("NodeNodeGroupMap is nil at index %d", i)
-			return errors.New("invalid node mapping: nil mapping")
-		}
-		// Fail if NodeGroup is nil or LeaseName is empty
-		if mapping.NodeGroup == nil || mapping.NodeGroup.LeaseName == "" {
-			logger.Errorf("NodeGroup is nil or LeaseName is empty for node mapping at index %d. Upload cannot proceed.", i)
-			return errors.New("invalid node mapping: NodeGroup is nil or LeaseName is empty; cannot upload YAML")
-		}
-		if mapping.HarvestConfig == nil {
-			logger.Errorf("HarvestConfig is nil for node mapping at index %d", i)
-			return errors.New("invalid node mapping: nil HarvestConfig")
-		}
-
-		if !smHarvestAuthEnabled && credentials != nil {
-			// Set password if credentials are provided
-			mapping.HarvestConfig.PASSWORD = strconv.Quote(credentials.AdminPassword)
-		} else {
-			// Set Auth Type and SecretID info if smHarvestAuthEnabled env flag is set
-			mapping.HarvestConfig.PASSWORD = ""
-			mapping.HarvestConfig.AUTH_TYPE = pool.PoolCredentials.AuthType
-			mapping.HarvestConfig.SECRET_ID = pool.PoolCredentials.SecretID
-			mapping.HarvestConfig.SECRET_PROJECT = env.SecretManagerProjectID
-		}
-
-		// Update the database record with the possibly modified HarvestConfig
-		// This ensures that any changes (like setting the password) are persisted
-		// before we render and upload the template
-		if _, err := a.SE.UpdateNodeNodeGroupMap(ctx, mapping); err != nil {
-			logger.Errorf("Failed to update harvest config info in DB for node id %d: %v", mapping.NodeID, err)
+		if err := uploadHarvestNodeMapping(ctx, a.SE, mapping, input.UploadURL, pool, credentials, renderFunc, true); err != nil {
 			return err
 		}
-
-		tmplStr, err := renderFunc(mapping.HarvestConfig)
-		if err != nil {
-			logger.Errorf("Failed to render template for node mapping %d: %v", i, err)
-			return errors.New("template render failed for node mapping: " + err.Error())
-		}
-		// Only access LeaseName if NodeGroup is not nil
-		leaseName := ""
-		if mapping.NodeGroup != nil {
-			leaseName = mapping.NodeGroup.LeaseName
-		}
-		resp, err := uploadYAMLFile(ctx, UploadYAMLFileInput{
-			URL:       input.UploadURL,
-			YAML:      tmplStr,
-			LeaseName: leaseName,
-			NodeID:    mapping.NodeID,
-		})
-		if err != nil {
-			logger.Errorf("Failed to upload YAML template for node mapping %d: %v", i, err)
-			return errors.New("upload failed for node mapping: " + err.Error())
-		}
-		if resp == nil {
-			logger.Errorf("No response received for node mapping %d", i)
-			return errors.New("no response received from upload endpoint")
-		}
-
-		// Always read and close the response body to avoid resource leaks
-		body, readErr := io.ReadAll(resp.Body)
-		closeErr := resp.Body.Close()
-		if readErr != nil {
-			logger.Warnf("Failed to read response body for node mapping %d: %v", i, readErr)
-		}
-		if closeErr != nil {
-			logger.Errorf("Failed to close response body for node mapping %d: %v", i, closeErr)
-		} else {
-			logger.Infof("Closed response body for node mapping %d", i)
-		}
-
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			logger.Errorf("Upload failed for node mapping %d with status: %s, response: %s", i, resp.Status, string(body))
-			return fmt.Errorf("upload failed for node mapping %d: %s", i, resp.Status)
-		}
-		logger.Infof("Successfully uploaded rendered template for node mapping %d as YAML file", i)
 	}
 	return nil
 }

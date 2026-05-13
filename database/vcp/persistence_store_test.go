@@ -8484,3 +8484,56 @@ func TestCreateAddressRange_ApplyRouteAggregation(t *testing.T) {
 		assert.True(tt, created.ApplyRouteAggregation)
 	})
 }
+
+func TestPersistenceStore_PollerRebalanceDataPaths(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	acc, err := store.CreateAccount(ctx, &datamodel.Account{Name: "acc_prbp"})
+	require.NoError(t, err)
+	pool := &datamodel.Pool{
+		Name:      "pool_prbp",
+		AccountID: acc.ID,
+		Account:   acc,
+		State:     models.LifeCycleStateREADY,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "z1",
+			IsRegionalHA: false,
+		},
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: 1, SecretID: "sec"},
+	}
+	require.NoError(t, store.DB().Create(pool).Error)
+
+	ng, err := store.CreateNodeGroup(ctx, &datamodel.NodeGroup{Name: "ng_prbp", LeaseName: "lease-prbp"})
+	require.NoError(t, err)
+	node, err := store.CreateNode(ctx, &datamodel.Node{Name: "node_prbp", PoolID: pool.ID, AccountID: acc.ID})
+	require.NoError(t, err)
+
+	_, err = store.CreateNodeNodeGroupMap(ctx, &datamodel.NodeNodeGroupMap{
+		NodeID:        node.ID,
+		NodeGroupID:   ng.ID,
+		HarvestConfig: &datamodel.HarvestConfig{PORT: "7101"},
+	})
+	require.NoError(t, err)
+
+	active, err := store.GetActiveNodeNodeGroupMapByNodeID(ctx, node.ID, nil)
+	require.NoError(t, err)
+	require.NotNil(t, active)
+
+	sibGID, err := store.GetHarvestHaSiblingNodeGroupID(ctx, node.ID)
+	require.NoError(t, err)
+	assert.Zero(t, sibGID)
+
+	sibNID, err := store.GetHarvestHaSiblingNodeID(ctx, node.ID)
+	require.NoError(t, err)
+	assert.Zero(t, sibNID)
+
+	maps, err := store.ListNodeNodeGroupMapsByNodeGroupID(ctx, ng.ID)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(maps), 1)
+}

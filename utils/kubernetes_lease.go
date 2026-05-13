@@ -2,6 +2,8 @@ package utils
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,13 +13,18 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+// getKubernetesClientset returns an in-cluster clientset. Tests may replace this hook.
+var getKubernetesClientset = func() (kubernetes.Interface, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(config)
+}
+
 var (
 	getLeaseClient = func(nameSpace string) (v1.LeaseInterface, error) {
-		config, err := rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
-		clientSet, err := kubernetes.NewForConfig(config)
+		clientSet, err := getKubernetesClientset()
 		if err != nil {
 			return nil, err
 		}
@@ -114,4 +121,30 @@ func CreateKubernetesLease(ctx context.Context, leaseNameSpace, leaseName string
 		return err
 	}
 	return nil
+}
+
+// GetPodIPForKubernetesLeaseHolder returns status.podIP for the pod named by the coordination lease's
+// spec.holderIdentity. The holder is expected to match the pod's metadata.name in podNamespace (typical when
+// the harvest-farm process uses the pod name as lease identity).
+func GetPodIPForKubernetesLeaseHolder(ctx context.Context, leaseNamespace, leaseName, podNamespace string) (string, error) {
+	cs, err := getKubernetesClientset()
+	if err != nil {
+		return "", err
+	}
+	lease, err := cs.CoordinationV1().Leases(leaseNamespace).Get(ctx, leaseName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("get lease %s/%s: %w", leaseNamespace, leaseName, err)
+	}
+	if lease.Spec.HolderIdentity == nil || strings.TrimSpace(*lease.Spec.HolderIdentity) == "" {
+		return "", fmt.Errorf("lease %s/%s has empty holder identity", leaseNamespace, leaseName)
+	}
+	podName := strings.TrimSpace(*lease.Spec.HolderIdentity)
+	pod, err := cs.CoreV1().Pods(podNamespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("get pod %q in namespace %q (holder of lease %s): %w", podName, podNamespace, leaseName, err)
+	}
+	if pod.Status.PodIP == "" {
+		return "", fmt.Errorf("pod %s/%s has no pod IP yet", podNamespace, podName)
+	}
+	return pod.Status.PodIP, nil
 }

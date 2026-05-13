@@ -10381,6 +10381,70 @@ func (_c *MockDataStore_GetNodeNodeGroupMapByNodeID_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetActiveNodeNodeGroupMapByNodeID provides a mock function with given fields: ctx, nodeID, tx
+func (_m *MockDataStore) GetActiveNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64, tx utils.Transaction) (*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, nodeID, tx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActiveNodeNodeGroupMapByNodeID")
+	}
+
+	var r0 *datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, utils.Transaction) (*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, nodeID, tx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, utils.Transaction) *datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, nodeID, tx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, utils.Transaction) error); ok {
+		r1 = rf(ctx, nodeID, tx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveNodeNodeGroupMapByNodeID'
+type MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call struct {
+	*mock.Call
+}
+
+// GetActiveNodeNodeGroupMapByNodeID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeID int64
+//   - tx utils.Transaction
+func (_e *MockDataStore_Expecter) GetActiveNodeNodeGroupMapByNodeID(ctx interface{}, nodeID interface{}, tx interface{}) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
+	return &MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call{Call: _e.mock.On("GetActiveNodeNodeGroupMapByNodeID", ctx, nodeID, tx)}
+}
+
+func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) Run(run func(ctx context.Context, nodeID int64, tx utils.Transaction)) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var txArg utils.Transaction
+		if len(args) > 2 && args[2] != nil {
+			txArg = args[2].(utils.Transaction)
+		}
+		run(args[0].(context.Context), args[1].(int64), txArg)
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) Return(_a0 *datamodel.NodeNodeGroupMap, _a1 error) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) RunAndReturn(run func(context.Context, int64, utils.Transaction) (*datamodel.NodeNodeGroupMap, error)) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetNodesByPoolID provides a mock function with given fields: ctx, poolId
 func (_m *MockDataStore) GetNodesByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error) {
 	ret := _m.Called(ctx, poolId)

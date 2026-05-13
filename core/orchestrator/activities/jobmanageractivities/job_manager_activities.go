@@ -33,6 +33,7 @@ const (
 	EligibilityStringJob            = "ELIGIBILITY_STRING_JOB"
 	FlexCachePrepopulate            = "SYNC_FLEXCACHE_PREPOPULATE_JOBS"
 	BackupSizeJob                   = "BACKUP_SIZE_JOB"
+	PollerRebalanceJob              = "POLLER_REBALANCE_JOB"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
@@ -55,6 +56,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	EligibilityStringJob:            backgroundworkflows.EligibilityStringWorkflow,
 	FlexCachePrepopulate:            backgroundworkflows.SyncFlexCachePrepopulateWorkflow,
 	BackupSizeJob:                   backgroundworkflows.BackupSizeDetailsWorkflow,
+	PollerRebalanceJob:              backgroundworkflows.PollerRebalanceWorkflow,
 }
 
 type JobManagerActivity struct {

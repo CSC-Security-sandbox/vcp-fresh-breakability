@@ -54,6 +54,11 @@
     "cronExpression": "0 2 * * *",
     "state": "CREATING"
   },
+  "POLLER_REBALANCE_JOB": {
+    "jobType": "POLLER_REBALANCE_JOB",
+    "cronExpression": "0 0 * * *",
+    "state": "CREATING"
+  },
   "SYNC_VSA_AUTO_TIERING": {
     "jobType": "SYNC_VSA_AUTO_TIERING",
     "cronExpression": "*/5 * * * *",

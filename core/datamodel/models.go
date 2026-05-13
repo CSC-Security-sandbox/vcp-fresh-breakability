@@ -1216,6 +1216,13 @@ type NodeGroup struct {
 	LeaseName string `gorm:"column:lease_name"`
 }
 
+// NodeGroupPollerCount is one row from aggregate poller counts per node group (rebalance planning).
+type NodeGroupPollerCount struct {
+	NodeGroupID int64  `gorm:"column:node_group_id"`
+	LeaseName   string `gorm:"column:lease_name"`
+	Count       int64  `gorm:"column:cnt"`
+}
+
 // NodeGroupAssignmentParams holds parameters for node group assignment
 type NodeGroupAssignmentParams struct {
 	Node1            *Node

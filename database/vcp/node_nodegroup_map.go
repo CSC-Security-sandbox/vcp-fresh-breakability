@@ -67,6 +67,21 @@ func (d *DataStoreRepository) GetNodeNodeGroupMapByNodeID(ctx context.Context, n
 	return &mapping, nil
 }
 
+// GetActiveNodeNodeGroupMapByNodeID returns the latest non-soft-deleted node_node_group_map for the node.
+// When tx is nil, uses the repository default connection; when non-nil, uses tx.GORM() so callers inside WithTransaction see their writes.
+func (d *DataStoreRepository) GetActiveNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64, tx dbutils.Transaction) (*datamodel.NodeNodeGroupMap, error) {
+	db := d.db.GORM().WithContext(ctx)
+	if tx != nil {
+		db = tx.GORM().WithContext(ctx)
+	}
+	var mapping datamodel.NodeNodeGroupMap
+	err := db.Preload("NodeGroup").Where("node_id = ? AND deleted_at IS NULL", nodeID).Order("id desc").First(&mapping).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "node_node_group_map", nil))
+	}
+	return &mapping, nil
+}
+
 // UpdateNodeNodeGroupMap updates an existing node to nodegroup mapping
 func (d *DataStoreRepository) UpdateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error) {
 	tx := d.db.GORM().WithContext(ctx)
@@ -385,4 +400,81 @@ func (d *DataStoreRepository) GetNodeGroupMapNodeCount(ctx context.Context, node
 		return 0, err
 	}
 	return count, nil
+}
+
+// ListNodeGroupsWithPollerCounts returns all non-deleted node groups with active poller counts, ordered by count ascending.
+func (d *DataStoreRepository) ListNodeGroupsWithPollerCounts(ctx context.Context) ([]datamodel.NodeGroupPollerCount, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var rows []datamodel.NodeGroupPollerCount
+	err := db.Raw(`
+		SELECT ng.id AS node_group_id, ng.lease_name, COALESCE(COUNT(m.id), 0)::bigint AS cnt
+		FROM node_groups ng
+		LEFT JOIN node_node_group_maps m ON m.node_group_id = ng.id AND m.deleted_at IS NULL
+		WHERE ng.deleted_at IS NULL
+		GROUP BY ng.id, ng.lease_name
+		ORDER BY cnt ASC, ng.id ASC
+	`).Scan(&rows).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return rows, nil
+}
+
+// ListNodeNodeGroupMapsByNodeGroupID returns active node-group maps for a group.
+// NodeGroup relation is intentionally not preloaded to keep planner queries lightweight.
+func (d *DataStoreRepository) ListNodeNodeGroupMapsByNodeGroupID(ctx context.Context, nodeGroupID int64) ([]*datamodel.NodeNodeGroupMap, error) {
+	var maps []*datamodel.NodeNodeGroupMap
+	err := d.db.GORM().WithContext(ctx).
+		Where("node_group_id = ?", nodeGroupID).
+		Find(&maps).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return maps, nil
+}
+
+// GetHarvestHaSiblingNodeID returns the paired pool sibling node id (adjacent in pool node order), or 0 if none.
+func (d *DataStoreRepository) GetHarvestHaSiblingNodeID(ctx context.Context, nodeID int64) (int64, error) {
+	n, err := d.GetNodeByID(ctx, nodeID)
+	if err != nil {
+		return 0, err
+	}
+	nodes, err := getNodesByPoolID(d.db.GORM().Unscoped().WithContext(ctx), n.PoolID)
+	if err != nil {
+		return 0, err
+	}
+	var siblingID int64
+	for i := range nodes {
+		if nodes[i].ID != nodeID {
+			continue
+		}
+		if i%2 == 0 && i+1 < len(nodes) {
+			siblingID = nodes[i+1].ID
+		} else if i%2 == 1 {
+			siblingID = nodes[i-1].ID
+		}
+		break
+	}
+	return siblingID, nil
+}
+
+// GetHarvestHaSiblingNodeGroupID returns the node_group_id of this node's HA sibling (paired by pool node id order),
+// or 0 if there is no paired sibling or the sibling has no active harvest mapping.
+func (d *DataStoreRepository) GetHarvestHaSiblingNodeGroupID(ctx context.Context, nodeID int64) (int64, error) {
+	siblingID, err := d.GetHarvestHaSiblingNodeID(ctx, nodeID)
+	if err != nil {
+		return 0, err
+	}
+	if siblingID == 0 {
+		return 0, nil
+	}
+	var sibMap datamodel.NodeNodeGroupMap
+	err = d.db.GORM().WithContext(ctx).Where("node_id = ?", siblingID).First(&sibMap).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+		return 0, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return sibMap.NodeGroupID, nil
 }

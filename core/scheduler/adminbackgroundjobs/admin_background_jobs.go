@@ -66,6 +66,9 @@ func LoadJobSpecs() error {
 		delete(adminJobSpecs, "CLEANUP_BACKUP_CHAIN_HISTORY")
 	}
 
+	if !env.GetBool("ENABLE_POLLER_REBALANCING", false) {
+		delete(adminJobSpecs, "POLLER_REBALANCE_JOB")
+	}
 	return nil
 }
 

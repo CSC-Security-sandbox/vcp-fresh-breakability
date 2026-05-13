@@ -1178,6 +1178,33 @@ func TestGetNodeNodeGroupMapByNodeID_Error(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestGetActiveNodeNodeGroupMapByNodeID_WithTransaction(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+	created, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+	assert.NoError(t, err)
+
+	tx := repo.db.Begin()
+	defer func() { _ = tx.Rollback() }()
+
+	got, err := repo.GetActiveNodeNodeGroupMapByNodeID(ctx, created.NodeID, tx)
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.Equal(t, created.NodeID, got.NodeID)
+}
+
+func TestListNodeNodeGroupMapsByNodeGroupID(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+	created, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+	assert.NoError(t, err)
+
+	maps, err := repo.ListNodeNodeGroupMapsByNodeGroupID(ctx, created.NodeGroupID)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, len(maps), 1)
+	assert.Equal(t, created.NodeID, maps[0].NodeID)
+}
+
 func TestGetFirstAvailablePort_QueryError(t *testing.T) {
 	db, _ := SetupTestDB()
 	wrapper := gorm.New(db)

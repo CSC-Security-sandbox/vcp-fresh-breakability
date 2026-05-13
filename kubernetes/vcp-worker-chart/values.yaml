@@ -487,6 +487,7 @@ workerConfig:
     metricsDbMaxIdleConns: 20
     metricsDbMaxConnLifetime: "1h"
     metricsDbCleanupEnabled: false
+    enablePollerRebalancing: false
   adc:
     image: "" # path of ADC image in gcp cloud image registry
     project: "" # project in which ADC cloud run to be deployed

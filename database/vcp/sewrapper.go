@@ -4758,6 +4758,22 @@ func (re *retryEngine) GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID i
 	return var0, err
 }
 
+func (re *retryEngine) GetActiveNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64, tx dbutils.Transaction) (*datamodel.NodeNodeGroupMap, error) {
+	var var0 *datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetActiveNodeNodeGroupMapByNodeID(ctx, nodeID, tx)
+		if err != nil {
+			re.logError("GetActiveNodeNodeGroupMapByNodeID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
 	var var0 *datamodel.NodeGroup
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4908,6 +4924,70 @@ func (re *retryEngine) ListNodeNodeGroupMapAfterID(ctx context.Context, includeD
 		var0, err = re.dataStore.ListNodeNodeGroupMapAfterID(ctx, includeDeleted, afterID, limit)
 		if err != nil {
 			re.logError("ListNodeNodeGroupMapAfterID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListNodeGroupsWithPollerCounts(ctx context.Context) ([]datamodel.NodeGroupPollerCount, error) {
+	var var0 []datamodel.NodeGroupPollerCount
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListNodeGroupsWithPollerCounts(ctx)
+		if err != nil {
+			re.logError("ListNodeGroupsWithPollerCounts", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListNodeNodeGroupMapsByNodeGroupID(ctx context.Context, nodeGroupID int64) ([]*datamodel.NodeNodeGroupMap, error) {
+	var var0 []*datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListNodeNodeGroupMapsByNodeGroupID(ctx, nodeGroupID)
+		if err != nil {
+			re.logError("ListNodeNodeGroupMapsByNodeGroupID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetHarvestHaSiblingNodeGroupID(ctx context.Context, nodeID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetHarvestHaSiblingNodeGroupID(ctx, nodeID)
+		if err != nil {
+			re.logError("GetHarvestHaSiblingNodeGroupID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetHarvestHaSiblingNodeID(ctx context.Context, nodeID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetHarvestHaSiblingNodeID(ctx, nodeID)
+		if err != nil {
+			re.logError("GetHarvestHaSiblingNodeID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

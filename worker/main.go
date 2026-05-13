@@ -523,6 +523,9 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateRbacForPoolsWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateRbacForSinglePoolWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateSinglePoolRbacChildWorkflow)
+  worker.RegisterWorkflow(backgroundworkflows.PollerRebalanceWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SnapshotAndPlanWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.CleanupEmptyLeasesWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -570,4 +573,5 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.ScanGCEInstancesActivity{})
 	worker.RegisterActivity(&backgroundactivities.ScanRegionalAddressesActivity{})
 	worker.RegisterActivity(&backgroundactivities.ScanGCEDisksActivity{})
+	worker.RegisterActivity(&activities.PollerRebalanceActivities{SE: conn})
 }

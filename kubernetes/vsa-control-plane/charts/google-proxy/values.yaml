@@ -111,6 +111,7 @@ deleteResourcesCronExpression: "0 0 * * *" # DELETE_RESOURCES job configuration
 certificateRotationCronExpression: "0 0 * * *" # ROTATE_VSA_CERTIFICATE_AND_PASSWORD job configuration (default: daily at midnight)
 waitForTemporalEnabled: false
 metricsDbCleanupEnabled: false
+enablePollerRebalancing: false
 volumeRefreshIntervalMinutes: "5"
 flexCacheCreateVolumeSupervisorGracePeriod: "60" # Grace period for flexcache create volume supervisor in minutes
 thinCloneGASupport: false

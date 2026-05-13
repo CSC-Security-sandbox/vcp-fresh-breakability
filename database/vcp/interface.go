@@ -377,6 +377,9 @@ type (
 		DeleteNodeGroupMap(ctx context.Context, nodeGroupMap *datamodel.NodeNodeGroupMap) error
 		GetNodeGroupMapNodeCount(ctx context.Context, nodeGroupID int64) (int64, error)
 		GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64) (*datamodel.NodeNodeGroupMap, error)
+		// GetActiveNodeNodeGroupMapByNodeID returns the latest node_node_group_map with deleted_at IS NULL (never Unscoped).
+		// Pass tx from WithTransaction so reads see writes in the same transaction; pass nil to use the default connection.
+		GetActiveNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64, tx dbutils.Transaction) (*datamodel.NodeNodeGroupMap, error)
 
 		CreateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error)
 		GetNodeGroup(ctx context.Context, id int64) (*datamodel.NodeGroup, error)
@@ -393,6 +396,12 @@ type (
 		ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *dbutils.Pagination) ([]*datamodel.NodeNodeGroupMap, error)
 		// ListNodeNodeGroupMapAfterID returns non-deleted (or all if includeDeleted) records with id > afterID, ordered by id, limit. Used for keyset pagination.
 		ListNodeNodeGroupMapAfterID(ctx context.Context, includeDeleted bool, afterID int64, limit int) ([]*datamodel.NodeNodeGroupMap, error)
+
+		// Harvest poller rebalance planning
+		ListNodeGroupsWithPollerCounts(ctx context.Context) ([]datamodel.NodeGroupPollerCount, error)
+		ListNodeNodeGroupMapsByNodeGroupID(ctx context.Context, nodeGroupID int64) ([]*datamodel.NodeNodeGroupMap, error)
+		GetHarvestHaSiblingNodeGroupID(ctx context.Context, nodeID int64) (int64, error)
+		GetHarvestHaSiblingNodeID(ctx context.Context, nodeID int64) (int64, error)
 
 		HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error
 

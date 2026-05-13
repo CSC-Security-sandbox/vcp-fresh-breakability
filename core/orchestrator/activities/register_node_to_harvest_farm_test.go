@@ -1353,7 +1353,7 @@ func TestUploadHarvestTemplate_HTTPNon2xx(t *testing.T) {
 
 	_, err := env.ExecuteActivity(activity.UploadHarvestTemplate, input)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "upload failed for node mapping")
+	assert.Contains(t, err.Error(), "upload failed for node id 1")
 }
 
 // Test case for when lease exists in database but not in Kubernetes
@@ -1507,4 +1507,59 @@ func TestAlertHarvestRegisterFailure(t *testing.T) {
 	ctx := context.Background()
 	err := activity.AlertHarvestRegisterFailure(ctx, "test-error-details")
 	assert.NoError(t, err)
+}
+
+func TestUploadHarvestNodeMapping_ValidationErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: 1, SecretID: "s"},
+	}
+
+	err := uploadHarvestNodeMapping(ctx, nil, nil, "http://example/upload", pool, nil, nil, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "nil mapping")
+
+	err = uploadHarvestNodeMapping(ctx, nil, &datamodel.NodeNodeGroupMap{
+		NodeGroup:     &datamodel.NodeGroup{LeaseName: ""},
+		HarvestConfig: &datamodel.HarvestConfig{},
+	}, "http://x", pool, nil, nil, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "LeaseName")
+
+	err = uploadHarvestNodeMapping(ctx, nil, &datamodel.NodeNodeGroupMap{
+		NodeGroup: &datamodel.NodeGroup{LeaseName: "L"},
+	}, "http://x", pool, nil, nil, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "HarvestConfig")
+}
+
+func TestUploadHarvestNodeMapping_RenderAndUploadErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: 1, SecretID: "s"},
+	}
+	mapping := &datamodel.NodeNodeGroupMap{
+		NodeID:      1,
+		NodeGroupID: 2,
+		NodeGroup:   &datamodel.NodeGroup{LeaseName: "lease-1"},
+		HarvestConfig: &datamodel.HarvestConfig{
+			PORT: "9999",
+		},
+	}
+
+	t.Run("persist update fails", func(t *testing.T) {
+		mockSE := new(database.MockStorage)
+		mockSE.On("UpdateNodeNodeGroupMap", mock.Anything, mock.Anything).Return(nil, errors.New("db update failed"))
+		err := uploadHarvestNodeMapping(ctx, mockSE, mapping, "http://example/upload", pool, nil, nil, true)
+		assert.Error(t, err)
+		mockSE.AssertExpectations(t)
+	})
+
+	t.Run("render fails", func(t *testing.T) {
+		mockSE := new(database.MockStorage)
+		err := uploadHarvestNodeMapping(ctx, mockSE, mapping, "http://example/upload", pool, nil,
+			func(*datamodel.HarvestConfig) (string, error) { return "", errors.New("render fail") }, false)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "render fail")
+	})
 }

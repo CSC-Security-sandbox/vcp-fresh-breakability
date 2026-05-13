@@ -10521,6 +10521,70 @@ func (_c *MockStorage_GetNodeNodeGroupMapByNodeID_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GetActiveNodeNodeGroupMapByNodeID provides a mock function with given fields: ctx, nodeID, tx
+func (_m *MockStorage) GetActiveNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64, tx utils.Transaction) (*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, nodeID, tx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActiveNodeNodeGroupMapByNodeID")
+	}
+
+	var r0 *datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, utils.Transaction) (*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, nodeID, tx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, utils.Transaction) *datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, nodeID, tx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, utils.Transaction) error); ok {
+		r1 = rf(ctx, nodeID, tx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveNodeNodeGroupMapByNodeID'
+type MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call struct {
+	*mock.Call
+}
+
+// GetActiveNodeNodeGroupMapByNodeID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeID int64
+//   - tx utils.Transaction
+func (_e *MockStorage_Expecter) GetActiveNodeNodeGroupMapByNodeID(ctx interface{}, nodeID interface{}, tx interface{}) *MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call {
+	return &MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call{Call: _e.mock.On("GetActiveNodeNodeGroupMapByNodeID", ctx, nodeID, tx)}
+}
+
+func (_c *MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call) Run(run func(ctx context.Context, nodeID int64, tx utils.Transaction)) *MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var txArg utils.Transaction
+		if len(args) > 2 && args[2] != nil {
+			txArg = args[2].(utils.Transaction)
+		}
+		run(args[0].(context.Context), args[1].(int64), txArg)
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call) Return(_a0 *datamodel.NodeNodeGroupMap, _a1 error) *MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call) RunAndReturn(run func(context.Context, int64, utils.Transaction) (*datamodel.NodeNodeGroupMap, error)) *MockStorage_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetNodesByPoolID provides a mock function with given fields: ctx, poolId
 func (_m *MockStorage) GetNodesByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error) {
 	ret := _m.Called(ctx, poolId)
@@ -16027,6 +16091,214 @@ func (_c *MockStorage_ListNodeNodeGroupMapAfterID_Call) Return(_a0 []*datamodel.
 }
 
 func (_c *MockStorage_ListNodeNodeGroupMapAfterID_Call) RunAndReturn(run func(context.Context, bool, int64, int) ([]*datamodel.NodeNodeGroupMap, error)) *MockStorage_ListNodeNodeGroupMapAfterID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListNodeGroupsWithPollerCounts provides a mock function with given fields: ctx
+func (_m *MockStorage) ListNodeGroupsWithPollerCounts(ctx context.Context) ([]datamodel.NodeGroupPollerCount, error) {
+	ret := _m.Called(ctx)
+	if len(ret) == 0 {
+		panic("no return value specified for ListNodeGroupsWithPollerCounts")
+	}
+	var r0 []datamodel.NodeGroupPollerCount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]datamodel.NodeGroupPollerCount, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []datamodel.NodeGroupPollerCount); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]datamodel.NodeGroupPollerCount)
+		}
+	}
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStorage_ListNodeGroupsWithPollerCounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListNodeGroupsWithPollerCounts'
+type MockStorage_ListNodeGroupsWithPollerCounts_Call struct {
+	*mock.Call
+}
+
+// ListNodeGroupsWithPollerCounts is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) ListNodeGroupsWithPollerCounts(ctx interface{}) *MockStorage_ListNodeGroupsWithPollerCounts_Call {
+	return &MockStorage_ListNodeGroupsWithPollerCounts_Call{Call: _e.mock.On("ListNodeGroupsWithPollerCounts", ctx)}
+}
+
+func (_c *MockStorage_ListNodeGroupsWithPollerCounts_Call) Run(run func(ctx context.Context)) *MockStorage_ListNodeGroupsWithPollerCounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListNodeGroupsWithPollerCounts_Call) Return(_a0 []datamodel.NodeGroupPollerCount, _a1 error) *MockStorage_ListNodeGroupsWithPollerCounts_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListNodeGroupsWithPollerCounts_Call) RunAndReturn(run func(context.Context) ([]datamodel.NodeGroupPollerCount, error)) *MockStorage_ListNodeGroupsWithPollerCounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListNodeNodeGroupMapsByNodeGroupID provides a mock function with given fields: ctx, nodeGroupID
+func (_m *MockStorage) ListNodeNodeGroupMapsByNodeGroupID(ctx context.Context, nodeGroupID int64) ([]*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, nodeGroupID)
+	if len(ret) == 0 {
+		panic("no return value specified for ListNodeNodeGroupMapsByNodeGroupID")
+	}
+	var r0 []*datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, nodeGroupID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, nodeGroupID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.NodeNodeGroupMap)
+		}
+	}
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, nodeGroupID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListNodeNodeGroupMapsByNodeGroupID'
+type MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call struct {
+	*mock.Call
+}
+
+// ListNodeNodeGroupMapsByNodeGroupID is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) ListNodeNodeGroupMapsByNodeGroupID(ctx interface{}, nodeGroupID interface{}) *MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call {
+	return &MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call{Call: _e.mock.On("ListNodeNodeGroupMapsByNodeGroupID", ctx, nodeGroupID)}
+}
+
+func (_c *MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call) Run(run func(ctx context.Context, nodeGroupID int64)) *MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call) Return(_a0 []*datamodel.NodeNodeGroupMap, _a1 error) *MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.NodeNodeGroupMap, error)) *MockStorage_ListNodeNodeGroupMapsByNodeGroupID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetHarvestHaSiblingNodeGroupID provides a mock function with given fields: ctx, nodeID
+func (_m *MockStorage) GetHarvestHaSiblingNodeGroupID(ctx context.Context, nodeID int64) (int64, error) {
+	ret := _m.Called(ctx, nodeID)
+	if len(ret) == 0 {
+		panic("no return value specified for GetHarvestHaSiblingNodeGroupID")
+	}
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, nodeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, nodeID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, nodeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStorage_GetHarvestHaSiblingNodeGroupID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHarvestHaSiblingNodeGroupID'
+type MockStorage_GetHarvestHaSiblingNodeGroupID_Call struct {
+	*mock.Call
+}
+
+// GetHarvestHaSiblingNodeGroupID is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) GetHarvestHaSiblingNodeGroupID(ctx interface{}, nodeID interface{}) *MockStorage_GetHarvestHaSiblingNodeGroupID_Call {
+	return &MockStorage_GetHarvestHaSiblingNodeGroupID_Call{Call: _e.mock.On("GetHarvestHaSiblingNodeGroupID", ctx, nodeID)}
+}
+
+func (_c *MockStorage_GetHarvestHaSiblingNodeGroupID_Call) Run(run func(ctx context.Context, nodeID int64)) *MockStorage_GetHarvestHaSiblingNodeGroupID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetHarvestHaSiblingNodeGroupID_Call) Return(_a0 int64, _a1 error) *MockStorage_GetHarvestHaSiblingNodeGroupID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetHarvestHaSiblingNodeGroupID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockStorage_GetHarvestHaSiblingNodeGroupID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetHarvestHaSiblingNodeID provides a mock function with given fields: ctx, nodeID
+func (_m *MockStorage) GetHarvestHaSiblingNodeID(ctx context.Context, nodeID int64) (int64, error) {
+	ret := _m.Called(ctx, nodeID)
+	if len(ret) == 0 {
+		panic("no return value specified for GetHarvestHaSiblingNodeID")
+	}
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, nodeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, nodeID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, nodeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockStorage_GetHarvestHaSiblingNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHarvestHaSiblingNodeID'
+type MockStorage_GetHarvestHaSiblingNodeID_Call struct {
+	*mock.Call
+}
+
+// GetHarvestHaSiblingNodeID is a helper method to define mock.On call
+func (_e *MockStorage_Expecter) GetHarvestHaSiblingNodeID(ctx interface{}, nodeID interface{}) *MockStorage_GetHarvestHaSiblingNodeID_Call {
+	return &MockStorage_GetHarvestHaSiblingNodeID_Call{Call: _e.mock.On("GetHarvestHaSiblingNodeID", ctx, nodeID)}
+}
+
+func (_c *MockStorage_GetHarvestHaSiblingNodeID_Call) Run(run func(ctx context.Context, nodeID int64)) *MockStorage_GetHarvestHaSiblingNodeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetHarvestHaSiblingNodeID_Call) Return(_a0 int64, _a1 error) *MockStorage_GetHarvestHaSiblingNodeID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetHarvestHaSiblingNodeID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockStorage_GetHarvestHaSiblingNodeID_Call {
 	_c.Call.Return(run)
 	return _c
 }

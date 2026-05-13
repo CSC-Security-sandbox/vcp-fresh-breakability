@@ -6,8 +6,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	coordinationv1 "k8s.io/api/coordination/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	v1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
+	"k8s.io/utils/ptr"
 )
 
 func TestCreateKubernetesLease_Success(t *testing.T) {
@@ -220,4 +226,112 @@ func TestContainsNotFound(t *testing.T) {
 		result := containsNotFound(tc.input)
 		assert.Equal(t, tc.expected, result, "Failed for input: %s", tc.input)
 	}
+}
+
+func TestGetPodIPForKubernetesLeaseHolder_Success(t *testing.T) {
+	ctx := context.Background()
+	oldClientset := getKubernetesClientset
+	t.Cleanup(func() { getKubernetesClientset = oldClientset })
+
+	holder := "harvest-farm-abc"
+	fakeCS := fake.NewSimpleClientset(
+		&coordinationv1.Lease{
+			ObjectMeta: metav1.ObjectMeta{Name: "harvest-lease-1", Namespace: "vcp"},
+			Spec: coordinationv1.LeaseSpec{
+				HolderIdentity: ptr.To(holder),
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: holder, Namespace: "vcp"},
+			Status:     corev1.PodStatus{PodIP: "10.1.2.3"},
+		},
+	)
+	getKubernetesClientset = func() (kubernetes.Interface, error) {
+		return fakeCS, nil
+	}
+
+	ip, err := GetPodIPForKubernetesLeaseHolder(ctx, "vcp", "harvest-lease-1", "vcp")
+	require.NoError(t, err)
+	assert.Equal(t, "10.1.2.3", ip)
+}
+
+func TestGetPodIPForKubernetesLeaseHolder_EmptyHolder(t *testing.T) {
+	ctx := context.Background()
+	oldClientset := getKubernetesClientset
+	t.Cleanup(func() { getKubernetesClientset = oldClientset })
+
+	fakeCS := fake.NewSimpleClientset(
+		&coordinationv1.Lease{
+			ObjectMeta: metav1.ObjectMeta{Name: "harvest-lease-1", Namespace: "vcp"},
+			Spec:         coordinationv1.LeaseSpec{},
+		},
+	)
+	getKubernetesClientset = func() (kubernetes.Interface, error) {
+		return fakeCS, nil
+	}
+
+	_, err := GetPodIPForKubernetesLeaseHolder(ctx, "vcp", "harvest-lease-1", "vcp")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty holder identity")
+}
+
+func TestGetPodIPForKubernetesLeaseHolder_PodNotFound(t *testing.T) {
+	ctx := context.Background()
+	oldClientset := getKubernetesClientset
+	t.Cleanup(func() { getKubernetesClientset = oldClientset })
+
+	fakeCS := fake.NewSimpleClientset(
+		&coordinationv1.Lease{
+			ObjectMeta: metav1.ObjectMeta{Name: "harvest-lease-1", Namespace: "vcp"},
+			Spec: coordinationv1.LeaseSpec{
+				HolderIdentity: ptr.To("missing-pod"),
+			},
+		},
+	)
+	getKubernetesClientset = func() (kubernetes.Interface, error) {
+		return fakeCS, nil
+	}
+
+	_, err := GetPodIPForKubernetesLeaseHolder(ctx, "vcp", "harvest-lease-1", "vcp")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "get pod")
+}
+
+func TestGetPodIPForKubernetesLeaseHolder_ClientsetError(t *testing.T) {
+	ctx := context.Background()
+	oldClientset := getKubernetesClientset
+	t.Cleanup(func() { getKubernetesClientset = oldClientset })
+	getKubernetesClientset = func() (kubernetes.Interface, error) {
+		return nil, errors.New("no in-cluster config")
+	}
+	_, err := GetPodIPForKubernetesLeaseHolder(ctx, "vcp", "lease", "vcp")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no in-cluster config")
+}
+
+func TestGetPodIPForKubernetesLeaseHolder_PodIPNotReady(t *testing.T) {
+	ctx := context.Background()
+	oldClientset := getKubernetesClientset
+	t.Cleanup(func() { getKubernetesClientset = oldClientset })
+
+	holder := "harvest-farm-noip"
+	fakeCS := fake.NewSimpleClientset(
+		&coordinationv1.Lease{
+			ObjectMeta: metav1.ObjectMeta{Name: "harvest-lease-noip", Namespace: "vcp"},
+			Spec: coordinationv1.LeaseSpec{
+				HolderIdentity: ptr.To(holder),
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: holder, Namespace: "vcp"},
+			Status:     corev1.PodStatus{PodIP: ""},
+		},
+	)
+	getKubernetesClientset = func() (kubernetes.Interface, error) {
+		return fakeCS, nil
+	}
+
+	_, err := GetPodIPForKubernetesLeaseHolder(ctx, "vcp", "harvest-lease-noip", "vcp")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no pod IP")
 }

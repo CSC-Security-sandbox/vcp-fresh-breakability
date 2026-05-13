@@ -1381,6 +1381,10 @@ func (s *PersistenceStore) GetNodeNodeGroupMapByNodeID(ctx context.Context, node
 	return s.dataStore.GetNodeNodeGroupMapByNodeID(ctx, nodeID)
 }
 
+func (s *PersistenceStore) GetActiveNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64, tx dbutils.Transaction) (*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.GetActiveNodeNodeGroupMapByNodeID(ctx, nodeID, tx)
+}
+
 func (s *PersistenceStore) UpdateBackupPolicy(ctx context.Context, uuid string, updates map[string]interface{}) (*datamodel.BackupPolicy, error) {
 	return s.dataStore.UpdateBackupPolicy(ctx, uuid, updates)
 }
@@ -1850,4 +1854,20 @@ func (s *PersistenceStore) ResetAddressRangesInUseToCreated(ctx context.Context,
 
 func (s *PersistenceStore) DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
 	return s.dataStore.DeleteAddressRange(ctx, arID)
+}
+
+func (s *PersistenceStore) GetHarvestHaSiblingNodeGroupID(ctx context.Context, nodeID int64) (int64, error) {
+	return s.dataStore.GetHarvestHaSiblingNodeGroupID(ctx, nodeID)
+}
+
+func (s *PersistenceStore) GetHarvestHaSiblingNodeID(ctx context.Context, nodeID int64) (int64, error) {
+	return s.dataStore.GetHarvestHaSiblingNodeID(ctx, nodeID)
+}
+
+func (s *PersistenceStore) ListNodeGroupsWithPollerCounts(ctx context.Context) ([]datamodel.NodeGroupPollerCount, error) {
+	return s.dataStore.ListNodeGroupsWithPollerCounts(ctx)
+}
+
+func (s *PersistenceStore) ListNodeNodeGroupMapsByNodeGroupID(ctx context.Context, nodeGroupID int64) ([]*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.ListNodeNodeGroupMapsByNodeGroupID(ctx, nodeGroupID)
 }
