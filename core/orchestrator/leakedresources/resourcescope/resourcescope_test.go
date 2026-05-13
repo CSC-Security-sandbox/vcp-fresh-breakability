@@ -1,4 +1,4 @@
-package poolpairs
+package resourcescope
 
 import (
 	"context"
@@ -33,7 +33,7 @@ func mkPool(uuid, name, projectID, primaryZone string, isRegionalHA bool, withAc
 }
 
 func TestKey_FormatsAsProjectSlashLocation(t *testing.T) {
-	k := PoolProjectLocation{ProjectID: "proj-a", Location: "us-central1-a"}.Key()
+	k := ProjectLocation{ProjectID: "proj-a", Location: "us-central1-a"}.Key()
 	assert.Equal(t, "proj-a/us-central1-a", k)
 }
 
@@ -131,7 +131,7 @@ func acct(name string) *database.AccountTelemetryData {
 	return &database.AccountTelemetryData{Name: name}
 }
 
-func collectKeys(pairs []PoolProjectLocation) []string {
+func collectKeys(pairs []ProjectLocation) []string {
 	out := make([]string, 0, len(pairs))
 	for _, p := range pairs {
 		out = append(out, p.Key())

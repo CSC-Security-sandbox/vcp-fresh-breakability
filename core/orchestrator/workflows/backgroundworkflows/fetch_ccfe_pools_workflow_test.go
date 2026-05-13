@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/resourcescope"
 	"go.temporal.io/sdk/testsuite"
 )
 
@@ -19,9 +19,9 @@ func TestFetchCCFEPoolsWorkflow_Success(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestWorkflowEnvironment()
 
-	wantA := []poolpairs.CachedPool{{UUID: "uuid-a", Name: "pool-a"}}
-	wantB := []poolpairs.CachedPool{{UUID: "uuid-b", Name: "pool-b"}}
-	wantRegion := []poolpairs.CachedPool{{UUID: "uuid-r", Name: "pool-r"}}
+	wantA := []resourcescope.CachedPool{{UUID: "uuid-a", Name: "pool-a"}}
+	wantB := []resourcescope.CachedPool{{UUID: "uuid-b", Name: "pool-b"}}
+	wantRegion := []resourcescope.CachedPool{{UUID: "uuid-r", Name: "pool-r"}}
 
 	act := &backgroundactivities.FetchStoragePoolsActivity{}
 	env.RegisterActivity(act.FetchStoragePools)
@@ -34,9 +34,9 @@ func TestFetchCCFEPoolsWorkflow_Success(t *testing.T) {
 	require.True(t, env.IsWorkflowCompleted())
 	require.NoError(t, env.GetWorkflowError())
 
-	var got map[string][]poolpairs.CachedPool
+	var got map[string][]resourcescope.CachedPool
 	require.NoError(t, env.GetWorkflowResult(&got))
-	assert.Equal(t, map[string][]poolpairs.CachedPool{
+	assert.Equal(t, map[string][]resourcescope.CachedPool{
 		"us-central1":   wantRegion,
 		"us-central1-a": wantA,
 		"us-central1-b": wantB,
@@ -59,7 +59,7 @@ func TestFetchCCFEPoolsWorkflow_EmptyLocationsShortCircuits(t *testing.T) {
 	require.True(t, env.IsWorkflowCompleted())
 	require.NoError(t, env.GetWorkflowError())
 
-	var got map[string][]poolpairs.CachedPool
+	var got map[string][]resourcescope.CachedPool
 	require.NoError(t, env.GetWorkflowResult(&got))
 	assert.Empty(t, got)
 }
@@ -73,8 +73,8 @@ func TestFetchCCFEPoolsWorkflow_PartialFailure_DropsFailedLocations(t *testing.T
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestWorkflowEnvironment()
 
-	wantA := []poolpairs.CachedPool{{UUID: "uuid-a", Name: "pool-a"}}
-	wantC := []poolpairs.CachedPool{{UUID: "uuid-c", Name: "pool-c"}}
+	wantA := []resourcescope.CachedPool{{UUID: "uuid-a", Name: "pool-a"}}
+	wantC := []resourcescope.CachedPool{{UUID: "uuid-c", Name: "pool-c"}}
 
 	act := &backgroundactivities.FetchStoragePoolsActivity{}
 	env.RegisterActivity(act.FetchStoragePools)
@@ -87,9 +87,9 @@ func TestFetchCCFEPoolsWorkflow_PartialFailure_DropsFailedLocations(t *testing.T
 	require.True(t, env.IsWorkflowCompleted())
 	require.NoError(t, env.GetWorkflowError())
 
-	var got map[string][]poolpairs.CachedPool
+	var got map[string][]resourcescope.CachedPool
 	require.NoError(t, env.GetWorkflowResult(&got))
-	assert.Equal(t, map[string][]poolpairs.CachedPool{
+	assert.Equal(t, map[string][]resourcescope.CachedPool{
 		"us-central1-a": wantA,
 		"us-central1-c": wantC,
 	}, got)
@@ -114,7 +114,7 @@ func TestFetchCCFEPoolsWorkflow_CCFEDisabledNilSlicePropagated(t *testing.T) {
 	require.True(t, env.IsWorkflowCompleted())
 	require.NoError(t, env.GetWorkflowError())
 
-	var got map[string][]poolpairs.CachedPool
+	var got map[string][]resourcescope.CachedPool
 	require.NoError(t, env.GetWorkflowResult(&got))
 	require.Contains(t, got, "us-central1-a")
 	assert.Nil(t, got["us-central1-a"])

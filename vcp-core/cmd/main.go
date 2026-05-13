@@ -58,8 +58,8 @@ const (
 
 	leakedResourcesMonitoringJobType               = "LEAKED_RESOURCES_MONITORING"
 	leakedResourcesMonitoringCronExpressionDefault = "0 0 0 * * *" // once per day at midnight (sec min hour day month dow)
-	leakedResourcesMonitoringLockTimeoutSeconds    = 3600
-	leakedResourcesMonitoringRunTimeoutSeconds     = 30 * 60 // max time for one pipeline run; prevents stuck CCFE/DB from holding lock
+	leakedResourcesMonitoringLockTimeoutSeconds    = 2 * 60 * 60   // 2 hours: must exceed max pipeline run time so a concurrent cron tick cannot steal the lock mid-run
+	leakedResourcesMonitoringRunTimeoutSeconds     = 90 * 60       // 90 min: pipeline can take ~1h in prod; 90 min gives headroom before context cancellation
 )
 
 func main() {
@@ -500,8 +500,9 @@ func runLockedLeakedResourcesMonitoringTask(ctx context.Context, se database.Sto
 		defer releaseAdminJobSpecLock(ctx, se, leakedResourcesMonitoringJobType, leakedResourcesMonitoringLockTimeoutSeconds, logger)
 		runCtx, cancel := context.WithTimeout(ctx, time.Duration(leakedResourcesMonitoringRunTimeoutSeconds)*time.Second)
 		defer cancel()
+		runCtx = injectLeakedResourcesRunID(runCtx, logger)
 		if err := leakedresources.Run(runCtx, se, temporal); err != nil {
-			logger.ErrorContext(ctx, "Leaked resources monitoring failed", "error", err)
+			logger.ErrorContext(runCtx, "Leaked resources monitoring failed", "error", err)
 			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "run")
 		}
 		return
@@ -539,13 +540,23 @@ func runLockedLeakedResourcesMonitoringTask(ctx context.Context, se database.Sto
 		defer releaseAdminJobSpecLock(ctx, se, leakedResourcesMonitoringJobType, leakedResourcesMonitoringLockTimeoutSeconds, logger)
 		runCtx, cancel := context.WithTimeout(ctx, time.Duration(leakedResourcesMonitoringRunTimeoutSeconds)*time.Second)
 		defer cancel()
+		runCtx = injectLeakedResourcesRunID(runCtx, logger)
 		if err := leakedresources.Run(runCtx, se, temporal); err != nil {
-			logger.ErrorContext(ctx, "Leaked resources monitoring failed", "error", err)
+			logger.ErrorContext(runCtx, "Leaked resources monitoring failed", "error", err)
 			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "run")
 		}
 	} else {
 		logger.InfoContext(ctx, "Could not acquire lock - another pod is currently executing the task or not enough time has passed since last execution")
 	}
+}
+
+// injectLeakedResourcesRunID stamps a fresh run ID onto the context logger so
+// every log line emitted during this pipeline run carries leaked_resources_run_id,
+// making it easy to correlate logs from a single run and distinguish concurrent runs.
+func injectLeakedResourcesRunID(ctx context.Context, base log.Logger) context.Context {
+	runID := utils.RandomUUID()
+	runLogger := base.With(log.Fields{"leaked_resources_run_id": runID})
+	return context.WithValue(ctx, utilsmiddleware.ContextSLoggerKey, runLogger)
 }
 
 func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer *http.Server, logger log.Logger) {

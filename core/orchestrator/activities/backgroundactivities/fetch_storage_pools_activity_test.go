@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/resourcescope"
 )
 
 // fakeCCFE is a tiny stand-in for ccfe.Client so we can drive the activity
@@ -19,17 +19,17 @@ type fakeCCFE struct {
 	mock.Mock
 }
 
-func (f *fakeCCFE) ListStoragePools(ctx context.Context, projectID, location string) ([]poolpairs.CachedPool, error) {
+func (f *fakeCCFE) ListStoragePools(ctx context.Context, projectID, location string) ([]resourcescope.CachedPool, error) {
 	args := f.Called(ctx, projectID, location)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]poolpairs.CachedPool), args.Error(1)
+	return args.Get(0).([]resourcescope.CachedPool), args.Error(1)
 }
 
 func TestFetchStoragePools_ReturnsCCFEResult(t *testing.T) {
 	ctx := context.Background()
-	want := []poolpairs.CachedPool{
+	want := []resourcescope.CachedPool{
 		{UUID: "uuid-x", Name: "pool-x"},
 		{UUID: "uuid-y", Name: "pool-y"},
 	}
@@ -49,7 +49,7 @@ func TestFetchStoragePools_EmptyResultPropagated(t *testing.T) {
 	// Empty (but non-nil) is a real answer: CCFE has zero pools for this pair.
 	// The detector relies on this distinction to skip the pair on a nil result
 	// (CCFE disabled) but still produce in_vcp_not_in_ccfe leaks on [].
-	ccfe.On("ListStoragePools", ctx, "proj-a", "us-central1").Return([]poolpairs.CachedPool{}, nil)
+	ccfe.On("ListStoragePools", ctx, "proj-a", "us-central1").Return([]resourcescope.CachedPool{}, nil)
 
 	a := &FetchStoragePoolsActivity{CCFE: ccfe}
 	got, err := a.FetchStoragePools(ctx, "proj-a", "us-central1")

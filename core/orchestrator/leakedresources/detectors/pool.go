@@ -6,7 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/resourcescope"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -29,17 +29,17 @@ const (
 // (per-location) nil value, i.e. skip the diff for that pair so a
 // transient CCFE outage cannot false-flag every VCP pool as a leak.
 type CCFEPoolFetcher interface {
-	FetchCCFEPools(ctx context.Context, projectID string, locations []string) (map[string][]poolpairs.CachedPool, error)
+	FetchCCFEPools(ctx context.Context, projectID string, locations []string) (map[string][]resourcescope.CachedPool, error)
 }
 
 // ProjectLocationLister returns the (projectID, location) pairs the
 // detector should fetch CCFE pools for on each tick. Production wires this
-// to poolpairs.EnumerateProjectLocationKeys, which produces (account ×
+// to resourcescope.EnumerateProjectLocationKeys, which produces (account ×
 // (region + zones)) pairs so every zone in LOCAL_REGION is diffed (even
 // zones where VCP currently has no pools — those still surface
 // in_ccfe_not_in_vcp leaks against pools that exist only in CCFE).
 type ProjectLocationLister interface {
-	ListProjectLocations(ctx context.Context) ([]poolpairs.PoolProjectLocation, error)
+	ListProjectLocations(ctx context.Context) ([]resourcescope.ProjectLocation, error)
 }
 
 // PoolDetector detects pool leaks by diffing VCP pools against the live
@@ -75,7 +75,7 @@ func (d *PoolDetector) Name() string {
 // workflow fans the per-location CCFE list calls out as parallel
 // activities and returns a map of location → pools. The detector then
 // diffs each location against the VCP-side groups produced by
-// poolpairs.GroupPoolsByProjectLocation and emits in_ccfe_not_in_vcp /
+// resourcescope.GroupPoolsByProjectLocation and emits in_ccfe_not_in_vcp /
 // in_vcp_not_in_ccfe records.
 //
 // A nil/missing entry for a location causes that pair to be skipped so a
@@ -94,7 +94,7 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 	if err != nil {
 		return nil, err
 	}
-	groups := poolpairs.GroupPoolsByProjectLocation(ctx, pools)
+	groups := resourcescope.GroupPoolsByProjectLocation(ctx, pools)
 
 	pairs, err := d.lister.ListProjectLocations(ctx)
 	if err != nil {
@@ -129,7 +129,7 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 			failedProjects++
 		} else {
 			for _, location := range locations {
-				key := poolpairs.PoolProjectLocation{ProjectID: projectID, Location: location}
+				key := resourcescope.ProjectLocation{ProjectID: projectID, Location: location}
 
 				ccfePools, present := poolsByLocation[location]
 				if !present || ccfePools == nil {
@@ -151,7 +151,7 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 						vcpByUUID[p.UUID] = p
 					}
 				}
-				ccfeByUUID := make(map[string]poolpairs.CachedPool, len(ccfePools))
+				ccfeByUUID := make(map[string]resourcescope.CachedPool, len(ccfePools))
 				for _, cp := range ccfePools {
 					if cp.UUID == "" {
 						continue

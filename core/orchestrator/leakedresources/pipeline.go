@@ -3,11 +3,9 @@ package leakedresources
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/ccfe"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/detectors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
 )
@@ -96,14 +94,16 @@ func (p *Pipeline) Run(ctx context.Context, storage database.Storage) error {
 // BackupVaultDetector until that one is migrated to the same pattern.
 func Run(ctx context.Context, storage database.Storage, temporalClient client.Client) error {
 	p := NewPipeline()
-	ccfeClient := ccfe.NewClient(auth.GenerateCallbackToken)
-	ccfePoolFetcher := detectors.NewTemporalCCFEPoolFetcher(temporalClient)
 	zoneFetcher := detectors.NewTemporalZoneFetcher(temporalClient)
 	keyLister := detectors.NewProjectLocationLister(storage, zoneFetcher)
+
+	ccfePoolFetcher := detectors.NewTemporalCCFEPoolFetcher(temporalClient)
 	p.RegisterDetector(detectors.NewPoolDetector(ccfePoolFetcher, keyLister))
 	p.RegisterDetector(detectors.NewVolumeOrphanDetector())
 	p.RegisterDetector(detectors.NewSnapshotOrphanDetector())
-	p.RegisterDetector(detectors.NewBackupVaultDetector(ccfeClient))
+
+	ccfeBackupVaultFetcher := detectors.NewTemporalCCFEBackupVaultFetcher(temporalClient)
+	p.RegisterDetector(detectors.NewBackupVaultDetector(ccfeBackupVaultFetcher, keyLister))
 
 	// Internal reserved IP detector: invokes GCE Compute API via Temporal workflow on worker pod
 	p.RegisterDetector(detectors.NewInternalReservedIPDetector(detectors.DefaultInternalReservedIPMinAge()))

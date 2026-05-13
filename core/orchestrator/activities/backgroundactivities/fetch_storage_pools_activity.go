@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/ccfe"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/resourcescope"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 // CCFEPoolLister is the subset of ccfe.Client used to fetch the pool list for
 // a (project, location) pair. Defined here so tests can substitute a fake.
-// The slice element type lives in poolpairs so this activity and the
+// The slice element type lives in resourcescope so this activity and the
 // leaked-resources pool detector share a single struct definition.
 type CCFEPoolLister interface {
-	ListStoragePools(ctx context.Context, projectID, location string) ([]poolpairs.CachedPool, error)
+	ListStoragePools(ctx context.Context, projectID, location string) ([]resourcescope.CachedPool, error)
 }
 
 // FetchStoragePoolsActivity is registered on the background worker and
@@ -29,7 +29,7 @@ type FetchStoragePoolsActivity struct {
 // pair. A nil slice means "CCFE disabled" (e.g. GCP_HYDRATE_BASE_URL empty)
 // and the detector treats it the same as a transient miss — skip the diff
 // instead of false-flagging every VCP pool as a leak.
-func (a *FetchStoragePoolsActivity) FetchStoragePools(ctx context.Context, projectID, location string) ([]poolpairs.CachedPool, error) {
+func (a *FetchStoragePoolsActivity) FetchStoragePools(ctx context.Context, projectID, location string) ([]resourcescope.CachedPool, error) {
 	logger := util.GetLogger(ctx)
 	pools, err := a.CCFE.ListStoragePools(ctx, projectID, location)
 	if err != nil {

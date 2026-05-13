@@ -511,6 +511,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.RotatePoolPasswordWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.BackupSizeDetailsWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.FetchCCFEPoolsWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.FetchCCFEBackupVaultsWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.GetRegionZonesWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeCreateReconciliationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeDeleteReconciliationWorkflow)
@@ -560,6 +561,9 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.RotateVcpToVsaCertificateActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ControlWorkflowActivity{})
 	worker.RegisterActivity(&backgroundactivities.FetchStoragePoolsActivity{
+		CCFE: ccfe.NewClient(auth.GenerateCallbackToken),
+	})
+	worker.RegisterActivity(&backgroundactivities.FetchBackupVaultsActivity{
 		CCFE: ccfe.NewClient(auth.GenerateCallbackToken),
 	})
 	worker.RegisterActivity(&backgroundactivities.GetRegionZonesActivity{})

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/resourcescope"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -13,7 +13,7 @@ import (
 	"go.temporal.io/sdk/client"
 )
 
-// temporalZoneFetcher is the production poolpairs.ZoneFetcher used by
+// temporalZoneFetcher is the production resourcescope.ZoneFetcher used by
 // leakedresources.Run. Each GetRegionZones call kicks off a fresh
 // GetRegionZonesWorkflow on the background task queue and blocks until it
 // returns, so the GCP compute.zones.list call stays on the worker (where
@@ -25,7 +25,7 @@ type temporalZoneFetcher struct {
 // NewTemporalZoneFetcher returns a Temporal-backed ZoneFetcher. The
 // supplied client is the same one core constructs at startup (see
 // vcp-core/cmd/main.go) and shares with the rest of the orchestrator.
-func NewTemporalZoneFetcher(c client.Client) poolpairs.ZoneFetcher {
+func NewTemporalZoneFetcher(c client.Client) resourcescope.ZoneFetcher {
 	return &temporalZoneFetcher{client: c}
 }
 
@@ -61,22 +61,22 @@ func (f *temporalZoneFetcher) GetRegionZones(ctx context.Context, region string)
 // projectLocationLister is the production ProjectLocationLister: it pairs
 // the storage handle (for ListAccountsForTelemetry) with a Temporal-backed
 // ZoneFetcher (for GetRegionZonesWorkflow) and forwards both to
-// poolpairs.EnumerateProjectLocationKeys. Lives next to temporalZoneFetcher
+// resourcescope.EnumerateProjectLocationKeys. Lives next to temporalZoneFetcher
 // so the wiring all stays in one file.
 type projectLocationLister struct {
 	storage     database.Storage
-	zoneFetcher poolpairs.ZoneFetcher
+	zoneFetcher resourcescope.ZoneFetcher
 }
 
 // NewProjectLocationLister returns the production lister. It defers all
 // decision-making (region resolution, zones lookup, deduplication) to
-// poolpairs.EnumerateProjectLocationKeys so the detector itself stays free
+// resourcescope.EnumerateProjectLocationKeys so the detector itself stays free
 // of env / GCP concerns.
-func NewProjectLocationLister(storage database.Storage, zoneFetcher poolpairs.ZoneFetcher) ProjectLocationLister {
+func NewProjectLocationLister(storage database.Storage, zoneFetcher resourcescope.ZoneFetcher) ProjectLocationLister {
 	return &projectLocationLister{storage: storage, zoneFetcher: zoneFetcher}
 }
 
 // ListProjectLocations implements ProjectLocationLister.
-func (l *projectLocationLister) ListProjectLocations(ctx context.Context) ([]poolpairs.PoolProjectLocation, error) {
-	return poolpairs.EnumerateProjectLocationKeys(ctx, l.storage, l.zoneFetcher)
+func (l *projectLocationLister) ListProjectLocations(ctx context.Context) ([]resourcescope.ProjectLocation, error) {
+	return resourcescope.EnumerateProjectLocationKeys(ctx, l.storage, l.zoneFetcher)
 }

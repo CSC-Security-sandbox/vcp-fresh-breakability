@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/resourcescope"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
@@ -21,24 +21,24 @@ type mockCCFEPoolFetcher struct {
 	mock.Mock
 }
 
-func (m *mockCCFEPoolFetcher) FetchCCFEPools(ctx context.Context, projectID string, locations []string) (map[string][]poolpairs.CachedPool, error) {
+func (m *mockCCFEPoolFetcher) FetchCCFEPools(ctx context.Context, projectID string, locations []string) (map[string][]resourcescope.CachedPool, error) {
 	args := m.Called(ctx, projectID, locations)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(map[string][]poolpairs.CachedPool), args.Error(1)
+	return args.Get(0).(map[string][]resourcescope.CachedPool), args.Error(1)
 }
 
 // mockKeyLister is a constructor-driven ProjectLocationLister so each test
 // can pin the exact list of (project, location) pairs the detector should
 // iterate.
 type mockKeyLister struct {
-	pairs []poolpairs.PoolProjectLocation
+	pairs []resourcescope.ProjectLocation
 	err   error
 	calls int
 }
 
-func (m *mockKeyLister) ListProjectLocations(_ context.Context) ([]poolpairs.PoolProjectLocation, error) {
+func (m *mockKeyLister) ListProjectLocations(_ context.Context) ([]resourcescope.ProjectLocation, error) {
 	m.calls++
 	if m.err != nil {
 		return nil, m.err
@@ -46,12 +46,12 @@ func (m *mockKeyLister) ListProjectLocations(_ context.Context) ([]poolpairs.Poo
 	return m.pairs, nil
 }
 
-func newKeyLister(pairs ...poolpairs.PoolProjectLocation) *mockKeyLister {
+func newKeyLister(pairs ...resourcescope.ProjectLocation) *mockKeyLister {
 	return &mockKeyLister{pairs: pairs}
 }
 
-func pair(project, location string) poolpairs.PoolProjectLocation {
-	return poolpairs.PoolProjectLocation{ProjectID: project, Location: location}
+func pair(project, location string) resourcescope.ProjectLocation {
+	return resourcescope.ProjectLocation{ProjectID: project, Location: location}
 }
 
 func poolView(id int64, uuid, name, projectID, primaryZone string, isRegionalHA bool) *datamodel.PoolView {
@@ -125,13 +125,13 @@ func TestPoolDetector_Detect_OneWorkflowPerProject(t *testing.T) {
 
 	fetcher := &mockCCFEPoolFetcher{}
 	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1", "us-central1-a", "us-central1-b"}).
-		Return(map[string][]poolpairs.CachedPool{
+		Return(map[string][]resourcescope.CachedPool{
 			"us-central1":   {},
 			"us-central1-a": {},
 			"us-central1-b": {},
 		}, nil).Once()
 	fetcher.On("FetchCCFEPools", ctx, "proj2", []string{"us-central1"}).
-		Return(map[string][]poolpairs.CachedPool{"us-central1": {}}, nil).Once()
+		Return(map[string][]resourcescope.CachedPool{"us-central1": {}}, nil).Once()
 
 	d := NewPoolDetector(fetcher, newKeyLister(
 		pair("proj1", "us-central1"),
@@ -158,7 +158,7 @@ func TestPoolDetector_Detect_NilCCFEResult_SkipsPair(t *testing.T) {
 	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
 	fetcher := &mockCCFEPoolFetcher{}
 	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
-		Return(map[string][]poolpairs.CachedPool{"us-central1-a": nil}, nil)
+		Return(map[string][]resourcescope.CachedPool{"us-central1-a": nil}, nil)
 
 	d := NewPoolDetector(fetcher, newKeyLister(pair("proj1", "us-central1-a")))
 	records, err := d.Detect(ctx, storage)
@@ -182,7 +182,7 @@ func TestPoolDetector_Detect_MissingLocationKey_SkipsPair(t *testing.T) {
 	// us-central1-a was requested but workflow returned an empty map (or a map
 	// without the key) because the activity exhausted retries.
 	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
-		Return(map[string][]poolpairs.CachedPool{}, nil)
+		Return(map[string][]resourcescope.CachedPool{}, nil)
 
 	d := NewPoolDetector(fetcher, newKeyLister(pair("proj1", "us-central1-a")))
 	records, err := d.Detect(ctx, storage)
@@ -200,7 +200,7 @@ func TestPoolDetector_Detect_InCCFENotInVCP(t *testing.T) {
 	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
 	fetcher := &mockCCFEPoolFetcher{}
 	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
-		Return(map[string][]poolpairs.CachedPool{
+		Return(map[string][]resourcescope.CachedPool{
 			"us-central1-a": {
 				{UUID: "uuid-vcp", Name: "vcp-pool"},
 				{UUID: "uuid-ccfe-only", Name: "ccfe-extra-pool"},
@@ -231,7 +231,7 @@ func TestPoolDetector_Detect_InVCPNotInCCFE(t *testing.T) {
 	fetcher := &mockCCFEPoolFetcher{}
 	// CCFE only knows about uuid-1 -> uuid-2 must be flagged as in_vcp_not_in_ccfe.
 	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
-		Return(map[string][]poolpairs.CachedPool{
+		Return(map[string][]resourcescope.CachedPool{
 			"us-central1-a": {{UUID: "uuid-1", Name: "vcp-pool-1"}},
 		}, nil)
 
@@ -255,7 +255,7 @@ func TestPoolDetector_Detect_NameReusedAcrossUUIDs(t *testing.T) {
 	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
 	fetcher := &mockCCFEPoolFetcher{}
 	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
-		Return(map[string][]poolpairs.CachedPool{
+		Return(map[string][]resourcescope.CachedPool{
 			"us-central1-a": {{UUID: "uuid-ccfe", Name: "shared-name"}},
 		}, nil)
 
@@ -291,7 +291,7 @@ func TestPoolDetector_Detect_FetchFails_SkipsProject(t *testing.T) {
 		Return(nil, errors.New("temporal boom"))
 	// Other project still gets fetched.
 	fetcher.On("FetchCCFEPools", ctx, "proj2", []string{"us-central1-a"}).
-		Return(map[string][]poolpairs.CachedPool{
+		Return(map[string][]resourcescope.CachedPool{
 			"us-central1-a": {{UUID: "uuid-2", Name: "pool-2"}},
 		}, nil)
 
@@ -314,7 +314,7 @@ func TestPoolDetector_Detect_NoLeaks_SameInBoth(t *testing.T) {
 	storage.EXPECT().ListPoolsSelective(ctx, mock.Anything, mock.Anything).Return(pools, nil)
 	fetcher := &mockCCFEPoolFetcher{}
 	fetcher.On("FetchCCFEPools", ctx, "proj1", []string{"us-central1-a"}).
-		Return(map[string][]poolpairs.CachedPool{
+		Return(map[string][]resourcescope.CachedPool{
 			"us-central1-a": {{UUID: "pool-uuid", Name: "pool-name"}},
 		}, nil)
 
@@ -345,7 +345,7 @@ func TestPoolDetector_Detect_FetchesEnumeratedZonesEvenWhenVCPHasNoPools(t *test
 		"australia-southeast1-a",
 		"australia-southeast1-b",
 		"australia-southeast1-c",
-	}).Return(map[string][]poolpairs.CachedPool{
+	}).Return(map[string][]resourcescope.CachedPool{
 		"australia-southeast1":   {},
 		"australia-southeast1-a": {{UUID: "uuid-vcp", Name: "vcp-pool"}},
 		"australia-southeast1-b": {},

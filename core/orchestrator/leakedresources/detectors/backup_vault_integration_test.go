@@ -16,39 +16,45 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/ccfe"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/resourcescope"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
-// Integration tests in this file use in-memory VCP (database.NewTestStorage / SQLite) and an in-memory
-// CCFE fixture over HTTP (list backup vaults path + JSON) via the real ccfe.Client.
+// Integration tests use in-memory VCP (database.NewTestStorage / SQLite)
+// and an in-memory CCFE fixture over HTTP via the real ccfe.Client
+// wrapped in inProcessBackupVaultFetcher.
 
-// ccfeMemoryDB holds backup vault resource IDs per (GCP project number/id, location), mimicking CCFE list state.
+// ccfeVaultEntry is the seed record stored in the in-memory CCFE server.
+// Both UUID and Name are required so the server can emit the full
+// "internalBackupVaults" response shape (name path + netappUuid).
+type ccfeVaultEntry struct {
+	UUID string
+	Name string // short resource name (segment after backupVaults/)
+}
+
 type ccfeMemoryDB struct {
 	mu   sync.Mutex
-	data map[string][]string // key: project + "\x00" + location -> CCFE resource ids (name suffix)
+	data map[string][]ccfeVaultEntry
 }
 
 func newCCFEMemoryDB() *ccfeMemoryDB {
-	return &ccfeMemoryDB{data: make(map[string][]string)}
+	return &ccfeMemoryDB{data: make(map[string][]ccfeVaultEntry)}
 }
 
 func ccfeKey(projectID, location string) string {
 	return projectID + "\x00" + location
 }
 
-func (m *ccfeMemoryDB) set(projectID, location string, resourceIDs []string) {
+func (m *ccfeMemoryDB) set(projectID, location string, entries []ccfeVaultEntry) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	k := ccfeKey(projectID, location)
-	cp := make([]string, len(resourceIDs))
-	copy(cp, resourceIDs)
-	m.data[k] = cp
+	cp := make([]ccfeVaultEntry, len(entries))
+	copy(cp, entries)
+	m.data[ccfeKey(projectID, location)] = cp
 }
 
-// newCCFETestServer serves ListBackupVaults JSON from ccfeMemoryDB. Paths match CCFE:
-// GET /v1beta1/projects/{project}/locations/{location}/backupVaults
 func newCCFETestServer(t *testing.T, mem *ccfeMemoryDB) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +63,7 @@ func newCCFETestServer(t *testing.T, mem *ccfeMemoryDB) *httptest.Server {
 			return
 		}
 		path := r.URL.Path
-		const prefix = "/v1beta1/projects/"
+		const prefix = "/v1internal/projects/"
 		if !strings.HasPrefix(path, prefix) {
 			http.NotFound(w, r)
 			return
@@ -70,18 +76,20 @@ func newCCFETestServer(t *testing.T, mem *ccfeMemoryDB) *httptest.Server {
 		}
 		projectID, location := parts[0], parts[2]
 		mem.mu.Lock()
-		ids := append([]string(nil), mem.data[ccfeKey(projectID, location)]...)
+		entries := append([]ccfeVaultEntry(nil), mem.data[ccfeKey(projectID, location)]...)
 		mem.mu.Unlock()
 
 		type item struct {
-			Name string `json:"name"`
+			Name       string `json:"name"`
+			NetappUUID string `json:"netappUuid,omitempty"`
 		}
 		var body struct {
-			BackupVaults []item `json:"backupVaults"`
+			BackupVaults []item `json:"internalBackupVaults"`
 		}
-		for _, id := range ids {
+		for _, e := range entries {
 			body.BackupVaults = append(body.BackupVaults, item{
-				Name: fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", projectID, location, id),
+				Name:       fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", projectID, location, e.Name),
+				NetappUUID: e.UUID,
 			})
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -100,14 +108,39 @@ func newCCFEClientFromServer(t *testing.T, srv *httptest.Server) *ccfe.Client {
 	)
 }
 
-// vcpBackupVaultSeed describes one row to insert into the in-memory VCP SQLite DB.
+type inProcessBackupVaultFetcher struct {
+	ccfeClient *ccfe.Client
+}
+
+func (f *inProcessBackupVaultFetcher) FetchCCFEBackupVaults(ctx context.Context, projectID string, locations []string) (map[string][]resourcescope.CachedBackupVault, error) {
+	result := make(map[string][]resourcescope.CachedBackupVault, len(locations))
+	for _, loc := range locations {
+		vaults, err := f.ccfeClient.ListBackupVaults(ctx, projectID, loc)
+		if err != nil {
+			continue
+		}
+		result[loc] = vaults
+	}
+	return result, nil
+}
+
+func newTestFetcher(t *testing.T, srv *httptest.Server) CCFEBackupVaultFetcher {
+	t.Helper()
+	return &inProcessBackupVaultFetcher{ccfeClient: newCCFEClientFromServer(t, srv)}
+}
+
+// staticBVLister returns a ProjectLocationLister with a fixed set of pairs.
+func staticBVLister(pairs ...resourcescope.ProjectLocation) ProjectLocationLister {
+	return &mockBVLister{pairs: pairs}
+}
+
 type vcpBackupVaultSeed struct {
 	AccountUUID string
-	AccountName string // GCP project number / account name
+	AccountName string
 	BVUUID      string
-	BVName      string // resource id (matches CCFE list id)
-	SrcRegion   string // pointer for SourceRegionName; empty => nil
-	BackupReg   string // pointer for BackupRegionName when SrcRegion empty
+	BVName      string
+	SrcRegion   string
+	BackupReg   string
 }
 
 func seedVCPBackupVaults(t *testing.T, store database.Storage, rows []vcpBackupVaultSeed) {
@@ -159,7 +192,10 @@ func sortLeakRecords(rec []model.LeakRecord) {
 
 func TestBackupVaultDetector_Integration_InMemoryVCPAndCCFE_NoLeaks(t *testing.T) {
 	mem := newCCFEMemoryDB()
-	mem.set("123456789", "us-central1", []string{"bv-alpha", "bv-beta"})
+	mem.set("123456789", "us-central1", []ccfeVaultEntry{
+		{UUID: "uuid-alpha", Name: "bv-alpha"},
+		{UUID: "uuid-beta", Name: "bv-beta"},
+	})
 	srv := newCCFETestServer(t, mem)
 	defer srv.Close()
 
@@ -174,7 +210,8 @@ func TestBackupVaultDetector_Integration_InMemoryVCPAndCCFE_NoLeaks(t *testing.T
 	})
 
 	ctx := context.Background()
-	d := NewBackupVaultDetector(newCCFEClientFromServer(t, srv))
+	lister := staticBVLister(plPair("123456789", "us-central1"))
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
 	records, err := d.Detect(ctx, store)
 	require.NoError(t, err)
 	assert.Empty(t, records)
@@ -182,7 +219,10 @@ func TestBackupVaultDetector_Integration_InMemoryVCPAndCCFE_NoLeaks(t *testing.T
 
 func TestBackupVaultDetector_Integration_InCCFENotInVCP(t *testing.T) {
 	mem := newCCFEMemoryDB()
-	mem.set("proj-aa", "us-west1", []string{"only-in-ccfe", "in-both"})
+	mem.set("proj-aa", "us-west1", []ccfeVaultEntry{
+		{UUID: "uuid-only-ccfe", Name: "only-in-ccfe"},
+		{UUID: "uuid-both", Name: "in-both"},
+	})
 	srv := newCCFETestServer(t, mem)
 	defer srv.Close()
 
@@ -192,16 +232,18 @@ func TestBackupVaultDetector_Integration_InCCFENotInVCP(t *testing.T) {
 	defer func() { _ = store.Close() }()
 
 	seedVCPBackupVaults(t, store, []vcpBackupVaultSeed{
-		{AccountName: "proj-aa", BVUUID: "u1", BVName: "in-both", SrcRegion: "us-west1"},
+		{AccountName: "proj-aa", BVUUID: "uuid-both", BVName: "in-both", SrcRegion: "us-west1"},
 	})
 
 	ctx := context.Background()
-	d := NewBackupVaultDetector(newCCFEClientFromServer(t, srv))
+	lister := staticBVLister(plPair("proj-aa", "us-west1"))
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
 	records, err := d.Detect(ctx, store)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	assert.Equal(t, ReasonInCCFENotInVCP, records[0].Reason)
-	assert.Equal(t, "only-in-ccfe", records[0].ResourceID)
+	assert.Equal(t, "uuid-only-ccfe", records[0].ResourceID)
+	assert.Equal(t, "only-in-ccfe", records[0].ResourceName)
 	assert.Equal(t, model.ResourceTypeBackupVault, records[0].ResourceType)
 	assert.Equal(t, "proj-aa", records[0].ProjectID)
 	assert.Equal(t, "us-west1", records[0].Region)
@@ -209,7 +251,9 @@ func TestBackupVaultDetector_Integration_InCCFENotInVCP(t *testing.T) {
 
 func TestBackupVaultDetector_Integration_InVCPNotInCCFE(t *testing.T) {
 	mem := newCCFEMemoryDB()
-	mem.set("888", "europe-west1", []string{"ccfe-one"})
+	mem.set("888", "europe-west1", []ccfeVaultEntry{
+		{UUID: "v-a", Name: "ccfe-one"},
+	})
 	srv := newCCFETestServer(t, mem)
 	defer srv.Close()
 
@@ -224,7 +268,8 @@ func TestBackupVaultDetector_Integration_InVCPNotInCCFE(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	d := NewBackupVaultDetector(newCCFEClientFromServer(t, srv))
+	lister := staticBVLister(plPair("888", "europe-west1"))
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
 	records, err := d.Detect(ctx, store)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
@@ -235,9 +280,17 @@ func TestBackupVaultDetector_Integration_InVCPNotInCCFE(t *testing.T) {
 
 func TestBackupVaultDetector_Integration_MultipleProjectLocationGroups(t *testing.T) {
 	mem := newCCFEMemoryDB()
-	mem.set("p1", "us-central1", []string{"a1", "ccfe-extra-c1"})
-	mem.set("p1", "us-east1", []string{"b1"})
-	mem.set("p2", "asia-east1", []string{"c1", "c2"})
+	mem.set("p1", "us-central1", []ccfeVaultEntry{
+		{UUID: "ua1", Name: "a1"},
+		{UUID: "uuid-ccfe-extra-c1", Name: "ccfe-extra-c1"},
+	})
+	mem.set("p1", "us-east1", []ccfeVaultEntry{
+		{UUID: "ub1", Name: "b1"},
+	})
+	mem.set("p2", "asia-east1", []ccfeVaultEntry{
+		{UUID: "uc1", Name: "c1"},
+		{UUID: "uc2", Name: "c2"},
+	})
 	srv := newCCFETestServer(t, mem)
 	defer srv.Close()
 
@@ -254,14 +307,19 @@ func TestBackupVaultDetector_Integration_MultipleProjectLocationGroups(t *testin
 	})
 
 	ctx := context.Background()
-	d := NewBackupVaultDetector(newCCFEClientFromServer(t, srv))
+	lister := staticBVLister(
+		plPair("p1", "us-central1"),
+		plPair("p1", "us-east1"),
+		plPair("p2", "asia-east1"),
+	)
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
 	records, err := d.Detect(ctx, store)
 	require.NoError(t, err)
 	sortLeakRecords(records)
 	expected := []model.LeakRecord{
-		{ResourceType: model.ResourceTypeBackupVault, ResourceID: "ccfe-extra-c1", ResourceName: "ccfe-extra-c1", ProjectID: "p1", Region: "us-central1", Reason: ReasonInCCFENotInVCP},
 		{ResourceType: model.ResourceTypeBackupVault, ResourceID: "uc-missing-ccfe", ResourceName: "only-vcp-asia", ProjectID: "p2", Region: "asia-east1", Reason: ReasonInVCPNotInCCFE, Extra: map[string]string{"uuid": "uc-missing-ccfe"}},
-		{ResourceType: model.ResourceTypeBackupVault, ResourceID: "c2", ResourceName: "c2", ProjectID: "p2", Region: "asia-east1", Reason: ReasonInCCFENotInVCP},
+		{ResourceType: model.ResourceTypeBackupVault, ResourceID: "uc2", ResourceName: "c2", ProjectID: "p2", Region: "asia-east1", Reason: ReasonInCCFENotInVCP, Extra: map[string]string{"uuid": "uc2"}},
+		{ResourceType: model.ResourceTypeBackupVault, ResourceID: "uuid-ccfe-extra-c1", ResourceName: "ccfe-extra-c1", ProjectID: "p1", Region: "us-central1", Reason: ReasonInCCFENotInVCP, Extra: map[string]string{"uuid": "uuid-ccfe-extra-c1"}},
 	}
 	sortLeakRecords(expected)
 	assert.Equal(t, expected, records)
@@ -269,7 +327,9 @@ func TestBackupVaultDetector_Integration_MultipleProjectLocationGroups(t *testin
 
 func TestBackupVaultDetector_Integration_BackupRegionFallbackMatchesCCFE(t *testing.T) {
 	mem := newCCFEMemoryDB()
-	mem.set("tenant-1", "us-west2", []string{"dr-vault"})
+	mem.set("tenant-1", "us-west2", []ccfeVaultEntry{
+		{UUID: "bv-dr", Name: "dr-vault"},
+	})
 	srv := newCCFETestServer(t, mem)
 	defer srv.Close()
 
@@ -283,7 +343,8 @@ func TestBackupVaultDetector_Integration_BackupRegionFallbackMatchesCCFE(t *test
 	})
 
 	ctx := context.Background()
-	d := NewBackupVaultDetector(newCCFEClientFromServer(t, srv))
+	lister := staticBVLister(plPair("tenant-1", "us-west2"))
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
 	records, err := d.Detect(ctx, store)
 	require.NoError(t, err)
 	assert.Empty(t, records)
@@ -291,7 +352,10 @@ func TestBackupVaultDetector_Integration_BackupRegionFallbackMatchesCCFE(t *test
 
 func TestBackupVaultDetector_Integration_SoftDeletedVCPVault_ReportedAsCCFEOnly(t *testing.T) {
 	mem := newCCFEMemoryDB()
-	mem.set("del-proj", "us-central1", []string{"gone-from-vcp", "still-there"})
+	mem.set("del-proj", "us-central1", []ccfeVaultEntry{
+		{UUID: "u-gone", Name: "gone-from-vcp"},
+		{UUID: "u-ok", Name: "still-there"},
+	})
 	srv := newCCFETestServer(t, mem)
 	defer srv.Close()
 
@@ -308,12 +372,13 @@ func TestBackupVaultDetector_Integration_SoftDeletedVCPVault_ReportedAsCCFEOnly(
 	require.NoError(t, store.DB().Where("uuid = ?", "u-gone").Delete(&datamodel.BackupVault{}).Error)
 
 	ctx := context.Background()
-	d := NewBackupVaultDetector(newCCFEClientFromServer(t, srv))
+	lister := staticBVLister(plPair("del-proj", "us-central1"))
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
 	records, err := d.Detect(ctx, store)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	assert.Equal(t, ReasonInCCFENotInVCP, records[0].Reason)
-	assert.Equal(t, "gone-from-vcp", records[0].ResourceID)
+	assert.Equal(t, "u-gone", records[0].ResourceID)
 }
 
 func TestBackupVaultDetector_Integration_EmptyCCFEList_AllVCPReportedMissingInCCFE(t *testing.T) {
@@ -332,18 +397,25 @@ func TestBackupVaultDetector_Integration_EmptyCCFEList_AllVCPReportedMissingInCC
 	})
 
 	ctx := context.Background()
-	d := NewBackupVaultDetector(newCCFEClientFromServer(t, srv))
+	lister := staticBVLister(plPair("empty-ccfe", "northamerica-northeast1"))
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
 	records, err := d.Detect(ctx, store)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	assert.Equal(t, ReasonInVCPNotInCCFE, records[0].Reason)
 	assert.Equal(t, "lonely", records[0].ResourceName)
+	assert.Equal(t, "x1", records[0].ResourceID)
 }
 
 func TestBackupVaultDetector_Integration_TwoAccountsSameRegion_Isolated(t *testing.T) {
 	mem := newCCFEMemoryDB()
-	mem.set("acct-a", "us-central1", []string{"vault-a"})
-	mem.set("acct-b", "us-central1", []string{"vault-b", "ccfe-only-b"})
+	mem.set("acct-a", "us-central1", []ccfeVaultEntry{
+		{UUID: "va", Name: "vault-a"},
+	})
+	mem.set("acct-b", "us-central1", []ccfeVaultEntry{
+		{UUID: "vb", Name: "vault-b"},
+		{UUID: "uuid-ccfe-only-b", Name: "ccfe-only-b"},
+	})
 	srv := newCCFETestServer(t, mem)
 	defer srv.Close()
 
@@ -358,11 +430,78 @@ func TestBackupVaultDetector_Integration_TwoAccountsSameRegion_Isolated(t *testi
 	})
 
 	ctx := context.Background()
-	d := NewBackupVaultDetector(newCCFEClientFromServer(t, srv))
+	lister := staticBVLister(
+		plPair("acct-a", "us-central1"),
+		plPair("acct-b", "us-central1"),
+	)
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
 	records, err := d.Detect(ctx, store)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	assert.Equal(t, ReasonInCCFENotInVCP, records[0].Reason)
-	assert.Equal(t, "ccfe-only-b", records[0].ResourceID)
+	assert.Equal(t, "uuid-ccfe-only-b", records[0].ResourceID)
 	assert.Equal(t, "acct-b", records[0].ProjectID)
+}
+
+// TestBackupVaultDetector_Integration_ZeroVCPVaults_CCFEOnlyDetected is
+// the key test: even with no VCP backup vault rows, CCFE-only vaults
+// are still detected.
+func TestBackupVaultDetector_Integration_ZeroVCPVaults_CCFEOnlyDetected(t *testing.T) {
+	mem := newCCFEMemoryDB()
+	mem.set("orphan-proj", "us-central1", []ccfeVaultEntry{
+		{UUID: "leaked-uuid", Name: "leaked-vault"},
+	})
+	srv := newCCFETestServer(t, mem)
+	defer srv.Close()
+
+	logger := log.NewLogger()
+	store, err := database.NewTestStorage(logger)
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	ctx := context.Background()
+	lister := staticBVLister(plPair("orphan-proj", "us-central1"))
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
+	records, err := d.Detect(ctx, store)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.Equal(t, ReasonInCCFENotInVCP, records[0].Reason)
+	assert.Equal(t, "leaked-uuid", records[0].ResourceID)
+	assert.Equal(t, "leaked-vault", records[0].ResourceName)
+	assert.Equal(t, "orphan-proj", records[0].ProjectID)
+}
+
+// TestBackupVaultDetector_Integration_SameNameDifferentUUID exercises
+// the key correctness property of UUID-based diffing: a vault deleted
+// and recreated under the same name appears as both an in_ccfe_not_in_vcp
+// (new UUID) and an in_vcp_not_in_ccfe (old UUID) record.
+func TestBackupVaultDetector_Integration_SameNameDifferentUUID(t *testing.T) {
+	mem := newCCFEMemoryDB()
+	mem.set("proj-x", "us-central1", []ccfeVaultEntry{
+		{UUID: "new-uuid", Name: "vault-a"}, // recreated under same name
+	})
+	srv := newCCFETestServer(t, mem)
+	defer srv.Close()
+
+	logger := log.NewLogger()
+	store, err := database.NewTestStorage(logger)
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	seedVCPBackupVaults(t, store, []vcpBackupVaultSeed{
+		{AccountName: "proj-x", BVUUID: "old-uuid", BVName: "vault-a", SrcRegion: "us-central1"},
+	})
+
+	ctx := context.Background()
+	lister := staticBVLister(plPair("proj-x", "us-central1"))
+	d := NewBackupVaultDetector(newTestFetcher(t, srv), lister)
+	records, err := d.Detect(ctx, store)
+	require.NoError(t, err)
+	require.Len(t, records, 2)
+	reasons := map[string]string{}
+	for _, r := range records {
+		reasons[r.ResourceID] = r.Reason
+	}
+	assert.Equal(t, ReasonInCCFENotInVCP, reasons["new-uuid"])
+	assert.Equal(t, ReasonInVCPNotInCCFE, reasons["old-uuid"])
 }

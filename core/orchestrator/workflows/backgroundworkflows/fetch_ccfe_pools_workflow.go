@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/poolpairs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/resourcescope"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -40,7 +40,7 @@ var (
 // error for catastrophic conditions (Temporal infra failures, retry
 // policy population failures) — the typical "one location failed" case
 // is reported via map cardinality, not via error.
-func FetchCCFEPoolsWorkflow(ctx workflow.Context, projectID string, locations []string) (map[string][]poolpairs.CachedPool, error) {
+func FetchCCFEPoolsWorkflow(ctx workflow.Context, projectID string, locations []string) (map[string][]resourcescope.CachedPool, error) {
 	requestID := utils.RandomUUID()
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{
 		"workflowID":                            workflow.GetInfo(ctx).WorkflowExecution.ID,
@@ -53,7 +53,7 @@ func FetchCCFEPoolsWorkflow(ctx workflow.Context, projectID string, locations []
 
 	if len(locations) == 0 {
 		logger.Infof("FetchCCFEPoolsWorkflow: no locations supplied; returning empty map projectID=%s", projectID)
-		return map[string][]poolpairs.CachedPool{}, nil
+		return map[string][]resourcescope.CachedPool{}, nil
 	}
 
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
@@ -91,10 +91,10 @@ func FetchCCFEPoolsWorkflow(ctx workflow.Context, projectID string, locations []
 	// that exhausted retries are logged and dropped from the map so the
 	// caller can distinguish "fetch failed for this location" from
 	// "fetch succeeded with empty list".
-	result := make(map[string][]poolpairs.CachedPool, len(locations))
+	result := make(map[string][]resourcescope.CachedPool, len(locations))
 	failedCount := 0
 	for i, f := range futures {
-		var pools []poolpairs.CachedPool
+		var pools []resourcescope.CachedPool
 		if err := f.Get(ctx, &pools); err != nil {
 			logger.Warnf("FetchCCFEPoolsWorkflow: activity failed projectID=%s location=%s after retries: %v",
 				projectID, locations[i], err)
