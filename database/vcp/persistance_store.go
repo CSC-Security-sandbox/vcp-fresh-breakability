@@ -821,6 +821,10 @@ func (s *PersistenceStore) DeletingSVM(ctx context.Context, svm *datamodel.Svm) 
 	return s.dataStore.DeletingSVM(ctx, svm)
 }
 
+func (s *PersistenceStore) TransitionSvmToDeleting(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	return s.dataStore.TransitionSvmToDeleting(ctx, svm)
+}
+
 func (s *PersistenceStore) DeleteLif(ctx context.Context, lif *datamodel.Lif) error {
 	return s.dataStore.DeleteLif(ctx, lif)
 }
@@ -995,6 +999,10 @@ func (s *PersistenceStore) GetSvmByExternalUUID(ctx context.Context, externalUUI
 
 func (s *PersistenceStore) GetSvmByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (*datamodel.Svm, error) {
 	return s.dataStore.GetSvmByExternalIdentifier(ctx, externalIdentifier, accountID)
+}
+
+func (s *PersistenceStore) SvmExistsByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (bool, error) {
+	return s.dataStore.SvmExistsByExternalIdentifier(ctx, externalIdentifier, accountID)
 }
 
 func (s *PersistenceStore) CreateKmsConfig(ctx context.Context, kmsConfigParams *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {

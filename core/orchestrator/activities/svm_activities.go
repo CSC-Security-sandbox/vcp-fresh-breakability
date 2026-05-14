@@ -16,6 +16,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
@@ -26,16 +27,30 @@ type SvmActivity struct {
 	SE database.Storage
 }
 
-// GetSvmExpertModeCredentialsForOCI fetches the expert-mode admin password
-// from OCI Vault for an SVM.
-// Named differently from PoolActivity.GetExpertModeCredentialsForOCI to avoid
-// Temporal activity registration collision when both are registered on the same worker.
-func (s *SvmActivity) GetSvmExpertModeCredentialsForOCI(ctx context.Context, svm *datamodel.Svm, svmAdminPassword *commonparams.OciAdminPassword) (*vlm.OntapCredentials, error) {
+const (
+	gcpDefaultIPSpace = "Default"
+	ociDefaultIPSpace = "ocifsn"
+)
+
+var defaultIPSpace = resolveDefaultIPSpace()
+
+func resolveDefaultIPSpace() string {
+	if v := env.GetString("DEFAULT_IPSPACE", ""); v != "" {
+		return v
+	}
+	if env.GetHyperscaler() == commonparams.ProviderOCI {
+		return ociDefaultIPSpace
+	}
+	return gcpDefaultIPSpace
+}
+
+// GetSvmAdminPasswordSecretForOCI fetches the SVM admin password secret from OCI Vault for an SVM.
+func (s *SvmActivity) GetSvmAdminPasswordSecretForOCI(ctx context.Context, svm *datamodel.Svm, svmAdminPassword *commonparams.OciAdminPassword) (*vlm.OntapCredentials, error) {
 	if svm == nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("svm must not be nil")))
 	}
-	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting GetSvmExpertModeCredentialsForOCI activity - svm Name: %s, svmOCID: %s", svm.Name, svm.SvmExternalIdentifier))
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting GetSvmAdminPasswordSecretForOCI activity - svm Name: %s, svmOCID: %s", svm.Name, svm.SvmExternalIdentifier))
 	credentials := &vlm.OntapCredentials{}
 
 	ociService, err := hyperscaler2.GetOCIService(ctx)
@@ -45,22 +60,23 @@ func (s *SvmActivity) GetSvmExpertModeCredentialsForOCI(ctx context.Context, svm
 
 	if svmAdminPassword == nil || svmAdminPassword.Ocid == "" {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("svmAdminPassword is required for expert mode credentials")))
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("svmAdminPassword is required for SVM admin password secret")))
 	}
 
-	ociService.GetLogger().Infof("Fetching expert mode admin password from OCI Vault — secretOCID: %s, version: %d", svmAdminPassword.Ocid, svmAdminPassword.Version)
+	ociService.GetLogger().Infof("Fetching SVM admin password from OCI Vault — secretOCID: %s, version: %d", svmAdminPassword.Ocid, svmAdminPassword.Version)
 	secret, err := ociService.GetSecretWithCustomVersion(svmAdminPassword.Ocid, svmAdminPassword.Version)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrOCIResourceFetchError, err))
 	}
 	if secret == nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("secret not found in OCI Vault for OCID: %s, version: %d", svmAdminPassword.Ocid, svmAdminPassword.Version)))
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("secret is inactive or pending deletion in OCI Vault — OCID: %s, version: %d", svmAdminPassword.Ocid, svmAdminPassword.Version)))
 	}
 
 	credentials.AdminPassword = secret.Value
-	ociService.GetLogger().Infof("Expert mode admin password fetched successfully from OCI Vault for svm: %s", svm.SvmExternalIdentifier)
-	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished GetSvmExpertModeCredentialsForOCI activity - svm Name: %s, svmOCID: %s", svm.Name, svm.SvmExternalIdentifier))
+	ociService.GetLogger().Infof("SVM admin password fetched successfully from OCI Vault for svm: %s", svm.SvmExternalIdentifier)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished GetSvmAdminPasswordSecretForOCI activity - svm Name: %s, svmOCID: %s", svm.Name, svm.SvmExternalIdentifier))
 	return credentials, nil
 }
 
@@ -99,6 +115,10 @@ func (j *SvmActivity) saveSVMAndLifData(ctx context.Context, pool *datamodel.Poo
 			vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create LIFs for SVM "+svm.Svmname)))
 	}
 
+	ipSpace := vlmConfig.VsaCluster.CustIPSpace
+	if ipSpace == "" {
+		ipSpace = defaultIPSpace // hyperscaler-driven fallback ("Default" on GCP, "ocifsn" on OCI; overridable via DEFAULT_IPSPACE)
+	}
 	svmRec := &datamodel.Svm{
 		Name:                  svm.Svmname,
 		SvmExternalIdentifier: svmExternalIdentifier,
@@ -106,7 +126,7 @@ func (j *SvmActivity) saveSVMAndLifData(ctx context.Context, pool *datamodel.Poo
 		PoolID:                pool.ID,
 		SvmDetails: &datamodel.SvmDetails{
 			ExternalUUID: svm.Svmuuid,
-			IPSpace:      "Default",
+			IPSpace:      ipSpace,
 		},
 	}
 
@@ -220,6 +240,14 @@ func applyQoSPolicyToSVM(ctx context.Context, svm *datamodel.Svm, node *models.N
 // Same lookup pattern as applyQoSPolicyToSVM: GetSvmForPoolID then provider.ModifySVMWithQoSPolicy with empty policy name.
 func (j *SvmActivity) RemoveQoSPolicyFromSVM(ctx context.Context, pool *datamodel.Pool, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	if pool == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool must not be nil")))
+	}
+	if node == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("node must not be nil")))
+	}
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting RemoveQoSPolicyFromSVM - pool: %s, node: %s", pool.Name, node.Name))
 
 	svm, err := j.GetSvmForPoolID(ctx, pool.ID)
@@ -264,6 +292,10 @@ func (j *SvmActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *da
 	if svm == nil || svm.SvmDetails == nil {
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("SVM or SvmDetails is nil for pool %s", pool.Name)))
+	}
+	if node == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("node must not be nil")))
 	}
 	if pool.QosType == utils.QosTypeManual {
 		logger.Info("QoS type is manual, skipping creating QoS policy assigned to the SVM", "poolName", pool.Name)
@@ -371,6 +403,14 @@ func (j *SvmActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *da
 // finds or creates the pool's QoS policy and applies it to the SVM so the vserver gets the pool qos-policy-group.
 func (j *SvmActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *datamodel.Pool, node *models.Node, updateParams *commonparams.UpdatePoolParams) error {
 	logger := util.GetLogger(ctx)
+	if pool == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool must not be nil")))
+	}
+	if node == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("node must not be nil")))
+	}
 
 	// Skip only when pool is manual and we are not being asked to switch to auto (manual→auto case).
 	// When pool is manual, we must not skip if this is manual→auto: we need to apply the pool QPG to the vserver.
@@ -586,6 +626,10 @@ func (j *SvmActivity) AllocateSVMName(ctx context.Context, pool *datamodel.Pool)
 	// It will be enhanced later when multiple SVM support is added to handle
 	// more sophisticated naming strategies and SVM allocation logic.
 	activity.RecordHeartbeat(ctx, "Starting AllocateSVMName activity")
+	if pool == nil {
+		return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool must not be nil")))
+	}
 	se := j.SE
 
 	activity.RecordHeartbeat(ctx, "Getting next SVM index for pool")
@@ -608,6 +652,10 @@ func (j *SvmActivity) AllocateSVMName(ctx context.Context, pool *datamodel.Pool)
 // MarkSvmDeleting transitions an SVM to DELETING.
 func (j *SvmActivity) MarkSvmDeleting(ctx context.Context, svm *datamodel.Svm) error {
 	activity.RecordHeartbeat(ctx, "Marking SVM as DELETING")
+	if svm == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("svm must not be nil")))
+	}
 	if err := j.SE.DeletingSVM(ctx, svm); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -617,15 +665,24 @@ func (j *SvmActivity) MarkSvmDeleting(ctx context.Context, svm *datamodel.Svm) e
 // SoftDeleteSvm soft-deletes an SVM (DELETED + DeletedAt). Expected to run after MarkSvmDeleting.
 func (j *SvmActivity) SoftDeleteSvm(ctx context.Context, svm *datamodel.Svm) error {
 	activity.RecordHeartbeat(ctx, "Soft-deleting SVM")
+	if svm == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("svm must not be nil")))
+	}
 	if err := j.SE.DeleteSVM(ctx, svm); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
 }
 
-// MarkSvmAsErroredForDeletion is the rollback. SVM from DELETING to ERROR.
+// MarkSvmAsErroredForDeletion is the deletion-flow rollback activity:
+// it transitions the SVM to the ERROR state and records errMessage as the failure reason.
 func (j *SvmActivity) MarkSvmAsErroredForDeletion(ctx context.Context, svm *datamodel.Svm, errMessage string) error {
 	activity.RecordHeartbeat(ctx, "Rolling back SVM DELETING state to ERROR")
+	if svm == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("svm must not be nil")))
+	}
 	if errMessage == "" {
 		errMessage = models.LifeCycleStateDeletionErrorDetails
 	}
@@ -663,6 +720,10 @@ func (j *SvmActivity) CreateSvmInCreatingState(ctx context.Context, pool *datamo
 // MarkSvmAsErroredForCreation is the rollback .it moves an SVM from CREATING to ERROR.
 func (j *SvmActivity) MarkSvmAsErroredForCreation(ctx context.Context, svm *datamodel.Svm, errMessage string) error {
 	activity.RecordHeartbeat(ctx, "Rolling back SVM CREATING state to ERROR")
+	if svm == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("svm must not be nil")))
+	}
 	if errMessage == "" {
 		errMessage = models.LifeCycleStateCreationErrorDetails
 	}

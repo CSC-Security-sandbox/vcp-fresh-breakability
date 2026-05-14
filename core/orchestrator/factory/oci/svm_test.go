@@ -108,7 +108,7 @@ func TestCreateSvm_GetOrCreateAccountFails(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestCreateSvm_DefaultIPSpaceAndProtocol(t *testing.T) {
+func TestCreateSvm_DefaultProtocol(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
 	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
@@ -123,8 +123,8 @@ func TestCreateSvm_DefaultIPSpaceAndProtocol(t *testing.T) {
 	}
 	_, _ = orch.CreateSvm(svmTestCtx(), params)
 
-	assert.Equal(t, "Default", params.IPSpace)
 	assert.True(t, params.EnableIscsi)
+	assert.Empty(t, params.IPSpace, "factory must not default IPspace; activity reads it from VLM config")
 }
 
 func TestCreateSvm_PoolNotFound(t *testing.T) {
@@ -161,15 +161,49 @@ func TestCreateSvm_GetPoolByNameGenericError(t *testing.T) {
 	assert.Equal(t, "db error", err.Error())
 }
 
-func TestCreateSvm_GetSvmByExternalIdentifierError(t *testing.T) {
+// TestCreateSvm_DuplicateSvmOCID verifies the factory's quiet pre-check
+// short-circuits with 409 before doing any further validation work when an
+// SVM with the same OCID already exists.
+func TestCreateSvm_DuplicateSvmOCID(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 10},
+			AccountID: 1,
+			State:     string(models.LifeCycleStateREADY),
+			VLMConfig: "cfg",
+		},
+	}
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
+		Return(true, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
+		PoolOCID:              "ocid1.pool..a",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		Name:                  "svm1",
+		AccountName:           "tenancy",
+		EnableIscsi:           true,
+	})
+	require.Error(t, err)
+	assert.True(t, utilserrors.IsConflictErr(err))
+}
+
+// TestCreateSvm_PreCheckLookupError verifies that an unexpected error from
+// the existence check (not a benign no-rows case) propagates out of the
+// factory.
+func TestCreateSvm_PreCheckLookupError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
 	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
 		Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}, AccountID: 1},
 	}, nil)
-	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
-		Return(nil, errors.New("lookup failed"))
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
+		Return(false, errors.New("lookup failed"))
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
@@ -180,28 +214,6 @@ func TestCreateSvm_GetSvmByExternalIdentifierError(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "lookup failed")
-}
-
-func TestCreateSvm_DuplicateSvmOCID(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
-	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
-	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}, AccountID: 1},
-	}, nil)
-	existingSvm := &datamodel.Svm{SvmExternalIdentifier: "ocid1.svm..a"}
-	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
-		Return(existingSvm, nil)
-
-	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
-	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
-		PoolOCID:              "ocid1.pool..a",
-		SvmExternalIdentifier: "ocid1.svm..a",
-		Name:                  "svm1",
-		AccountName:           "tenancy",
-	})
-	require.Error(t, err)
-	assert.True(t, utilserrors.IsConflictErr(err))
 }
 
 func TestCreateSvm_NotFoundProceedsWithCreate(t *testing.T) {
@@ -217,21 +229,29 @@ func TestCreateSvm_NotFoundProceedsWithCreate(t *testing.T) {
 		},
 	}
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
-	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
-		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).
+		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
-		Return(nil, utilserrors.NewNotFoundErr("not found", nil))
+		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
 	}, nil)
+	preallocatedSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:                  "svm1",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		State:                 models.LifeCycleStateCreating,
+	}
+	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
 
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
-	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil)
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	wfID, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
@@ -243,6 +263,92 @@ func TestCreateSvm_NotFoundProceedsWithCreate(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, wfID)
+}
+
+// Two concurrent CreateSvm calls for the same SvmOCID are decided atomically
+// by CreateSvmInCreatingState (backed by the partial unique index on
+// svm_external_identifier). The loser receives a typed ConflictErr that the
+// API translates to 409 instead of returning 202 in_process. This guards
+// against the original race where the pre-check pass and the loser wound up
+// stranded in the workflow.
+func TestCreateSvm_RaceLosesAtPreallocationReturnsConflict(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 10},
+			AccountID: 1,
+			State:     string(models.LifeCycleStateREADY),
+			VLMConfig: "cfg",
+		},
+	}
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..race", int64(1)).
+		Return(false, nil)
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+	}, nil)
+	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
+		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+	}, nil)
+	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).
+		Return(nil, utilserrors.NewConflictErr("svm already exists"))
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
+		PoolOCID:              "ocid1.pool..a",
+		SvmExternalIdentifier: "ocid1.svm..race",
+		Name:                  "svm1",
+		AccountName:           "tenancy",
+		EnableIscsi:           true,
+	})
+	require.Error(t, err)
+	assert.True(t, utilserrors.IsConflictErr(err))
+}
+
+// TestCreateSvm_NameAlreadyInUseInPool verifies that when a non-DELETED SVM
+// with the same name already exists in the same pool, CreateSvm rejects the
+// request with ConflictErr before pre-allocating a row or starting the
+// workflow. A prior SVM in DELETED state is filtered out by GetSvmByNameAndPoolID
+// (default scope), so the same name can be reused after a successful delete.
+func TestCreateSvm_NameAlreadyInUseInPool(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 10},
+			AccountID: 1,
+			State:     string(models.LifeCycleStateREADY),
+			VLMConfig: "cfg",
+		},
+	}
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
+		Return(false, nil)
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+	}, nil)
+	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
+		Return(&datamodel.Svm{Name: "svm1", PoolID: 10, State: models.LifeCycleStateREADY}, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
+		PoolOCID:              "ocid1.pool..a",
+		SvmExternalIdentifier: "ocid1.svm..new",
+		Name:                  "svm1",
+		AccountName:           "tenancy",
+		EnableIscsi:           true,
+	})
+	require.Error(t, err)
+	assert.True(t, utilserrors.IsConflictErr(err))
+	assert.Contains(t, err.Error(), "already exists in this pool")
 }
 
 func TestCreateSvm_ValidationFails(t *testing.T) {
@@ -259,8 +365,8 @@ func TestCreateSvm_ValidationFails(t *testing.T) {
 		},
 	}
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
-	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
-		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
+		Return(false, nil)
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
@@ -287,21 +393,35 @@ func TestCreateSvm_WorkflowStartFails(t *testing.T) {
 		},
 	}
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
-	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
-		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
+		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
-		Return(nil, utilserrors.NewNotFoundErr("not found", nil))
+		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
 	}, nil)
+	preallocatedSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:                  "svm1",
+		SvmExternalIdentifier: "ocid1.svm..new",
+		State:                 models.LifeCycleStateCreating,
+	}
+	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
+	// Workflow start failure must trigger compensation: the row we just
+	// inserted in CREATING has no workflow driving it, so the factory must
+	// flip it to ERROR before returning.
+	compensationCalled := false
+	mockStorage.EXPECT().ErroredSVM(mock.Anything, preallocatedSvm, mock.Anything).
+		Run(func(_ context.Context, _ *datamodel.Svm, _ string) { compensationCalled = true }).
+		Return(nil)
 
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
-	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("temporal unavailable"))
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
@@ -313,6 +433,7 @@ func TestCreateSvm_WorkflowStartFails(t *testing.T) {
 		EnableIscsi:           true,
 	})
 	require.Error(t, err)
+	assert.True(t, compensationCalled, "ErroredSVM compensation must run when workflow start fails")
 }
 
 func TestCreateSvm_Success(t *testing.T) {
@@ -328,21 +449,28 @@ func TestCreateSvm_Success(t *testing.T) {
 		},
 	}
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
-	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
-		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
+		Return(false, nil)
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
 	}, nil)
 	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
-		Return(nil, utilserrors.NewNotFoundErr("not found", nil))
+		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
 	}, nil)
+	preallocatedSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:                  "svm1",
+		SvmExternalIdentifier: "ocid1.svm..new",
+		State:                 models.LifeCycleStateCreating,
+	}
+	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
 
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
-	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil)
 
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
@@ -558,6 +686,104 @@ func TestDeleteSvm_ConflictWhenCreating(t *testing.T) {
 	assert.True(t, utilserrors.IsConflictErr(err))
 }
 
+// Matrix Section 5: when GetSvmByExternalIdentifier (Unscoped) returns a
+// soft-deleted row, validateSvmDeletionState must surface a 404
+// "svm deleted already" rather than attempting another deletion. This is the
+// terminal state for the OCID — the partial unique index keeps the slot
+// occupied, but from the API's perspective the SVM no longer exists.
+func TestDeleteSvm_NotFoundWhenSoftDeleted(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}, AccountID: 1},
+	}, nil)
+	svm := &datamodel.Svm{
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 models.LifeCycleStateDeleted,
+	}
+	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, err := orch.DeleteSvm(svmTestCtx(), &commonparams.DeleteSvmParams{
+		SvmID:       "ocid1.svm..a",
+		AccountName: "tenancy",
+		PoolOCID:    "ocid1.pool..a",
+	})
+	require.Error(t, err)
+	assert.True(t, utilserrors.IsNotFoundErr(err), "expected NotFoundErr (404), got %T: %v", err, err)
+}
+
+// Two concurrent DELETE calls for the same SVM both pass
+// validateSvmDeletionState (the SVM is READY in the SELECT), but only one
+// wins the atomic CAS in TransitionSvmToDeleting. The loser receives a typed
+// ConflictErr that the API translates to 409 instead of starting a second
+// workflow against an already-DELETING row.
+func TestDeleteSvm_RaceLosesAtTransitionReturnsConflict(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}, AccountID: 1},
+	}, nil)
+	svm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 string(models.LifeCycleStateREADY),
+		Name:                  "svm1",
+	}
+	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
+	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).
+		Return(nil, utilserrors.NewConflictErr("SVM delete is already in progress"))
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, err := orch.DeleteSvm(svmTestCtx(), &commonparams.DeleteSvmParams{
+		SvmID:       "ocid1.svm..a",
+		AccountName: "tenancy",
+		PoolOCID:    "ocid1.pool..a",
+	})
+	require.Error(t, err)
+	assert.True(t, utilserrors.IsConflictErr(err))
+}
+
+// TransitionSvmToDeleting returns a non-conflict error (e.g. DB outage). The
+// orchestrator must propagate the raw error and must NOT invoke ErroredSVM —
+// no row was flipped to DELETING, so the compensation defer's `deletingSvm !=
+// nil` guard keeps it from running.
+func TestDeleteSvm_TransitionGenericError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}, AccountID: 1},
+	}, nil)
+	svm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 string(models.LifeCycleStateREADY),
+		Name:                  "svm1",
+	}
+	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
+
+	dbErr := errors.New("db down")
+	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(nil, dbErr)
+	// Intentionally no .EXPECT().ErroredSVM(...): mockery will fail the test
+	// if it is called, locking in the deletingSvm-nil guard behaviour.
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, err := orch.DeleteSvm(svmTestCtx(), &commonparams.DeleteSvmParams{
+		SvmID:       "ocid1.svm..a",
+		AccountName: "tenancy",
+		PoolOCID:    "ocid1.pool..a",
+	})
+	require.Error(t, err)
+	assert.Equal(t, dbErr, err, "non-conflict transition error must propagate verbatim")
+	assert.False(t, utilserrors.IsConflictErr(err), "must not be wrapped as ConflictErr")
+}
+
 func TestDeleteSvm_WorkflowStartFails(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
@@ -574,6 +800,23 @@ func TestDeleteSvm_WorkflowStartFails(t *testing.T) {
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
 
+	deletingSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 string(models.LifeCycleStateDeleting),
+		Name:                  "svm1",
+	}
+	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)
+
+	// Workflow start failure must trigger compensation: the row was just
+	// flipped to DELETING and has no workflow driving it, so the factory must
+	// flip it to ERROR before returning.
+	compensationCalled := false
+	mockStorage.EXPECT().ErroredSVM(mock.Anything, deletingSvm, mock.Anything).
+		Run(func(_ context.Context, _ *datamodel.Svm, _ string) { compensationCalled = true }).
+		Return(nil)
+
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
 	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("temporal down"))
@@ -585,6 +828,109 @@ func TestDeleteSvm_WorkflowStartFails(t *testing.T) {
 		PoolOCID:    "ocid1.pool..a",
 	})
 	require.Error(t, err)
+	assert.True(t, compensationCalled, "ErroredSVM compensation must run when workflow start fails")
+}
+
+// When workflow start fails AND the deferred compensation ErroredSVM also
+// fails, the orchestrator must surface the original error (workflow start)
+// rather than the compensation error, and the logger.Error inside the defer
+// must execute. This exercises the previously-uncovered compensation error
+// branch in CreateSvm.
+func TestCreateSvm_WorkflowStartFails_AndCompensationAlsoFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 10},
+			AccountID: 1,
+			State:     string(models.LifeCycleStateREADY),
+			VLMConfig: "cfg",
+		},
+	}
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+	mockStorage.EXPECT().SvmExistsByExternalIdentifier(mock.Anything, "ocid1.svm..new", int64(1)).
+		Return(false, nil)
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+	}, nil)
+	mockStorage.EXPECT().GetSvmByNameAndPoolID(mock.Anything, "svm1", int64(10)).
+		Return(nil, utilserrors.NewNotFoundErr("svm", nil))
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1", State: models.LifeCycleStateREADY},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2", State: models.LifeCycleStateREADY},
+	}, nil)
+	preallocatedSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:                  "svm1",
+		SvmExternalIdentifier: "ocid1.svm..new",
+		State:                 models.LifeCycleStateCreating,
+	}
+	mockStorage.EXPECT().CreateSvmInCreatingState(mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
+	mockStorage.EXPECT().ErroredSVM(mock.Anything, preallocatedSvm, mock.Anything).
+		Return(errors.New("compensation also down"))
+
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("temporal unavailable"))
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+	_, err := orch.CreateSvm(svmTestCtx(), &commonparams.CreateSvmParams{
+		PoolOCID:              "ocid1.pool..a",
+		SvmExternalIdentifier: "ocid1.svm..new",
+		Name:                  "svm1",
+		AccountName:           "tenancy",
+		EnableIscsi:           true,
+	})
+	require.Error(t, err)
+	// The original workflow-start error is what the caller sees.
+	assert.Contains(t, err.Error(), "temporal unavailable")
+}
+
+// Mirror of TestCreateSvm_WorkflowStartFails_AndCompensationAlsoFails for the
+// delete flow: when DeleteSvm's workflow start fails AND the deferred
+// ErroredSVM compensation also fails, the logger.Error inside the defer must
+// execute.
+func TestDeleteSvm_WorkflowStartFails_AndCompensationAlsoFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "tenancy"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "tenancy").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}, AccountID: 1},
+	}, nil)
+	svm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 string(models.LifeCycleStateREADY),
+		Name:                  "svm1",
+	}
+	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
+
+	deletingSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 string(models.LifeCycleStateDeleting),
+		Name:                  "svm1",
+	}
+	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)
+	mockStorage.EXPECT().ErroredSVM(mock.Anything, deletingSvm, mock.Anything).
+		Return(errors.New("compensation also down"))
+
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("temporal down"))
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+	_, err := orch.DeleteSvm(svmTestCtx(), &commonparams.DeleteSvmParams{
+		SvmID:       "ocid1.svm..a",
+		AccountName: "tenancy",
+		PoolOCID:    "ocid1.pool..a",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "temporal down")
 }
 
 func TestDeleteSvm_Success(t *testing.T) {
@@ -602,6 +948,15 @@ func TestDeleteSvm_Success(t *testing.T) {
 		Name:                  "svm1",
 	}
 	mockStorage.EXPECT().GetSvmByExternalIdentifier(mock.Anything, "ocid1.svm..a", int64(1)).Return(svm, nil)
+
+	deletingSvm := &datamodel.Svm{
+		BaseModel:             datamodel.BaseModel{UUID: "svm-uuid"},
+		SvmExternalIdentifier: "ocid1.svm..a",
+		PoolID:                10,
+		State:                 string(models.LifeCycleStateDeleting),
+		Name:                  "svm1",
+	}
+	mockStorage.EXPECT().TransitionSvmToDeleting(mock.Anything, svm).Return(deletingSvm, nil)
 
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
 	mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).

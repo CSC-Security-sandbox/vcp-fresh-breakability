@@ -2004,6 +2004,38 @@ func (re *retryEngine) GetSvmByExternalIdentifier(ctx context.Context, externalI
 	return var0, err
 }
 
+func (re *retryEngine) SvmExistsByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.SvmExistsByExternalIdentifier(ctx, externalIdentifier, accountID)
+		if err != nil {
+			re.logError("SvmExistsByExternalIdentifier", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) TransitionSvmToDeleting(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	var var0 *datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.TransitionSvmToDeleting(ctx, svm)
+		if err != nil {
+			re.logError("TransitionSvmToDeleting", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	var var0 *datamodel.Lif
 	err := retry.Do(func(attempt int) (bool, error) {

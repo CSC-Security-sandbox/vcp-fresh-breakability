@@ -12337,6 +12337,123 @@ func (_c *MockDataStore_GetSvmByExternalIdentifier_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// SvmExistsByExternalIdentifier provides a mock function with given fields: ctx, externalIdentifier, accountID
+func (_m *MockDataStore) SvmExistsByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (bool, error) {
+	ret := _m.Called(ctx, externalIdentifier, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SvmExistsByExternalIdentifier")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (bool, error)); ok {
+		return rf(ctx, externalIdentifier, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) bool); ok {
+		r0 = rf(ctx, externalIdentifier, accountID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, externalIdentifier, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_SvmExistsByExternalIdentifier_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SvmExistsByExternalIdentifier'
+type MockDataStore_SvmExistsByExternalIdentifier_Call struct {
+	*mock.Call
+}
+
+// SvmExistsByExternalIdentifier is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalIdentifier string
+//   - accountID int64
+func (_e *MockDataStore_Expecter) SvmExistsByExternalIdentifier(ctx interface{}, externalIdentifier interface{}, accountID interface{}) *MockDataStore_SvmExistsByExternalIdentifier_Call {
+	return &MockDataStore_SvmExistsByExternalIdentifier_Call{Call: _e.mock.On("SvmExistsByExternalIdentifier", ctx, externalIdentifier, accountID)}
+}
+
+func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) Run(run func(ctx context.Context, externalIdentifier string, accountID int64)) *MockDataStore_SvmExistsByExternalIdentifier_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) Return(_a0 bool, _a1 error) *MockDataStore_SvmExistsByExternalIdentifier_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) RunAndReturn(run func(context.Context, string, int64) (bool, error)) *MockDataStore_SvmExistsByExternalIdentifier_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TransitionSvmToDeleting provides a mock function with given fields: ctx, svm
+func (_m *MockDataStore) TransitionSvmToDeleting(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, svm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TransitionSvmToDeleting")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)); ok {
+		return rf(ctx, svm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) *datamodel.Svm); ok {
+		r0 = rf(ctx, svm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Svm) error); ok {
+		r1 = rf(ctx, svm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_TransitionSvmToDeleting_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransitionSvmToDeleting'
+type MockDataStore_TransitionSvmToDeleting_Call struct {
+	*mock.Call
+}
+
+// TransitionSvmToDeleting is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svm *datamodel.Svm
+func (_e *MockDataStore_Expecter) TransitionSvmToDeleting(ctx interface{}, svm interface{}) *MockDataStore_TransitionSvmToDeleting_Call {
+	return &MockDataStore_TransitionSvmToDeleting_Call{Call: _e.mock.On("TransitionSvmToDeleting", ctx, svm)}
+}
+
+func (_c *MockDataStore_TransitionSvmToDeleting_Call) Run(run func(ctx context.Context, svm *datamodel.Svm)) *MockDataStore_TransitionSvmToDeleting_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Svm))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_TransitionSvmToDeleting_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockDataStore_TransitionSvmToDeleting_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_TransitionSvmToDeleting_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)) *MockDataStore_TransitionSvmToDeleting_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSvmByExternalUUID provides a mock function with given fields: ctx, externalUUID, poolID
 func (_m *MockDataStore) GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error) {
 	ret := _m.Called(ctx, externalUUID, poolID)

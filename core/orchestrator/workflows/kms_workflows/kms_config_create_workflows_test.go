@@ -958,12 +958,15 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
 		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
-
-		// Send cancellation signal before CreatedKmsConfigActivity
-		env.RegisterDelayedCallback(func() {
+		// Send the cancel signal from inside GrantRoleActivity so it's guaranteed to land
+		// after the activity is invoked but before the next CheckCancellationSignal (line 231,
+		// before CreatedKmsConfigActivity). A RegisterDelayedCallback is unreliable here:
+		// the test env auto-advances the simulated clock to the next pending timer when the
+		// workflow is idle, which can fire the timer before the intended activity runs and
+		// cause an earlier CheckCancellationSignal to catch it instead.
+		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
-		}, 35*time.Millisecond)
+		}).Return(nil)
 
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1097,12 +1100,15 @@ func TestCreateKmsConfig(t *testing.T) {
 		}
 		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
-
-		// Send cancellation signal after GetSignedTokenActivity
-		env.RegisterDelayedCallback(func() {
+		// Send the cancel signal from inside GetSignedTokenActivity so it's guaranteed to land
+		// after the activity is invoked but before the next CheckCancellationSignal (line 176,
+		// before PollKmsConfigOperationActivity). A RegisterDelayedCallback is unreliable here:
+		// the test env auto-advances the simulated clock to the next pending timer when the
+		// workflow is idle, which can fire the timer before GetSignedTokenActivity runs and
+		// cause the very first CheckCancellationSignal (line 128) to catch it instead.
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
-		}, 10*time.Millisecond)
+		}).Return("test-jwt-token", nil)
 
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 

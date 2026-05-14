@@ -38,6 +38,14 @@ var lifTypeToProtocols = map[vlm.VSALIFType][]string{
 	vlm.LIFTypeNas: {"nfs", "cifs", "s3"},
 }
 
+// resolveOntapAdminPassword returns the ONTAP cluster admin password
+func resolveOntapAdminPassword(pool *datamodel.Pool) string {
+	if pool != nil && pool.PoolCredentials != nil && pool.PoolCredentials.Password != "" {
+		return pool.PoolCredentials.Password
+	}
+	return ociOntapAdminPassword
+}
+
 type ociCreateSVMWorkflow struct {
 	workflows.BaseWorkflow
 }
@@ -45,8 +53,7 @@ type ociCreateSVMWorkflow struct {
 var _ workflows.WorkflowInterface = &ociCreateSVMWorkflow{}
 
 // OCICreateSVMWorkflow creates an SVM in an existing OCI pool (cluster) via VLM CreateVSASVM child workflow.
-// On success it returns OCICreateSVMResult so the workRequest polling API can surface SVM metadata.
-func OCICreateSVMWorkflow(ctx workflow.Context, params *common.CreateSvmParams, pool *datamodel.Pool) (*OCICreateSVMResult, error) {
+func OCICreateSVMWorkflow(ctx workflow.Context, params *common.CreateSvmParams, pool *datamodel.Pool, svm *datamodel.Svm) (*OCICreateSVMResult, error) {
 	wf := new(ociCreateSVMWorkflow)
 	log := util.GetLogger(ctx)
 	if err := wf.Setup(ctx, params); err != nil {
@@ -54,7 +61,7 @@ func OCICreateSVMWorkflow(ctx workflow.Context, params *common.CreateSvmParams, 
 	}
 
 	wf.Status = workflows.WorkflowStatusRunning
-	result, errRun := wf.Run(ctx, params, pool)
+	result, errRun := wf.Run(ctx, params, pool, svm)
 	if errRun != nil {
 		log.Errorf("error in ociCreateSVMWorkflow: %v", errRun)
 		wf.Status = workflows.WorkflowStatusFailed
@@ -85,16 +92,30 @@ func (wf *ociCreateSVMWorkflow) Setup(ctx workflow.Context, input interface{}) e
 }
 
 func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
-	if len(args) < 2 {
-		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreateSVMWorkflow.Run: expected 2 args, got %d", len(args)))
+	if len(args) < 3 {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreateSVMWorkflow.Run: expected 3 args, got %d", len(args)))
 	}
 	params, ok := args[0].(*common.CreateSvmParams)
-	if !ok {
-		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreateSVMWorkflow.Run: args[0] has unexpected type %T, want *common.CreateSvmParams", args[0]))
+	if !ok || params == nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreateSVMWorkflow.Run: args[0] has unexpected type %T, want non-nil *common.CreateSvmParams", args[0]))
 	}
 	pool, ok := args[1].(*datamodel.Pool)
-	if !ok {
-		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreateSVMWorkflow.Run: args[1] has unexpected type %T, want *datamodel.Pool", args[1]))
+	if !ok || pool == nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreateSVMWorkflow.Run: args[1] has unexpected type %T, want non-nil *datamodel.Pool", args[1]))
+	}
+	svm, ok := args[2].(*datamodel.Svm)
+	if !ok || svm == nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCICreateSVMWorkflow.Run: args[2] has unexpected type %T, want non-nil *datamodel.Svm", args[2]))
+	}
+
+	if pool.Account == nil {
+		return nil, workflows.ConvertToVSAError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("OCICreateSVMWorkflow.Run: pool.Account is nil")))
+	}
+
+	if params.SvmAdminPassword == nil || params.SvmAdminPassword.Ocid == "" {
+		return nil, workflows.ConvertToVSAError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("SVM admin password OCID is empty")))
 	}
 	logger := util.GetLogger(ctx)
 	rollbackManager := common.NewRollbackManager()
@@ -129,40 +150,40 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	poolActivity := &activities.PoolActivity{}
 	svmActivity := &activities.SvmActivity{}
 
+	rollbackManager.AddActivity(svmActivity.MarkSvmAsErroredForCreation, svm)
+	logger.Infof("Resuming SVM create on pre-allocated row: svmName=%s, svmUUID=%s", svm.Name, svm.UUID)
+
 	var vlmConfig *vlm.VLMConfig
 	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &vlmConfig)
 	if err != nil {
 		logger.Errorf("Failed to parse VLM config: %v", err)
 		return nil, workflows.ConvertToVSAError(err)
 	}
-
-	// Pre-allocate the SVM DB row in CREATING right after VLM config is parsed so
-	// the SVM is visible to customers for the entire create lifecycle.
-	svm := &datamodel.Svm{}
-	err = workflow.ExecuteActivity(dbHbCtx, svmActivity.CreateSvmInCreatingState, pool, params.Name, params.SvmExternalIdentifier).Get(dbHbCtx, svm)
-	if err != nil {
-		logger.Errorf("Failed to pre-allocate SVM in CREATING state: %v", err)
+	if vlmConfig == nil {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("ParseVlmConfig returned nil VLM config"))
 		return nil, workflows.ConvertToVSAError(err)
 	}
-	logger.Infof("SVM pre-allocated in CREATING state: svmName=%s, svmUUID=%s", svm.Name, svm.UUID)
 
-	// State is now CREATING — register the rollback so any subsequent failure flips
-	// the DB row to ERROR with a customer-facing reason instead of leaving it stuck.
-	rollbackManager.AddActivity(svmActivity.MarkSvmAsErroredForCreation, svm)
-
-	adminPassword := ociOntapAdminPassword
-	if pool.PoolCredentials != nil && pool.PoolCredentials.Password != "" {
-		adminPassword = pool.PoolCredentials.Password
-	}
 	credConfig := vlm.OntapCredentials{
-		AdminPassword: adminPassword,
+		AdminPassword: resolveOntapAdminPassword(pool),
 		Certificate:   vlm.OntapCertificate{},
+	}
+
+	var svmAdminCreds *vlm.OntapCredentials
+	err = workflow.ExecuteActivity(ctx, svmActivity.GetSvmAdminPasswordSecretForOCI, svm, params.SvmAdminPassword).Get(ctx, &svmAdminCreds)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	if svmAdminCreds == nil {
+		return nil, workflows.ConvertToVSAError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminPasswordSecretForOCI returned nil credentials")))
 	}
 
 	createSVMRequest := &vlm.CreateSVMRequest{
 		Name:             params.Name,
 		VLMConfig:        *vlmConfig,
 		OntapCredentials: credConfig,
+		SvmAdminPassword: svmAdminCreds.AdminPassword,
 	}
 	vsaClientWorkflowManager := workflows.GetNewVSAClientWorkflowManager()
 	createSVMResponse, vlmErr := vsaClientWorkflowManager.CreateVSASVM(ctx, createSVMRequest)
@@ -170,6 +191,10 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		err = vlmErr
 		logger.Errorf("Failed to create SVM via VLM child workflow: %v", vlmErr)
 		return nil, workflows.ConvertToVSAError(vlmErr)
+	}
+	if createSVMResponse == nil {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("CreateVSASVM returned nil response"))
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	logger.Infof("SVM created successfully via VLM: %s", params.Name)
 
@@ -233,8 +258,7 @@ type ociDeleteSVMWorkflow struct {
 
 var _ workflows.WorkflowInterface = &ociDeleteSVMWorkflow{}
 
-// OCIDeleteSVMWorkflow soft-deletes an SVM asynchronously so the caller can track progress via workflowId.
-// It removes the SVM from the ONTAP cluster via vlm.DeleteVSASVM and then flips the DB row to DELETED.
+// OCIDeleteSVMWorkflow removes the SVM from the ONTAP cluster via vlm.DeleteVSASVM and then flips the DB row to DELETED.
 func OCIDeleteSVMWorkflow(ctx workflow.Context, params *common.DeleteSvmParams, svm *datamodel.Svm, pool *datamodel.Pool) error {
 	wf := new(ociDeleteSVMWorkflow)
 	log := util.GetLogger(ctx)
@@ -277,16 +301,16 @@ func (wf *ociDeleteSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if len(args) < 3 {
 		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeleteSVMWorkflow.Run: expected 3 args, got %d", len(args)))
 	}
-	if _, ok := args[0].(*common.DeleteSvmParams); !ok {
-		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeleteSVMWorkflow.Run: args[0] has unexpected type %T, want *common.DeleteSvmParams", args[0]))
+	if v, ok := args[0].(*common.DeleteSvmParams); !ok || v == nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeleteSVMWorkflow.Run: args[0] has unexpected type %T, want non-nil *common.DeleteSvmParams", args[0]))
 	}
 	svm, ok := args[1].(*datamodel.Svm)
-	if !ok {
-		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeleteSVMWorkflow.Run: args[1] has unexpected type %T, want *datamodel.Svm", args[1]))
+	if !ok || svm == nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeleteSVMWorkflow.Run: args[1] has unexpected type %T, want non-nil *datamodel.Svm", args[1]))
 	}
 	pool, ok := args[2].(*datamodel.Pool)
-	if !ok {
-		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeleteSVMWorkflow.Run: args[2] has unexpected type %T, want *datamodel.Pool", args[2]))
+	if !ok || pool == nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("OCIDeleteSVMWorkflow.Run: args[2] has unexpected type %T, want non-nil *datamodel.Pool", args[2]))
 	}
 	logger := util.GetLogger(ctx)
 	rollbackManager := common.NewRollbackManager()
@@ -326,6 +350,8 @@ func (wf *ociDeleteSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	logger.Infof("Deleting SVM: svmOCID=%s", svm.SvmExternalIdentifier)
 
+	rollbackManager.AddActivity(svmActivity.MarkSvmAsErroredForDeletion, svm)
+
 	// Step 1: parse VLM config from the pool.
 	var vlmConfig *vlm.VLMConfig
 	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &vlmConfig)
@@ -333,29 +359,21 @@ func (wf *ociDeleteSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		logger.Errorf("Failed to parse VLM config: %v", err)
 		return nil, workflows.ConvertToVSAError(err)
 	}
-
-	// Step 2: own the DELETING transition inside the workflow so the rollback path is uniform
-	err = workflow.ExecuteActivity(dbHbCtx, svmActivity.MarkSvmDeleting, svm).Get(dbHbCtx, nil)
-	if err != nil {
-		logger.Errorf("Failed to mark SVM as deleting: %v", err)
+	if vlmConfig == nil {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("ParseVlmConfig returned nil VLM config"))
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// State is now DELETING — register the rollback so any subsequent failure flips it to ERROR.
-	rollbackManager.AddActivity(svmActivity.MarkSvmAsErroredForDeletion, svm)
-
-	// Step 3: remove the SVM from the ONTAP cluster via VLM.
-	adminPassword := ociOntapAdminPassword
-	if pool.PoolCredentials != nil && pool.PoolCredentials.Password != "" {
-		adminPassword = pool.PoolCredentials.Password
+	// Step 2: remove the SVM from the ONTAP cluster via VLM.
+	credConfig := vlm.OntapCredentials{
+		AdminPassword: resolveOntapAdminPassword(pool),
+		Certificate:   vlm.OntapCertificate{},
 	}
+
 	deleteSVMRequest := &vlm.DeleteSVMRequest{
-		Name:      svm.Name,
-		VLMConfig: *vlmConfig,
-		OntapCredentials: vlm.OntapCredentials{
-			AdminPassword: adminPassword,
-			Certificate:   vlm.OntapCertificate{},
-		},
+		Name:             svm.Name,
+		VLMConfig:        *vlmConfig,
+		OntapCredentials: credConfig,
 	}
 	vsaClientWorkflowManager := workflows.GetNewVSAClientWorkflowManager()
 	if _, vlmErr := vsaClientWorkflowManager.DeleteVSASVM(ctx, deleteSVMRequest); vlmErr != nil {
@@ -365,7 +383,7 @@ func (wf *ociDeleteSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	logger.Infof("SVM removed from cluster via VLM: %s", svm.Name)
 
-	// Step 4: soft-delete the DB row. On failure the deferred rollback above moves the SVM to ERROR.
+	// Step 3: soft-delete the DB row. On failure the deferred rollback above moves the SVM to ERROR.
 	err = workflow.ExecuteActivity(dbHbCtx, svmActivity.SoftDeleteSvm, svm).Get(dbHbCtx, nil)
 	if err != nil {
 		logger.Errorf("Failed to soft-delete SVM: %v", err)

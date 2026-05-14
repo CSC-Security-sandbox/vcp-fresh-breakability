@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -37,9 +38,6 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 		return "", err
 	}
 
-	if params.IPSpace == "" {
-		params.IPSpace = "Default"
-	}
 	// Default protocols for data LIF calculation (iSCSI enabled by default)
 	if !params.EnableIscsi && !params.EnableNfs {
 		params.EnableIscsi = true
@@ -59,17 +57,45 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 	}
 	pool := database.ConvertPoolViewToPool(poolView)
 
-	switch existing, err := se.GetSvmByExternalIdentifier(ctx, strings.TrimSpace(params.SvmExternalIdentifier), pool.AccountID); {
-	case err == nil && existing != nil:
-		return "", customerrors.NewConflictErr("svmOCID already exists")
-	case err != nil && !customerrors.IsNotFoundErr(err):
+	exists, err := se.SvmExistsByExternalIdentifier(ctx, strings.TrimSpace(params.SvmExternalIdentifier), pool.AccountID)
+	if err != nil {
+		logger.Error("Failed to check for existing SVM by OCID", "svmOCID", params.SvmExternalIdentifier, "error", err)
 		return "", err
 	}
+	if exists {
+		return "", customerrors.NewConflictErr("svmOCID already exists")
+	}
+	logger.Info("No existing SVM with same OCID, proceeding to create",
+		"svmOCID", params.SvmExternalIdentifier, "poolOCID", params.PoolOCID)
 
-	// Pre-create validation: cluster state/capacity, SVM name, IP requirements
+	// Pre-create validation: cluster state/capacity, SVM name, IP requirements.
 	if err := validateCreateSvm(ctx, se, params, pool); err != nil {
 		return "", err
 	}
+
+	svmRow := &datamodel.Svm{
+		Name:                  params.Name,
+		SvmExternalIdentifier: strings.TrimSpace(params.SvmExternalIdentifier),
+		AccountID:             pool.AccountID,
+		PoolID:                pool.ID,
+	}
+	preallocatedSvm, err := se.CreateSvmInCreatingState(ctx, svmRow)
+	if err != nil {
+		logger.Error("Failed to pre-allocate SVM in CREATING state", "svmOCID", params.SvmExternalIdentifier, "error", err)
+		return "", err
+	}
+	logger.Info("SVM pre-allocated in CREATING state", "svmUUID", preallocatedSvm.UUID, "svmOCID", preallocatedSvm.SvmExternalIdentifier)
+
+	defer func() {
+		if err != nil && preallocatedSvm != nil {
+			compCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+			if compErr := se.ErroredSVM(compCtx, preallocatedSvm, models.LifeCycleStateCreationErrorDetails); compErr != nil {
+				logger.Error("Failed to mark pre-allocated SVM as ERROR after orchestrator-level failure",
+					"svmUUID", preallocatedSvm.UUID, "compensationError", compErr)
+			}
+		}
+	}()
 
 	workflowID := uuid.NewString()
 
@@ -82,6 +108,7 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 		nil, // use default workflow run timeout
 		params,
 		pool,
+		preallocatedSvm,
 	)
 	if err != nil {
 		logger.Error("Failed to start CreateSVM workflow", "workflowID", workflowID, "error", err)
@@ -91,12 +118,14 @@ func (o *OCIOrchestrator) CreateSvm(ctx context.Context, params *commonparams.Cr
 	return workflowID, nil
 }
 
-// validateSvmDeletionState ensures the SVM is not already in a transitional lifecycle state.
+// validateSvmDeletionState ensures the SVM is in a state that allows deletion.
 func validateSvmDeletionState(svm *datamodel.Svm) error {
 	switch svm.State {
-	case string(models.LifeCycleStateDeleting):
+	case models.LifeCycleStateDeleted:
+		return customerrors.NewNotFoundErr("svm deleted already", nil)
+	case models.LifeCycleStateDeleting:
 		return customerrors.NewConflictErr("SVM delete is already in progress")
-	case string(models.LifeCycleStateCreating):
+	case models.LifeCycleStateCreating:
 		return customerrors.NewConflictErr("SVM cannot be deleted while creation is in progress")
 	}
 	return nil
@@ -148,6 +177,28 @@ func (o *OCIOrchestrator) DeleteSvm(ctx context.Context, params *commonparams.De
 
 	pool := database.ConvertPoolViewToPool(poolView)
 
+	// Atomically flip the SVM to DELETING here in the orchestrator
+	deletingSvm, err := se.TransitionSvmToDeleting(ctx, targetSvm)
+	if err != nil {
+		if customerrors.IsConflictErr(err) {
+			return "", err
+		}
+		logger.Error("Failed to transition SVM to DELETING", "svmOCID", params.SvmID, "error", err)
+		return "", err
+	}
+	logger.Info("SVM transitioned to DELETING", "svmUUID", deletingSvm.UUID, "svmOCID", params.SvmID)
+
+	defer func() {
+		if err != nil && deletingSvm != nil {
+			compCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+			if compErr := se.ErroredSVM(compCtx, deletingSvm, models.LifeCycleStateDeletionErrorDetails); compErr != nil {
+				logger.Error("Failed to mark SVM as ERROR after orchestrator-level delete failure",
+					"svmUUID", deletingSvm.UUID, "compensationError", compErr)
+			}
+		}
+	}()
+
 	workflowID := uuid.NewString()
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	err = workflowExecutor.ExecuteWorkflow(
@@ -157,7 +208,7 @@ func (o *OCIOrchestrator) DeleteSvm(ctx context.Context, params *commonparams.De
 		ociworkflows.OCIDeleteSVMWorkflow,
 		nil,
 		params,
-		targetSvm,
+		deletingSvm,
 		pool,
 	)
 	if err != nil {

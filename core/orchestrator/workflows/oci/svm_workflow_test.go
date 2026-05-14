@@ -58,6 +58,7 @@ func TestOCICreateSVMWorkflow_Success(t *testing.T) {
 		AccountName:           "test-account",
 		SvmExternalIdentifier: "ocid1.svm..a",
 		EnableIscsi:           true,
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
 		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
@@ -66,6 +67,7 @@ func TestOCICreateSVMWorkflow_Success(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{Password: "pw"},
 		Account:         &datamodel.Account{Name: "test-account"},
 	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
 	vlmCfg := vlm.VLMConfig{
 		Svm: map[string]vlm.SvmConfig{
@@ -86,16 +88,16 @@ func TestOCICreateSVMWorkflow_Success(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	preallocatedSvm := &datamodel.Svm{Name: "test-svm"}
 	savedSvm := &datamodel.Svm{
 		Name:       "test-svm",
 		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "ext-uuid"},
 	}
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
-	env.OnActivity("CreateSvmInCreatingState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(preallocatedSvm, nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "svm-admin-pw"}, nil)
 	env.OnActivity("SaveSVMAndLifDataWithOCID", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(savedSvm, nil)
 
-	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool)
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
@@ -109,8 +111,10 @@ func TestOCICreateSVMWorkflow_Success(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-// ParseVlmConfig fails before any state has been changed; neither the rollback
-// nor MarkSvmAsErroredForCreation should fire.
+// ParseVlmConfig fails after the factory pre-allocated the SVM in CREATING.
+// Because the rollback is now registered up-front (before the first activity),
+// MarkSvmAsErroredForCreation MUST fire so the row moves CREATING -> ERROR
+// rather than being stranded.
 func TestOCICreateSVMWorkflow_ParseVlmConfigFails(t *testing.T) {
 	env, _ := newSVMTestEnv(t)
 
@@ -118,55 +122,26 @@ func TestOCICreateSVMWorkflow_ParseVlmConfigFails(t *testing.T) {
 		Name:                  "test-svm",
 		AccountName:           "test-account",
 		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 		VLMConfig: "{}",
+		Account:   &datamodel.Account{Name: "test-account"},
 	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
+	markErroredCalled := false
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return((*vlm.VLMConfig)(nil), assert.AnError)
-	env.OnActivity("CreateSvmInCreatingState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			t.Fatalf("CreateSvmInCreatingState should not run when ParseVlmConfig failed")
-		}).
-		Return((*datamodel.Svm)(nil), nil).Maybe()
 	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) { t.Fatalf("rollback should not fire when no state has been changed") }).
-		Return(nil).Maybe()
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
 
-	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool)
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
-	env.AssertExpectations(t)
-}
-
-// CreateSvmInCreatingState fails before its rollback is registered; the rollback
-// must NOT fire.
-func TestOCICreateSVMWorkflow_CreateSvmInCreatingStateFails_NoRollback(t *testing.T) {
-	env, _ := newSVMTestEnv(t)
-
-	params := &common.CreateSvmParams{
-		Name:                  "test-svm",
-		AccountName:           "test-account",
-		SvmExternalIdentifier: "ocid1.svm..a",
-	}
-	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		VLMConfig: "{}",
-	}
-
-	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
-	env.OnActivity("CreateSvmInCreatingState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return((*datamodel.Svm)(nil), assert.AnError)
-	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) { t.Fatalf("rollback should not fire when CreateSvmInCreatingState failed") }).
-		Return(nil).Maybe()
-
-	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool)
-
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "MarkSvmAsErroredForCreation rollback must fire when ParseVlmConfig fails")
 	env.AssertExpectations(t)
 }
 
@@ -180,16 +155,22 @@ func TestOCICreateSVMWorkflow_CreateVSASVMFails_RollbackMarksError(t *testing.T)
 		Name:                  "test-svm",
 		AccountName:           "test-account",
 		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 		VLMConfig: "{}",
+		Account:   &datamodel.Account{Name: "test-account"},
 	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
+	markErroredCalled := false
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
-	env.OnActivity("CreateSvmInCreatingState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&datamodel.Svm{Name: "test-svm"}, nil)
-	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "svm-admin-pw"}, nil)
+	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
 
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
 	mockVlm.On("CreateVSASVM", mock.Anything, mock.Anything).
@@ -198,10 +179,11 @@ func TestOCICreateSVMWorkflow_CreateVSASVMFails_RollbackMarksError(t *testing.T)
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
 
-	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool)
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "MarkSvmAsErroredForCreation rollback must fire when CreateVSASVM fails")
 	env.AssertExpectations(t)
 }
 
@@ -213,17 +195,22 @@ func TestOCICreateSVMWorkflow_SaveSVMAndLifDataFails(t *testing.T) {
 		Name:                  "test-svm",
 		AccountName:           "test-account",
 		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 		VLMConfig: "{}",
 		Account:   &datamodel.Account{Name: "test-account"},
 	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
+	markErroredCalled := false
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
-	env.OnActivity("CreateSvmInCreatingState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&datamodel.Svm{Name: "test-svm"}, nil)
-	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "svm-admin-pw"}, nil)
+	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
 
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
 	mockVlm.On("CreateVSASVM", mock.Anything, mock.Anything).
@@ -235,10 +222,11 @@ func TestOCICreateSVMWorkflow_SaveSVMAndLifDataFails(t *testing.T) {
 	env.OnActivity("SaveSVMAndLifDataWithOCID", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return((*datamodel.Svm)(nil), assert.AnError)
 
-	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool)
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "MarkSvmAsErroredForCreation rollback must fire when SaveSVMAndLifDataWithOCID fails")
 	env.AssertExpectations(t)
 }
 
@@ -249,6 +237,7 @@ func TestOCICreateSVMWorkflow_PoolCredentialsFallback(t *testing.T) {
 		Name:                  "test-svm",
 		AccountName:           "test-account",
 		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
 		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
@@ -256,10 +245,11 @@ func TestOCICreateSVMWorkflow_PoolCredentialsFallback(t *testing.T) {
 		PoolCredentials: nil,
 		Account:         &datamodel.Account{Name: "test-account"},
 	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
-	env.OnActivity("CreateSvmInCreatingState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&datamodel.Svm{Name: "test-svm"}, nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "svm-admin-pw"}, nil)
 
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
 	mockVlm.On("CreateVSASVM", mock.Anything, mock.Anything).
@@ -274,7 +264,7 @@ func TestOCICreateSVMWorkflow_PoolCredentialsFallback(t *testing.T) {
 	}
 	env.OnActivity("SaveSVMAndLifDataWithOCID", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(savedSvm, nil)
 
-	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool)
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
@@ -303,6 +293,7 @@ func TestOCICreateSVMWorkflow_VlmDeleteRollbackFiresOnLaterFailure(t *testing.T)
 		Name:                  "test-svm",
 		AccountName:           "test-account",
 		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
 		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
@@ -314,10 +305,11 @@ func TestOCICreateSVMWorkflow_VlmDeleteRollbackFiresOnLaterFailure(t *testing.T)
 	createdVlmCfg := vlm.VLMConfig{
 		Svm: map[string]vlm.SvmConfig{"test-svm": {Svmname: "test-svm"}},
 	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
-	env.OnActivity("CreateSvmInCreatingState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&datamodel.Svm{Name: "test-svm"}, nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "svm-admin-pw"}, nil)
 	// Both rollbacks must fire: cluster cleanup first (LIFO), then DB row -> ERROR.
 	markErroredCalled := false
 	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).
@@ -337,7 +329,7 @@ func TestOCICreateSVMWorkflow_VlmDeleteRollbackFiresOnLaterFailure(t *testing.T)
 	env.OnActivity("SaveSVMAndLifDataWithOCID", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return((*datamodel.Svm)(nil), assert.AnError)
 
-	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool)
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
@@ -398,7 +390,6 @@ func TestOCIDeleteSVMWorkflow_Success(t *testing.T) {
 		Return(&vlm.DeleteSVMResponse{VLMConfig: vlmCfg}, nil)
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
-	env.OnActivity("MarkSvmDeleting", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
@@ -408,48 +399,30 @@ func TestOCIDeleteSVMWorkflow_Success(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-// ParseVlmConfig fails before any state has been changed; the rollback must NOT fire
-// and MarkSvmDeleting must not be invoked.
-func TestOCIDeleteSVMWorkflow_ParseVlmConfigFails_NoRollback(t *testing.T) {
+// ParseVlmConfig fails. The SVM is already in DELETING (set by the orchestrator
+// before the workflow started), so the rollback MUST fire to move the row to
+// ERROR — otherwise the SVM is stranded in DELETING with no workflow driving
+// it.
+func TestOCIDeleteSVMWorkflow_ParseVlmConfigFails_RollbackMarksError(t *testing.T) {
 	env, _ := newSVMTestEnv(t)
 	params, svm, pool, _ := deleteSVMTestFixtures()
 
+	markErroredCalled := false
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return((*vlm.VLMConfig)(nil), assert.AnError)
-	env.OnActivity("MarkSvmDeleting", mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) { t.Fatalf("MarkSvmDeleting should not run when ParseVlmConfig failed") }).
-		Return(nil).Maybe()
 	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) { t.Fatalf("rollback should not fire when no state has been changed") }).
-		Return(nil).Maybe()
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
 
 	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "MarkSvmAsErroredForDeletion rollback must fire when ParseVlmConfig fails")
 	env.AssertExpectations(t)
 }
 
-// MarkSvmDeleting fails before any state has been changed; the rollback must NOT fire.
-func TestOCIDeleteSVMWorkflow_MarkSvmDeletingFails_NoRollback(t *testing.T) {
-	env, _ := newSVMTestEnv(t)
-	params, svm, pool, vlmCfg := deleteSVMTestFixtures()
-
-	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
-	env.OnActivity("MarkSvmDeleting", mock.Anything, mock.Anything).Return(assert.AnError)
-	// MarkSvmAsErroredForDeletion must not be called: we never transitioned to DELETING.
-	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) { t.Fatalf("rollback should not fire when MarkSvmDeleting failed") }).
-		Return(nil).Maybe()
-
-	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
-
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.Error(t, env.GetWorkflowError())
-	env.AssertExpectations(t)
-}
-
-// VLM DeleteVSASVM fails after the DELETING transition; the rollback MUST fire so
-// the SVM moves from DELETING to ERROR instead of being stranded.
+// VLM DeleteVSASVM fails; the rollback MUST fire so the SVM moves from
+// DELETING to ERROR instead of being stranded.
 func TestOCIDeleteSVMWorkflow_VlmDeleteFails_RollbackMarksError(t *testing.T) {
 	env, _ := newSVMTestEnv(t)
 	params, svm, pool, vlmCfg := deleteSVMTestFixtures()
@@ -458,9 +431,11 @@ func TestOCIDeleteSVMWorkflow_VlmDeleteFails_RollbackMarksError(t *testing.T) {
 	mockVlm.On("DeleteVSASVM", mock.Anything, mock.Anything).
 		Return((*vlm.DeleteSVMResponse)(nil), assert.AnError)
 
+	markErroredCalled := false
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
-	env.OnActivity("MarkSvmDeleting", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
 	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) { t.Fatalf("SoftDeleteSvm should not run when the VLM delete failed") }).
 		Return(nil).Maybe()
@@ -469,10 +444,11 @@ func TestOCIDeleteSVMWorkflow_VlmDeleteFails_RollbackMarksError(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "MarkSvmAsErroredForDeletion rollback must fire when VLM DeleteVSASVM fails")
 	env.AssertExpectations(t)
 }
 
-// SoftDeleteSvm fails after DELETING transition; the rollback MUST fire to move the
+// SoftDeleteSvm fails after the VLM delete; the rollback MUST fire to move the
 // SVM from DELETING to ERROR so it isn't stranded in a transitional state.
 func TestOCIDeleteSVMWorkflow_SoftDeleteFails_RollbackMarksError(t *testing.T) {
 	env, _ := newSVMTestEnv(t)
@@ -482,15 +458,18 @@ func TestOCIDeleteSVMWorkflow_SoftDeleteFails_RollbackMarksError(t *testing.T) {
 	mockVlm.On("DeleteVSASVM", mock.Anything, mock.Anything).
 		Return(&vlm.DeleteSVMResponse{VLMConfig: vlmCfg}, nil)
 
+	markErroredCalled := false
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
-	env.OnActivity("MarkSvmDeleting", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).Return(assert.AnError)
-	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { markErroredCalled = true }).
+		Return(nil)
 
 	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, markErroredCalled, "MarkSvmAsErroredForDeletion rollback must fire when SoftDeleteSvm fails")
 	env.AssertExpectations(t)
 }
 
@@ -509,7 +488,6 @@ func TestOCIDeleteSVMWorkflow_RequestShape_UsesPoolCredentialsPassword(t *testin
 	})).Return(&vlm.DeleteSVMResponse{VLMConfig: vlmCfg}, nil)
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
-	env.OnActivity("MarkSvmDeleting", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
@@ -543,7 +521,6 @@ func TestOCIDeleteSVMWorkflow_RequestShape_FallsBackToEnvPassword(t *testing.T) 
 	})).Return(&vlm.DeleteSVMResponse{VLMConfig: vlmCfg}, nil)
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
-	env.OnActivity("MarkSvmDeleting", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
@@ -559,6 +536,347 @@ func TestOCIDeleteSVMWorkflow_RequestShape_FallsBackToEnvPassword(t *testing.T) 
 // ---------------------------------------------------------------------------
 // buildCreateSVMResult
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// OCICreateSVMWorkflow.Run argument validation
+// ---------------------------------------------------------------------------
+
+// Run() is invoked indirectly via the typed workflow entry point. Each branch
+// below covers a defensive arg-validation path that returns early without
+// running any activities, so the parent workflow surfaces a typed failure
+// instead of a runtime panic.
+
+func TestOCICreateSVMWorkflow_Run_RejectsTooFewArgs(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, args ...interface{}) (*OCICreateSVMResult, error) {
+			wf := &struct {
+				_ workflows.BaseWorkflow
+			}{}
+			_ = wf
+			return invokeOCICreateRun(ctx, args...)
+		},
+		workflow.RegisterOptions{Name: "test-run-too-few"},
+	)
+	env.ExecuteWorkflow("test-run-too-few")
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+func TestOCICreateSVMWorkflow_Run_RejectsBadArgTypes(t *testing.T) {
+	// args[0] wrong type
+	t.Run("args0 not *CreateSvmParams", func(tt *testing.T) {
+		env, _ := newSVMTestEnv(tt)
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context) (*OCICreateSVMResult, error) {
+				return invokeOCICreateRun(ctx, "not-params", &datamodel.Pool{}, &datamodel.Svm{})
+			},
+			workflow.RegisterOptions{Name: "test-run-args0"},
+		)
+		env.ExecuteWorkflow("test-run-args0")
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
+	t.Run("args1 not *Pool", func(tt *testing.T) {
+		env, _ := newSVMTestEnv(tt)
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context) (*OCICreateSVMResult, error) {
+				return invokeOCICreateRun(ctx,
+					&common.CreateSvmParams{
+						SvmAdminPassword: &common.OciAdminPassword{Ocid: "x"},
+					},
+					"not-a-pool",
+					&datamodel.Svm{},
+				)
+			},
+			workflow.RegisterOptions{Name: "test-run-args1"},
+		)
+		env.ExecuteWorkflow("test-run-args1")
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
+	t.Run("args2 not *Svm", func(tt *testing.T) {
+		env, _ := newSVMTestEnv(tt)
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context) (*OCICreateSVMResult, error) {
+				return invokeOCICreateRun(ctx,
+					&common.CreateSvmParams{
+						SvmAdminPassword: &common.OciAdminPassword{Ocid: "x"},
+					},
+					&datamodel.Pool{Account: &datamodel.Account{Name: "a"}},
+					"not-an-svm",
+				)
+			},
+			workflow.RegisterOptions{Name: "test-run-args2"},
+		)
+		env.ExecuteWorkflow("test-run-args2")
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+}
+
+// pool.Account nil triggers the dedicated validation branch — distinct from
+// the args-type checks above.
+func TestOCICreateSVMWorkflow_Run_RejectsNilAccount(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context) (*OCICreateSVMResult, error) {
+			return invokeOCICreateRun(ctx,
+				&common.CreateSvmParams{
+					Name:             "svm",
+					AccountName:      "acct",
+					SvmAdminPassword: &common.OciAdminPassword{Ocid: "x"},
+				},
+				&datamodel.Pool{}, // Account: nil
+				&datamodel.Svm{Name: "svm"},
+			)
+		},
+		workflow.RegisterOptions{Name: "test-run-nil-account"},
+	)
+	env.ExecuteWorkflow("test-run-nil-account")
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+// Missing admin password OCID triggers the dedicated validation branch.
+func TestOCICreateSVMWorkflow_Run_RejectsEmptyAdminPasswordOCID(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context) (*OCICreateSVMResult, error) {
+			return invokeOCICreateRun(ctx,
+				&common.CreateSvmParams{
+					Name:             "svm",
+					AccountName:      "acct",
+					SvmAdminPassword: &common.OciAdminPassword{Ocid: ""},
+				},
+				&datamodel.Pool{Account: &datamodel.Account{Name: "acct"}},
+				&datamodel.Svm{Name: "svm"},
+			)
+		},
+		workflow.RegisterOptions{Name: "test-run-empty-admin-pw"},
+	)
+	env.ExecuteWorkflow("test-run-empty-admin-pw")
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+// Helper to call Run on a fresh workflow instance. The workflow can't call its
+// own Run from outside the workflow context, but a registered helper workflow
+// is allowed to drive Run with arbitrary args[] to exercise validation branches.
+func invokeOCICreateRun(ctx workflow.Context, args ...interface{}) (*OCICreateSVMResult, error) {
+	wf := new(ociCreateSVMWorkflow)
+	res, vsaErr := wf.Run(ctx, args...)
+	if vsaErr != nil {
+		return nil, vsaErr
+	}
+	r, _ := res.(*OCICreateSVMResult)
+	return r, nil
+}
+
+// ParseVlmConfig returns nil vlmConfig with nil error -> nil-config validation
+// branch in OCICreateSVMWorkflow.Run.
+func TestOCICreateSVMWorkflow_NilVLMConfigFromActivity(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+
+	params := &common.CreateSvmParams{
+		Name:                  "test-svm",
+		AccountName:           "test-account",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig: "{}",
+		Account:   &datamodel.Account{Name: "test-account"},
+	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return((*vlm.VLMConfig)(nil), nil)
+	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+// GetSvmAdminPasswordSecretForOCI returns nil creds with nil error -> nil-creds
+// validation branch.
+func TestOCICreateSVMWorkflow_NilAdminCredsFromActivity(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+
+	params := &common.CreateSvmParams{
+		Name:                  "test-svm",
+		AccountName:           "test-account",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig: "{}",
+		Account:   &datamodel.Account{Name: "test-account"},
+	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return((*vlm.OntapCredentials)(nil), nil)
+	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+// CreateVSASVM returns nil response with nil error -> nil-response validation
+// branch in the post-CreateVSASVM step.
+func TestOCICreateSVMWorkflow_NilCreateVSASVMResponse(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+
+	params := &common.CreateSvmParams{
+		Name:                  "test-svm",
+		AccountName:           "test-account",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig: "{}",
+		Account:   &datamodel.Account{Name: "test-account"},
+	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "pw"}, nil)
+	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	mockVlm.On("CreateVSASVM", mock.Anything, mock.Anything).
+		Return((*vlm.CreateSVMResponse)(nil), nil)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+// ---------------------------------------------------------------------------
+// OCIDeleteSVMWorkflow.Run argument validation
+// ---------------------------------------------------------------------------
+
+func TestOCIDeleteSVMWorkflow_Run_RejectsBadArgs(t *testing.T) {
+	t.Run("too few args", func(tt *testing.T) {
+		env, _ := newSVMTestEnv(tt)
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context) error {
+				return invokeOCIDeleteRun(ctx) // zero args
+			},
+			workflow.RegisterOptions{Name: "test-del-run-too-few"},
+		)
+		env.ExecuteWorkflow("test-del-run-too-few")
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
+	t.Run("args0 not *DeleteSvmParams", func(tt *testing.T) {
+		env, _ := newSVMTestEnv(tt)
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context) error {
+				return invokeOCIDeleteRun(ctx, "not-params", &datamodel.Svm{}, &datamodel.Pool{})
+			},
+			workflow.RegisterOptions{Name: "test-del-run-args0"},
+		)
+		env.ExecuteWorkflow("test-del-run-args0")
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
+	t.Run("args1 not *Svm", func(tt *testing.T) {
+		env, _ := newSVMTestEnv(tt)
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context) error {
+				return invokeOCIDeleteRun(ctx, &common.DeleteSvmParams{}, "not-svm", &datamodel.Pool{})
+			},
+			workflow.RegisterOptions{Name: "test-del-run-args1"},
+		)
+		env.ExecuteWorkflow("test-del-run-args1")
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
+	t.Run("args2 not *Pool", func(tt *testing.T) {
+		env, _ := newSVMTestEnv(tt)
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context) error {
+				return invokeOCIDeleteRun(ctx, &common.DeleteSvmParams{}, &datamodel.Svm{}, "not-pool")
+			},
+			workflow.RegisterOptions{Name: "test-del-run-args2"},
+		)
+		env.ExecuteWorkflow("test-del-run-args2")
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+}
+
+func invokeOCIDeleteRun(ctx workflow.Context, args ...interface{}) error {
+	wf := new(ociDeleteSVMWorkflow)
+	_, vsaErr := wf.Run(ctx, args...)
+	if vsaErr != nil {
+		return vsaErr
+	}
+	return nil
+}
+
+// GetSvmAdminPasswordSecretForOCI returns an error -> the create workflow must
+// propagate the activity error via ConvertToVSAError after the workflow has
+// already pulled VLM config.
+func TestOCICreateSVMWorkflow_GetSvmAdminPasswordFails(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+
+	params := &common.CreateSvmParams{
+		Name:                  "test-svm",
+		AccountName:           "test-account",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig: "{}",
+		Account:   &datamodel.Account{Name: "test-account"},
+	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return((*vlm.OntapCredentials)(nil), assert.AnError)
+	env.OnActivity("MarkSvmAsErroredForCreation", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+// ParseVlmConfig returns nil vlmConfig with nil error in OCIDeleteSVMWorkflow.
+func TestOCIDeleteSVMWorkflow_NilVLMConfigFromActivity(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+	params, svm, pool, _ := deleteSVMTestFixtures()
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return((*vlm.VLMConfig)(nil), nil)
+	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
 
 func TestBuildCreateSVMResult_SvmNotInVlmConfig(t *testing.T) {
 	params := &common.CreateSvmParams{Name: "missing-svm", SvmExternalIdentifier: "ocid1.svm..x"}

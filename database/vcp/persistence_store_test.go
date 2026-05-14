@@ -559,6 +559,58 @@ func TestCreateSVM_Persistence_Store(t *testing.T) {
 	assert.NotNil(t, created)
 }
 
+// SvmExistsByExternalIdentifier is a thin wrapper over the dataStore method.
+// Cover both the empty-input fast path and a typical existence check so the
+// PersistenceStore-level delegation is exercised.
+func TestSvmExistsByExternalIdentifier_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	exists, err := store.SvmExistsByExternalIdentifier(ctx, "ocid1.svm..none", 1)
+	assert.NoError(t, err)
+	assert.False(t, exists)
+
+	exists, err = store.SvmExistsByExternalIdentifier(ctx, "", 1)
+	assert.NoError(t, err)
+	assert.False(t, exists)
+}
+
+// TransitionSvmToDeleting is a thin wrapper. Drive it through a CAS path that
+// flips a READY row to DELETING so the PersistenceStore-level delegation runs
+// once end-to-end.
+func TestTransitionSvmToDeleting_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	acc, err := store.CreateAccount(ctx, &datamodel.Account{Name: "ts-svm-trans"})
+	require.NoError(t, err)
+	pool := &datamodel.Pool{
+		Name:      "p-ts-svm-trans",
+		AccountID: acc.ID,
+		Account:   acc,
+		State:     models.LifeCycleStateREADY,
+	}
+	require.NoError(t, store.DB().Create(pool).Error)
+
+	created, err := store.CreateSVM(ctx, &datamodel.Svm{
+		Name:      "svm-ts-trans",
+		AccountID: acc.ID,
+		PoolID:    pool.ID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, models.LifeCycleStateREADY, created.State)
+
+	updated, err := store.TransitionSvmToDeleting(ctx, created)
+	assert.NoError(t, err)
+	if assert.NotNil(t, updated) {
+		assert.Equal(t, models.LifeCycleStateDeleting, updated.State)
+	}
+}
+
 func TestGetSvmsByPoolID_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)

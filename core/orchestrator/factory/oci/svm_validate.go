@@ -56,8 +56,8 @@ func validateDeleteSvmParams(params *commonparams.DeleteSvmParams) error {
 	return nil
 }
 
-// validateCreateSvm runs all pre-create checks: required params, cluster state/capacity, SVM name (convention + uniqueness),
-// and IP requirements (data LIFs per node based on protocols).
+// validateCreateSvm runs all pre-create checks: required params, cluster state/capacity, SVM name convention,
+// (data LIFs per node based on protocols).
 func validateCreateSvm(ctx context.Context, se database.Storage, params *commonparams.CreateSvmParams, pool *datamodel.Pool) error {
 	if err := validateCreateSvmClusterStateAndCapacity(ctx, se, pool); err != nil {
 		return err
@@ -65,10 +65,25 @@ func validateCreateSvm(ctx context.Context, se database.Storage, params *commonp
 	if err := validateSvmName(params.Name); err != nil {
 		return err
 	}
-	if err := validateSvmNameUniqueness(ctx, se, params.Name, pool.ID); err != nil {
+	if err := validateSvmNameNotInUseInPool(ctx, se, params.Name, pool.ID); err != nil {
 		return err
 	}
 	return validateCreateSvmIPRequirements(ctx, se, params, pool)
+}
+
+// validateSvmNameNotInUseInPool rejects creation when a non-DELETED SVM with the same name already exists in the same pool.
+func validateSvmNameNotInUseInPool(ctx context.Context, se database.Storage, name string, poolID int64) error {
+	existing, err := se.GetSvmByNameAndPoolID(ctx, name, poolID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil
+		}
+		return err
+	}
+	if existing.State == models.LifeCycleStateDeleted {
+		return nil
+	}
+	return customerrors.NewConflictErr(fmt.Sprintf("svm with name %q already exists in this pool", name))
 }
 
 // validateCreateSvmClusterStateAndCapacity ensures the cluster (pool) is in a valid state and has capacity for a new SVM.
@@ -108,21 +123,6 @@ func validateSvmName(name string) error {
 	}
 	if !svmNameRegex.MatchString(name) {
 		return customerrors.NewUserInputValidationErr("SVM name must contain only letters, numbers, hyphens, and underscores")
-	}
-	return nil
-}
-
-// validateSvmNameUniqueness checks that no SVM with the same name exists in the pool (DB).
-func validateSvmNameUniqueness(ctx context.Context, se database.Storage, name string, poolID int64) error {
-	existing, err := se.GetSvmByNameAndPoolID(ctx, name, poolID)
-	if err != nil {
-		if customerrors.IsNotFoundErr(err) {
-			return nil // no existing SVM with this name
-		}
-		return err
-	}
-	if existing != nil {
-		return customerrors.NewConflictErr("SVM with this name already exists in the cluster")
 	}
 	return nil
 }

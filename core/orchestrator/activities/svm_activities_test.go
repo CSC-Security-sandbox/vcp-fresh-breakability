@@ -73,6 +73,98 @@ func Test_SaveSVMAndLifData_Success(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+// Verify the SVM record persists the IPspace VLM provisioned at pool-creation time
+// (e.g. "ocifsn" for OCI), rather than a hardcoded "Default".
+func Test_SaveSVMAndLifData_PersistsCustIPSpaceFromVLMConfig(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.SvmActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
+
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
+	vlmConfig := &vlm.VLMConfig{
+		VsaCluster: vlm.VsaClusterConfig{CustIPSpace: "ocifsn"},
+		Svm: map[string]vlm.SvmConfig{
+			"svm-name": {
+				Svmname: "svm-name",
+				Svmuuid: "svm-uuid",
+				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
+					vlm.LIFTypeSan: {{IP: "10.0.0.1/24", Name: "lif-a", HomeNode: "n1"}},
+					vlm.LIFTypeNas: {{IP: "10.0.0.2/24", Name: "lif-b", HomeNode: "n2"}},
+				},
+			},
+		},
+	}
+
+	var capturedSvm *datamodel.Svm
+	mockStorage.On("CreateSVM", mock.Anything, mock.MatchedBy(func(s *datamodel.Svm) bool {
+		capturedSvm = s
+		return true
+	})).Return(&datamodel.Svm{}, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "n1"}, {BaseModel: datamodel.BaseModel{ID: 2}, Name: "n2"},
+	}, nil)
+	mockStorage.On("CreateLif", mock.Anything, mock.Anything).Return(&datamodel.Lif{}, nil)
+
+	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig, "svm-name")
+
+	assert.NoError(t, err)
+	require.NotNil(t, capturedSvm)
+	require.NotNil(t, capturedSvm.SvmDetails)
+	assert.Equal(t, "ocifsn", capturedSvm.SvmDetails.IPSpace)
+	mockStorage.AssertExpectations(t)
+}
+
+// When VLM did not populate CustIPSpace (e.g. GCP / pre-OCI clusters), fall back
+// to the hyperscaler-driven defaultIPSpace ("Default" on GCP, "ocifsn" on OCI;
+// overridable via DEFAULT_IPSPACE). Tests run with HYPERSCALER unset (defaults
+// to GCP), so the fallback resolves to "Default" here. The important property
+// is that the activity used the resolved fallback rather than failing.
+func Test_SaveSVMAndLifData_FallsBackToDefaultIPSpaceWhenVLMConfigEmpty(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.SvmActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
+
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 2}, AccountID: 2}
+	vlmConfig := &vlm.VLMConfig{
+		// VsaCluster.CustIPSpace deliberately left empty.
+		Svm: map[string]vlm.SvmConfig{
+			"gcp-svm": {
+				Svmname: "gcp-svm",
+				Svmuuid: "gcp-uuid",
+				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
+					vlm.LIFTypeSan: {{IP: "10.0.1.1/24", Name: "lif-x", HomeNode: "g1"}},
+					vlm.LIFTypeNas: {{IP: "10.0.1.2/24", Name: "lif-y", HomeNode: "g2"}},
+				},
+			},
+		},
+	}
+
+	var capturedSvm *datamodel.Svm
+	mockStorage.On("CreateSVM", mock.Anything, mock.MatchedBy(func(s *datamodel.Svm) bool {
+		capturedSvm = s
+		return true
+	})).Return(&datamodel.Svm{}, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 10}, Name: "g1"}, {BaseModel: datamodel.BaseModel{ID: 11}, Name: "g2"},
+	}, nil)
+	mockStorage.On("CreateLif", mock.Anything, mock.Anything).Return(&datamodel.Lif{}, nil)
+
+	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig, "gcp-svm")
+
+	assert.NoError(t, err)
+	require.NotNil(t, capturedSvm)
+	require.NotNil(t, capturedSvm.SvmDetails)
+	// Default hyperscaler in tests is GCP, so the fallback resolves to "Default".
+	assert.Equal(t, "Default", capturedSvm.SvmDetails.IPSpace)
+	mockStorage.AssertExpectations(t)
+}
+
 func Test_SaveSVMAndLifData_CreatesIlbNasLifs(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
@@ -1864,10 +1956,10 @@ func TestMarkSvmAsErroredForDeletion(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// GetSvmExpertModeCredentialsForOCI
+// GetSvmAdminPasswordSecretForOCI
 // ---------------------------------------------------------------------------
 
-func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
+func TestGetSvmAdminPasswordSecretForOCI(t *testing.T) {
 	act := &activities.SvmActivity{}
 
 	origGetOCIService := hyperscaler2.GetOCIService
@@ -1881,10 +1973,10 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 	t.Run("nil svm returns non-retryable error", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		testEnv := testSuite.NewTestActivityEnvironment()
-		testEnv.RegisterActivity(act.GetSvmExpertModeCredentialsForOCI)
+		testEnv.RegisterActivity(act.GetSvmAdminPasswordSecretForOCI)
 
 		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..abc", Version: 1}
-		_, err := testEnv.ExecuteActivity(act.GetSvmExpertModeCredentialsForOCI, nil, adminPw)
+		_, err := testEnv.ExecuteActivity(act.GetSvmAdminPasswordSecretForOCI, nil, adminPw)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "svm must not be nil")
 	})
@@ -1892,28 +1984,28 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 	t.Run("GetOCIService fails", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		testEnv := testSuite.NewTestActivityEnvironment()
-		testEnv.RegisterActivity(act.GetSvmExpertModeCredentialsForOCI)
+		testEnv.RegisterActivity(act.GetSvmAdminPasswordSecretForOCI)
 
 		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
 			return nil, fmt.Errorf("OCI client initialization failed")
 		}
 
 		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..abc", Version: 1}
-		_, err := testEnv.ExecuteActivity(act.GetSvmExpertModeCredentialsForOCI, svm, adminPw)
+		_, err := testEnv.ExecuteActivity(act.GetSvmAdminPasswordSecretForOCI, svm, adminPw)
 		assert.Error(t, err)
 	})
 
 	t.Run("nil svmAdminPassword", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		testEnv := testSuite.NewTestActivityEnvironment()
-		testEnv.RegisterActivity(act.GetSvmExpertModeCredentialsForOCI)
+		testEnv.RegisterActivity(act.GetSvmAdminPasswordSecretForOCI)
 
 		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
 			return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 		}
 
 		var nilPw *commonparams.OciAdminPassword
-		_, err := testEnv.ExecuteActivity(act.GetSvmExpertModeCredentialsForOCI, svm, nilPw)
+		_, err := testEnv.ExecuteActivity(act.GetSvmAdminPasswordSecretForOCI, svm, nilPw)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "svmAdminPassword is required")
 	})
@@ -1921,14 +2013,14 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 	t.Run("empty Ocid in svmAdminPassword", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		testEnv := testSuite.NewTestActivityEnvironment()
-		testEnv.RegisterActivity(act.GetSvmExpertModeCredentialsForOCI)
+		testEnv.RegisterActivity(act.GetSvmAdminPasswordSecretForOCI)
 
 		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
 			return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 		}
 
 		adminPw := &commonparams.OciAdminPassword{Ocid: "", Version: 1}
-		_, err := testEnv.ExecuteActivity(act.GetSvmExpertModeCredentialsForOCI, svm, adminPw)
+		_, err := testEnv.ExecuteActivity(act.GetSvmAdminPasswordSecretForOCI, svm, adminPw)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "svmAdminPassword is required")
 	})
@@ -1936,7 +2028,7 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 	t.Run("success — admin password fetched from OCI Vault", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		testEnv := testSuite.NewTestActivityEnvironment()
-		testEnv.RegisterActivity(act.GetSvmExpertModeCredentialsForOCI)
+		testEnv.RegisterActivity(act.GetSvmAdminPasswordSecretForOCI)
 
 		origGetSecretVersion := oci.GetSecretVersion
 		defer func() { oci.GetSecretVersion = origGetSecretVersion }()
@@ -1962,7 +2054,7 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 		}
 
 		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testsvm", Version: 1}
-		encodedValue, err := testEnv.ExecuteActivity(act.GetSvmExpertModeCredentialsForOCI, svm, adminPw)
+		encodedValue, err := testEnv.ExecuteActivity(act.GetSvmAdminPasswordSecretForOCI, svm, adminPw)
 		assert.NoError(t, err)
 		var creds *vlm.OntapCredentials
 		err = encodedValue.Get(&creds)
@@ -1973,7 +2065,7 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 	t.Run("vault GetSecret API error", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		testEnv := testSuite.NewTestActivityEnvironment()
-		testEnv.RegisterActivity(act.GetSvmExpertModeCredentialsForOCI)
+		testEnv.RegisterActivity(act.GetSvmAdminPasswordSecretForOCI)
 
 		mockSvc := newMockOCIServiceForTest(t, func(req *http.Request) (*http.Response, error) {
 			return nil, fmt.Errorf("connection refused")
@@ -1983,14 +2075,14 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 		}
 
 		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testsvm", Version: 1}
-		_, err := testEnv.ExecuteActivity(act.GetSvmExpertModeCredentialsForOCI, svm, adminPw)
+		_, err := testEnv.ExecuteActivity(act.GetSvmAdminPasswordSecretForOCI, svm, adminPw)
 		assert.Error(t, err)
 	})
 
 	t.Run("GetSecretVersion returns error", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		testEnv := testSuite.NewTestActivityEnvironment()
-		testEnv.RegisterActivity(act.GetSvmExpertModeCredentialsForOCI)
+		testEnv.RegisterActivity(act.GetSvmAdminPasswordSecretForOCI)
 
 		origGetSecretVersion := oci.GetSecretVersion
 		defer func() { oci.GetSecretVersion = origGetSecretVersion }()
@@ -2011,14 +2103,14 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 		}
 
 		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testsvm", Version: 1}
-		_, err := testEnv.ExecuteActivity(act.GetSvmExpertModeCredentialsForOCI, svm, adminPw)
+		_, err := testEnv.ExecuteActivity(act.GetSvmAdminPasswordSecretForOCI, svm, adminPw)
 		assert.Error(t, err)
 	})
 
 	t.Run("GetSecretVersion returns nil secret", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		testEnv := testSuite.NewTestActivityEnvironment()
-		testEnv.RegisterActivity(act.GetSvmExpertModeCredentialsForOCI)
+		testEnv.RegisterActivity(act.GetSvmAdminPasswordSecretForOCI)
 
 		origGetSecretVersion := oci.GetSecretVersion
 		defer func() { oci.GetSecretVersion = origGetSecretVersion }()
@@ -2039,9 +2131,9 @@ func TestGetSvmExpertModeCredentialsForOCI(t *testing.T) {
 		}
 
 		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testsvm", Version: 1}
-		_, err := testEnv.ExecuteActivity(act.GetSvmExpertModeCredentialsForOCI, svm, adminPw)
+		_, err := testEnv.ExecuteActivity(act.GetSvmAdminPasswordSecretForOCI, svm, adminPw)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "secret not found in OCI Vault")
+		assert.Contains(t, err.Error(), "secret is inactive or pending deletion in OCI Vault")
 	})
 }
 
@@ -2301,4 +2393,130 @@ func TestMarkSvmAsErroredForCreation_PropagatesDBError(t *testing.T) {
 	_, err := testEnv.ExecuteActivity(act.MarkSvmAsErroredForCreation, svm, "boom")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "db boom")
+}
+
+// ---------------------------------------------------------------------------
+// Nil-input validation for activity entry points
+// ---------------------------------------------------------------------------
+
+// Each activity must reject a nil required input with a non-retryable validation
+// error so the Temporal worker fails fast instead of spinning on retries.
+
+func TestRemoveQoSPolicyFromSVM_NilPool(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{SE: database.NewMockStorage(t)}
+	testEnv.RegisterActivity(act.RemoveQoSPolicyFromSVM)
+
+	node := &coremodel.Node{Name: "node1"}
+	_, err := testEnv.ExecuteActivity(act.RemoveQoSPolicyFromSVM, (*datamodel.Pool)(nil), node)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "pool must not be nil")
+}
+
+func TestRemoveQoSPolicyFromSVM_NilNode(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{SE: database.NewMockStorage(t)}
+	testEnv.RegisterActivity(act.RemoveQoSPolicyFromSVM)
+
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+	_, err := testEnv.ExecuteActivity(act.RemoveQoSPolicyFromSVM, pool, (*coremodel.Node)(nil))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "node must not be nil")
+}
+
+func TestCreateQoSPolicyAndApplyToSVM_NilNode(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{}
+	testEnv.RegisterActivity(act.CreateQoSPolicyAndApplyToSVM)
+
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "p"}
+	svm := &datamodel.Svm{
+		Name:       "svm",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "uuid"},
+	}
+	_, err := testEnv.ExecuteActivity(act.CreateQoSPolicyAndApplyToSVM, pool, svm, (*coremodel.Node)(nil))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "node must not be nil")
+}
+
+func TestModifyQoSPolicyAndApplyToSVM_NilPool(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{}
+	testEnv.RegisterActivity(act.ModifyQoSPolicyAndApplyToSVM)
+
+	node := &coremodel.Node{Name: "node1"}
+	_, err := testEnv.ExecuteActivity(act.ModifyQoSPolicyAndApplyToSVM, (*datamodel.Pool)(nil), node, &commonparams.UpdatePoolParams{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "pool must not be nil")
+}
+
+func TestModifyQoSPolicyAndApplyToSVM_NilNode(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{}
+	testEnv.RegisterActivity(act.ModifyQoSPolicyAndApplyToSVM)
+
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "p"}
+	_, err := testEnv.ExecuteActivity(act.ModifyQoSPolicyAndApplyToSVM, pool, (*coremodel.Node)(nil), &commonparams.UpdatePoolParams{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "node must not be nil")
+}
+
+func TestAllocateSVMName_NilPool(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{SE: database.NewMockStorage(t)}
+	testEnv.RegisterActivity(act.AllocateSVMName)
+
+	_, err := testEnv.ExecuteActivity(act.AllocateSVMName, (*datamodel.Pool)(nil))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "pool must not be nil")
+}
+
+func TestMarkSvmDeleting_NilSvm(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{SE: database.NewMockStorage(t)}
+	testEnv.RegisterActivity(act.MarkSvmDeleting)
+
+	_, err := testEnv.ExecuteActivity(act.MarkSvmDeleting, (*datamodel.Svm)(nil))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "svm must not be nil")
+}
+
+func TestSoftDeleteSvm_NilSvm(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{SE: database.NewMockStorage(t)}
+	testEnv.RegisterActivity(act.SoftDeleteSvm)
+
+	_, err := testEnv.ExecuteActivity(act.SoftDeleteSvm, (*datamodel.Svm)(nil))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "svm must not be nil")
+}
+
+func TestMarkSvmAsErroredForDeletion_NilSvm(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{SE: database.NewMockStorage(t)}
+	testEnv.RegisterActivity(act.MarkSvmAsErroredForDeletion)
+
+	_, err := testEnv.ExecuteActivity(act.MarkSvmAsErroredForDeletion, (*datamodel.Svm)(nil), "msg")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "svm must not be nil")
+}
+
+func TestMarkSvmAsErroredForCreation_NilSvm(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+	act := &activities.SvmActivity{SE: database.NewMockStorage(t)}
+	testEnv.RegisterActivity(act.MarkSvmAsErroredForCreation)
+
+	_, err := testEnv.ExecuteActivity(act.MarkSvmAsErroredForCreation, (*datamodel.Svm)(nil), "msg")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "svm must not be nil")
 }
