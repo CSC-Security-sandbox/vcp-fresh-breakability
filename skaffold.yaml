@@ -78,10 +78,9 @@ manifests:
   helm:
     releases:
       - name: local-temporal
-        remoteChart: temporal
+        remoteChart: temporal/temporal
         version: 1.2.0
         namespace: default
-        repo: https://temporalio.github.io/helm-charts
         valuesFiles:
           - ./tools/temporal-deployment/local/values.yaml
 portForward:

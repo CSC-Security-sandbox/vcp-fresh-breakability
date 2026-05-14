@@ -1,22 +1,21 @@
 debug: true
 admintools:
+  enabled: true
   additionalInitContainers:
     - name: wait-for-postgres
-      image: postgres:14
+      image: temporalio/admin-tools:1.31.0
       command:
         - sh
         - -c
         - |
-          echo "Waiting for PostgreSQL to be ready..."
-          export PGPASSWORD=testpass
+          echo "Waiting for PostgreSQL to be ready on postgres.default.svc.cluster.local:5432..."
           i=1
           while [ $i -le 60 ]; do
-            pg_isready -d "user=postgres dbname=postgres host=postgres.default.svc.cluster.local port=5432"
-            if [ $? -eq 0 ]; then
-              echo "PostgreSQL is ready!"
+            if nc -z postgres.default.svc.cluster.local 5432 2>/dev/null; then
+              echo "PostgreSQL port is open!"
               exit 0
             else
-              echo "pg_isready failed with exit code $?. Retrying in 5 seconds..."
+              echo "PostgreSQL not ready yet... (attempt $i/60). Retrying in 5 seconds..."
             fi
             sleep 5
             i=$((i + 1))
@@ -25,106 +24,68 @@ admintools:
           exit 1
 
 server:
+  enabled: true
+  replicaCount: 1
+  resources: {}
   additionalInitContainers:
     - name: wait-for-postgres
-      image: postgres:15
+      image: temporalio/admin-tools:1.31.0
       command:
         - sh
         - -c
         - |
-          echo "Waiting for PostgreSQL to be ready..."
-          export PGPASSWORD=testpass
+          echo "Waiting for PostgreSQL to be ready on postgres.default.svc.cluster.local:5432..."
           i=1
           while [ $i -le 60 ]; do
-            pg_isready -d "user=postgres dbname=postgres host=postgres.default.svc.cluster.local port=5432"
-            if [ $? -eq 0 ]; then
-              echo "PostgreSQL is ready! Waiting for databases to be created..."
-              # Wait for both temporal databases to exist
-              j=1
-              while [ $j -le 30 ]; do
-                psql -h postgres.default.svc.cluster.local -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'temporal'" | grep -q 1 && \
-                psql -h postgres.default.svc.cluster.local -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'temporal_visibility'" | grep -q 1
-                if [ $? -eq 0 ]; then
-                  echo "Both temporal databases exist!"
-                  sleep 10 # Additional buffer for schema setup
-                  exit 0
-                else
-                  echo "Waiting for temporal databases to be created... (attempt $j/30)"
-                fi
-                sleep 5
-                j=$((j + 1))
-              done
-              echo "Databases may not be ready, but proceeding..."
-              sleep 20 # Fallback wait time
+            if nc -z postgres.default.svc.cluster.local 5432 2>/dev/null; then
+              echo "PostgreSQL port is open!"
+              sleep 10
               exit 0
             else
-              echo "pg_isready failed with exit code $?. Retrying in 5 seconds..."
+              echo "PostgreSQL not ready yet... (attempt $i/60)"
             fi
             sleep 5
             i=$((i + 1))
           done
           echo "PostgreSQL did not become ready in time. Exiting."
           exit 1
-
-  enabled: true
-  replicaCount: 1
-  resources: {}
   config:
     persistence:
-      default:
-        driver: "sql"
-        sql:
-          driver: "postgres12"
-          host: postgres.default.svc.cluster.local
-          port: 5432
-          database: temporal
-          user: postgres
-          password: testpass
-          maxConns: 20
-          maxIdleConns: 20
-          maxConnLifetime: "1h"
-          disableInitialHostLookup: true
-      visibility:
-        driver: "sql"
-        sql:
-          driver: "postgres12"
-          host: postgres.default.svc.cluster.local
-          port: 5432
-          database: temporal_visibility
-          user: postgres
-          password: testpass
-          maxConns: 20
-          maxIdleConns: 20
-          maxConnLifetime: "1h"
-          disableInitialHostLookup: true
+      defaultStore: default
+      visibilityStore: visibility
+      datastores:
+        default:
+          sql:
+            pluginName: "postgres12"
+            connectProtocol: "tcp"
+            connectAddr: "postgres.default.svc.cluster.local:5432"
+            databaseName: temporal
+            user: postgres
+            password: testpass
+            maxConns: 20
+            maxIdleConns: 20
+            maxConnLifetime: "1h"
+            createDatabase: true
+            manageSchema: true
+        visibility:
+          sql:
+            pluginName: "postgres12"
+            connectProtocol: "tcp"
+            connectAddr: "postgres.default.svc.cluster.local:5432"
+            databaseName: temporal_visibility
+            user: postgres
+            password: testpass
+            maxConns: 20
+            maxIdleConns: 20
+            maxConnLifetime: "1h"
+            createDatabase: true
+            manageSchema: true
     namespaces:
       create: true
       namespace:
         - name: default
-          retention: 3d
+          retention: 10d
 
-schema:
-  createDatabase:
-    enabled: true
-  setup:
-    enabled: true
-  update:
-    enabled: true
 
-postgresql:
+web:
   enabled: true
-
-cassandra:
-  enabled: false
-
-mysql:
-  enabled: false
-
-prometheus:
-  enabled: false
-
-grafana:
-  enabled: false
-
-elasticsearch:
-  enabled: false

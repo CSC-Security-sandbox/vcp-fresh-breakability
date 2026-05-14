@@ -87,6 +87,14 @@ minikube image load ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-wo
 
 ##### 3. Run Skaffold
 
+Add Temporal helm chart repo for skaffold
+
+```bash
+helm repo add temporal https://go.temporal.io/helm-charts
+helm repo update
+helm repo list
+```
+
 Run the following to set the necessary environment variables related to credentials.
 All non-authentication related env. variables are in `skaffold.env`, and can be customized there.
 
