@@ -121,15 +121,27 @@ func (wf *vpgUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (int
 		return nil, ConvertToVSAError(err)
 	}
 
+	newDescription := vpg.Description
+	if params.Description != nil {
+		newDescription = *params.Description
+	}
+	newLabels := vpg.Labels
+	if params.Labels != nil {
+		newLabels = params.Labels
+	}
+
 	updatedVPG := &datamodel.VolumePerformanceGroup{
-		BaseModel:         vpg.BaseModel,
-		Name:              newName,
-		PoolID:            vpg.PoolID,
-		IsShared:          vpg.IsShared,
-		IsAutoGen:         vpg.IsAutoGen,
-		ThroughputMibps:   newThroughput,
-		Iops:              newIops,
-		OntapQosPolicyID:  vpg.OntapQosPolicyID,
+		BaseModel:        vpg.BaseModel,
+		Name:             newName,
+		PoolID:           vpg.PoolID,
+		IsShared:         vpg.IsShared,
+		IsAutoGen:        vpg.IsAutoGen,
+		ThroughputMibps:  newThroughput,
+		Iops:             newIops,
+		OntapQosPolicyID: vpg.OntapQosPolicyID,
+		Description:      newDescription,
+		State:            models.LifeCycleStateREADY,
+		Labels:           newLabels,
 	}
 	if err := executeActivity(ctx, vpgActivity.UpdateVPGInDB, updatedVPG).Get(ctx, nil); err != nil {
 		return nil, ConvertToVSAError(err)

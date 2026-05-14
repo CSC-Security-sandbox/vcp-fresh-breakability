@@ -6,6 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -104,6 +105,12 @@ func CreateVolumePerformanceGroupWorkflow(ctx workflow.Context, vpgUUID string) 
 	err = workflow.ExecuteActivity(ctx, vpgActivity.UpdateVPGWithOntapID, vpgUUID, qosPolicyID).Get(ctx, nil)
 	if err != nil {
 		logger.Error("Failed to update VPG with Ontap ID", "error", err, "vpg_uuid", vpgUUID)
+		return nil, err
+	}
+
+	err = workflow.ExecuteActivity(ctx, vpgActivity.UpdateVPGStateInDB, vpgUUID, models.LifeCycleStateREADY, "").Get(ctx, nil)
+	if err != nil {
+		logger.Error("Failed to set VPG state to READY", "error", err, "vpg_uuid", vpgUUID)
 		return nil, err
 	}
 

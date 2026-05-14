@@ -21012,6 +21012,55 @@ func (_c *MockDataStore_UpdateVolumePerformanceGroup_Call) RunAndReturn(run func
 	return _c
 }
 
+// UpdateVolumePerformanceGroupState provides a mock function with given fields: ctx, uuid, state, stateDetails
+func (_m *MockDataStore) UpdateVolumePerformanceGroupState(ctx context.Context, uuid string, state string, stateDetails string) error {
+	ret := _m.Called(ctx, uuid, state, stateDetails)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumePerformanceGroupState")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = rf(ctx, uuid, state, stateDetails)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateVolumePerformanceGroupState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumePerformanceGroupState'
+type MockDataStore_UpdateVolumePerformanceGroupState_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumePerformanceGroupState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - uuid string
+//   - state string
+//   - stateDetails string
+func (_e *MockDataStore_Expecter) UpdateVolumePerformanceGroupState(ctx interface{}, uuid interface{}, state interface{}, stateDetails interface{}) *MockDataStore_UpdateVolumePerformanceGroupState_Call {
+	return &MockDataStore_UpdateVolumePerformanceGroupState_Call{Call: _e.mock.On("UpdateVolumePerformanceGroupState", ctx, uuid, state, stateDetails)}
+}
+
+func (_c *MockDataStore_UpdateVolumePerformanceGroupState_Call) Run(run func(ctx context.Context, uuid string, state string, stateDetails string)) *MockDataStore_UpdateVolumePerformanceGroupState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateVolumePerformanceGroupState_Call) Return(_a0 error) *MockDataStore_UpdateVolumePerformanceGroupState_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateVolumePerformanceGroupState_Call) RunAndReturn(run func(context.Context, string, string, string) error) *MockDataStore_UpdateVolumePerformanceGroupState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateVolumeReplication provides a mock function with given fields: ctx, volumeRep
 func (_m *MockDataStore) UpdateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
 	ret := _m.Called(ctx, volumeRep)

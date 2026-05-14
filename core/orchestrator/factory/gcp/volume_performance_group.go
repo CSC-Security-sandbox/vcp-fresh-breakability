@@ -54,6 +54,9 @@ func (o *GCPOrchestrator) CreateVolumePerformanceGroup(ctx context.Context, para
 		Iops:            params.Iops,
 		IsShared:        params.IsShared,
 		IsAutoGen:       false,
+		Description:     params.Description,
+		State:           models.LifeCycleStateCreating,
+		Labels:          params.Labels,
 	})
 	if err != nil {
 		logger.Error("Failed to create volume performance group", "error", err)
@@ -176,11 +179,15 @@ func convertDatastoreVPGToModel(vpg *datamodel.VolumePerformanceGroup) *models.V
 			CreatedAt: vpg.CreatedAt,
 			UpdatedAt: vpg.UpdatedAt,
 		},
-		Name:            vpg.Name,
-		PoolID:          strconv.FormatInt(vpg.PoolID, 10),
-		ThroughputMibps: vpg.ThroughputMibps,
-		Iops:            vpg.Iops,
-		IsShared:        vpg.IsShared,
+		Name:                  vpg.Name,
+		PoolID:                strconv.FormatInt(vpg.PoolID, 10),
+		ThroughputMibps:       vpg.ThroughputMibps,
+		Iops:                  vpg.Iops,
+		IsShared:              vpg.IsShared,
+		Description:           vpg.Description,
+		LifeCycleState:        vpg.State,
+		LifeCycleStateDetails: vpg.StateDetails,
+		Labels:                utils.ConvertJSONBToMap(vpg.Labels),
 	}
 }
 
@@ -312,6 +319,21 @@ func (o *GCPOrchestrator) UpdateVolumePerformanceGroup(ctx context.Context, para
 		}
 	}()
 
+	if err = se.UpdateVolumePerformanceGroupState(ctx, vpg.UUID, models.LifeCycleStateUpdating, ""); err != nil {
+		logger.Error("Failed to set VPG state to UPDATING", "error", err)
+		return nil, "", err
+	}
+	vpg.State = models.LifeCycleStateUpdating
+	vpg.StateDetails = ""
+
+	defer func() {
+		if err != nil {
+			if rollbackErr := se.UpdateVolumePerformanceGroupState(ctx, vpg.UUID, models.LifeCycleStateError, models.LifeCycleStateUpdateErrorDetails); rollbackErr != nil {
+				logger.Error("Failed to rollback VPG state to ERROR", "vpg_uuid", vpg.UUID, "error", rollbackErr)
+			}
+		}
+	}()
+
 	workflowExecutor := workflows.NewWorkflowExecutor(o.temporal, logger)
 	err = workflowExecutor.ExecuteWorkflow(
 		ctx,
@@ -389,6 +411,21 @@ func (o *GCPOrchestrator) DeleteVolumePerformanceGroup(ctx context.Context, para
 	defer func() {
 		if err != nil && createdJob != nil {
 			_ = se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+		}
+	}()
+
+	if err = se.UpdateVolumePerformanceGroupState(ctx, vpg.UUID, models.LifeCycleStateDeleting, ""); err != nil {
+		logger.Error("Failed to set VPG state to DELETING", "error", err)
+		return nil, "", err
+	}
+	vpg.State = models.LifeCycleStateDeleting
+	vpg.StateDetails = ""
+
+	defer func() {
+		if err != nil {
+			if rollbackErr := se.UpdateVolumePerformanceGroupState(ctx, vpg.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails); rollbackErr != nil {
+				logger.Error("Failed to rollback VPG state to ERROR", "vpg_uuid", vpg.UUID, "error", rollbackErr)
+			}
 		}
 	}()
 

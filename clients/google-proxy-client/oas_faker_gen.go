@@ -6242,6 +6242,42 @@ func (s *OptVolumeCreateV1betaVolumeType) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptVolumePerformanceGroupCreateV1betaLabels) SetFake() {
+	var elem VolumePerformanceGroupCreateV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumePerformanceGroupUpdateV1betaLabels) SetFake() {
+	var elem VolumePerformanceGroupUpdateV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumePerformanceGroupV1betaLabels) SetFake() {
+	var elem VolumePerformanceGroupV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) SetFake() {
+	var elem VolumePerformanceGroupV1betaVolumePerformanceGroupState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptVolumeReplicationCreateInternalV1betaLabels) SetFake() {
 	var elem VolumeReplicationCreateInternalV1betaLabels
 	{
@@ -18090,6 +18126,27 @@ func (s *VolumePerformanceGroupCreateV1beta) SetFake() {
 			s.IsShared = true
 		}
 	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupCreateV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
 }
 
 // SetFake set fake values.
@@ -18108,6 +18165,27 @@ func (s *VolumePerformanceGroupUpdateV1beta) SetFake() {
 		{
 			s.Iops.SetFake()
 		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupUpdateV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
 	}
 }
 
@@ -18143,6 +18221,47 @@ func (s *VolumePerformanceGroupV1beta) SetFake() {
 			s.IsShared = true
 		}
 	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumePerformanceGroupState.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumePerformanceGroupStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupV1betaVolumePerformanceGroupState) SetFake() {
+	*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED
 }
 
 // SetFake set fake values.

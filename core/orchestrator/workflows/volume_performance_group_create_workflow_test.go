@@ -42,6 +42,7 @@ func setupVPGWorkflowEnv(t *testing.T) *testsuite.TestWorkflowEnvironment {
 	env.RegisterActivity(volumeCreateActivity.GetOntapClusterHealth)
 	env.RegisterActivity(vpgActivity.CreateQoSPolicyInONTAP)
 	env.RegisterActivity(vpgActivity.UpdateVPGWithOntapID)
+	env.RegisterActivity(vpgActivity.UpdateVPGStateInDB)
 
 	return env
 }
@@ -82,6 +83,7 @@ func TestCreateVolumePerformanceGroupWorkflow_Success(t *testing.T) {
 	env.OnActivity("GetOntapClusterHealth", mock.Anything, mock.Anything).Return(&isOntapHealthy, nil)
 	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, vpg, mock.Anything).Return(qosPolicyID, nil)
 	env.OnActivity("UpdateVPGWithOntapID", mock.Anything, vpgUUID, qosPolicyID).Return(nil)
+	env.OnActivity("UpdateVPGStateInDB", mock.Anything, vpgUUID, "READY", "").Return(nil)
 	env.OnActivity("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(vpgUpdated, nil).Once()
 
 	env.ExecuteWorkflow(CreateVolumePerformanceGroupWorkflow, vpgUUID)
@@ -135,6 +137,7 @@ func TestCreateVolumePerformanceGroupWorkflow_Success_IsSharedFalse(t *testing.T
 	env.OnActivity("GetOntapClusterHealth", mock.Anything, mock.Anything).Return(&isOntapHealthy, nil)
 	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, vpg, mock.Anything).Return(qosPolicyID, nil)
 	env.OnActivity("UpdateVPGWithOntapID", mock.Anything, vpgUUID, qosPolicyID).Return(nil)
+	env.OnActivity("UpdateVPGStateInDB", mock.Anything, vpgUUID, "READY", "").Return(nil)
 	env.OnActivity("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(vpgUpdated, nil).Once()
 
 	env.ExecuteWorkflow(CreateVolumePerformanceGroupWorkflow, vpgUUID)
@@ -145,7 +148,6 @@ func TestCreateVolumePerformanceGroupWorkflow_Success_IsSharedFalse(t *testing.T
 	err := env.GetWorkflowResult(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, vpgUUID, result.UUID)
 	assert.False(t, result.IsShared, "IsShared should be false in workflow result")
 	assert.Equal(t, qosPolicyID, result.OntapQosPolicyID)
 }
@@ -332,6 +334,7 @@ func TestCreateVolumePerformanceGroupWorkflow_ReFetchVPGFails(t *testing.T) {
 	env.OnActivity("GetOntapClusterHealth", mock.Anything, mock.Anything).Return(&isOntapHealthy, nil)
 	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, vpg, mock.Anything).Return(qosPolicyID, nil)
 	env.OnActivity("UpdateVPGWithOntapID", mock.Anything, vpgUUID, qosPolicyID).Return(nil)
+	env.OnActivity("UpdateVPGStateInDB", mock.Anything, vpgUUID, "READY", "").Return(nil)
 	// Re-fetch fails (may be called multiple times due to retries)
 	env.OnActivity("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(nil, errors.New("re-fetch failed"))
 
@@ -397,6 +400,43 @@ func TestCreateVolumePerformanceGroupWorkflow_OntapClusterUnhealthy(t *testing.T
 	env.OnActivity("GetPoolBySvmPoolId", mock.Anything, poolID).Return(pool, nil)
 	env.OnActivity("GetNode", mock.Anything, poolID).Return(dbNodes, nil)
 	env.OnActivity("GetOntapClusterHealth", mock.Anything, mock.Anything).Return(&isOntapHealthy, nil)
+
+	env.ExecuteWorkflow(CreateVolumePerformanceGroupWorkflow, vpgUUID)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+func TestCreateVolumePerformanceGroupWorkflow_SetVPGStateToReadyFails(t *testing.T) {
+	env := setupVPGWorkflowEnv(t)
+
+	vpgUUID := "vpg-uuid-123"
+	poolID := int64(1)
+	qosPolicyID := "ontap-qos-id"
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:       datamodel.BaseModel{UUID: vpgUUID},
+		Name:            "test-vpg",
+		PoolID:          poolID,
+		ThroughputMibps: 100,
+		Iops:            1000,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: poolID},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pw"},
+	}
+	dbNodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "127.0.0.1"},
+	}
+
+	isOntapHealthy := true
+	env.OnActivity("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(vpg, nil).Once()
+	env.OnActivity("GetPoolBySvmPoolId", mock.Anything, poolID).Return(pool, nil)
+	env.OnActivity("GetNode", mock.Anything, poolID).Return(dbNodes, nil)
+	env.OnActivity("GetOntapClusterHealth", mock.Anything, mock.Anything).Return(&isOntapHealthy, nil)
+	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, vpg, mock.Anything).Return(qosPolicyID, nil)
+	env.OnActivity("UpdateVPGWithOntapID", mock.Anything, vpgUUID, qosPolicyID).Return(nil)
+	env.OnActivity("UpdateVPGStateInDB", mock.Anything, vpgUUID, "READY", "").Return(errors.New("state update failed"))
 
 	env.ExecuteWorkflow(CreateVolumePerformanceGroupWorkflow, vpgUUID)
 

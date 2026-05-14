@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -1221,5 +1222,280 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 func TestConvertModelToVCPVolumePerformanceGroup(t *testing.T) {
 	t.Run("NilModelReturnsNil", func(tt *testing.T) {
 		assert.Nil(tt, convertModelToVCPVolumePerformanceGroup(nil, "pool-id"))
+	})
+
+	t.Run("AllMetadataFields", func(tt *testing.T) {
+		createdAt := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
+		vpg := &models.VolumePerformanceGroup{
+			BaseModel: models.BaseModel{
+				UUID:      "vpg-uuid-123",
+				CreatedAt: createdAt,
+			},
+			Name:                  "test-vpg",
+			ThroughputMibps:       128,
+			Iops:                  1000,
+			IsShared:              true,
+			Description:           "my description",
+			LifeCycleState:        "READY",
+			LifeCycleStateDetails: "Ready for use",
+			Labels:                map[string]string{"env": "dev", "team": "storage"},
+		}
+
+		res := convertModelToVCPVolumePerformanceGroup(vpg, "pool-id")
+
+		assert.Equal(tt, "test-vpg", res.ResourceId)
+		assert.Equal(tt, "pool-id", res.PoolId)
+		assert.Equal(tt, "vpg-uuid-123", res.VolumePerformanceGroupId)
+		assert.Equal(tt, int64(128), res.ThroughputMibps)
+		assert.Equal(tt, int64(1000), res.Iops)
+		assert.True(tt, res.IsShared)
+		assert.True(tt, res.Created.IsSet())
+		assert.Equal(tt, createdAt, res.Created.Value)
+		assert.True(tt, res.Description.IsSet())
+		assert.Equal(tt, "my description", res.Description.Value)
+		assert.True(tt, res.VolumePerformanceGroupState.IsSet())
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY, res.VolumePerformanceGroupState.Value)
+		assert.True(tt, res.VolumePerformanceGroupStateDetails.IsSet())
+		assert.Equal(tt, "Ready for use", res.VolumePerformanceGroupStateDetails.Value)
+		assert.True(tt, res.Labels.IsSet())
+		assert.Equal(tt, "dev", res.Labels.Value["env"])
+		assert.Equal(tt, "storage", res.Labels.Value["team"])
+	})
+
+	t.Run("UnknownStateFallsBackToStateUnspecified", func(tt *testing.T) {
+		vpg := &models.VolumePerformanceGroup{
+			BaseModel:      models.BaseModel{UUID: "vpg-uuid"},
+			Name:           "test-vpg",
+			LifeCycleState: "UNKNOWN",
+		}
+
+		res := convertModelToVCPVolumePerformanceGroup(vpg, "pool-id")
+
+		assert.True(tt, res.VolumePerformanceGroupState.IsSet())
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED, res.VolumePerformanceGroupState.Value)
+	})
+
+	t.Run("EmptyOptionalFields", func(tt *testing.T) {
+		vpg := &models.VolumePerformanceGroup{
+			BaseModel: models.BaseModel{UUID: "vpg-uuid"},
+			Name:      "test-vpg",
+		}
+
+		res := convertModelToVCPVolumePerformanceGroup(vpg, "pool-id")
+
+		assert.True(tt, res.VolumePerformanceGroupState.IsSet())
+		assert.Equal(tt, gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED, res.VolumePerformanceGroupState.Value)
+		assert.False(tt, res.VolumePerformanceGroupStateDetails.IsSet())
+		assert.False(tt, res.Labels.IsSet())
+	})
+}
+
+func TestV1betaCreateVolumePerformanceGroup_WithMetadata(t *testing.T) {
+	origEnableMqos := enableMqos
+	origEnableVpgEndpoints := enableVpgEndpoints
+	defer func() {
+		enableMqos = origEnableMqos
+		enableVpgEndpoints = origEnableVpgEndpoints
+	}()
+	enableMqos = true
+	enableVpgEndpoints = true
+
+	t.Run("DescriptionAndLabelsPassedToOrchestrator", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
+			ResourceId:      "test-vpg",
+			ThroughputMibps: 128,
+			Iops:            1000,
+			IsShared:        true,
+			Description:     gcpgenserver.NewOptNilString("my description"),
+			Labels: gcpgenserver.NewOptVolumePerformanceGroupCreateV1betaLabels(
+				gcpgenserver.VolumePerformanceGroupCreateV1betaLabels{"env": "dev"}),
+		}
+		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
+			ProjectNumber: "12345",
+			LocationId:    "us-central1",
+			PoolId:        "pool-id",
+		}
+
+		expectedVPG := &models.VolumePerformanceGroup{
+			BaseModel:      models.BaseModel{UUID: "vpg-uuid"},
+			Name:           "test-vpg",
+			Description:    "my description",
+			Labels:         map[string]string{"env": "dev"},
+			LifeCycleState: "READY",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().CreateVolumePerformanceGroup(mock.Anything, mock.MatchedBy(func(p *common.CreateVolumePerformanceGroupParams) bool {
+			return p.Description == "my description" && p.Labels != nil
+		})).Return(expectedVPG, nil)
+		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		vpgRes, ok := res.(*gcpgenserver.VolumePerformanceGroupV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, vpgRes.Description.IsSet())
+		assert.Equal(tt, "my description", vpgRes.Description.Value)
+		assert.True(tt, vpgRes.VolumePerformanceGroupState.IsSet())
+	})
+}
+
+func TestToVPGState(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupState
+	}{
+		{"CREATING", gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING},
+		{"READY", gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY},
+		{"UPDATING", gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING},
+		{"DELETING", gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING},
+		{"DELETED", gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED},
+		{"ERROR", gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR},
+		{"UNKNOWN", gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED},
+	}
+	for _, tc := range tests {
+		t.Run(tc.input, func(tt *testing.T) {
+			assert.Equal(tt, tc.expected, toVPGState(tc.input))
+		})
+	}
+}
+
+func TestV1betaUpdateVolumePerformanceGroup_NullDescription(t *testing.T) {
+	origEnableMqos := enableMqos
+	origEnableVpgEndpoints := enableVpgEndpoints
+	defer func() {
+		enableMqos = origEnableMqos
+		enableVpgEndpoints = origEnableVpgEndpoints
+	}()
+	enableMqos = true
+	enableVpgEndpoints = true
+
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	ctx := context.Background()
+
+	desc := gcpgenserver.OptNilString{}
+	desc.SetToNull()
+
+	req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
+		Description: desc,
+	}
+	params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
+		ProjectNumber:            "12345",
+		LocationId:               "us-central1",
+		PoolId:                   "pool-id",
+		VolumePerformanceGroupId: "vpg-uuid",
+	}
+
+	expectedVPG := &models.VolumePerformanceGroup{
+		BaseModel: models.BaseModel{UUID: "vpg-uuid"},
+		Name:      "test-vpg",
+	}
+
+	mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.MatchedBy(func(p *common.UpdateVolumePerformanceGroupParams) bool {
+		return p.Description != nil && *p.Description == ""
+	})).Return(expectedVPG, "job-uuid", nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+	res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	_, ok := res.(*gcpgenserver.OperationV1beta)
+	assert.True(t, ok)
+}
+
+func TestV1betaUpdateVolumePerformanceGroup_EmptyLabels(t *testing.T) {
+	origEnableMqos := enableMqos
+	origEnableVpgEndpoints := enableVpgEndpoints
+	defer func() {
+		enableMqos = origEnableMqos
+		enableVpgEndpoints = origEnableVpgEndpoints
+	}()
+	enableMqos = true
+	enableVpgEndpoints = true
+
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	ctx := context.Background()
+
+	req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
+		Labels: gcpgenserver.NewOptVolumePerformanceGroupUpdateV1betaLabels(
+			gcpgenserver.VolumePerformanceGroupUpdateV1betaLabels{}),
+	}
+	params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
+		ProjectNumber:            "12345",
+		LocationId:               "us-central1",
+		PoolId:                   "pool-id",
+		VolumePerformanceGroupId: "vpg-uuid",
+	}
+
+	expectedVPG := &models.VolumePerformanceGroup{
+		BaseModel: models.BaseModel{UUID: "vpg-uuid"},
+		Name:      "test-vpg",
+	}
+
+	mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.MatchedBy(func(p *common.UpdateVolumePerformanceGroupParams) bool {
+		return p.Labels != nil && len(*p.Labels) == 0
+	})).Return(expectedVPG, "job-uuid", nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+	res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	_, ok := res.(*gcpgenserver.OperationV1beta)
+	assert.True(t, ok)
+}
+
+func TestV1betaUpdateVolumePerformanceGroup_WithMetadata(t *testing.T) {
+	origEnableMqos := enableMqos
+	origEnableVpgEndpoints := enableVpgEndpoints
+	defer func() {
+		enableMqos = origEnableMqos
+		enableVpgEndpoints = origEnableVpgEndpoints
+	}()
+	enableMqos = true
+	enableVpgEndpoints = true
+
+	t.Run("DescriptionAndLabelsPassedToOrchestrator", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptNilString("updated description"),
+			Labels: gcpgenserver.NewOptVolumePerformanceGroupUpdateV1betaLabels(
+				gcpgenserver.VolumePerformanceGroupUpdateV1betaLabels{"env": "staging"}),
+		}
+		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		expectedVPG := &models.VolumePerformanceGroup{
+			BaseModel:      models.BaseModel{UUID: "vpg-uuid"},
+			Name:           "test-vpg",
+			Description:    "updated description",
+			Labels:         map[string]string{"env": "staging"},
+			LifeCycleState: "UPDATING",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.MatchedBy(func(p *common.UpdateVolumePerformanceGroupParams) bool {
+			return p.Description != nil && *p.Description == "updated description" && p.Labels != nil
+		})).Return(expectedVPG, "job-uuid", nil)
+		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		opRes, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+
+		var vpgBody gcpgenserver.VolumePerformanceGroupV1beta
+		assert.NoError(tt, json.Unmarshal(opRes.Response, &vpgBody))
+		assert.True(tt, vpgBody.Description.IsSet())
+		assert.Equal(tt, "updated description", vpgBody.Description.Value)
+		assert.True(tt, vpgBody.VolumePerformanceGroupState.IsSet())
+		assert.True(tt, vpgBody.Labels.IsSet())
+		assert.Equal(tt, "staging", vpgBody.Labels.Value["env"])
 	})
 }

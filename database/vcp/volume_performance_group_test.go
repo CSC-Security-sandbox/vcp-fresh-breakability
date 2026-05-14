@@ -704,6 +704,188 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 	})
 }
 
+func TestUpdateVolumePerformanceGroupState(t *testing.T) {
+	t.Run("WhenStateIsUpdatedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-state"}, Name: "acct-vpg-state"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-state"}, Name: "pool-vpg-state", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-state"},
+			PoolID:           pool.ID,
+			Name:             "vpg-state",
+			IsShared:         true,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-state",
+			State:            "CREATING",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		err = store.UpdateVolumePerformanceGroupState(context.Background(), "row-uuid-vpg-state", "READY", "")
+		assert.NoError(tt, err)
+
+		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-state")
+		assert.NoError(tt, err)
+		assert.Equal(tt, "READY", got.State)
+		assert.Equal(tt, "", got.StateDetails)
+	})
+
+	t.Run("WhenVPGNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		err = store.UpdateVolumePerformanceGroupState(context.Background(), "non-existent-uuid", "READY", "")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("WhenDatabaseError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		err = store.UpdateVolumePerformanceGroupState(context.Background(), "any-uuid", "READY", "")
+		assert.Error(tt, err)
+	})
+}
+
+func TestUpdateVolumePerformanceGroup_WithDescriptionAndLabels(t *testing.T) {
+	t.Run("WhenDescriptionChanges", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-desc"}, Name: "acct-vpg-desc"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-desc"}, Name: "pool-vpg-desc", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-desc"},
+			PoolID:           pool.ID,
+			Name:             "vpg-desc",
+			IsShared:         true,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-desc",
+			Description:      "old description",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		updatedVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-desc"},
+			Name:             "vpg-desc",
+			ThroughputMibps:  64,
+			Iops:             1000,
+			Description:      "new description",
+		}
+		err = store.UpdateVolumePerformanceGroup(context.Background(), updatedVPG)
+		assert.NoError(tt, err)
+
+		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-desc")
+		assert.NoError(tt, err)
+		assert.Equal(tt, "new description", got.Description)
+	})
+
+	t.Run("WhenLabelsSet", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-labels"}, Name: "acct-vpg-labels"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-labels"}, Name: "pool-vpg-labels", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-labels"},
+			PoolID:           pool.ID,
+			Name:             "vpg-labels",
+			IsShared:         true,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-labels",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		labels := &datamodel.JSONB{"env": "dev", "team": "storage"}
+		updatedVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{UUID: "row-uuid-vpg-labels"},
+			Name:            "vpg-labels",
+			ThroughputMibps: 64,
+			Iops:            1000,
+			Labels:          labels,
+		}
+		err = store.UpdateVolumePerformanceGroup(context.Background(), updatedVPG)
+		assert.NoError(tt, err)
+
+		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-labels")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, got.Labels)
+	})
+
+	t.Run("WhenStateSet", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-state-upd"}, Name: "acct-vpg-state-upd"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-state-upd"}, Name: "pool-vpg-state-upd", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-state-upd"},
+			PoolID:           pool.ID,
+			Name:             "vpg-state-upd",
+			IsShared:         true,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-state-upd",
+			State:            "CREATING",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		updatedVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{UUID: "row-uuid-vpg-state-upd"},
+			Name:            "vpg-state-upd",
+			ThroughputMibps: 64,
+			Iops:            1000,
+			State:           "READY",
+			StateDetails:    "",
+		}
+		err = store.UpdateVolumePerformanceGroup(context.Background(), updatedVPG)
+		assert.NoError(tt, err)
+
+		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-state-upd")
+		assert.NoError(tt, err)
+		assert.Equal(tt, "READY", got.State)
+	})
+}
+
 func TestDeleteVolumePerformanceGroup(t *testing.T) {
 	t.Run("WhenVPGIsDeletedSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

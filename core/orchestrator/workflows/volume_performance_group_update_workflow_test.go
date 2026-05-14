@@ -159,6 +159,79 @@ func TestUpdateVolumePerformanceGroupWorkflow(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
+	t.Run("Success_WithDescriptionAndLabels", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+
+		env.RegisterWorkflow(UpdateVolumePerformanceGroupWorkflow)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(vpgActivity.GetPoolViewByPoolID)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(vpgActivity.UpdateQoSPolicyInONTAP)
+		env.RegisterActivity(vpgActivity.UpdateVPGInDB)
+
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName:  "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{Password: "pwd"},
+			},
+		}
+		nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "127.0.0.1"}}
+
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "wf-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(vpgActivity.GetPoolViewByPoolID, mock.Anything, int64(1)).Return(poolView, nil)
+		env.OnActivity(commonActivity.GetNode, mock.Anything, int64(1)).Return(nodes, nil)
+		env.OnActivity(vpgActivity.UpdateQoSPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, "current-name", int64(100), int64(500)).Return(nil)
+		env.OnActivity(vpgActivity.UpdateVPGInDB, mock.Anything, mock.MatchedBy(func(v *datamodel.VolumePerformanceGroup) bool {
+			return v.Description == "new description" && v.Labels != nil
+		})).Return(nil)
+
+		newDesc := "new description"
+		newLabels := datamodel.JSONB{"env": "staging"}
+		params := &common.UpdateVolumePerformanceGroupParams{
+			AccountName:              "12345",
+			PoolID:                   "pool-uuid",
+			VolumePerformanceGroupID: "vpg-uuid",
+			Name:                     "",
+			Description:              &newDesc,
+			Labels:                   &newLabels,
+		}
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+			Name:             "current-name",
+			OntapQosPolicyID: "current-name",
+			PoolID:           1,
+			ThroughputMibps:  100,
+			Iops:             500,
+			IsShared:         true,
+			Description:      "old description",
+		}
+
+		env.ExecuteWorkflow(UpdateVolumePerformanceGroupWorkflow, params, vpg)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		mockStorage.AssertExpectations(tt)
+	})
+
 	t.Run("FailsWhenGetPoolViewFails", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()

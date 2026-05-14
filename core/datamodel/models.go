@@ -345,6 +345,10 @@ type VolumePerformanceGroup struct {
 	ThroughputMibps  int64  `gorm:"column:throughput_mibps"`
 	Iops             int64  `gorm:"column:iops"`
 	OntapQosPolicyID string `gorm:"column:ontap_qos_policy_id"`
+	Description      string `gorm:"column:description;type:text"`
+	State            string `gorm:"column:state"`
+	StateDetails     string `gorm:"column:state_details;type:text"`
+	Labels           *JSONB `json:"labels" gorm:"column:labels;type:jsonb"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL

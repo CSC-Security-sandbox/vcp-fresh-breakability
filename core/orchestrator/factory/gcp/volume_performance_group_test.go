@@ -1344,6 +1344,283 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 	})
 }
 
+func TestUpdateVolumePerformanceGroup_SuccessfullyStartsWorkflow(t *testing.T) {
+	ctx := context.Background()
+
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			QosType:   utils.QosTypeManual,
+		},
+	}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "old-name",
+		PoolID:           1,
+		ThroughputMibps:  100,
+		Iops:             500,
+		IsShared:         true,
+		OntapQosPolicyID: "ontap-id",
+	}
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "wf-id",
+		State:      string(models.JobsStateNEW),
+	}
+
+	originalGetAccountWithName := getAccountWithName
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = originalGetAccountWithName }()
+
+	mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(pool, nil)
+	mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(createdJob, nil)
+	mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateUpdating, "").Return(nil)
+	mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	throughput := int64(200)
+	iops := int64(600)
+	params := &common.UpdateVolumePerformanceGroupParams{
+		AccountName:              "test-account",
+		PoolID:                   "pool-id",
+		VolumePerformanceGroupID: "vpg-uuid",
+		Name:                     "new-name",
+		ThroughputMibps:          &throughput,
+		Iops:                     &iops,
+	}
+
+	result, jobUUID, err := orchestrator.UpdateVolumePerformanceGroup(ctx, params)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "job-uuid", jobUUID)
+	assert.Equal(t, "vpg-uuid", result.UUID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumePerformanceGroup_SetUpdatingStateFails(t *testing.T) {
+	ctx := context.Background()
+
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &GCPOrchestrator{storage: mockStorage}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			QosType:   utils.QosTypeManual,
+		},
+	}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "vpg-name",
+		PoolID:           1,
+		ThroughputMibps:  100,
+		Iops:             500,
+		IsShared:         true,
+		OntapQosPolicyID: "ontap-id",
+	}
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "wf-id",
+		State:      string(models.JobsStateNEW),
+	}
+
+	originalGetAccountWithName := getAccountWithName
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = originalGetAccountWithName }()
+
+	mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(pool, nil)
+	mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(createdJob, nil)
+	mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateUpdating, "").Return(errors.New("state update failed"))
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+	params := &common.UpdateVolumePerformanceGroupParams{
+		AccountName:              "test-account",
+		PoolID:                   "pool-id",
+		VolumePerformanceGroupID: "vpg-uuid",
+	}
+
+	result, _, err := orchestrator.UpdateVolumePerformanceGroup(ctx, params)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "state update failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumePerformanceGroup_WorkflowFails_RollbackAlsoFails(t *testing.T) {
+	ctx := context.Background()
+
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			QosType:   utils.QosTypeManual,
+		},
+	}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "vpg-name",
+		PoolID:           1,
+		ThroughputMibps:  100,
+		Iops:             500,
+		IsShared:         true,
+		OntapQosPolicyID: "ontap-id",
+	}
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "wf-id",
+		State:      string(models.JobsStateNEW),
+	}
+
+	originalGetAccountWithName := getAccountWithName
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = originalGetAccountWithName }()
+
+	mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(pool, nil)
+	mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(createdJob, nil)
+	mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateUpdating, "").Return(nil)
+	mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow failed"))
+	mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateError, models.LifeCycleStateUpdateErrorDetails).Return(errors.New("rollback also failed"))
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+	params := &common.UpdateVolumePerformanceGroupParams{
+		AccountName:              "test-account",
+		PoolID:                   "pool-id",
+		VolumePerformanceGroupID: "vpg-uuid",
+	}
+
+	result, _, err := orchestrator.UpdateVolumePerformanceGroup(ctx, params)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "workflow failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteVolumePerformanceGroup_SetDeletingStateFails(t *testing.T) {
+	ctx := context.Background()
+
+	mockStorage := database.NewMockStorage(t)
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			DeploymentName:  "deploy-1",
+			PoolCredentials: &datamodel.PoolCredentials{},
+		},
+	}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "vpg-name",
+		OntapQosPolicyID: "ontap-policy",
+		PoolID:           1,
+	}
+	createdJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid-delete"},
+		Type:      string(models.JobTypeDeleteVolumePerformanceGroup),
+		State:     string(models.JobsStateNEW),
+	}
+
+	originalGetAccountWithName := getAccountWithName
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = originalGetAccountWithName }()
+
+	mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+	mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+	mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(createdJob, nil)
+	mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateDeleting, "").Return(errors.New("set deleting state failed"))
+	mockStorage.On("UpdateJob", ctx, "job-uuid-delete", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+	o := &GCPOrchestrator{storage: mockStorage}
+	params := &common.DeleteVolumePerformanceGroupParams{
+		AccountName:              "test-account",
+		PoolID:                   "pool-id",
+		VolumePerformanceGroupID: "vpg-uuid",
+	}
+
+	deletedVpg, jobUUID, err := o.DeleteVolumePerformanceGroup(ctx, params)
+	assert.Error(t, err)
+	assert.Nil(t, deletedVpg)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "set deleting state failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteVolumePerformanceGroup_WorkflowFails_RollbackAlsoFails(t *testing.T) {
+	ctx := context.Background()
+
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			DeploymentName:  "deploy-1",
+			PoolCredentials: &datamodel.PoolCredentials{},
+		},
+	}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "vpg-name",
+		OntapQosPolicyID: "ontap-policy",
+		PoolID:           1,
+	}
+	createdJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid-delete"},
+		Type:      string(models.JobTypeDeleteVolumePerformanceGroup),
+		State:     string(models.JobsStateNEW),
+	}
+
+	originalGetAccountWithName := getAccountWithName
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = originalGetAccountWithName }()
+
+	mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+	mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+	mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(createdJob, nil)
+	mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateDeleting, "").Return(nil)
+	mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("temporal unavailable"))
+	mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(errors.New("rollback also failed"))
+	mockStorage.On("UpdateJob", ctx, "job-uuid-delete", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+	o := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+	params := &common.DeleteVolumePerformanceGroupParams{
+		AccountName:              "test-account",
+		PoolID:                   "pool-id",
+		VolumePerformanceGroupID: "vpg-uuid",
+	}
+
+	deletedVpg, jobUUID, err := o.DeleteVolumePerformanceGroup(ctx, params)
+	assert.Error(t, err)
+	assert.Nil(t, deletedVpg)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "temporal unavailable")
+	mockStorage.AssertExpectations(t)
+}
+
 func TestDeleteVolumePerformanceGroup(t *testing.T) {
 	ctx := context.Background()
 
@@ -1397,6 +1674,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockCreateJob(mockStorage)
+		mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateDeleting, "").Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		o := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
@@ -1535,7 +1813,9 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockCreateJob(mockStorage)
+		mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateDeleting, "").Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("temporal unavailable"))
+		mockStorage.On("UpdateVolumePerformanceGroupState", ctx, "vpg-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil)
 		mockStorage.On("UpdateJob", ctx, "job-uuid-delete", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 		o := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}

@@ -1684,6 +1684,10 @@ func (s *PersistenceStore) UpdateVolumePerformanceGroup(ctx context.Context, vpg
 	return s.dataStore.UpdateVolumePerformanceGroup(ctx, vpg)
 }
 
+func (s *PersistenceStore) UpdateVolumePerformanceGroupState(ctx context.Context, uuid, state, stateDetails string) error {
+	return s.dataStore.UpdateVolumePerformanceGroupState(ctx, uuid, state, stateDetails)
+}
+
 func (s *PersistenceStore) DeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
 	return s.dataStore.DeleteVolumePerformanceGroup(ctx, vpg)
 }

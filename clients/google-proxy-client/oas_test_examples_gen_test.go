@@ -19131,6 +19131,51 @@ func TestVolumePerformanceGroupCreateV1beta_EncodeDecode(t *testing.T) {
 	var typ2 VolumePerformanceGroupCreateV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestVolumePerformanceGroupCreateV1betaLabels_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupCreateV1betaLabels
+	typ = make(VolumePerformanceGroupCreateV1betaLabels)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupCreateV1betaLabels
+	typ2 = make(VolumePerformanceGroupCreateV1betaLabels)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumePerformanceGroupCreateV1betaLabels_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumePerformanceGroupCreateV1betaLabels
+			typ = make(VolumePerformanceGroupCreateV1betaLabels)
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumePerformanceGroupCreateV1betaLabels
+			typ2 = make(VolumePerformanceGroupCreateV1betaLabels)
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestVolumePerformanceGroupUpdateV1beta_EncodeDecode(t *testing.T) {
 	var typ VolumePerformanceGroupUpdateV1beta
 	typ.SetFake()
@@ -19142,6 +19187,51 @@ func TestVolumePerformanceGroupUpdateV1beta_EncodeDecode(t *testing.T) {
 
 	var typ2 VolumePerformanceGroupUpdateV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumePerformanceGroupUpdateV1betaLabels_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupUpdateV1betaLabels
+	typ = make(VolumePerformanceGroupUpdateV1betaLabels)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupUpdateV1betaLabels
+	typ2 = make(VolumePerformanceGroupUpdateV1betaLabels)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumePerformanceGroupUpdateV1betaLabels_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumePerformanceGroupUpdateV1betaLabels
+			typ = make(VolumePerformanceGroupUpdateV1betaLabels)
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumePerformanceGroupUpdateV1betaLabels
+			typ2 = make(VolumePerformanceGroupUpdateV1betaLabels)
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
 }
 func TestVolumePerformanceGroupV1beta_EncodeDecode(t *testing.T) {
 	var typ VolumePerformanceGroupV1beta
@@ -19180,6 +19270,92 @@ func TestVolumePerformanceGroupV1beta_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 VolumePerformanceGroupV1beta
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestVolumePerformanceGroupV1betaLabels_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupV1betaLabels
+	typ = make(VolumePerformanceGroupV1betaLabels)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupV1betaLabels
+	typ2 = make(VolumePerformanceGroupV1betaLabels)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumePerformanceGroupV1betaLabels_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumePerformanceGroupV1betaLabels
+			typ = make(VolumePerformanceGroupV1betaLabels)
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumePerformanceGroupV1betaLabels
+			typ2 = make(VolumePerformanceGroupV1betaLabels)
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestVolumePerformanceGroupV1betaVolumePerformanceGroupState_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupV1betaVolumePerformanceGroupState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupV1betaVolumePerformanceGroupState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumePerformanceGroupV1betaVolumePerformanceGroupState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumePerformanceGroupV1betaVolumePerformanceGroupState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumePerformanceGroupV1betaVolumePerformanceGroupState
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}

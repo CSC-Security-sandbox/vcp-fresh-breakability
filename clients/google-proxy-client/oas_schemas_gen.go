@@ -22915,6 +22915,190 @@ func (o OptVolumeCreateV1betaVolumeType) Or(d VolumeCreateV1betaVolumeType) Volu
 	return d
 }
 
+// NewOptVolumePerformanceGroupCreateV1betaLabels returns new OptVolumePerformanceGroupCreateV1betaLabels with value set to v.
+func NewOptVolumePerformanceGroupCreateV1betaLabels(v VolumePerformanceGroupCreateV1betaLabels) OptVolumePerformanceGroupCreateV1betaLabels {
+	return OptVolumePerformanceGroupCreateV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumePerformanceGroupCreateV1betaLabels is optional VolumePerformanceGroupCreateV1betaLabels.
+type OptVolumePerformanceGroupCreateV1betaLabels struct {
+	Value VolumePerformanceGroupCreateV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptVolumePerformanceGroupCreateV1betaLabels was set.
+func (o OptVolumePerformanceGroupCreateV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumePerformanceGroupCreateV1betaLabels) Reset() {
+	var v VolumePerformanceGroupCreateV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumePerformanceGroupCreateV1betaLabels) SetTo(v VolumePerformanceGroupCreateV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumePerformanceGroupCreateV1betaLabels) Get() (v VolumePerformanceGroupCreateV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumePerformanceGroupCreateV1betaLabels) Or(d VolumePerformanceGroupCreateV1betaLabels) VolumePerformanceGroupCreateV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumePerformanceGroupUpdateV1betaLabels returns new OptVolumePerformanceGroupUpdateV1betaLabels with value set to v.
+func NewOptVolumePerformanceGroupUpdateV1betaLabels(v VolumePerformanceGroupUpdateV1betaLabels) OptVolumePerformanceGroupUpdateV1betaLabels {
+	return OptVolumePerformanceGroupUpdateV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumePerformanceGroupUpdateV1betaLabels is optional VolumePerformanceGroupUpdateV1betaLabels.
+type OptVolumePerformanceGroupUpdateV1betaLabels struct {
+	Value VolumePerformanceGroupUpdateV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptVolumePerformanceGroupUpdateV1betaLabels was set.
+func (o OptVolumePerformanceGroupUpdateV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumePerformanceGroupUpdateV1betaLabels) Reset() {
+	var v VolumePerformanceGroupUpdateV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumePerformanceGroupUpdateV1betaLabels) SetTo(v VolumePerformanceGroupUpdateV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumePerformanceGroupUpdateV1betaLabels) Get() (v VolumePerformanceGroupUpdateV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumePerformanceGroupUpdateV1betaLabels) Or(d VolumePerformanceGroupUpdateV1betaLabels) VolumePerformanceGroupUpdateV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumePerformanceGroupV1betaLabels returns new OptVolumePerformanceGroupV1betaLabels with value set to v.
+func NewOptVolumePerformanceGroupV1betaLabels(v VolumePerformanceGroupV1betaLabels) OptVolumePerformanceGroupV1betaLabels {
+	return OptVolumePerformanceGroupV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumePerformanceGroupV1betaLabels is optional VolumePerformanceGroupV1betaLabels.
+type OptVolumePerformanceGroupV1betaLabels struct {
+	Value VolumePerformanceGroupV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptVolumePerformanceGroupV1betaLabels was set.
+func (o OptVolumePerformanceGroupV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumePerformanceGroupV1betaLabels) Reset() {
+	var v VolumePerformanceGroupV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumePerformanceGroupV1betaLabels) SetTo(v VolumePerformanceGroupV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumePerformanceGroupV1betaLabels) Get() (v VolumePerformanceGroupV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumePerformanceGroupV1betaLabels) Or(d VolumePerformanceGroupV1betaLabels) VolumePerformanceGroupV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVolumePerformanceGroupV1betaVolumePerformanceGroupState returns new OptVolumePerformanceGroupV1betaVolumePerformanceGroupState with value set to v.
+func NewOptVolumePerformanceGroupV1betaVolumePerformanceGroupState(v VolumePerformanceGroupV1betaVolumePerformanceGroupState) OptVolumePerformanceGroupV1betaVolumePerformanceGroupState {
+	return OptVolumePerformanceGroupV1betaVolumePerformanceGroupState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumePerformanceGroupV1betaVolumePerformanceGroupState is optional VolumePerformanceGroupV1betaVolumePerformanceGroupState.
+type OptVolumePerformanceGroupV1betaVolumePerformanceGroupState struct {
+	Value VolumePerformanceGroupV1betaVolumePerformanceGroupState
+	Set   bool
+}
+
+// IsSet returns true if OptVolumePerformanceGroupV1betaVolumePerformanceGroupState was set.
+func (o OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) Reset() {
+	var v VolumePerformanceGroupV1betaVolumePerformanceGroupState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) SetTo(v VolumePerformanceGroupV1betaVolumePerformanceGroupState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) Get() (v VolumePerformanceGroupV1betaVolumePerformanceGroupState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) Or(d VolumePerformanceGroupV1betaVolumePerformanceGroupState) VolumePerformanceGroupV1betaVolumePerformanceGroupState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptVolumeReplicationCreateInternalV1betaLabels returns new OptVolumeReplicationCreateInternalV1betaLabels with value set to v.
 func NewOptVolumeReplicationCreateInternalV1betaLabels(v VolumeReplicationCreateInternalV1betaLabels) OptVolumeReplicationCreateInternalV1betaLabels {
 	return OptVolumeReplicationCreateInternalV1betaLabels{
@@ -36274,6 +36458,10 @@ type VolumePerformanceGroupCreateV1beta struct {
 	// Specifies whether volumes assigned to this Volume Performance Group share or split all of the
 	// throughput available to the parent pool.
 	IsShared bool `json:"isShared"`
+	// Description of the volume performance group.
+	Description OptNilString `json:"description"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
+	Labels OptVolumePerformanceGroupCreateV1betaLabels `json:"labels"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -36296,6 +36484,16 @@ func (s *VolumePerformanceGroupCreateV1beta) GetIsShared() bool {
 	return s.IsShared
 }
 
+// GetDescription returns the value of Description.
+func (s *VolumePerformanceGroupCreateV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetLabels returns the value of Labels.
+func (s *VolumePerformanceGroupCreateV1beta) GetLabels() OptVolumePerformanceGroupCreateV1betaLabels {
+	return s.Labels
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *VolumePerformanceGroupCreateV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -36316,6 +36514,28 @@ func (s *VolumePerformanceGroupCreateV1beta) SetIsShared(val bool) {
 	s.IsShared = val
 }
 
+// SetDescription sets the value of Description.
+func (s *VolumePerformanceGroupCreateV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *VolumePerformanceGroupCreateV1beta) SetLabels(val OptVolumePerformanceGroupCreateV1betaLabels) {
+	s.Labels = val
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
+type VolumePerformanceGroupCreateV1betaLabels map[string]string
+
+func (s *VolumePerformanceGroupCreateV1betaLabels) init() VolumePerformanceGroupCreateV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
 // Ref: #/components/schemas/VolumePerformanceGroupUpdate_v1beta
 type VolumePerformanceGroupUpdateV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
@@ -36325,6 +36545,10 @@ type VolumePerformanceGroupUpdateV1beta struct {
 	ThroughputMibps OptInt64 `json:"throughputMibps"`
 	// IOPS limit for throughput (nullable).
 	Iops OptInt64 `json:"iops"`
+	// Description of the volume performance group.
+	Description OptNilString `json:"description"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
+	Labels OptVolumePerformanceGroupUpdateV1betaLabels `json:"labels"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -36342,6 +36566,16 @@ func (s *VolumePerformanceGroupUpdateV1beta) GetIops() OptInt64 {
 	return s.Iops
 }
 
+// GetDescription returns the value of Description.
+func (s *VolumePerformanceGroupUpdateV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetLabels returns the value of Labels.
+func (s *VolumePerformanceGroupUpdateV1beta) GetLabels() OptVolumePerformanceGroupUpdateV1betaLabels {
+	return s.Labels
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *VolumePerformanceGroupUpdateV1beta) SetResourceId(val OptString) {
 	s.ResourceId = val
@@ -36355,6 +36589,28 @@ func (s *VolumePerformanceGroupUpdateV1beta) SetThroughputMibps(val OptInt64) {
 // SetIops sets the value of Iops.
 func (s *VolumePerformanceGroupUpdateV1beta) SetIops(val OptInt64) {
 	s.Iops = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumePerformanceGroupUpdateV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *VolumePerformanceGroupUpdateV1beta) SetLabels(val OptVolumePerformanceGroupUpdateV1betaLabels) {
+	s.Labels = val
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
+type VolumePerformanceGroupUpdateV1betaLabels map[string]string
+
+func (s *VolumePerformanceGroupUpdateV1betaLabels) init() VolumePerformanceGroupUpdateV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 // Ref: #/components/schemas/VolumePerformanceGroup_v1beta
@@ -36373,6 +36629,16 @@ type VolumePerformanceGroupV1beta struct {
 	// Specifies whether volumes assigned to this Volume Performance Group share or split all of the
 	// throughput available to the parent pool.
 	IsShared bool `json:"isShared"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// The current lifecycle state of the resource.
+	VolumePerformanceGroupState OptVolumePerformanceGroupV1betaVolumePerformanceGroupState `json:"volumePerformanceGroupState"`
+	// Details about the current lifecycle state.
+	VolumePerformanceGroupStateDetails OptString `json:"volumePerformanceGroupStateDetails"`
+	// Description of the volume performance group.
+	Description OptNilString `json:"description"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
+	Labels OptVolumePerformanceGroupV1betaLabels `json:"labels"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -36405,6 +36671,31 @@ func (s *VolumePerformanceGroupV1beta) GetIsShared() bool {
 	return s.IsShared
 }
 
+// GetCreated returns the value of Created.
+func (s *VolumePerformanceGroupV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetVolumePerformanceGroupState returns the value of VolumePerformanceGroupState.
+func (s *VolumePerformanceGroupV1beta) GetVolumePerformanceGroupState() OptVolumePerformanceGroupV1betaVolumePerformanceGroupState {
+	return s.VolumePerformanceGroupState
+}
+
+// GetVolumePerformanceGroupStateDetails returns the value of VolumePerformanceGroupStateDetails.
+func (s *VolumePerformanceGroupV1beta) GetVolumePerformanceGroupStateDetails() OptString {
+	return s.VolumePerformanceGroupStateDetails
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumePerformanceGroupV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetLabels returns the value of Labels.
+func (s *VolumePerformanceGroupV1beta) GetLabels() OptVolumePerformanceGroupV1betaLabels {
+	return s.Labels
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *VolumePerformanceGroupV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -36435,8 +36726,122 @@ func (s *VolumePerformanceGroupV1beta) SetIsShared(val bool) {
 	s.IsShared = val
 }
 
+// SetCreated sets the value of Created.
+func (s *VolumePerformanceGroupV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetVolumePerformanceGroupState sets the value of VolumePerformanceGroupState.
+func (s *VolumePerformanceGroupV1beta) SetVolumePerformanceGroupState(val OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) {
+	s.VolumePerformanceGroupState = val
+}
+
+// SetVolumePerformanceGroupStateDetails sets the value of VolumePerformanceGroupStateDetails.
+func (s *VolumePerformanceGroupV1beta) SetVolumePerformanceGroupStateDetails(val OptString) {
+	s.VolumePerformanceGroupStateDetails = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumePerformanceGroupV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *VolumePerformanceGroupV1beta) SetLabels(val OptVolumePerformanceGroupV1betaLabels) {
+	s.Labels = val
+}
+
 func (*VolumePerformanceGroupV1beta) v1betaCreateVolumePerformanceGroupRes()   {}
 func (*VolumePerformanceGroupV1beta) v1betaDescribeVolumePerformanceGroupRes() {}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a volume performance group.
+type VolumePerformanceGroupV1betaLabels map[string]string
+
+func (s *VolumePerformanceGroupV1betaLabels) init() VolumePerformanceGroupV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// The current lifecycle state of the resource.
+type VolumePerformanceGroupV1betaVolumePerformanceGroupState string
+
+const (
+	VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED VolumePerformanceGroupV1betaVolumePerformanceGroupState = "STATE_UNSPECIFIED"
+	VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING         VolumePerformanceGroupV1betaVolumePerformanceGroupState = "CREATING"
+	VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY            VolumePerformanceGroupV1betaVolumePerformanceGroupState = "READY"
+	VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING         VolumePerformanceGroupV1betaVolumePerformanceGroupState = "UPDATING"
+	VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING         VolumePerformanceGroupV1betaVolumePerformanceGroupState = "DELETING"
+	VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED          VolumePerformanceGroupV1betaVolumePerformanceGroupState = "DELETED"
+	VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR            VolumePerformanceGroupV1betaVolumePerformanceGroupState = "ERROR"
+)
+
+// AllValues returns all VolumePerformanceGroupV1betaVolumePerformanceGroupState values.
+func (VolumePerformanceGroupV1betaVolumePerformanceGroupState) AllValues() []VolumePerformanceGroupV1betaVolumePerformanceGroupState {
+	return []VolumePerformanceGroupV1betaVolumePerformanceGroupState{
+		VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED,
+		VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING,
+		VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY,
+		VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING,
+		VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING,
+		VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED,
+		VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VolumePerformanceGroupV1betaVolumePerformanceGroupState) MarshalText() ([]byte, error) {
+	switch s {
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING:
+		return []byte(s), nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY:
+		return []byte(s), nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING:
+		return []byte(s), nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING:
+		return []byte(s), nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED:
+		return []byte(s), nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VolumePerformanceGroupV1betaVolumePerformanceGroupState) UnmarshalText(data []byte) error {
+	switch VolumePerformanceGroupV1betaVolumePerformanceGroupState(data) {
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED
+		return nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING
+		return nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY
+		return nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING
+		return nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING
+		return nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED
+		return nil
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Merged schema.
 // Ref: #/components/schemas/VolumeReplicationCreateInternal_v1beta

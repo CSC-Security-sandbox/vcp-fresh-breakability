@@ -18,7 +18,9 @@ func (d *DataStoreRepository) CreateVolumePerformanceGroup(ctx context.Context, 
 }
 
 // UpdateVolumePerformanceGroup updates an existing volume performance group row in the database.
-// Only updatable fields are modified: Name, ThroughputMibps, Iops, OntapQosPolicyID, and IsAutoGen.
+// Always-written fields: Name, ThroughputMibps, Iops, IsAutoGen.
+// Conditionally-written fields: OntapQosPolicyID (when non-empty), State/StateDetails (when State is non-empty),
+// Description (when changed from current DB value), Labels (when non-nil).
 // IsShared and PoolID cannot be updated.
 func (d *DataStoreRepository) UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
 	return updateVolumePerformanceGroup(d.db.GORM().WithContext(ctx), ctx, vpg)
@@ -33,6 +35,11 @@ func (d *DataStoreRepository) DeleteVolumePerformanceGroup(ctx context.Context, 
 // This should only be used for auto-generated VPGs that need to be completely removed.
 func (d *DataStoreRepository) HardDeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
 	return hardDeleteVolumePerformanceGroup(d.db.GORM().WithContext(ctx), vpg)
+}
+
+// UpdateVolumePerformanceGroupState updates only the state and state_details columns of a VPG by UUID.
+func (d *DataStoreRepository) UpdateVolumePerformanceGroupState(ctx context.Context, uuid, state, stateDetails string) error {
+	return updateVolumePerformanceGroupState(d.db.GORM().WithContext(ctx), uuid, state, stateDetails)
 }
 
 // GetVolumePerformanceGroupByUUID retrieves a volume performance group row by its row UUID.
@@ -142,14 +149,24 @@ func updateVolumePerformanceGroup(db *gorm.DB, ctx context.Context, vpg *datamod
 
 	// Map-based update so GORM doesn't skip boolean zero-values. IsShared/PoolID are immutable.
 	updates := map[string]interface{}{
-		"updated_at":          time.Now(),
-		"name":                vpg.Name,
-		"throughput_mibps":    vpg.ThroughputMibps,
-		"iops":                vpg.Iops,
-		"is_auto_gen":         vpg.IsAutoGen,
+		"updated_at":       time.Now(),
+		"name":             vpg.Name,
+		"throughput_mibps": vpg.ThroughputMibps,
+		"iops":             vpg.Iops,
+		"is_auto_gen":      vpg.IsAutoGen,
 	}
 	if vpg.OntapQosPolicyID != "" {
 		updates["ontap_qos_policy_id"] = vpg.OntapQosPolicyID
+	}
+	if vpg.State != "" {
+		updates["state"] = vpg.State
+		updates["state_details"] = vpg.StateDetails
+	}
+	if vpg.Description != dbVPG.Description {
+		updates["description"] = vpg.Description
+	}
+	if vpg.Labels != nil {
+		updates["labels"] = vpg.Labels
 	}
 
 	target := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: dbVPG.ID}}
@@ -164,6 +181,22 @@ func deleteVolumePerformanceGroup(db *gorm.DB, vpg *datamodel.VolumePerformanceG
 	}
 	if res.RowsAffected == 0 {
 		return customerrors.NewNotFoundErr("volume performance group", nil)
+	}
+	return nil
+}
+
+func updateVolumePerformanceGroupState(db *gorm.DB, uuid, state, stateDetails string) error {
+	updates := map[string]interface{}{
+		"updated_at":    time.Now(),
+		"state":         state,
+		"state_details": stateDetails,
+	}
+	res := db.Model(&datamodel.VolumePerformanceGroup{}).Where("uuid = ?", uuid).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return customerrors.NewNotFoundErr("volume performance group", &uuid)
 	}
 	return nil
 }

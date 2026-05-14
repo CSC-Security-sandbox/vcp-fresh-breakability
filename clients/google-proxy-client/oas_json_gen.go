@@ -29609,6 +29609,141 @@ func (s *OptVolumeCreateV1betaVolumeType) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes VolumePerformanceGroupCreateV1betaLabels as json.
+func (o OptVolumePerformanceGroupCreateV1betaLabels) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes VolumePerformanceGroupCreateV1betaLabels from json.
+func (o *OptVolumePerformanceGroupCreateV1betaLabels) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptVolumePerformanceGroupCreateV1betaLabels to nil")
+	}
+	o.Set = true
+	o.Value = make(VolumePerformanceGroupCreateV1betaLabels)
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptVolumePerformanceGroupCreateV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptVolumePerformanceGroupCreateV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumePerformanceGroupUpdateV1betaLabels as json.
+func (o OptVolumePerformanceGroupUpdateV1betaLabels) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes VolumePerformanceGroupUpdateV1betaLabels from json.
+func (o *OptVolumePerformanceGroupUpdateV1betaLabels) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptVolumePerformanceGroupUpdateV1betaLabels to nil")
+	}
+	o.Set = true
+	o.Value = make(VolumePerformanceGroupUpdateV1betaLabels)
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptVolumePerformanceGroupUpdateV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptVolumePerformanceGroupUpdateV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumePerformanceGroupV1betaLabels as json.
+func (o OptVolumePerformanceGroupV1betaLabels) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes VolumePerformanceGroupV1betaLabels from json.
+func (o *OptVolumePerformanceGroupV1betaLabels) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptVolumePerformanceGroupV1betaLabels to nil")
+	}
+	o.Set = true
+	o.Value = make(VolumePerformanceGroupV1betaLabels)
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptVolumePerformanceGroupV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptVolumePerformanceGroupV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumePerformanceGroupV1betaVolumePerformanceGroupState as json.
+func (o OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes VolumePerformanceGroupV1betaVolumePerformanceGroupState from json.
+func (o *OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptVolumePerformanceGroupV1betaVolumePerformanceGroupState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptVolumePerformanceGroupV1betaVolumePerformanceGroupState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes VolumeReplicationCreateInternalV1betaLabels as json.
 func (o OptVolumeReplicationCreateInternalV1betaLabels) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -81234,13 +81369,27 @@ func (s *VolumePerformanceGroupCreateV1beta) encodeFields(e *jx.Encoder) {
 		e.FieldStart("isShared")
 		e.Bool(s.IsShared)
 	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.Labels.Set {
+			e.FieldStart("labels")
+			s.Labels.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumePerformanceGroupCreateV1beta = [4]string{
+var jsonFieldsNameOfVolumePerformanceGroupCreateV1beta = [6]string{
 	0: "resourceId",
 	1: "throughputMibps",
 	2: "iops",
 	3: "isShared",
+	4: "description",
+	5: "labels",
 }
 
 // Decode decodes VolumePerformanceGroupCreateV1beta from json.
@@ -81301,6 +81450,26 @@ func (s *VolumePerformanceGroupCreateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"isShared\"")
 			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "labels":
+			if err := func() error {
+				s.Labels.Reset()
+				if err := s.Labels.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"labels\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -81358,6 +81527,62 @@ func (s *VolumePerformanceGroupCreateV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s VolumePerformanceGroupCreateV1betaLabels) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s VolumePerformanceGroupCreateV1betaLabels) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes VolumePerformanceGroupCreateV1betaLabels from json.
+func (s *VolumePerformanceGroupCreateV1betaLabels) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumePerformanceGroupCreateV1betaLabels to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode VolumePerformanceGroupCreateV1betaLabels")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumePerformanceGroupCreateV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumePerformanceGroupCreateV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *VolumePerformanceGroupUpdateV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -81384,12 +81609,26 @@ func (s *VolumePerformanceGroupUpdateV1beta) encodeFields(e *jx.Encoder) {
 			s.Iops.Encode(e)
 		}
 	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.Labels.Set {
+			e.FieldStart("labels")
+			s.Labels.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumePerformanceGroupUpdateV1beta = [3]string{
+var jsonFieldsNameOfVolumePerformanceGroupUpdateV1beta = [5]string{
 	0: "resourceId",
 	1: "throughputMibps",
 	2: "iops",
+	3: "description",
+	4: "labels",
 }
 
 // Decode decodes VolumePerformanceGroupUpdateV1beta from json.
@@ -81430,6 +81669,26 @@ func (s *VolumePerformanceGroupUpdateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"iops\"")
 			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "labels":
+			if err := func() error {
+				s.Labels.Reset()
+				if err := s.Labels.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"labels\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -81450,6 +81709,62 @@ func (s *VolumePerformanceGroupUpdateV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumePerformanceGroupUpdateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s VolumePerformanceGroupUpdateV1betaLabels) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s VolumePerformanceGroupUpdateV1betaLabels) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes VolumePerformanceGroupUpdateV1betaLabels from json.
+func (s *VolumePerformanceGroupUpdateV1betaLabels) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumePerformanceGroupUpdateV1betaLabels to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode VolumePerformanceGroupUpdateV1betaLabels")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumePerformanceGroupUpdateV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumePerformanceGroupUpdateV1betaLabels) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -81487,15 +81802,50 @@ func (s *VolumePerformanceGroupV1beta) encodeFields(e *jx.Encoder) {
 		e.FieldStart("isShared")
 		e.Bool(s.IsShared)
 	}
+	{
+		if s.Created.Set {
+			e.FieldStart("created")
+			s.Created.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.VolumePerformanceGroupState.Set {
+			e.FieldStart("volumePerformanceGroupState")
+			s.VolumePerformanceGroupState.Encode(e)
+		}
+	}
+	{
+		if s.VolumePerformanceGroupStateDetails.Set {
+			e.FieldStart("volumePerformanceGroupStateDetails")
+			s.VolumePerformanceGroupStateDetails.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.Labels.Set {
+			e.FieldStart("labels")
+			s.Labels.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumePerformanceGroupV1beta = [6]string{
-	0: "resourceId",
-	1: "volumePerformanceGroupId",
-	2: "poolId",
-	3: "throughputMibps",
-	4: "iops",
-	5: "isShared",
+var jsonFieldsNameOfVolumePerformanceGroupV1beta = [11]string{
+	0:  "resourceId",
+	1:  "volumePerformanceGroupId",
+	2:  "poolId",
+	3:  "throughputMibps",
+	4:  "iops",
+	5:  "isShared",
+	6:  "created",
+	7:  "volumePerformanceGroupState",
+	8:  "volumePerformanceGroupStateDetails",
+	9:  "description",
+	10: "labels",
 }
 
 // Decode decodes VolumePerformanceGroupV1beta from json.
@@ -81503,7 +81853,7 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode VolumePerformanceGroupV1beta to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -81580,6 +81930,56 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"isShared\"")
 			}
+		case "created":
+			if err := func() error {
+				s.Created.Reset()
+				if err := s.Created.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created\"")
+			}
+		case "volumePerformanceGroupState":
+			if err := func() error {
+				s.VolumePerformanceGroupState.Reset()
+				if err := s.VolumePerformanceGroupState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"volumePerformanceGroupState\"")
+			}
+		case "volumePerformanceGroupStateDetails":
+			if err := func() error {
+				s.VolumePerformanceGroupStateDetails.Reset()
+				if err := s.VolumePerformanceGroupStateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"volumePerformanceGroupStateDetails\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "labels":
+			if err := func() error {
+				s.Labels.Reset()
+				if err := s.Labels.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"labels\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -81589,8 +81989,9 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b00111111,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -81632,6 +82033,112 @@ func (s *VolumePerformanceGroupV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumePerformanceGroupV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s VolumePerformanceGroupV1betaLabels) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s VolumePerformanceGroupV1betaLabels) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes VolumePerformanceGroupV1betaLabels from json.
+func (s *VolumePerformanceGroupV1betaLabels) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumePerformanceGroupV1betaLabels to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode VolumePerformanceGroupV1betaLabels")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumePerformanceGroupV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumePerformanceGroupV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumePerformanceGroupV1betaVolumePerformanceGroupState as json.
+func (s VolumePerformanceGroupV1betaVolumePerformanceGroupState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes VolumePerformanceGroupV1betaVolumePerformanceGroupState from json.
+func (s *VolumePerformanceGroupV1betaVolumePerformanceGroupState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumePerformanceGroupV1betaVolumePerformanceGroupState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch VolumePerformanceGroupV1betaVolumePerformanceGroupState(v) {
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED
+	case VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR
+	default:
+		*s = VolumePerformanceGroupV1betaVolumePerformanceGroupState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumePerformanceGroupV1betaVolumePerformanceGroupState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumePerformanceGroupV1betaVolumePerformanceGroupState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

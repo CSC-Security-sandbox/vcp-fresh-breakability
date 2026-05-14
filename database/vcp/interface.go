@@ -447,6 +447,7 @@ type (
 		// Volume Performance Group (Manual QoS) methods
 		CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error)
 		UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error
+		UpdateVolumePerformanceGroupState(ctx context.Context, uuid, state, stateDetails string) error
 		DeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error
 		HardDeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error
 		GetVolumePerformanceGroupByUUID(ctx context.Context, uuid string) (*datamodel.VolumePerformanceGroup, error)

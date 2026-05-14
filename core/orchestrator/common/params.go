@@ -1058,6 +1058,8 @@ type CreateVolumePerformanceGroupParams struct {
 	ThroughputMibps int64
 	Iops            int64
 	IsShared        bool
+	Description     string
+	Labels          *datamodel.JSONB
 }
 
 // UpdateVolumePerformanceGroupParams describes parameters supplied to UpdateVolumePerformanceGroup
@@ -1065,9 +1067,11 @@ type UpdateVolumePerformanceGroupParams struct {
 	AccountName              string
 	PoolID                   string
 	VolumePerformanceGroupID string
-	Name                     string // resourceId (optional; empty means do not change)
-	ThroughputMibps          *int64 // optional; nil means do not update
-	Iops                     *int64 // optional; nil means do not update
+	Name                     string  // resourceId (optional; empty means do not change)
+	ThroughputMibps          *int64  // optional; nil means do not update
+	Iops                     *int64  // optional; nil means do not update
+	Description              *string // optional; nil means do not update
+	Labels                   *datamodel.JSONB
 }
 
 // DeleteVolumePerformanceGroupParams describes parameters supplied to DeleteVolumePerformanceGroup

@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -36,6 +38,17 @@ func (h Handler) V1betaCreateVolumePerformanceGroup(ctx context.Context, req *gc
 		ThroughputMibps: req.ThroughputMibps,
 		Iops:            req.Iops,
 		IsShared:        req.IsShared,
+	}
+	if req.Description.IsSet() {
+		createParams.Description = req.Description.Value
+	}
+	if labels, ok := req.Labels.Get(); ok {
+		converted := utils.ConvertLabelsMapToJSONB(map[string]string(labels))
+		if converted == nil {
+			emptyLabels := make(datamodel.JSONB)
+			converted = &emptyLabels
+		}
+		createParams.Labels = converted
 	}
 	volumePerformanceGroup, err := h.Orchestrator.CreateVolumePerformanceGroup(ctx, createParams)
 	if err != nil {
@@ -181,6 +194,21 @@ func (h Handler) V1betaUpdateVolumePerformanceGroup(ctx context.Context, req *gc
 		ThroughputMibps:          throughputMibps,
 		Iops:                     iops,
 	}
+	if req.Description.IsSet() {
+		if req.Description.IsNull() {
+			updateParams.Description = nillable.ToPointer("")
+		} else {
+			updateParams.Description = nillable.ToPointer(req.Description.Value)
+		}
+	}
+	if labels, ok := req.Labels.Get(); ok {
+		converted := utils.ConvertLabelsMapToJSONB(map[string]string(labels))
+		if converted == nil {
+			emptyLabels := make(datamodel.JSONB)
+			converted = &emptyLabels
+		}
+		updateParams.Labels = converted
+	}
 	vpg, jobUUID, err := h.Orchestrator.UpdateVolumePerformanceGroup(ctx, updateParams)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
@@ -280,12 +308,44 @@ func convertModelToVCPVolumePerformanceGroup(vpg *models.VolumePerformanceGroup,
 		return nil
 	}
 
-	return &gcpgenserver.VolumePerformanceGroupV1beta{
+	res := &gcpgenserver.VolumePerformanceGroupV1beta{
 		ResourceId:               vpg.Name,
 		PoolId:                   poolId,
 		VolumePerformanceGroupId: vpg.UUID,
 		ThroughputMibps:          vpg.ThroughputMibps,
 		Iops:                     vpg.Iops,
 		IsShared:                 vpg.IsShared,
+		Created:                  gcpgenserver.NewOptDateTime(vpg.CreatedAt),
+		Description:              gcpgenserver.NewOptNilString(vpg.Description),
+	}
+
+	res.VolumePerformanceGroupState = gcpgenserver.NewOptVolumePerformanceGroupV1betaVolumePerformanceGroupState(
+		toVPGState(vpg.LifeCycleState))
+	if vpg.LifeCycleStateDetails != "" {
+		res.VolumePerformanceGroupStateDetails = gcpgenserver.NewOptString(vpg.LifeCycleStateDetails)
+	}
+	if len(vpg.Labels) > 0 {
+		res.Labels = gcpgenserver.NewOptVolumePerformanceGroupV1betaLabels(gcpgenserver.VolumePerformanceGroupV1betaLabels(vpg.Labels))
+	}
+
+	return res
+}
+
+func toVPGState(state string) gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupState {
+	switch state {
+	case "CREATING":
+		return gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateCREATING
+	case "READY":
+		return gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateREADY
+	case "UPDATING":
+		return gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateUPDATING
+	case "DELETING":
+		return gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETING
+	case "DELETED":
+		return gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateDELETED
+	case "ERROR":
+		return gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateERROR
+	default:
+		return gcpgenserver.VolumePerformanceGroupV1betaVolumePerformanceGroupStateSTATEUNSPECIFIED
 	}
 }

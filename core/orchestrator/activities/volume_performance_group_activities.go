@@ -275,6 +275,15 @@ func (a *VolumePerformanceGroupActivity) UpdateVPGInDB(ctx context.Context, vpg 
 	return nil
 }
 
+// UpdateVPGStateInDB updates only the state and state_details of a VPG in the database.
+func (a *VolumePerformanceGroupActivity) UpdateVPGStateInDB(ctx context.Context, vpgUUID, state, stateDetails string) error {
+	activity.RecordHeartbeat(ctx, "Updating VPG state in database")
+	if err := a.SE.UpdateVolumePerformanceGroupState(ctx, vpgUUID, state, stateDetails); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
 // ListVolumePerformanceGroupsByPoolID returns all VPGs for a pool (used by manual→auto transition).
 func (a *VolumePerformanceGroupActivity) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
 	activity.RecordHeartbeat(ctx, "Listing VPGs by pool ID")

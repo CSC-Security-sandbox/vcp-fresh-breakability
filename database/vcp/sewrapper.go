@@ -5517,6 +5517,21 @@ func (re *retryEngine) UpdateVolumePerformanceGroup(ctx context.Context, vpg *da
 	return err
 }
 
+func (re *retryEngine) UpdateVolumePerformanceGroupState(ctx context.Context, uuid, state, stateDetails string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateVolumePerformanceGroupState(ctx, uuid, state, stateDetails)
+		if err != nil {
+			re.logError("UpdateVolumePerformanceGroupState", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) DeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

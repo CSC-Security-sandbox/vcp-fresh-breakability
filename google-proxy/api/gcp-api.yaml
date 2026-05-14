@@ -12342,6 +12342,48 @@ components:
           description: Specifies whether volumes assigned to this Volume Performance Group share or split all of the throughput available to the parent pool.
           default: true
           example: true
+        created:
+          title: created
+          type: string
+          description: Creation date of the resource
+          format: date-time
+          readOnly: true
+          example: 2016-11-30T20:32:50.459Z
+        volumePerformanceGroupState:
+          type: string
+          description: The current lifecycle state of the resource
+          readOnly: true
+          example: READY
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - DELETING
+            - DELETED
+            - ERROR
+        volumePerformanceGroupStateDetails:
+          title: volumePerformanceGroupStateDetails
+          type: string
+          description: Details about the current lifecycle state
+          readOnly: true
+          example: Error connecting to remote service
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the volume performance group
+          nullable: true
+          example: My VPG description
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing labels to a volume performance group
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
     VolumePerformanceGroupCreate_v1beta:
       title: Volume Performance Group Create v1beta model definition
       required:
@@ -12380,6 +12422,22 @@ components:
           description: Specifies whether volumes assigned to this Volume Performance Group share or split all of the throughput available to the parent pool.
           default: true
           example: true
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the volume performance group
+          nullable: true
+          example: My VPG description
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing labels to a volume performance group
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
     VolumePerformanceGroupUpdate_v1beta:
       title: Volume Performance Group Update v1beta model definition
       type: object
@@ -12407,6 +12465,22 @@ components:
           description: IOPS limit for throughput (nullable)
           minimum: 1
           example: 20
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the volume performance group
+          nullable: true
+          example: My VPG description
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing labels to a volume performance group
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
       additionalProperties: false
     VolumeCreate_v1beta:
       title: VolumeCreate
