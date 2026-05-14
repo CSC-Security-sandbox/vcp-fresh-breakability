@@ -1,0 +1,68 @@
+name: LLM Security Review (NetApp Proxy)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  security-review:
+    name: LLM Security PR Review
+    runs-on: [self-hosted, vsa-pr-bot]
+
+    steps:
+      - name: Ensure git config exists and force HTTPS
+        shell: bash
+        run: |
+          touch ~/.gitconfig
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install gh CLI
+        shell: bash
+        run: |
+          if ! command -v gh &> /dev/null; then
+            echo "Installing gh CLI..."
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt-get update && sudo apt-get install -y gh
+          fi
+          gh --version
+
+      - name: Ensure Python 3 and pip
+        shell: bash
+        run: |
+          python3 --version
+          pip3 --version || python3 -m ensurepip --upgrade
+
+      - name: Set up venv and install dependencies
+        shell: bash
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r scripts/requirements.txt
+
+      - name: Run LLM security review
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LLM_PROXY_API_KEY: ${{ secrets.LLM_PROXY_API_KEY }}
+          LLM_PROXY_USER: ${{ secrets.LLM_PROXY_USER }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PYTHONIOENCODING: utf-8
+          HTTP_PROXY: http://svc-proxy.cls.eng.netapp.com:3128
+          HTTPS_PROXY: http://svc-proxy.cls.eng.netapp.com:3128
+          NO_PROXY: 127.0.0.1,::1,localhost,github.com,api.github.com,.github.com
+          SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+          REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+        run: .venv/bin/python scripts/security_review.py
