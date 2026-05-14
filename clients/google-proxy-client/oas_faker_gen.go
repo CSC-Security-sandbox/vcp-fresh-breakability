@@ -3110,7 +3110,7 @@ func (s *BatchVolumeV1betaCloneDetails) SetFake() {
 
 // SetFake set fake values.
 func (s *BatchVolumeV1betaCloneDetailsState) SetFake() {
-	*s = BatchVolumeV1betaCloneDetailsStateCLONED
+	*s = BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING
 }
 
 // SetFake set fake values.
@@ -3402,7 +3402,7 @@ func (s *CloneDetailsV1beta) SetFake() {
 
 // SetFake set fake values.
 func (s *CloneDetailsV1betaState) SetFake() {
-	*s = CloneDetailsV1betaStateCLONED
+	*s = CloneDetailsV1betaStateSPLITSTATENOTSPLITTING
 }
 
 // SetFake set fake values.

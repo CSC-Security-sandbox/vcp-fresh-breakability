@@ -8596,28 +8596,28 @@ func (s *BatchVolumeV1betaCloneDetails) SetSplitCompletePercent(val OptNilInt64)
 type BatchVolumeV1betaCloneDetailsState string
 
 const (
-	BatchVolumeV1betaCloneDetailsStateCLONED      BatchVolumeV1betaCloneDetailsState = "CLONED"
-	BatchVolumeV1betaCloneDetailsStateSPLITTING   BatchVolumeV1betaCloneDetailsState = "SPLITTING"
-	BatchVolumeV1betaCloneDetailsStateSPLITFAILED BatchVolumeV1betaCloneDetailsState = "SPLIT_FAILED"
+	BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING BatchVolumeV1betaCloneDetailsState = "SPLIT_STATE_NOT_SPLITTING"
+	BatchVolumeV1betaCloneDetailsStateSPLITSTATEINPROGRESS   BatchVolumeV1betaCloneDetailsState = "SPLIT_STATE_IN_PROGRESS"
+	BatchVolumeV1betaCloneDetailsStateSPLITSTATEFAILED       BatchVolumeV1betaCloneDetailsState = "SPLIT_STATE_FAILED"
 )
 
 // AllValues returns all BatchVolumeV1betaCloneDetailsState values.
 func (BatchVolumeV1betaCloneDetailsState) AllValues() []BatchVolumeV1betaCloneDetailsState {
 	return []BatchVolumeV1betaCloneDetailsState{
-		BatchVolumeV1betaCloneDetailsStateCLONED,
-		BatchVolumeV1betaCloneDetailsStateSPLITTING,
-		BatchVolumeV1betaCloneDetailsStateSPLITFAILED,
+		BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING,
+		BatchVolumeV1betaCloneDetailsStateSPLITSTATEINPROGRESS,
+		BatchVolumeV1betaCloneDetailsStateSPLITSTATEFAILED,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s BatchVolumeV1betaCloneDetailsState) MarshalText() ([]byte, error) {
 	switch s {
-	case BatchVolumeV1betaCloneDetailsStateCLONED:
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING:
 		return []byte(s), nil
-	case BatchVolumeV1betaCloneDetailsStateSPLITTING:
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATEINPROGRESS:
 		return []byte(s), nil
-	case BatchVolumeV1betaCloneDetailsStateSPLITFAILED:
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATEFAILED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -8627,14 +8627,14 @@ func (s BatchVolumeV1betaCloneDetailsState) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *BatchVolumeV1betaCloneDetailsState) UnmarshalText(data []byte) error {
 	switch BatchVolumeV1betaCloneDetailsState(data) {
-	case BatchVolumeV1betaCloneDetailsStateCLONED:
-		*s = BatchVolumeV1betaCloneDetailsStateCLONED
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING:
+		*s = BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING
 		return nil
-	case BatchVolumeV1betaCloneDetailsStateSPLITTING:
-		*s = BatchVolumeV1betaCloneDetailsStateSPLITTING
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATEINPROGRESS:
+		*s = BatchVolumeV1betaCloneDetailsStateSPLITSTATEINPROGRESS
 		return nil
-	case BatchVolumeV1betaCloneDetailsStateSPLITFAILED:
-		*s = BatchVolumeV1betaCloneDetailsStateSPLITFAILED
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATEFAILED:
+		*s = BatchVolumeV1betaCloneDetailsStateSPLITSTATEFAILED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -9639,28 +9639,28 @@ func (s *CloneDetailsV1beta) SetSplitCompletePercent(val OptNilInt64) {
 type CloneDetailsV1betaState string
 
 const (
-	CloneDetailsV1betaStateCLONED      CloneDetailsV1betaState = "CLONED"
-	CloneDetailsV1betaStateSPLITTING   CloneDetailsV1betaState = "SPLITTING"
-	CloneDetailsV1betaStateSPLITFAILED CloneDetailsV1betaState = "SPLIT_FAILED"
+	CloneDetailsV1betaStateSPLITSTATENOTSPLITTING CloneDetailsV1betaState = "SPLIT_STATE_NOT_SPLITTING"
+	CloneDetailsV1betaStateSPLITSTATEINPROGRESS   CloneDetailsV1betaState = "SPLIT_STATE_IN_PROGRESS"
+	CloneDetailsV1betaStateSPLITSTATEFAILED       CloneDetailsV1betaState = "SPLIT_STATE_FAILED"
 )
 
 // AllValues returns all CloneDetailsV1betaState values.
 func (CloneDetailsV1betaState) AllValues() []CloneDetailsV1betaState {
 	return []CloneDetailsV1betaState{
-		CloneDetailsV1betaStateCLONED,
-		CloneDetailsV1betaStateSPLITTING,
-		CloneDetailsV1betaStateSPLITFAILED,
+		CloneDetailsV1betaStateSPLITSTATENOTSPLITTING,
+		CloneDetailsV1betaStateSPLITSTATEINPROGRESS,
+		CloneDetailsV1betaStateSPLITSTATEFAILED,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s CloneDetailsV1betaState) MarshalText() ([]byte, error) {
 	switch s {
-	case CloneDetailsV1betaStateCLONED:
+	case CloneDetailsV1betaStateSPLITSTATENOTSPLITTING:
 		return []byte(s), nil
-	case CloneDetailsV1betaStateSPLITTING:
+	case CloneDetailsV1betaStateSPLITSTATEINPROGRESS:
 		return []byte(s), nil
-	case CloneDetailsV1betaStateSPLITFAILED:
+	case CloneDetailsV1betaStateSPLITSTATEFAILED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -9670,14 +9670,14 @@ func (s CloneDetailsV1betaState) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *CloneDetailsV1betaState) UnmarshalText(data []byte) error {
 	switch CloneDetailsV1betaState(data) {
-	case CloneDetailsV1betaStateCLONED:
-		*s = CloneDetailsV1betaStateCLONED
+	case CloneDetailsV1betaStateSPLITSTATENOTSPLITTING:
+		*s = CloneDetailsV1betaStateSPLITSTATENOTSPLITTING
 		return nil
-	case CloneDetailsV1betaStateSPLITTING:
-		*s = CloneDetailsV1betaStateSPLITTING
+	case CloneDetailsV1betaStateSPLITSTATEINPROGRESS:
+		*s = CloneDetailsV1betaStateSPLITSTATEINPROGRESS
 		return nil
-	case CloneDetailsV1betaStateSPLITFAILED:
-		*s = CloneDetailsV1betaStateSPLITFAILED
+	case CloneDetailsV1betaStateSPLITSTATEFAILED:
+		*s = CloneDetailsV1betaStateSPLITSTATEFAILED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

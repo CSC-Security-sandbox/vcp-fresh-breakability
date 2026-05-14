@@ -14266,12 +14266,12 @@ func (s *BatchVolumeV1betaCloneDetailsState) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch BatchVolumeV1betaCloneDetailsState(v) {
-	case BatchVolumeV1betaCloneDetailsStateCLONED:
-		*s = BatchVolumeV1betaCloneDetailsStateCLONED
-	case BatchVolumeV1betaCloneDetailsStateSPLITTING:
-		*s = BatchVolumeV1betaCloneDetailsStateSPLITTING
-	case BatchVolumeV1betaCloneDetailsStateSPLITFAILED:
-		*s = BatchVolumeV1betaCloneDetailsStateSPLITFAILED
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING:
+		*s = BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATEINPROGRESS:
+		*s = BatchVolumeV1betaCloneDetailsStateSPLITSTATEINPROGRESS
+	case BatchVolumeV1betaCloneDetailsStateSPLITSTATEFAILED:
+		*s = BatchVolumeV1betaCloneDetailsStateSPLITSTATEFAILED
 	default:
 		*s = BatchVolumeV1betaCloneDetailsState(v)
 	}
@@ -15767,12 +15767,12 @@ func (s *CloneDetailsV1betaState) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CloneDetailsV1betaState(v) {
-	case CloneDetailsV1betaStateCLONED:
-		*s = CloneDetailsV1betaStateCLONED
-	case CloneDetailsV1betaStateSPLITTING:
-		*s = CloneDetailsV1betaStateSPLITTING
-	case CloneDetailsV1betaStateSPLITFAILED:
-		*s = CloneDetailsV1betaStateSPLITFAILED
+	case CloneDetailsV1betaStateSPLITSTATENOTSPLITTING:
+		*s = CloneDetailsV1betaStateSPLITSTATENOTSPLITTING
+	case CloneDetailsV1betaStateSPLITSTATEINPROGRESS:
+		*s = CloneDetailsV1betaStateSPLITSTATEINPROGRESS
+	case CloneDetailsV1betaStateSPLITSTATEFAILED:
+		*s = CloneDetailsV1betaStateSPLITSTATEFAILED
 	default:
 		*s = CloneDetailsV1betaState(v)
 	}

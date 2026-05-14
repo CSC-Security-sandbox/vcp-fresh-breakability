@@ -1084,7 +1084,7 @@ func TestConvertVolumeModelToBatchVolume_RemapJSONFieldSuccesses(t *testing.T) {
 				ParentVolumeId:       gcpgenserver.NewOptString("parent-vol"),
 				ParentSnapshotId:     gcpgenserver.NewOptString("parent-snap"),
 				SharedBytes:          gcpgenserver.NewOptNilFloat64(4096),
-				State:                gcpgenserver.NewOptNilCloneDetailsV1betaState(gcpgenserver.CloneDetailsV1betaStateCLONED),
+				State:                gcpgenserver.NewOptNilCloneDetailsV1betaState(gcpgenserver.CloneDetailsV1betaStateSPLITSTATENOTSPLITTING),
 				StateDetails:         gcpgenserver.NewOptNilString("clone complete"),
 				SplitCompletePercent: gcpgenserver.NewOptNilInt64(100),
 			}),
@@ -1099,7 +1099,7 @@ func TestConvertVolumeModelToBatchVolume_RemapJSONFieldSuccesses(t *testing.T) {
 		assert.Equal(t, "parent-vol", out.CloneDetails.Value.ParentVolumeId.Value)
 		assert.Equal(t, "parent-snap", out.CloneDetails.Value.ParentSnapshotId.Value)
 		assert.Equal(t, float64(4096), out.CloneDetails.Value.SharedBytes.Value)
-		assert.Equal(t, gcpgenserver.BatchVolumeV1betaCloneDetailsStateCLONED, out.CloneDetails.Value.State.Value)
+		assert.Equal(t, gcpgenserver.BatchVolumeV1betaCloneDetailsStateSPLITSTATENOTSPLITTING, out.CloneDetails.Value.State.Value)
 		assert.Equal(t, "clone complete", out.CloneDetails.Value.StateDetails.Value)
 		assert.Equal(t, int64(100), out.CloneDetails.Value.SplitCompletePercent.Value)
 	})

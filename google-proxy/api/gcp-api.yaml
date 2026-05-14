@@ -1066,7 +1066,7 @@ paths:
                   parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                   parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                   sharedBytes: 100000000000
-                  state: CLONED
+                  state: SPLIT_STATE_NOT_SPLITTING
                   splitCompletePercent: 0
         '400':
           $ref: '#/components/responses/StandardError-400'
@@ -1183,7 +1183,7 @@ paths:
                     parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                     parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                     sharedBytes: 100000000000
-                    state: CLONED
+                    state: SPLIT_STATE_NOT_SPLITTING
                     splitCompletePercent: 0
         "204":
           description: No content
@@ -1451,7 +1451,7 @@ paths:
                       parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                       parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                       sharedBytes: 100000000000
-                      state: CLONED
+                      state: SPLIT_STATE_NOT_SPLITTING
                       splitCompletePercent: 0
         '400':
           $ref: '#/components/responses/StandardError-400'
@@ -1542,7 +1542,7 @@ paths:
                     parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                     parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                     sharedBytes: 100000000000
-                    state: CLONED
+                    state: SPLIT_STATE_NOT_SPLITTING
                     splitCompletePercent: 0
         '400':
           $ref: '#/components/responses/StandardError-400'
@@ -1658,7 +1658,7 @@ paths:
                       parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                       parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                       sharedBytes: 100000000000
-                      state: CLONED
+                      state: SPLIT_STATE_NOT_SPLITTING
                       splitCompletePercent: 0
                   - volumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8afE
                     resourceId: iscsi-volume-sample
@@ -1779,7 +1779,7 @@ paths:
                       parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                       parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                       sharedBytes: 100000000000
-                      state: CLONED
+                      state: SPLIT_STATE_NOT_SPLITTING
                       splitCompletePercent: 0
         '400':
           $ref: '#/components/responses/StandardError-400'
@@ -16929,9 +16929,9 @@ components:
           type: string
           description: The current lifecycle state of the clone split operation
           enum:
-            - CLONED
-            - SPLITTING
-            - SPLIT_FAILED
+            - SPLIT_STATE_NOT_SPLITTING
+            - SPLIT_STATE_IN_PROGRESS
+            - SPLIT_STATE_FAILED
           example: SPLITTING
           nullable: true
           x-nullable: true

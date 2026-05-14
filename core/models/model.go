@@ -102,9 +102,9 @@ const (
 	DefaultIndexExportPolicyRule    = int64(7)
 
 	// Clone states
-	CloneStateCloned           = "CLONED"
-	CloneStateSplitting        = "SPLITTING"
-	CloneStateErrorInSplitting = "SPLIT_FAILED"
+	CloneStateCloned           = "SPLIT_STATE_NOT_SPLITTING"
+	CloneStateSplitting        = "SPLIT_STATE_IN_PROGRESS"
+	CloneStateErrorInSplitting = "SPLIT_STATE_FAILED"
 )
 
 const (

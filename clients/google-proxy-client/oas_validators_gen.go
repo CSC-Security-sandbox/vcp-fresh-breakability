@@ -6363,11 +6363,11 @@ func (s *BatchVolumeV1betaCloneDetails) Validate() error {
 
 func (s BatchVolumeV1betaCloneDetailsState) Validate() error {
 	switch s {
-	case "CLONED":
+	case "SPLIT_STATE_NOT_SPLITTING":
 		return nil
-	case "SPLITTING":
+	case "SPLIT_STATE_IN_PROGRESS":
 		return nil
-	case "SPLIT_FAILED":
+	case "SPLIT_STATE_FAILED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -6944,11 +6944,11 @@ func (s *CloneDetailsV1beta) Validate() error {
 
 func (s CloneDetailsV1betaState) Validate() error {
 	switch s {
-	case "CLONED":
+	case "SPLIT_STATE_NOT_SPLITTING":
 		return nil
-	case "SPLITTING":
+	case "SPLIT_STATE_IN_PROGRESS":
 		return nil
-	case "SPLIT_FAILED":
+	case "SPLIT_STATE_FAILED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
