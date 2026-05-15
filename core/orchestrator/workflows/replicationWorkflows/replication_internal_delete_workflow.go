@@ -24,7 +24,7 @@ type internalVolumeReplicationDeleteWorkflow struct {
 
 var _ workflows.WorkflowInterface = &internalVolumeReplicationDeleteWorkflow{}
 
-func DeleteInternalVolumeReplicationWorkflow(ctx workflow.Context, replication *datamodel.VolumeReplication, cleanupAfterReverse bool) (*vsa.VolumeReplication, error) {
+func DeleteInternalVolumeReplicationWorkflow(ctx workflow.Context, replication *datamodel.VolumeReplication, cleanupAfterReverse, isCleanup bool) (*vsa.VolumeReplication, error) {
 	repWf := new(internalVolumeReplicationDeleteWorkflow)
 	err := repWf.Setup(ctx, replication)
 	if err != nil {
@@ -37,7 +37,7 @@ func DeleteInternalVolumeReplicationWorkflow(ctx workflow.Context, replication *
 		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	_, customErr := repWf.Run(ctx, replication, cleanupAfterReverse)
+	_, customErr := repWf.Run(ctx, replication, cleanupAfterReverse, isCleanup)
 	if customErr != nil {
 		repWf.Status = workflows.WorkflowStatusFailed
 		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
@@ -71,6 +71,7 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, arg
 	log := util.GetLogger(ctx)
 	replication := args[0].(*datamodel.VolumeReplication)
 	cleanupAfterReverse := args[1].(bool)
+	isCleanup := args[2].(bool)
 	replicationActivity := &replicationActivities.InternalVolumeReplicationDeleteActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
@@ -111,7 +112,7 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, arg
 
 	var replicationDeleteResponse *vsa.VolumeReplication
 	if !cleanupAfterReverse {
-		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteVolumeReplication, replication, node).Get(ctx, &replicationDeleteResponse)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteVolumeReplication, replication, node, isCleanup).Get(ctx, &replicationDeleteResponse)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}

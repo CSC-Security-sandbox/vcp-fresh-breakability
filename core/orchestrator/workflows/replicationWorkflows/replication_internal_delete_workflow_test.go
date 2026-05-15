@@ -80,9 +80,9 @@ func TestDeleteInternalVolumeReplicationWorkflow(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity("DeleteVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
+		env.OnActivity("DeleteVolumeReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.ExecuteWorkflow(DeleteInternalVolumeReplicationWorkflow, replicationDb, false)
+		env.ExecuteWorkflow(DeleteInternalVolumeReplicationWorkflow, replicationDb, false, false)
 
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.Nil(tt, err)
@@ -156,7 +156,7 @@ func TestDeleteInternalVolumeReplicationWorkflowFailure(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 
-		env.ExecuteWorkflow(DeleteInternalVolumeReplicationWorkflow, replicationDb, false)
+		env.ExecuteWorkflow(DeleteInternalVolumeReplicationWorkflow, replicationDb, false, false)
 		assert.NotNil(tt, env.GetWorkflowError())
 	})
 }
@@ -224,7 +224,7 @@ func TestDeleteInternalVolumeReplicationWhenCleanupAfterReverse(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("CleanupReplicationAfterReverse", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.ExecuteWorkflow(DeleteInternalVolumeReplicationWorkflow, replicationDb, true)
+		env.ExecuteWorkflow(DeleteInternalVolumeReplicationWorkflow, replicationDb, true, false)
 
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.Nil(tt, err)

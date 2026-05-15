@@ -2028,6 +2028,7 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 		replicationWorkflows.DeleteInternalVolumeReplicationWorkflow,
 		dbVolumeReplication,
 		cleanupAfterReverse,
+		isCleanup,
 	)
 
 	if err != nil {

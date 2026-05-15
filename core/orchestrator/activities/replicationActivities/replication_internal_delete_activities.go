@@ -17,13 +17,14 @@ type InternalVolumeReplicationDeleteActivity struct {
 	SE database.Storage
 }
 
-func (a *InternalVolumeReplicationDeleteActivity) DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.VolumeReplication, error) {
+func (a *InternalVolumeReplicationDeleteActivity) DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node, isCleanup bool) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	vsaDeleteVolumeReplicationParams := prepareDeleteVolumeReplicationParamsVSA(replication)
+	vsaDeleteVolumeReplicationParams.VolumeReplication.IsCleanup = isCleanup
 	res, err := provider.DeleteVolumeReplication(vsaDeleteVolumeReplicationParams)
 	if err != nil {
 		if errors.IsConflictErr(err) {

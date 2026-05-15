@@ -7976,7 +7976,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		// Mock the UpdateJob call that should happen in the defer block
 		mockStorage.On("UpdateJob", ctx, "job-uuid-789", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false).Return(nil, expectedError)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false, false).Return(nil, expectedError)
 		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
@@ -8065,7 +8065,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("GetVolumeReplication", ctx, expectedResponse.UUID).Return(replicationDb, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false).Return(nil, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false, false).Return(nil, nil)
 
 		_, jobActualResponse, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, expectedResponse.UUID, false, false)
 		assert.Nil(tt, err)
@@ -8118,7 +8118,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		// When cleanupAfterReverse=false, UpdateVolumeReplicationStates is called even if isCleanup=true
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false).Return(nil, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false, true).Return(nil, nil)
 
 		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, true)
 		// Should succeed - cleanup allows Creating state
