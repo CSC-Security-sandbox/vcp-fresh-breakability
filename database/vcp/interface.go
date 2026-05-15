@@ -333,6 +333,7 @@ type (
 		GetBackupCountByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (int64, error)
 		GetBackupCountByVolumeVaultAndEndpoint(ctx context.Context, volumeUUID string, backupVaultID int64, endpointUUID string) (int64, error)
 		GetDistinctBackupVaultIDsByVolumeUUID(ctx context.Context, volumeUUID string) ([]int64, error)
+		GetDistinctBackupVaultServiceTypesByVaultIDs(ctx context.Context, backupVaultIDs []int64) ([]string, error)
 		GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error)
 		UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error
 		GetLatestBackupByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.Backup, error)

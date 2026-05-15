@@ -857,6 +857,31 @@ func (d *DataStoreRepository) GetDistinctBackupVaultIDsByVolumeUUID(ctx context.
 	return ids, nil
 }
 
+// GetDistinctBackupVaultServiceTypesByVaultIDs returns distinct service_type values for the given
+// backup_vault primary keys. Orphan backup_vault_id values (no row in backup_vaults) do not appear
+// in the result; callers may compare row count / result emptiness against their vault id list.
+func (d *DataStoreRepository) GetDistinctBackupVaultServiceTypesByVaultIDs(ctx context.Context, backupVaultIDs []int64) ([]string, error) {
+	ids := make([]int64, 0, len(backupVaultIDs))
+	for _, id := range backupVaultIDs {
+		if id != 0 {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var serviceTypes []string
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Model(&datamodel.BackupVault{}).
+		Select("DISTINCT service_type").
+		Where("id IN ?", ids).
+		Pluck("service_type", &serviceTypes).Error
+	if err != nil {
+		return nil, err
+	}
+	return serviceTypes, nil
+}
+
 func (d *DataStoreRepository) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var backups []*datamodel.Backup

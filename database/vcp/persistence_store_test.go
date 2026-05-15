@@ -3293,6 +3293,11 @@ func TestPersistenceStore_BackupVaultAndBackupDelegateMethods(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, ids)
 
+	// GetDistinctBackupVaultServiceTypesByVaultIDs
+	typesByVaultIDs, err := store.GetDistinctBackupVaultServiceTypesByVaultIDs(ctx, []int64{})
+	assert.NoError(t, err)
+	assert.Nil(t, typesByVaultIDs)
+
 	// UpdateBackupLatestLogicalBackupSizeByVolume - wrapper at 1334
 	_ = store.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, "volume-uuid", "exclude-backup-uuid")
 

@@ -8098,6 +8098,65 @@ func (_c *MockStorage_GetDistinctBackupVaultIDsByVolumeUUID_Call) RunAndReturn(r
 	return _c
 }
 
+// GetDistinctBackupVaultServiceTypesByVaultIDs provides a mock function with given fields: ctx, backupVaultIDs
+func (_m *MockStorage) GetDistinctBackupVaultServiceTypesByVaultIDs(ctx context.Context, backupVaultIDs []int64) ([]string, error) {
+	ret := _m.Called(ctx, backupVaultIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDistinctBackupVaultServiceTypesByVaultIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) ([]string, error)); ok {
+		return rf(ctx, backupVaultIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) []string); ok {
+		r0 = rf(ctx, backupVaultIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = rf(ctx, backupVaultIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDistinctBackupVaultServiceTypesByVaultIDs'
+type MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call struct {
+	*mock.Call
+}
+
+// GetDistinctBackupVaultServiceTypesByVaultIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultIDs []int64
+func (_e *MockStorage_Expecter) GetDistinctBackupVaultServiceTypesByVaultIDs(ctx interface{}, backupVaultIDs interface{}) *MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call {
+	return &MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call{Call: _e.mock.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, backupVaultIDs)}
+}
+
+func (_c *MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call) Run(run func(ctx context.Context, backupVaultIDs []int64)) *MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call) Return(_a0 []string, _a1 error) *MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call) RunAndReturn(run func(context.Context, []int64) ([]string, error)) *MockStorage_GetDistinctBackupVaultServiceTypesByVaultIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetEarliestCreatingBackupTime provides a mock function with given fields: ctx, volumeUUID
 func (_m *MockStorage) GetEarliestCreatingBackupTime(ctx context.Context, volumeUUID string) (*time.Time, error) {
 	ret := _m.Called(ctx, volumeUUID)
@@ -15203,6 +15262,64 @@ func (_c *MockStorage_ListAddressRanges_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// ListAllTpProjects provides a mock function with given fields: ctx
+func (_m *MockStorage) ListAllTpProjects(ctx context.Context) ([]string, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAllTpProjects")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListAllTpProjects_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAllTpProjects'
+type MockStorage_ListAllTpProjects_Call struct {
+	*mock.Call
+}
+
+// ListAllTpProjects is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockStorage_Expecter) ListAllTpProjects(ctx interface{}) *MockStorage_ListAllTpProjects_Call {
+	return &MockStorage_ListAllTpProjects_Call{Call: _e.mock.On("ListAllTpProjects", ctx)}
+}
+
+func (_c *MockStorage_ListAllTpProjects_Call) Run(run func(ctx context.Context)) *MockStorage_ListAllTpProjects_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListAllTpProjects_Call) Return(_a0 []string, _a1 error) *MockStorage_ListAllTpProjects_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListAllTpProjects_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockStorage_ListAllTpProjects_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAllVolumes provides a mock function with given fields: ctx, conditions, pagination
 func (_m *MockStorage) ListAllVolumes(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx, conditions, pagination)
@@ -17192,64 +17309,6 @@ func (_c *MockStorage_ListTpProjects_Call) Return(_a0 []string, _a1 error) *Mock
 }
 
 func (_c *MockStorage_ListTpProjects_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockStorage_ListTpProjects_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ListAllTpProjects provides a mock function with given fields: ctx
-func (_m *MockStorage) ListAllTpProjects(ctx context.Context) ([]string, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListAllTpProjects")
-	}
-
-	var r0 []string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = rf(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_ListAllTpProjects_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAllTpProjects'
-type MockStorage_ListAllTpProjects_Call struct {
-	*mock.Call
-}
-
-// ListAllTpProjects is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *MockStorage_Expecter) ListAllTpProjects(ctx interface{}) *MockStorage_ListAllTpProjects_Call {
-	return &MockStorage_ListAllTpProjects_Call{Call: _e.mock.On("ListAllTpProjects", ctx)}
-}
-
-func (_c *MockStorage_ListAllTpProjects_Call) Run(run func(ctx context.Context)) *MockStorage_ListAllTpProjects_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
-	})
-	return _c
-}
-
-func (_c *MockStorage_ListAllTpProjects_Call) Return(_a0 []string, _a1 error) *MockStorage_ListAllTpProjects_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_ListAllTpProjects_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockStorage_ListAllTpProjects_Call {
 	_c.Call.Return(run)
 	return _c
 }

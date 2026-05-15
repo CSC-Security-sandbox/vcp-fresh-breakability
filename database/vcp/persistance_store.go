@@ -1413,6 +1413,10 @@ func (s *PersistenceStore) GetDistinctBackupVaultIDsByVolumeUUID(ctx context.Con
 	return s.dataStore.GetDistinctBackupVaultIDsByVolumeUUID(ctx, volumeUUID)
 }
 
+func (s *PersistenceStore) GetDistinctBackupVaultServiceTypesByVaultIDs(ctx context.Context, backupVaultIDs []int64) ([]string, error) {
+	return s.dataStore.GetDistinctBackupVaultServiceTypesByVaultIDs(ctx, backupVaultIDs)
+}
+
 func (s *PersistenceStore) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	return s.dataStore.GetBackupsByVolumeUUID(ctx, volumeUUID)
 }

@@ -855,6 +855,7 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 		}
 
 		if isLatest && count > 1 {
+			// Allow deletion of latest backups (of detached vaults) if there is no Active Snapmirror relationship with the corresponding Endpoint of the backup
 			hasSnapMirrorRelationship := false
 			bpEndpointUUID := strings.TrimSpace(endpointUUID)
 			if bpEndpointUUID != "" {

@@ -2576,6 +2576,120 @@ func TestGetDistinctBackupVaultIDsByVolumeUUID(t *testing.T) {
 	assert.Empty(t, ids)
 }
 
+// TestGetDistinctBackupVaultServiceTypes_forVolume_viaVaultIDs asserts the same service types as the
+// former volume-scoped join query, using GetDistinctBackupVaultIDsByVolumeUUID plus
+// GetDistinctBackupVaultServiceTypesByVaultIDs (the path used by reattach validation).
+func TestGetDistinctBackupVaultServiceTypes_forVolume_viaVaultIDs(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	vault1 := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-1"},
+		Name:        "vault-1",
+		ServiceType: models.ServiceTypeGCNV,
+	}
+	vault2 := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-2"},
+		Name:        "vault-2",
+		ServiceType: models.ServiceTypeCrossProject,
+	}
+	err = store.db.Create(vault1).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(vault2).Error()
+	assert.NoError(t, err)
+
+	backups := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateDeleted},
+	}
+	for _, b := range backups {
+		err = store.db.Create(b).Error()
+		assert.NoError(t, err)
+	}
+
+	ids, err := store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-1")
+	assert.NoError(t, err)
+	types, err := store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), ids)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{models.ServiceTypeGCNV, models.ServiceTypeCrossProject}, types)
+
+	ids, err = store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-2")
+	assert.NoError(t, err)
+	types, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), ids)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{models.ServiceTypeGCNV}, types)
+
+	ids, err = store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-none")
+	assert.NoError(t, err)
+	types, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), ids)
+	assert.NoError(t, err)
+	assert.Empty(t, types)
+}
+
+func TestGetDistinctBackupVaultServiceTypesByVaultIDs_ReturnsErrorWhenDBFails(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+	_, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), []int64{1})
+	assert.Error(t, err)
+}
+
+func TestGetDistinctBackupVaultServiceTypesByVaultIDs(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	vault1 := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "bv-ref-1"},
+		Name:        "vault-a",
+		ServiceType: models.ServiceTypeGCNV,
+	}
+	vault2 := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "bv-ref-2"},
+		Name:        "vault-b",
+		ServiceType: models.ServiceTypeCrossProject,
+	}
+	assert.NoError(t, store.db.Create(vault1).Error())
+	assert.NoError(t, store.db.Create(vault2).Error())
+
+	types, err := store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), []int64{vault1.ID, vault2.ID})
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{models.ServiceTypeGCNV, models.ServiceTypeCrossProject}, types)
+
+	types, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), nil)
+	assert.NoError(t, err)
+	assert.Nil(t, types)
+
+	types, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), []int64{})
+	assert.NoError(t, err)
+	assert.Nil(t, types)
+
+	types, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), []int64{0, 0})
+	assert.NoError(t, err)
+	assert.Nil(t, types)
+
+	types, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), []int64{999999999})
+	assert.NoError(t, err)
+	assert.Empty(t, types)
+}
+
 func TestGetBackupsByVolumeUUID(t *testing.T) {
 	t.Run("ReturnsBackupsSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

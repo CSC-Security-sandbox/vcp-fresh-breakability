@@ -15039,6 +15039,7 @@ func TestUpdateVolume(t *testing.T) {
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetBackupVault", ctx, backupVaultId).Return(dbBackupVault, nil).Times(2)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		se.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultId, mock.Anything).Return(dbBackupVault, nil)
@@ -15296,7 +15297,7 @@ func TestUpdateVolume(t *testing.T) {
 		// When flag is on, _updateVolume does not clear BackupVaultID here; workflow will handle detach.
 		assert.Equal(tt, "vault-1", volume.DataProtection.BackupVaultID)
 	})
-	t.Run("WhenEnableBackupVaultSwitching_CurrentVaultNoBackupsButDetachedBackupsExist_NonGCBDRDetachReturnsError", func(tt *testing.T) {
+	t.Run("WhenEnableBackupVaultSwitching_CurrentVaultNoBackupsButDetachedBackupsExist_GCNV_AllowsDetach", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
 		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
 		utils.SetEnableBackupVaultSwitchingForTest(true)
@@ -15308,15 +15309,18 @@ func TestUpdateVolume(t *testing.T) {
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
-			BaseModel:      datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes:    int64(1024 * 1024 * 1024),
-			Name:           "vol",
-			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
-			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
-			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
-			State:          "READY",
+			BaseModel:        datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:      int64(1024 * 1024 * 1024),
+			Name:             "vol",
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account:          &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:            "READY",
 		}
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: "GCNV"}
+		dbVolume.AccountID = 1
+		job := &datamodel.Job{WorkflowID: "wid"}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
@@ -15324,13 +15328,19 @@ func TestUpdateVolume(t *testing.T) {
 		// Detached backups still exist on another vault for this volume.
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, "vid").Return([]int64{42}, nil)
 		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
-		assert.Error(tt, err)
-		assert.Nil(tt, volume)
-		assert.Contains(tt, err.Error(), "cannot remove backup vault as there are backups associated with it")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vault-1", volume.DataProtection.BackupVaultID)
 	})
-	t.Run("WhenEnableBackupVaultSwitching_CurrentVaultNotGCBDR_DetachWithBackups_ReturnsError", func(tt *testing.T) {
+	t.Run("WhenEnableBackupVaultSwitching_GCNV_DetachWithBackupsOnVolume_AllowsDetach", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
 		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
 		utils.SetEnableBackupVaultSwitchingForTest(true)
@@ -15342,26 +15352,158 @@ func TestUpdateVolume(t *testing.T) {
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
-			BaseModel:      datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes:    int64(1024 * 1024 * 1024),
-			Name:           "vol",
-			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
-			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
-			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
-			State:          "READY",
+			BaseModel:        datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:      int64(1024 * 1024 * 1024),
+			Name:             "vol",
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account:          &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:            "READY",
 		}
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: "GCNV"}
+		dbVolume.AccountID = 1
+		job := &datamodel.Job{WorkflowID: "wid"}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, "vid").Return([]int64{1}, nil)
 		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vault-1", volume.DataProtection.BackupVaultID)
+	})
+	t.Run("WhenEnableBackupVaultSwitching_GCBDR_DetachWithBackupsElsewhere_AllowsDetach", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		backupVaultId := ""
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &backupVaultId,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:      int64(1024 * 1024 * 1024),
+			Name:             "vol",
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account:          &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-gcbdr"},
+			State:            "READY",
+		}
+		dbVolume.AccountID = 1
+		job := &datamodel.Job{WorkflowID: "wid"}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-gcbdr"}, AccountID: 1, ServiceType: activities.GCBDRServiceType}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, "vid").Return([]int64{99}, nil)
+		se.On("GetBackupVault", ctx, "vault-gcbdr").Return(currentVault, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vault-gcbdr", volume.DataProtection.BackupVaultID)
+	})
+	t.Run("WhenEnableBackupVaultSwitching_GCBDRToGCBDR_WithBackupsOnVolume_Succeeds", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		newVaultID := "vault-2"
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &newVaultID,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:      int64(1024 * 1024 * 1024),
+			Name:             "vol",
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account:          &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:            "READY",
+		}
+		dbVolume.AccountID = 1
+		job := &datamodel.Job{WorkflowID: "wid"}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: activities.GCBDRServiceType}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: activities.GCBDRServiceType}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", int64(1)).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
+		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, "vid").Return([]int64{42}, nil)
+		se.On("GetBackupVault", ctx, "vault-2").Return(newVault, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vault-1", volume.DataProtection.BackupVaultID)
+	})
+	t.Run("WhenEnableBackupVaultSwitching_UnknownCurrentVaultServiceType_ToGCBDR_WithBackups_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		newVaultID := "vault-gcbdr"
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &newVaultID,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:    int64(1024 * 1024 * 1024),
+			Name:           "vol",
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-orphan"},
+			State:          "READY",
+		}
+		dbVolume.AccountID = 1
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-orphan"}, AccountID: 1, ServiceType: ""}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-gcbdr"}, AccountID: 1, ServiceType: activities.GCBDRServiceType}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-orphan").Return(currentVault, nil)
+		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, "vid").Return([]int64{1}, nil)
+		se.On("GetBackupVault", ctx, "vault-gcbdr").Return(newVault, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Error(tt, err)
 		assert.Nil(tt, volume)
-		assert.Contains(tt, err.Error(), "cannot remove backup vault as there are backups associated with it")
+		assert.Contains(tt, err.Error(), "Cannot switch from a ")
+		assert.Contains(tt, err.Error(), "CrossProject backup vault")
 	})
 	t.Run("WhenEnableBackupVaultSwitching_GCNVToGCNV_NoBackupsOnVolume_Succeeds", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
@@ -15407,7 +15549,7 @@ func TestUpdateVolume(t *testing.T) {
 		assert.NotNil(tt, volume)
 		assert.Equal(tt, "vault-1", volume.DataProtection.BackupVaultID)
 	})
-	t.Run("WhenEnableBackupVaultSwitching_GCNVToGCNV_WithBackupsOnVolume_ReturnsError", func(tt *testing.T) {
+	t.Run("WhenEnableBackupVaultSwitching_GCNVToGCNV_WithBackupsOnVolume_Succeeds", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
 		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
 		utils.SetEnableBackupVaultSwitchingForTest(true)
@@ -15419,30 +15561,37 @@ func TestUpdateVolume(t *testing.T) {
 			BackupVaultID: &newVaultID,
 		}}
 		dbVolume := &datamodel.Volume{
-			BaseModel:      datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes:    int64(1024 * 1024 * 1024),
-			Name:           "vol",
-			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
-			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
-			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
-			State:          "READY",
+			BaseModel:        datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:      int64(1024 * 1024 * 1024),
+			Name:             "vol",
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account:          &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:            "READY",
 		}
 		dbVolume.AccountID = 1
+		job := &datamodel.Job{WorkflowID: "wid"}
 		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
 		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
-		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetPool", ctx, "1", int64(1)).Return(poolView, nil)
 		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
 		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, "vid").Return([]int64{42}, nil)
 		se.On("GetBackupVault", ctx, "vault-2").Return(newVault, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
-		assert.Error(tt, err)
-		assert.Nil(tt, volume)
-		assert.Contains(tt, err.Error(), "Backup vault switching is only allowed for GCBDR backup vaults")
-		assert.Contains(tt, err.Error(), "The current backup vault is not a GCBDR vault")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vault-1", volume.DataProtection.BackupVaultID)
 	})
 	t.Run("WhenEnableBackupVaultSwitching_TargetVaultNotGCBDR_ReturnsError", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
@@ -15478,8 +15627,51 @@ func TestUpdateVolume(t *testing.T) {
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Error(tt, err)
 		assert.Nil(tt, volume)
-		assert.Contains(tt, err.Error(), "Backup vault switching is only allowed between GCBDR backup vaults")
-		assert.Contains(tt, err.Error(), "target backup vault is not a GCBDR vault")
+		assert.Contains(tt, err.Error(), "Cannot switch from a CrossProject backup vault to a GCNV backup vault.")
+	})
+	t.Run("WhenEnableBackupVaultSwitching_GCNVToGCBDR_NoBackupsOnVolume_Succeeds", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		newVaultID := "vault-gcbdr"
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &newVaultID,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:      int64(1024 * 1024 * 1024),
+			Name:             "vol",
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account:          &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-gcnv"},
+			State:            "READY",
+		}
+		dbVolume.AccountID = 1
+		job := &datamodel.Job{WorkflowID: "wid"}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-gcnv"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-gcbdr"}, AccountID: 1, ServiceType: activities.GCBDRServiceType}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", int64(1)).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-gcnv").Return(currentVault, nil)
+		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, "vid").Return([]int64{}, nil)
+		se.On("GetBackupVault", ctx, "vault-gcbdr").Return(newVault, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vault-gcnv", volume.DataProtection.BackupVaultID)
 	})
 	t.Run("WhenEnableBackupVaultSwitching_TargetNonGCBDRVault_DifferentAccount_ReturnsError", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
@@ -15502,8 +15694,8 @@ func TestUpdateVolume(t *testing.T) {
 			State:          "READY",
 		}
 		dbVolume.AccountID = 1
-		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, ServiceType: activities.GCBDRServiceType}
-		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 99, ServiceType: "GCNV"}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, AccountID: 1, ServiceType: models.ServiceTypeGCNV}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, AccountID: 99, ServiceType: models.ServiceTypeGCNV}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
@@ -15695,6 +15887,7 @@ func TestUpdateVolume(t *testing.T) {
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetBackupVault", ctx, backupVaultId).Return(backupVault, nil).Times(2)
 		se.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultId, poolView.Account.ID).Return(backupVault, nil)
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, poolView.Account.ID).Return(nil, errors.New("Internal server error"))
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
@@ -16599,7 +16792,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		se.AssertExpectations(tt)
 	})
 
-	t.Run("WhenReattachGCNVVaultWithDetachedBackups_ReturnsError", func(tt *testing.T) {
+	t.Run("WhenReattachGCNVVaultWithDetachedBackups_Succeeds", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
 		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
 		utils.SetEnableBackupVaultSwitchingForTest(true)
@@ -16613,6 +16806,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		}
 		se.On("GetBackupVault", ctx, "gcnv-vault").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1}).Return([]string{models.ServiceTypeGCNV}, nil)
 		volume := &datamodel.Volume{
 			BaseModel:      datamodel.BaseModel{UUID: volUUID},
 			State:          "READY",
@@ -16622,8 +16816,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		bid := "gcnv-vault"
 		params := &common.UpdateVolumeParams{DataProtection: &models.UpdateDataProtection{BackupVaultID: &bid}}
 		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "non-GCBDR backup vault")
+		assert.NoError(tt, err)
 		se.AssertExpectations(tt)
 	})
 
@@ -16641,6 +16834,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		}
 		se.On("GetBackupVault", ctx, "gcbdr-vault").Return(bv, nil)
 		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1}).Return([]string{activities.GCBDRServiceType}, nil)
 		volume := &datamodel.Volume{
 			BaseModel:      datamodel.BaseModel{UUID: volUUID},
 			State:          "READY",
@@ -16654,6 +16848,92 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		se.AssertExpectations(tt)
 	})
 
+	t.Run("WhenReattachGCBDRVault_DetachedBackupsWereGCNV_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volUUID := "vol-cross-gcbdr-on-gcnv-backups"
+		bv := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: "gcbdr-vault-new"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			ServiceType:    activities.GCBDRServiceType,
+		}
+		se.On("GetBackupVault", ctx, "gcbdr-vault-new").Return(bv, nil)
+		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1}).Return([]string{models.ServiceTypeGCNV}, nil)
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: volUUID},
+			State:          "READY",
+			SizeInBytes:    200 * 1024 * 1024 * 1024,
+			DataProtection: &datamodel.DataProtection{BackupVaultID: ""},
+		}
+		bid := "gcbdr-vault-new"
+		params := &common.UpdateVolumeParams{DataProtection: &models.UpdateDataProtection{BackupVaultID: &bid}}
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Existing backups are from a GCNV backup vault")
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenReattachGCNVVault_DetachedBackupsWereGCBDR_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volUUID := "vol-cross-gcnv-on-gcbdr-backups"
+		bv := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault-new"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			ServiceType:    models.ServiceTypeGCNV,
+		}
+		se.On("GetBackupVault", ctx, "gcnv-vault-new").Return(bv, nil)
+		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1}).Return([]string{activities.GCBDRServiceType}, nil)
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: volUUID},
+			State:          "READY",
+			SizeInBytes:    200 * 1024 * 1024 * 1024,
+			DataProtection: &datamodel.DataProtection{BackupVaultID: ""},
+		}
+		bid := "gcnv-vault-new"
+		params := &common.UpdateVolumeParams{DataProtection: &models.UpdateDataProtection{BackupVaultID: &bid}}
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Existing backups are from a CrossProject backup vault; attach a CrossProject backup vault only.")
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenReattachGCNVVault_DetachedBackupsMixedFamilies_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volUUID := "vol-mixed-families"
+		bv := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault-mixed"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			ServiceType:    models.ServiceTypeGCNV,
+		}
+		se.On("GetBackupVault", ctx, "gcnv-vault-mixed").Return(bv, nil)
+		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{1, 2}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{1, 2}).Return([]string{models.ServiceTypeGCNV, activities.GCBDRServiceType}, nil)
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: volUUID},
+			State:          "READY",
+			SizeInBytes:    200 * 1024 * 1024 * 1024,
+			DataProtection: &datamodel.DataProtection{BackupVaultID: ""},
+		}
+		bid := "gcnv-vault-mixed"
+		params := &common.UpdateVolumeParams{DataProtection: &models.UpdateDataProtection{BackupVaultID: &bid}}
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "both CrossProject and GCNV backup vaults")
+		se.AssertExpectations(tt)
+	})
 	t.Run("WhenReattachGCNVVaultNoDetachedBackups_Succeeds", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
 		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
@@ -16678,6 +16958,35 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		params := &common.UpdateVolumeParams{DataProtection: &models.UpdateDataProtection{BackupVaultID: &bid}}
 		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
 		assert.NoError(tt, err)
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenReattachVault_OrphanDetachedBackupRows_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volUUID := "vol-orphan-backup-rows"
+		bv := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: "gcnv-vault-orphan"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			ServiceType:    models.ServiceTypeGCNV,
+		}
+		se.On("GetBackupVault", ctx, "gcnv-vault-orphan").Return(bv, nil)
+		se.On("GetDistinctBackupVaultIDsByVolumeUUID", ctx, volUUID).Return([]int64{999}, nil)
+		se.On("GetDistinctBackupVaultServiceTypesByVaultIDs", ctx, []int64{999}).Return([]string{}, nil)
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: volUUID},
+			State:          "READY",
+			SizeInBytes:    200 * 1024 * 1024 * 1024,
+			DataProtection: &datamodel.DataProtection{BackupVaultID: ""},
+		}
+		bid := "gcnv-vault-orphan"
+		params := &common.UpdateVolumeParams{DataProtection: &models.UpdateDataProtection{BackupVaultID: &bid}}
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Could not resolve backup vault type")
 		se.AssertExpectations(tt)
 	})
 

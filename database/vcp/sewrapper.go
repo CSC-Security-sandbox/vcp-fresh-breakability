@@ -4205,6 +4205,22 @@ func (re *retryEngine) GetDistinctBackupVaultIDsByVolumeUUID(ctx context.Context
 	return var0, err
 }
 
+func (re *retryEngine) GetDistinctBackupVaultServiceTypesByVaultIDs(ctx context.Context, backupVaultIDs []int64) ([]string, error) {
+	var var0 []string
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetDistinctBackupVaultServiceTypesByVaultIDs(ctx, backupVaultIDs)
+		if err != nil {
+			re.logError("GetDistinctBackupVaultServiceTypesByVaultIDs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	var var0 []*datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {
