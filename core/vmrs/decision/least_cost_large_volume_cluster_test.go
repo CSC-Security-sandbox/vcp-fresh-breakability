@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/config"
 )
@@ -942,6 +943,31 @@ func TestLargeVolumeClusterApplyNonLinearScaling_NoScalingConfig(t *testing.T) {
 	assert.Contains(t, err.Error(), "no non-linear scaling configuration found")
 	assert.Equal(t, int64(0), scaledIOPS, "IOPS should be 0 when error occurs")
 	assert.Equal(t, int64(0), scaledThroughput, "throughput should be 0 when error occurs")
+}
+
+// TestFindOptimalVMs_WithCurrentConfigAccountID verifies required HA pairs are derived from
+// currentConfig.Deployment.Labels["account_id"] via LvHaPairsForLargeVolume when labels are set.
+func TestFindOptimalVMs_WithCurrentConfigAccountID(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+	current := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			Labels: map[string]string{"account_id": "not-in-custom-ha-allowlist"},
+		},
+	}
+
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             16000,
+		DesiredThroughputInMiBs: 1000,
+		DesiredCapacityInGiB:    100000,
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, current)
+	assert.NoError(t, err)
+	assert.NotNil(t, decision)
+	assert.NotEmpty(t, decision.ChosenVMs)
 }
 
 // TestFindOptimalVMs_NonLinearScaling verifies that non-linear scaling is applied correctly

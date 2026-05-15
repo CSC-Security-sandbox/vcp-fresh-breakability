@@ -58,6 +58,7 @@ ontapVersionDetailsExperimental: ""
 # "" implies only block support is enabled. #"*" implies all accounts are allowlisted for files protocol support
 # "Comma-separated list of account IDs" implies only those accounts are allowlisted for files protocol support
 experimentalVersionAllowlistedAccounts: ""
+experimentalCustomHaLargeVolumeAllowlistedAccounts: ""
 backupEnabled: false
 gcbdrVaultEnabled: false
 expertModeBackupEnabled: false
@@ -139,6 +140,7 @@ createCommonResourcesInVCP: true
 useVCPRegion: false
 adCreateSyncFlow: true
 numberOfHaPairsLargeCapacity: 6
+experimentalNumberOfHaPairsLargeCapacity: 12
 minConstituentVolumeSizeInBytes: 107374182400
 maxConstituentVolumeSizeInBytes: 329853488332800
 secretManagerProjectId: "402007546452"

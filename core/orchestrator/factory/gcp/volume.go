@@ -524,7 +524,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		} else {
 			// Set default constituent count: 8 CVs per aggregate × 6 aggregates = 48 CVs
 			if params.BackupPath == "" {
-				defaultConstituentCount := int32(numOfLvHAPairs * defaultConstituentsPerAggregate)
+				defaultConstituentCount := int32(lvHaPairsForLargeVolumeAccount(account.Name) * defaultConstituentsPerAggregate)
 				if !isActivePassive {
 					defaultConstituentCount *= 2
 				}
@@ -1247,6 +1247,10 @@ func isPrime(constituentVolumeCount int) bool {
 	return true
 }
 
+func lvHaPairsForLargeVolumeAccount(accountID string) int64 {
+	return utils.LvHaPairsForLargeVolume(accountID, numOfLvHAPairs)
+}
+
 func getMaxConstituentVolumesPerAggregate(logger log.Logger, config string) (int64, error) {
 	// Get the VSA instance type detail from Pool table
 	vlmConfig := &vlm.VLMConfig{}
@@ -1340,6 +1344,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	}
 
 	if params.LargeCapacity {
+		lvHaPairs := lvHaPairsForLargeVolumeAccount(params.AccountName)
 		if utils.IsSanProtocols(params.Protocols) {
 			return customerrors.NewUserInputValidationErr("SAN protocols are not supported for large capacity volumes")
 		}
@@ -1371,13 +1376,13 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 				return customerrors.NewTransientErr(fmt.Sprintf("error unmarshalling VLM config from pool: %v", err))
 			}
 
-			maxCVsPerVolumeLimit := numOfLvHAPairs * maxConstituentVolumesPerVolumePerAggregate
+			maxCVsPerVolumeLimit := lvHaPairs * maxConstituentVolumesPerVolumePerAggregate
 			if int64(params.LargeVolumeConstituentCount) > maxCVsPerVolumeLimit {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Large Volume constituent count cannot be greater than %d for the current per-aggregate limit", maxCVsPerVolumeLimit))
 			}
 
 			// Subtracting 1 because there will always be root vol in the aggregate at start
-			finalMaxCVs := (numOfLvHAPairs * maxConstituentVolumesPerAggregate) - 1
+			finalMaxCVs := (lvHaPairs * maxConstituentVolumesPerAggregate) - 1
 			if int64(params.LargeVolumeConstituentCount) > finalMaxCVs {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(finalMaxCVs)))
 			}
@@ -1387,8 +1392,8 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			cvCount = int64(params.LargeVolumeConstituentCount)
 		} else {
 			// For default CVs params.LargeCapacity is 0, we need to validate if params.QuotaInBytes/ uint64(defaultConstituentCount) >= minCVSizeInBytes
-			// Set default constituent count: 8 CVs per aggregate × 6 aggregates = 48 CVs
-			cvCount = numOfLvHAPairs * defaultConstituentsPerAggregate
+			// Set default constituent count: 8 CVs per aggregate × HA pairs for this account
+			cvCount = lvHaPairs * defaultConstituentsPerAggregate
 			// validate that each constituent volume size is at least 100 GB
 			cvSizeInBytes = params.QuotaInBytes / uint64(cvCount)
 		}

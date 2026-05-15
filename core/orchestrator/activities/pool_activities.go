@@ -1598,7 +1598,7 @@ func GetImageChecksum(labels map[string]string) (string, error) {
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
-func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string, isLargeCapacityPool bool, isOntapMode bool) (*vlm.VLMConfig, error) {
+func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string, isLargeCapacityPool bool, isOntapMode bool, accountID string) (*vlm.VLMConfig, error) {
 	activity.RecordHeartbeat(ctx, "Starting IdentifyVMs activity")
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying VMs to use for VSA cluster")
@@ -1627,6 +1627,12 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 
 	activity.RecordHeartbeat(ctx, "Finding optimal VMs")
 	vlmConfig := &vlm.VLMConfig{}
+	if accountID != "" {
+		if vlmConfig.Deployment.Labels == nil {
+			vlmConfig.Deployment.Labels = make(map[string]string)
+		}
+		vlmConfig.Deployment.Labels["account_id"] = accountID
+	}
 	decision, err := decisionMaker.FindOptimalVMs(vmrsConfig, customerRequest, vlmConfig)
 	if err != nil {
 		logger.Error("Failed to identify optimal VMs", "error", err)

@@ -202,6 +202,7 @@ data:
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   IS_ALL_SQUASH_ENABLED: {{$.Values.workerConfig.isAllSquashEnabled | quote }}
   EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.experimentalVersionAllowlistedAccounts | quote }}
+  EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.experimentalCustomHaLargeVolumeAllowlistedAccounts | quote }}
   FLEXCACHE_FORCE_ENCRYPTION: {{$.Values.workerConfig.flexcacheForceEncryption | quote }}
   VSA_IMAGE_NAME: {{$.Values.workerConfig.vsaImageName | quote }}
   VSA_FILES_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesImageName | quote }}
@@ -231,6 +232,7 @@ data:
   VLM_RETRY_ERROR_PATTERNS: {{$.Values.workerConfig.vlmRetryErrorPatterns | quote }}
   GCE_METADATA_HOST: {{$.Values.workerConfig.gceMetadataHost | quote }}
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{$.Values.workerConfig.numberOfHaPairsLargeCapacity | quote }}
+  EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{$.Values.workerConfig.experimentalNumberOfHaPairsLargeCapacity | quote }}
   NON_LINEAR_SCALING_ACTIVE_PASSIVE: {{$.Values.workerConfig.nonLinearScalingActivePassive | quote }}
   VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV: {{$.Values.workerConfig.vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_LV: {{$.Values.workerConfig.startToCloseWorkflowTimeoutLv | quote }}

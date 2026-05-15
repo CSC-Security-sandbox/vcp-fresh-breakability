@@ -4046,6 +4046,49 @@ func TestIsAccountAllowlisted_EmptyMap(t *testing.T) {
 	assert.False(t, result, "Should return false for any account when map is empty")
 }
 
+func TestLvHaPairsForLargeVolume(t *testing.T) {
+	origAllow := os.Getenv("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS")
+	orig24 := os.Getenv("EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY")
+	defer func() {
+		if origAllow != "" {
+			_ = os.Setenv("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS", origAllow)
+		} else {
+			_ = os.Unsetenv("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS")
+		}
+		if orig24 != "" {
+			_ = os.Setenv("EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", orig24)
+		} else {
+			_ = os.Unsetenv("EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY")
+		}
+		experimentalCustomHaLargeVolumeAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS", ""))
+	}()
+
+	SetExperimentalCustomHaLargeVolumeAllowlistedAccountsForTesting("acct-a")
+	_ = os.Setenv("EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", "11")
+	assert.Equal(t, int64(11), LvHaPairsForLargeVolume("acct-a", 6))
+	assert.Equal(t, int64(6), LvHaPairsForLargeVolume("other", 6))
+	assert.False(t, IsCustomHaLargeVolumeAllowlisted("other"))
+	assert.True(t, IsCustomHaLargeVolumeAllowlisted("acct-a"))
+}
+
+// TestIsCustomHaLargeVolumeAllowlisted_EmptyAllowlist covers IsCustomHaLargeVolumeAllowlisted when the allowlist map is empty.
+func TestIsCustomHaLargeVolumeAllowlisted_EmptyAllowlist(t *testing.T) {
+	origAllow := os.Getenv("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS")
+	defer func() {
+		if origAllow != "" {
+			_ = os.Setenv("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS", origAllow)
+		} else {
+			_ = os.Unsetenv("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS")
+		}
+		experimentalCustomHaLargeVolumeAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS", ""))
+	}()
+
+	_ = os.Unsetenv("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS")
+	experimentalCustomHaLargeVolumeAllowlistedAccounts = ParseCommaSeparatedStringToMap("")
+
+	assert.False(t, IsCustomHaLargeVolumeAllowlisted("any-account"))
+}
+
 // TestIsFileProtocolSupportedV2_FlagDisabled tests lines 1104-1105
 // Tests IsFileProtocolSupportedV2 when FileProtocolSupported flag is disabled
 func TestIsFileProtocolSupportedV2_FlagDisabled(t *testing.T) {

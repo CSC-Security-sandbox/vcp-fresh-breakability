@@ -413,7 +413,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Use resolved zones to identify VMs and build VLM config
 	isOntapMode := params.Mode == common.ONTAPMode
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, tenancyDetails, serviceAccount.Email, bucketName, pool.LargeCapacity, isOntapMode).Get(ctx, vlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, tenancyDetails, serviceAccount.Email, bucketName, pool.LargeCapacity, isOntapMode, params.AccountName).Get(ctx, vlmConfig)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1107,7 +1107,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		SnHostProject:         pool.ClusterDetails.SnHostProject,
 	}
 	isOntapMode := pool.APIAccessMode == common.ONTAPMode
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, poolTenancyInfo, saEmail, bucketName, pool.LargeCapacity, isOntapMode).Get(ctx, newVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, poolTenancyInfo, saEmail, bucketName, pool.LargeCapacity, isOntapMode, updatePoolParams.AccountName).Get(ctx, newVlmConfig)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

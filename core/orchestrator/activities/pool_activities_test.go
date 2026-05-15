@@ -3872,7 +3872,7 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false, "test-account-id")
 
 	assert.NoError(t, err)
 }
@@ -3912,7 +3912,7 @@ func Test_IdentifyVMs_SetsClusterName_DeploymentNameOnlyWhenNoRegionCode(t *test
 		SnHostProject:         "test-sn-host-project",
 	}
 
-	val, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false)
+	val, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false, "")
 	require.NoError(t, err)
 
 	var vlmConfig *vlm.VLMConfig
@@ -3957,7 +3957,7 @@ func Test_IdentifyVMs_SetsClusterName_FormatDeploymentNameAndRegionCode(t *testi
 		SnHostProject:         "test-sn-host-project",
 	}
 
-	val, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "my-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false)
+	val, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "my-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false, "")
 	require.NoError(t, err)
 
 	var vlmConfig *vlm.VLMConfig
@@ -4006,7 +4006,7 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig_LargeVolume(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false, "")
 
 	assert.NoError(t, err)
 }
@@ -4045,7 +4045,7 @@ func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to prepare VLM config")
@@ -4087,7 +4087,7 @@ func Test_IdentifyVMs_FailsToPrepareConfig_LargeVolume(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to prepare VLM config")
@@ -4121,7 +4121,7 @@ func Test_IdentifyVMs_FailsToLoadConfig(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load VMRS config from file")
@@ -4158,7 +4158,7 @@ func Test_IdentifyVMs_FailsToLoadConfig_LargeVolume(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load VMRS config for large volume cluster")
@@ -4200,7 +4200,7 @@ func Test_IdentifyVMs_FailsToCreateDecisionMaker(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create decision maker")
@@ -4245,7 +4245,7 @@ func Test_IdentifyVMs_FailsToCreateDecisionMaker_LargeVolume(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create decision maker")
@@ -4289,7 +4289,7 @@ func Test_IdentifyVMs_FailsToFindOptimalVMs(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false, false, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find optimal VMs")
@@ -4333,7 +4333,7 @@ func Test_IdentifyVMs_FailsToFindOptimalVMs_LargeVolume(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-sn-host-project",
 	}
-	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false)
+	_, err := env.ExecuteActivity(activity.IdentifyVMs, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", true, false, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find optimal VMs")

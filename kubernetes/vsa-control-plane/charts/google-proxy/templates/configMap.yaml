@@ -68,6 +68,7 @@ data:
   REGIONAL_SUPPORT_ENABLED: "{{ index .Values "regionalSupportEnabled" }}"
   FILES_PROTOCOL_SUPPORT: "{{ index .Values "filesProtocolSupport" }}"
   EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS: "{{ index .Values "experimentalVersionAllowlistedAccounts" }}"
+  EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS: "{{ index .Values "experimentalCustomHaLargeVolumeAllowlistedAccounts" }}"
   IS_ALL_SQUASH_ENABLED: "{{ index .Values "isAllSquashEnabled" }}"
   ADDRESS_SPACE_MGMT_ENABLED: "{{ index .Values "addressSpaceMgmtEnabled" }}"
   MIN_QUOTA_IN_BYTES_POOL: "{{ index .Values "minQuotaInBytesPool" }}"
@@ -142,6 +143,7 @@ data:
   SECRET_MANAGER_PROJECT_ID: "{{ index .Values "secretManagerProjectId" }}"
   AUTO_POOL_SCALING_LIMITS:  {{ index .Values "autoPoolScalingLimits" | toJson | quote }}
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{ index .Values "numberOfHaPairsLargeCapacity" | quote }}
+  EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{ index .Values "experimentalNumberOfHaPairsLargeCapacity" | quote }}
   SNAPSHOT_API_SYNC_MODE: {{index .Values "snapshotApiSyncMode" | toString | quote}}
   ENABLE_JOB_RESOURCE_UUID_INDEX: {{index .Values "enableJobResourceUuidIndex" | toString | quote}}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_TIMEOUT_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollTimeoutMilliseconds" | quote }}

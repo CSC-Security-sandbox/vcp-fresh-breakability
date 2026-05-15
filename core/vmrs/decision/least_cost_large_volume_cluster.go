@@ -8,6 +8,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
@@ -79,6 +80,11 @@ func (d *LeastCostLargeVolumeClusterDecisionMaker) CompareVMScalingDirection(cur
 // and returns a homogeneous cluster configuration with the cheapest suitable VM type.
 func (d *LeastCostLargeVolumeClusterDecisionMaker) FindOptimalVMs(config *vmrs.VMRSConfig, customerRequest vmrs.CustomerRequestedPerformance, currentConfig *vlm.VLMConfig) (*vmrs.Decision, error) {
 	requiredHAPairs := LVHaPair
+	if currentConfig != nil && currentConfig.Deployment.Labels != nil {
+		if accountID := currentConfig.Deployment.Labels["account_id"]; accountID != "" {
+			requiredHAPairs = int(utils.LvHaPairsForLargeVolume(accountID, int64(LVHaPair)))
+		}
+	}
 
 	scaledIOPSPerHaPair, scaledThroughputPerHaPair, err := d.applyNonLinearScaling(customerRequest.DesiredIOPS, customerRequest.DesiredThroughputInMiBs, requiredHAPairs)
 	if err != nil {

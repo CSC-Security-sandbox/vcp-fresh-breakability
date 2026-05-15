@@ -168,6 +168,8 @@ workerConfig:
   # "" implies only block support is enabled. #"*" implies all accounts are allowlisted for files protocol support
   # "Comma-separated list of account IDs" implies only those accounts are allowlisted for files protocol support
   experimentalVersionAllowlistedAccounts: ""
+  # Comma-separated GCP project IDs allowed to use experimental HA pair count (EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY, default 12) for large-capacity sizing
+  experimentalCustomHaLargeVolumeAllowlistedAccounts: ""
   flexcacheForceEncryption: "false"
   ontapRestAsyncPollTimeoutMinutes: 30
   ontapRestPollWorkflowMaxRetries: 3
@@ -240,6 +242,7 @@ workerConfig:
   enableUniqueSerialNumberGeneration: false
   clusterSerialNumberPrefix: "935"
   numberOfHaPairsLargeCapacity: 6
+  experimentalNumberOfHaPairsLargeCapacity: 12
   nonLinearScalingActivePassive: true
   vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv: 45
   startToCloseWorkflowTimeoutLv: "60m"

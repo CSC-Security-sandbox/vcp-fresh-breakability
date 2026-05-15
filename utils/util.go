@@ -103,17 +103,18 @@ var (
 	ParsePEMCertificate              = _parsePEMCertificate
 	CalculateRequiredVolumeSize      = _calculateRequiredVolumeSize
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
-	FileProtocolSupported                  = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
-	experimentalVersionAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS", ""))
-	IsAllSquashEnabled                     = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
-	isProberProject                        = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
-	AutoTieringEnabled                     = env.GetBool("AUTO_TIERING_ENABLED", false)
-	immutableBackupEnabled                 = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
-	crossRegionBackupEnabled               = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
-	RestoreVolumeBufferEnabled             = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
-	EnableBackupVaultSwitching             = env.GetBool("ENABLE_BACKUP_VAULT_SWITCHING", false)
-	enableKerberos                         = env.GetBool("ENABLE_KERBEROS", false)
-	EnableJobResourceUUIDIndex             = env.GetBool("ENABLE_JOB_RESOURCE_UUID_INDEX", false)
+	FileProtocolSupported                              = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	experimentalVersionAllowlistedAccounts             = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS", ""))
+	experimentalCustomHaLargeVolumeAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS", ""))
+	IsAllSquashEnabled                                 = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
+	isProberProject                                    = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
+	AutoTieringEnabled                                 = env.GetBool("AUTO_TIERING_ENABLED", false)
+	immutableBackupEnabled                             = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
+	crossRegionBackupEnabled                           = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
+	RestoreVolumeBufferEnabled                         = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
+	EnableBackupVaultSwitching                         = env.GetBool("ENABLE_BACKUP_VAULT_SWITCHING", false)
+	enableKerberos                                     = env.GetBool("ENABLE_KERBEROS", false)
+	EnableJobResourceUUIDIndex                         = env.GetBool("ENABLE_JOB_RESOURCE_UUID_INDEX", false)
 	// TODO: Remove FORCE_VCP_KMS_PATH_FOR_TESTING once CMEK VPC-SC testing is complete.
 	ForceVCPKMSPathForTesting               = env.GetBool("FORCE_VCP_KMS_PATH_FOR_TESTING", false)
 	remoteBackupVaultHydrationNameMaxLength = 63
@@ -1176,6 +1177,26 @@ func IsFileProtocolSupported(accountID string) bool {
 	return exists
 }
 
+// IsCustomHaLargeVolumeAllowlisted returns true when accountID is listed in EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS,
+// allowing LvHaPairsForLargeVolume to use EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY (default 12 HA pairs / 24 nodes).
+func IsCustomHaLargeVolumeAllowlisted(accountID string) bool {
+	if len(experimentalCustomHaLargeVolumeAllowlistedAccounts) == 0 {
+		return false
+	}
+	_, exists := experimentalCustomHaLargeVolumeAllowlistedAccounts[accountID]
+	return exists
+}
+
+// LvHaPairsForLargeVolume returns the HA pair count for large-volume logic: defaultHAPairs (typically from
+// NUMBER_OF_HA_PAIRS_LARGE_CAPACITY) when the account is not in EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS;
+// otherwise EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY (default 12, i.e. 24-node cluster).
+func LvHaPairsForLargeVolume(accountID string, defaultHAPairs int64) int64 {
+	if !IsCustomHaLargeVolumeAllowlisted(accountID) {
+		return defaultHAPairs
+	}
+	return env.GetInt64("EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 12)
+}
+
 // IsAccountAllowlisted returns true if the provided accountID is in the allowlisted accounts config map.
 // This is separate from file support checks and is used for image selection.
 func IsAccountAllowlisted(accountID string) bool {
@@ -1274,6 +1295,12 @@ func SetExperimentalVersionAllowlistedAccountsForTesting(accounts string) {
 	}
 	// Re-parse the accounts to update the cached value
 	experimentalVersionAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS", ""))
+}
+
+// SetExperimentalCustomHaLargeVolumeAllowlistedAccountsForTesting sets EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS for tests.
+func SetExperimentalCustomHaLargeVolumeAllowlistedAccountsForTesting(accounts string) {
+	_ = os.Setenv("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS", accounts)
+	experimentalCustomHaLargeVolumeAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS", ""))
 }
 
 func GetSnHostProject(pool *datamodel.Pool) string {

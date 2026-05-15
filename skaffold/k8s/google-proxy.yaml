@@ -96,12 +96,16 @@ spec:
               value: "false"
             - name: EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS
               value: ""
+            - name: EXPERIMENTAL_CUSTOM_HA_LARGE_VOLUME_ALLOWLISTED_ACCOUNTS
+              value: ""
             - name: IS_ALL_SQUASH_ENABLED
               value: "true"
             - name: ADDRESS_SPACE_MGMT_ENABLED
               value: "true"
             - name: NUMBER_OF_HA_PAIRS_LARGE_CAPACITY
               value: "6"
+            - name: EXPERIMENTAL_NUMBER_OF_HA_PAIRS_LARGE_CAPACITY
+              value: "12"
             - name: MIN_CONSTITUENT_VOLUME_SIZE_BYTES
               value: "107374182400"
             - name: MAX_CONSTITUENT_VOLUME_SIZE_BYTES
