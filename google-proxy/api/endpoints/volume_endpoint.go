@@ -177,6 +177,13 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
+	if pool != nil && pool.PoolAttributes != nil && (pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitched) {
+		return &gcpgenserver.V1betaCreateVolumeBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "Volume creation is not supported when the pool is switching/switched to a different primary zone.",
+		}, nil
+	}
+
 	param, err := prepareCreateVolumeParams(req, params, region, zone, pool)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
@@ -962,6 +969,25 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}, nil
 	}
 
+	pool, err := h.Orchestrator.DescribePool(ctx, volume.PoolID, params.ProjectNumber)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to fetch corresponding pool to the volume.", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: "Internal server error"}, nil
+	}
+	if pool != nil && pool.PoolAttributes != nil &&
+		(pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitched) {
+		return &gcpgenserver.V1betaUpdateVolumeBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "Volume update is not supported when the pool is switching/switched to a different primary zone.",
+		}, nil
+	}
+
 	param, err := prepareUpdateVolumeParams(req, params, region, volume)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
@@ -1592,6 +1618,28 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 			Name: gcpgenserver.NewOptString(dummyOperationID),
 			Done: gcpgenserver.NewOptBool(true),
 		}, nil
+	}
+
+	if volume != nil && volume.PoolID != "" {
+		pool, err := h.Orchestrator.DescribePool(ctx, volume.PoolID, params.ProjectNumber)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				return &gcpgenserver.V1betaDeleteVolumeBadRequest{
+					Code:    400,
+					Message: err.Error(),
+				}, nil
+			}
+			logger.Error("Failed to fetch corresponding pool to the volume.", "error", err.Error())
+			return &gcpgenserver.V1betaDeleteVolumeInternalServerError{Code: 500, Message: "Internal server error"}, nil
+		}
+
+		if pool != nil && pool.PoolAttributes != nil &&
+			(pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitching || pool.PoolAttributes.ZoneSwitchState == models.ZoneSwitched) {
+			return &gcpgenserver.V1betaDeleteVolumeBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: "Volume delete is not supported when the pool is switching/switched to a different primary zone.",
+			}, nil
+		}
 	}
 
 	volume, jobUUID, err := h.Orchestrator.DeleteVolume(ctx, params.VolumeId)

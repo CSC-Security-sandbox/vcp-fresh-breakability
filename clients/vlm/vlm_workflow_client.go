@@ -82,6 +82,7 @@ type VlmWorkflowClient interface {
 	UpdateLicenseWorkflow(ctx workflow.Context, req *UpdateLicenseRequest) error
 	GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error)
 	CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error)
+	ZoneSwitch(ctx workflow.Context, req *ZoneSwitchRequest) (*ZoneSwitchResponse, error)
 }
 
 type VSAClientWorkflowManager struct {
@@ -955,4 +956,55 @@ func (vlmManager *VSAClientWorkflowManager) UpdateLicenseWorkflow(ctx workflow.C
 
 	logger.Info("UpdateLicense child workflow completed successfully", "vsaManagementIP", req.VSAManagementIP)
 	return nil
+}
+
+func (vlmManager *VSAClientWorkflowManager) ZoneSwitch(ctx workflow.Context, req *ZoneSwitchRequest) (*ZoneSwitchResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[ZoneSwitchWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ExtractedOntapVersion,
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	zoneSwitchResponse := &ZoneSwitchResponse{}
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, req.VLMConfig.Deployment.DeploymentID)
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, ZoneSwitchWorkflowName, req).Get(childWorkflowContxt, &zoneSwitchResponse)
+	if err != nil {
+		logger.Error("Failed to Zone Switch: ", "error", err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	logger.Info("ZoneSwitch workflow completed successfully")
+	return zoneSwitchResponse, nil
 }

@@ -1953,6 +1953,159 @@ func TestUpdateLicenseWorkflow(t *testing.T) {
 	})
 }
 
+// TestZoneSwitch exercises VSAClientWorkflowManager.ZoneSwitch (child workflow wiring, timeouts, correlation ID).
+func TestZoneSwitch(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, err := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		assert.NoError(t, err)
+		env.SetHeader(&commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		})
+
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *ZoneSwitchRequest) (*ZoneSwitchResponse, error) {
+				return &ZoneSwitchResponse{VLMConfig: req.VLMConfig}, nil
+			},
+			workflow.RegisterOptions{Name: ZoneSwitchWorkflowName},
+		)
+
+		req := &ZoneSwitchRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "deployment-123",
+					Labels:       map[string]string{"account_id": "acc-1"},
+				},
+			},
+			OntapCredentials: OntapCredentials{AdminPassword: "pw"},
+			Action:           "switch",
+		}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			vlmManager := &VSAClientWorkflowManager{}
+			resp, err := vlmManager.ZoneSwitch(ctx, req)
+			if err != nil {
+				return err
+			}
+			if resp == nil {
+				return fmt.Errorf("expected non-nil response")
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+
+	t.Run("child workflow error", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, err := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		assert.NoError(t, err)
+		env.SetHeader(&commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		})
+
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *ZoneSwitchRequest) (*ZoneSwitchResponse, error) {
+				return nil, errors.New("zone switch child failed")
+			},
+			workflow.RegisterOptions{Name: ZoneSwitchWorkflowName},
+		)
+
+		req := &ZoneSwitchRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "deployment-123",
+					Labels:       map[string]string{"account_id": "acc-1"},
+				},
+			},
+			OntapCredentials: OntapCredentials{AdminPassword: "pw"},
+			Action:           "switch",
+		}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			vlmManager := &VSAClientWorkflowManager{}
+			_, err := vlmManager.ZoneSwitch(ctx, req)
+			return err
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("missing correlation ID in context", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *ZoneSwitchRequest) (*ZoneSwitchResponse, error) {
+				return &ZoneSwitchResponse{}, nil
+			},
+			workflow.RegisterOptions{Name: ZoneSwitchWorkflowName},
+		)
+
+		req := &ZoneSwitchRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{DeploymentID: "deployment-123"},
+			},
+		}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			vlmManager := &VSAClientWorkflowManager{}
+			_, err := vlmManager.ZoneSwitch(ctx, req)
+			return err
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("populate retry policy error", func(t *testing.T) {
+		origTimeout := VlmWorkflowStartToCloseTimeout
+		VlmWorkflowStartToCloseTimeout = "invalid-duration"
+		t.Cleanup(func() { VlmWorkflowStartToCloseTimeout = origTimeout })
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, err := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		assert.NoError(t, err)
+		env.SetHeader(&commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		})
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			vlmManager := &VSAClientWorkflowManager{}
+			_, err := vlmManager.ZoneSwitch(ctx, &ZoneSwitchRequest{
+				VLMConfig: VLMConfig{
+					Deployment: DeploymentConfig{DeploymentID: "deployment-123"},
+				},
+			})
+			return err
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+}
+
 // TestClusterPowerOp tests the ClusterPowerOp method
 func TestClusterPowerOp(t *testing.T) {
 	t.Run("TestClusterPowerOp_PowerOn", func(t *testing.T) {

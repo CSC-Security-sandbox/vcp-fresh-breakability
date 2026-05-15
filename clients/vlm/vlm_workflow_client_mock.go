@@ -740,6 +740,65 @@ func (_c *MockVlmWorkflowClient_ValidateClusterHealth_Call) RunAndReturn(run fun
 	return _c
 }
 
+// ZoneSwitch provides a mock function with given fields: ctx, req
+func (_m *MockVlmWorkflowClient) ZoneSwitch(ctx internal.Context, req *ZoneSwitchRequest) (*ZoneSwitchResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ZoneSwitch")
+	}
+
+	var r0 *ZoneSwitchResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *ZoneSwitchRequest) (*ZoneSwitchResponse, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *ZoneSwitchRequest) *ZoneSwitchResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ZoneSwitchResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(internal.Context, *ZoneSwitchRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockVlmWorkflowClient_ZoneSwitch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ZoneSwitch'
+type MockVlmWorkflowClient_ZoneSwitch_Call struct {
+	*mock.Call
+}
+
+// ZoneSwitch is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - req *ZoneSwitchRequest
+func (_e *MockVlmWorkflowClient_Expecter) ZoneSwitch(ctx interface{}, req interface{}) *MockVlmWorkflowClient_ZoneSwitch_Call {
+	return &MockVlmWorkflowClient_ZoneSwitch_Call{Call: _e.mock.On("ZoneSwitch", ctx, req)}
+}
+
+func (_c *MockVlmWorkflowClient_ZoneSwitch_Call) Run(run func(ctx internal.Context, req *ZoneSwitchRequest)) *MockVlmWorkflowClient_ZoneSwitch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*ZoneSwitchRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_ZoneSwitch_Call) Return(_a0 *ZoneSwitchResponse, _a1 error) *MockVlmWorkflowClient_ZoneSwitch_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_ZoneSwitch_Call) RunAndReturn(run func(internal.Context, *ZoneSwitchRequest) (*ZoneSwitchResponse, error)) *MockVlmWorkflowClient_ZoneSwitch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockVlmWorkflowClient creates a new instance of MockVlmWorkflowClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockVlmWorkflowClient(t interface {

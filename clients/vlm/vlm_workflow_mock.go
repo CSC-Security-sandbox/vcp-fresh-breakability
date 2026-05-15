@@ -145,3 +145,10 @@ func (vlmManager *VSAClientWorkflowManagerMock) CreateVSAExpertModeUser(ctx work
 	logger.Info("Mock GetVSAClusterDeployment")
 	return OntapExpertModeUserResponse{}, nil
 }
+
+func (vlmManager *VSAClientWorkflowManagerMock) ZoneSwitch(ctx workflow.Context, req *ZoneSwitchRequest) (*ZoneSwitchResponse, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock ZoneSwitch")
+	zoneSwitchResponse := &ZoneSwitchResponse{}
+	return zoneSwitchResponse, nil
+}

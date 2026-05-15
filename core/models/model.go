@@ -105,6 +105,11 @@ const (
 	CloneStateCloned           = "SPLIT_STATE_NOT_SPLITTING"
 	CloneStateSplitting        = "SPLIT_STATE_IN_PROGRESS"
 	CloneStateErrorInSplitting = "SPLIT_STATE_FAILED"
+
+	// ZoneSwitching States
+	ZoneSwitching = "SWITCHING"
+	ZoneSwitched  = "SWITCHED"
+	ZonePrimary   = "PRIMARY"
 )
 
 const (

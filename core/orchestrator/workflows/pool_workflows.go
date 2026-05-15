@@ -83,6 +83,8 @@ const (
 	statusDone        = "DONE"
 	operationProgress = int64(100)
 	CancelSignalName  = "cancel-pool-creation"
+	ZoneSwitch        = "switch"
+	ZoneRevert        = "revert"
 )
 
 type createPoolWorkflow struct {
@@ -932,6 +934,68 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, ConvertToVSAError(err)
 		}
 	}
+
+	// Check if Zone Switch is needed.
+	needsZoneSwitch := updatePoolParams.CurrentZone != "" && dbPool.PoolAttributes != nil &&
+		updatePoolParams.CurrentZone == dbPool.PoolAttributes.SecondaryZone
+
+	if needsZoneSwitch {
+		zoneSwitchRequest := &vlm.ZoneSwitchRequest{}
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		var zoneSwitchAction string
+		if !dbPool.PoolAttributes.IsZoneSwitched {
+			zoneSwitchAction = ZoneSwitch
+		} else {
+			zoneSwitchAction = ZoneRevert
+		}
+
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdateZoneSwitchPoolAttributes, dbPool, models.ZoneSwitching).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Retrieve the last known VLM config to be used for zone switching workflow.
+		vlmConfig := &vlm.VLMConfig{}
+		err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &vlmConfig)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		credentials := &vlm.OntapCredentials{}
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &credentials)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Use post-batch deployment config (cluster already updated above).
+		prepareZoneSwitchRequest(zoneSwitchRequest, *vlmConfig, *credentials, zoneSwitchAction)
+
+		zoneSwitchResponse, err := vsaClientWorkflowManager.ZoneSwitch(ctx, zoneSwitchRequest)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		if zoneSwitchResponse == nil {
+			wf.Logger.Infof("zone switch returned nil response")
+			return nil, ConvertToVSAError(fmt.Errorf("zone switch returned nil response"))
+		}
+		wf.Logger.Info("Zone switch completed ", "response", zoneSwitchResponse)
+
+		currentPrimaryZone := dbPool.PoolAttributes.PrimaryZone
+		dbPool.PoolAttributes.PrimaryZone = updatePoolParams.CurrentZone
+		dbPool.PoolAttributes.SecondaryZone = currentPrimaryZone
+		dbPool.PoolAttributes.IsZoneSwitched = !dbPool.PoolAttributes.IsZoneSwitched
+		if zoneSwitchAction == ZoneSwitch {
+			dbPool.PoolAttributes.ZoneSwitchState = models.ZoneSwitched
+		}
+		if zoneSwitchAction == ZoneRevert {
+			dbPool.PoolAttributes.ZoneSwitchState = models.ZonePrimary
+		}
+
+		// Persist swapped zones (and same deployment snapshot as pre-switch persist; matches prior behavior).
+		err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, zoneSwitchResponse.VLMConfig, updatePoolParams).Get(dbHbCtx, nil)
+		return nil, ConvertToVSAError(err)
+	}
+
 	// Do not short-circuit when qosType is explicitly changing (auto↔manual); transition branch handles it.
 	// Use a single robust check: requested type is valid (auto|manual) and differs from current.
 	qosTypeTransition := (updatePoolParams.QosType == utils.QosTypeAuto || updatePoolParams.QosType == utils.QosTypeManual) && updatePoolParams.QosType != dbPool.QosType
@@ -2062,6 +2126,13 @@ func prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest 
 	// Valid threshold values are 0-100, so -1 is used as a sentinel value meaning "do not update".
 	updateVSAClusterDeploymentRequest.AutoTierThreshold = -1
 	// Note: HAPairIndices should be set by the caller based on the update sequence
+}
+
+func prepareZoneSwitchRequest(zoneSwitchRequest *vlm.ZoneSwitchRequest, currentVlmConfig vlm.VLMConfig, credentials vlm.OntapCredentials, action string) {
+	zoneSwitchRequest.VLMConfig = currentVlmConfig
+	zoneSwitchRequest.OntapCredentials = credentials
+	// Set action to zone switch or revert back
+	zoneSwitchRequest.Action = action
 }
 
 // executePoolBatchUpdates processes HA pair updates in batches sequentially

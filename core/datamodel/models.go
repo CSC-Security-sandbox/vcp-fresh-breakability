@@ -191,6 +191,8 @@ type PoolAttributes struct {
 	MediatorZone                     string   `json:"mediator_zone"`
 	Labels                           *JSONB   `json:"labels"`
 	IsRegionalHA                     bool     `json:"is_regional_ha"`
+	IsZoneSwitched                   bool     `json:"is_zone_switched"`
+	ZoneSwitchState                  string   `json:"zone_switch_state"`
 	LdapEnabled                      bool     `json:"ldap_enabled"`
 	AccountName                      string   `json:"account_name"`
 	ServiceAccountPermissionProjects []string `json:"service_account_permission_projects,omitempty"`

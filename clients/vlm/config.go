@@ -38,6 +38,7 @@ const (
 	AddExpertModeUserWorkflowName              = "vlm.AddExpertModeUserWorkflow"
 	UpdateLicenseWorkflowName                  = "vlm.UpdateLicenseWorkflow"
 	ASUPTriggerWaitWorkflowName                = "vlm.ASUPTriggerWaitWorkflow"
+	ZoneSwitchWorkflowName                     = "vlm.ZoneSwitchWorkflow"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
 	GCP_DISK_HDB                 = "hyperdisk-balanced"
@@ -82,6 +83,7 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	UpdateVSAMediatorWorkflowName:              30 * time.Minute,
 	UpdateLicenseWorkflowName:                  10 * time.Minute,
 	CreateVSAExpertModeUserWorkflowName:        30 * time.Minute,
+	ZoneSwitchWorkflowName:                     30 * time.Minute,
 }
 
 type VLMConfig struct {
@@ -596,6 +598,16 @@ type CreateVSAClusterDeploymentRequest struct {
 }
 
 type CreateVSAClusterDeploymentResponse struct {
+	VLMConfig VLMConfig `json:"vlm_config"`
+}
+
+type ZoneSwitchRequest struct {
+	VLMConfig        VLMConfig        `json:"vlm_config"`
+	OntapCredentials OntapCredentials `json:"ontap_credentials"`
+	Action           string           `json:"action"` // "switch" (VM1→VM2) or "revert" (VM2→VM1)
+}
+
+type ZoneSwitchResponse struct {
 	VLMConfig VLMConfig `json:"vlm_config"`
 }
 

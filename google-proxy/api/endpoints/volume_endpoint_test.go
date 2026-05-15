@@ -4992,6 +4992,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -4999,6 +5000,101 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		op, ok := result.(*gcpgenserver.OperationV1beta)
 		assert.True(tt, ok)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("DescribePoolNotFound_ReturnsBadRequest", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+			PoolID:         "pool-db-id",
+			QuotaInBytes:   107374182499,
+		}
+		notFoundErr := errors.NewNotFoundErr("Pool", nil)
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-db-id", "project-number").Return(nil, notFoundErr)
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, notFoundErr.Error(), badReq.Message)
+	})
+
+	t.Run("DescribePoolError_ReturnsInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+			PoolID:         "pool-db-id",
+			QuotaInBytes:   107374182499,
+		}
+		describeErr := fmt.Errorf("Internal server error")
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-db-id", "project-number").Return(nil, describeErr)
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.Nil(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, describeErr.Error(), internalErr.Message)
+	})
+
+	t.Run("RejectedWhenPoolZoneSwitchingOrSwitched", func(tt *testing.T) {
+		for _, zoneState := range []string{models.ZoneSwitching, models.ZoneSwitched} {
+			tt.Run(zoneState, func(t *testing.T) {
+				mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+				handler := Handler{Orchestrator: mockOrchestrator}
+				params := gcpgenserver.V1betaUpdateVolumeParams{
+					LocationId:    "location-id",
+					ProjectNumber: "project-number",
+					VolumeId:      "vol-1",
+				}
+				req := &gcpgenserver.VolumeUpdateV1beta{
+					PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+					QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
+				}
+				volume := &models.Volume{
+					BaseModel:      models.BaseModel{UUID: "vol-1"},
+					LifeCycleState: "READY",
+					PoolID:         "pool-db-id",
+					QuotaInBytes:   107374182499,
+				}
+				mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+				mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-db-id", "project-number").Return(&models.Pool{
+					PoolAttributes: &models.PoolAttributes{ZoneSwitchState: zoneState},
+				}, nil)
+
+				result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+				require.NoError(t, err)
+				badReq, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
+				require.True(t, ok)
+				assert.Equal(t, float64(http.StatusBadRequest), badReq.Code)
+				assert.Equal(t, "Volume update is not supported when the pool is switching/switched to a different primary zone.", badReq.Message)
+			})
+		}
 	})
 
 	t.Run("UserInputValidationError", func(tt *testing.T) {
@@ -5014,6 +5110,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			BaseModel: models.BaseModel{UUID: "vol-1"},
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 			return nil, errors.NewUserInputValidationErr("invalid input")
 		}
@@ -5040,6 +5137,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			BaseModel: models.BaseModel{UUID: "vol-1"},
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 			return nil, fmt.Errorf("unexpected error")
 		}
@@ -5095,6 +5193,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			BaseModel: models.BaseModel{UUID: "vol-1"},
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -5122,6 +5221,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			BaseModel: models.BaseModel{UUID: "vol-1"},
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -5149,6 +5249,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			BaseModel: models.BaseModel{UUID: "vol-1"},
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume update conflict"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -5178,6 +5279,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -5217,6 +5319,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -5259,6 +5362,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -5293,6 +5397,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			BaseModel: models.BaseModel{UUID: "vol-1"},
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
 		badReq, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
@@ -5457,7 +5562,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			BaseModel: models.BaseModel{UUID: "vol-1"},
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
-
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 			return &common.UpdateVolumeParams{
 				CacheParameters: &models.CacheParameters{},
@@ -5492,6 +5597,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 			return &common.UpdateVolumeParams{
@@ -6463,13 +6569,47 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
 		op, ok := result.(*gcpgenserver.OperationV1beta)
 		assert.True(tt, ok)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("RejectedWhenPoolZoneSwitchingOrSwitched", func(tt *testing.T) {
+		for _, zoneState := range []string{models.ZoneSwitching, models.ZoneSwitched} {
+			tt.Run(zoneState, func(t *testing.T) {
+				mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+				handler := Handler{Orchestrator: mockOrchestrator}
+
+				params := gcpgenserver.V1betaCreateVolumeParams{
+					LocationId:    "location-id",
+					ProjectNumber: "project-number",
+				}
+				req := &gcpgenserver.VolumeCreateV1beta{
+					Volume: gcpgenserver.VolumeV1beta{
+						ResourceId:    "testvolume",
+						CreationToken: gcpgenserver.NewOptString("test-token"),
+						PoolId:        gcpgenserver.NewNilString("test-pool"),
+						QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+						Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+					},
+					VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+				}
+				mockOrchestrator.EXPECT().DescribePool(mock.Anything, "test-pool", "project-number").Return(&models.Pool{
+					PoolAttributes: &models.PoolAttributes{ZoneSwitchState: zoneState},
+				}, nil)
+
+				result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+				require.NoError(t, err)
+				badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+				require.True(t, ok)
+				assert.Equal(t, float64(http.StatusBadRequest), badReq.Code)
+				assert.Equal(t, "Volume creation is not supported when the pool is switching/switched to a different primary zone.", badReq.Message)
+			})
+		}
 	})
 
 	t.Run("SMBPoolDescribeNotFound", func(tt *testing.T) {
@@ -6519,7 +6659,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 			},
 		}
 
-		describeErr := fmt.Errorf("describe pool failed")
+		describeErr := fmt.Errorf("Internal server error")
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "test-pool", "project-number").Return(nil, describeErr)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
@@ -6579,7 +6719,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 			},
 		}
 
-		describeErr := fmt.Errorf("describe pool failed")
+		describeErr := fmt.Errorf("Internal server error")
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "test-pool", "project-number").Return(nil, describeErr)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
@@ -6713,7 +6853,6 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
 		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
@@ -6736,7 +6875,6 @@ func TestV1betaCreateVolume(t *testing.T) {
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
 
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.Nil(tt, err)
 		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeInternalServerError)
@@ -6788,7 +6926,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -6817,7 +6955,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.Nil(tt, err)
@@ -6846,7 +6984,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume already exists"))
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -6879,7 +7017,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -6912,7 +7050,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -6959,7 +7097,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -7103,7 +7241,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -7137,7 +7275,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -7175,7 +7313,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -7214,7 +7352,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -7273,7 +7411,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -8837,8 +8975,8 @@ func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 		LocationId:    "test-location",
 	}
 	req := &gcpgenserver.VolumeCreateV1beta{}
-	mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
+	mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 	assert.NoError(t, err)
 	badRequest, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
@@ -8898,7 +9036,7 @@ func TestV1betaUpdateVolume_BackupNotSupported(t *testing.T) {
 		BaseModel: models.BaseModel{UUID: "vol-1"},
 	}
 	mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
-
+	mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{PoolAttributes: &models.PoolAttributes{}}, nil)
 	result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 	assert.NoError(t, err)
 	badRequest, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
@@ -10029,6 +10167,89 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		assert.Equal(tt, true, operation.Done.Value)
 		assert.NotNil(tt, operation.Response)
 		assert.Greater(tt, len(operation.Response), 0) // Response should contain data
+	})
+
+	t.Run("DescribePoolNotFound_ReturnsBadRequest", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+		notFoundErr := errors.NewNotFoundErr("Pool", nil)
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			PoolID:         "pool-db-id",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-db-id", "test-project").Return(nil, notFoundErr)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaDeleteVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, notFoundErr.Error(), badReq.Message)
+	})
+
+	t.Run("DescribePoolError_ReturnsInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+		describeErr := fmt.Errorf("Internal server error")
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			PoolID:         "pool-db-id",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-db-id", "test-project").Return(nil, describeErr)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, describeErr.Error(), internalErr.Message)
+	})
+
+	t.Run("RejectedWhenPoolZoneSwitchingOrSwitched", func(tt *testing.T) {
+		for _, zoneState := range []string{models.ZoneSwitching, models.ZoneSwitched} {
+			tt.Run(zoneState, func(t *testing.T) {
+				mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+				handler := Handler{Orchestrator: mockOrchestrator}
+				params := gcpgenserver.V1betaDeleteVolumeParams{
+					ProjectNumber: "test-project",
+					LocationId:    "test-location",
+					VolumeId:      "vol-1",
+				}
+				req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+				volume := &models.Volume{
+					BaseModel:      models.BaseModel{UUID: "vol-1"},
+					LifeCycleState: models.LifeCycleStateREADY,
+					PoolID:         "pool-db-id",
+				}
+				mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+				mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-db-id", "test-project").Return(&models.Pool{
+					PoolAttributes: &models.PoolAttributes{ZoneSwitchState: zoneState},
+				}, nil)
+
+				result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+				require.NoError(t, err)
+				badReq, ok := result.(*gcpgenserver.V1betaDeleteVolumeBadRequest)
+				require.True(t, ok)
+				assert.Equal(t, float64(http.StatusBadRequest), badReq.Code)
+				assert.Equal(t, "Volume delete is not supported when the pool is switching/switched to a different primary zone.", badReq.Message)
+			})
+		}
 	})
 
 	t.Run("GetVolumeNotFound", func(tt *testing.T) {
@@ -15461,7 +15682,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
+			name: "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				// All fields are missing - this should pass validation for updates
 			},

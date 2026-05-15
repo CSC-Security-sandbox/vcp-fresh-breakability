@@ -2680,7 +2680,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			req: &gcpgenserver.PoolUpdateV1beta{
 				Zone: gcpgenserver.NewOptString("us-east4-b"),
 			},
-			message: "Migrating to a different Zone is currently not supported",
+			message: "Zone cannot be specified for zonal pool update",
 		},
 		{
 			name: "GlobalAccessAllowed is set to true",
@@ -2815,6 +2815,97 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("ZoneSwitchRejectsOtherFields", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		// Regional pool so Zone is otherwise valid.
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel:   models.BaseModel{UUID: "pool-uuid"},
+			Description: "original description",
+			SizeInBytes: 1099511627776, // 1 TiB
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone:   "us-east4-a",
+				SecondaryZone: "us-east4-b",
+				IsRegionalHA:  true,
+			},
+			State: "READY",
+		}, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), &gcpgenserver.PoolUpdateV1beta{
+			Zone:        gcpgenserver.NewOptString("us-east4-b"),
+			Description: gcpgenserver.NewOptNilString("new description"),
+		}, params)
+
+		assert.NoError(tt, err)
+		if badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest); ok {
+			assert.Equal(tt, float64(400), badReq.Code)
+			assert.Equal(tt, "When 'zone' is provided, no other update fields are allowed", badReq.Message)
+		} else {
+			tt.Fatalf("Unexpected response type: %T", result)
+		}
+	})
+
+	t.Run("ZoneSwitchRejectsInvalidTargetZone", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel:   models.BaseModel{UUID: "pool-uuid"},
+			Description: "original description",
+			SizeInBytes: 1099511627776,
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone:   "us-east4-a",
+				SecondaryZone: "us-east4-b",
+				IsRegionalHA:  true,
+			},
+			State:   "READY",
+			QosType: utils.QosTypeAuto,
+		}, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), &gcpgenserver.PoolUpdateV1beta{
+			Zone: gcpgenserver.NewOptString("us-east4-c"),
+		}, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok, "expected 400 bad request, got %T", result)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "Target Zone is invalid", badReq.Message)
+	})
 
 	t.Run("TestOngoingUpdatePoolOperationScenario", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
@@ -2974,6 +3065,62 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 		_, ok := result.(*gcpgenserver.V1betaUpdatePoolInternalServerError)
 		assert.True(tt, ok, "Expected V1betaUpdatePoolInternalServerError when upgrade check fails")
 	})
+}
+
+// TestV1betaUpdatePool_RegionalHAZoneOnlyInvokesOrchestrator covers the happy path where a regional HA pool
+// receives a zone-only update to the secondary zone (no other update fields).
+func TestV1betaUpdatePool_RegionalHAZoneOnlyInvokesOrchestrator(t *testing.T) {
+	originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "", nil
+	}
+
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	params := gcpgenserver.V1betaUpdatePoolParams{
+		LocationId:    "us-east4",
+		ProjectNumber: "project-number",
+		PoolId:        "pool-id",
+	}
+
+	existing := &models.Pool{
+		BaseModel:   models.BaseModel{UUID: "pool-uuid"},
+		Description: "original description",
+		SizeInBytes: 1099511627776,
+		QosType:     utils.QosTypeAuto,
+		CustomPerformanceParams: &models.CustomPerformanceParams{
+			Throughput: 64,
+			Iops:       1024,
+		},
+		PoolAttributes: &models.PoolAttributes{
+			PrimaryZone:   "us-east4-a",
+			SecondaryZone: "us-east4-b",
+			IsRegionalHA:  true,
+		},
+		State: models.LifeCycleStateREADY,
+	}
+
+	mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-id", "project-number").Return(existing, nil)
+	mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
+	mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
+		return p.PoolId == "pool-id" &&
+			p.Region == "us-east4" &&
+			p.AccountName == "project-number" &&
+			p.CurrentZone == "us-east4-b"
+	})).Return(existing, "async-op-id", nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+	result, err := handler.V1betaUpdatePool(context.Background(), &gcpgenserver.PoolUpdateV1beta{
+		Zone: gcpgenserver.NewOptString("us-east4-b"),
+	}, params)
+
+	assert.NoError(t, err)
+	op, ok := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, ok, "expected async operation, got %T", result)
+	assert.True(t, op.Name.IsSet())
+	assert.Contains(t, op.Name.Value, "async-op-id")
+	assert.True(t, op.Done.IsSet())
+	assert.False(t, op.Done.Value)
 }
 
 func TestV1betaCreatePoolValidationErrors(t *testing.T) {
@@ -8363,6 +8510,30 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 		assert.True(tt, ok, "Expected V1betaUpdatePoolConflict response")
 		assert.Equal(tt, float64(http.StatusConflict), conflict.Code)
 		assert.Equal(tt, "Update operation is not allowed when the pool is in degraded state", conflict.Message)
+	})
+
+	t.Run("RejectsUpdateWhenPoolIsZoneSwitchingOrSwitched", func(tt *testing.T) {
+		for _, state := range []string{models.ZoneSwitching, models.ZoneSwitched} {
+			tt.Run(state, func(t *testing.T) {
+				existingPool := &models.Pool{
+					BaseModel: models.BaseModel{UUID: "pool-uuid"},
+					State:     models.LifeCycleStateREADY,
+					PoolAttributes: &models.PoolAttributes{
+						PrimaryZone:     "us-east4-a",
+						ZoneSwitchState: state,
+					},
+					SizeInBytes: 1099511627776,
+				}
+				req := &gcpgenserver.PoolUpdateV1beta{
+					Description: gcpgenserver.NewOptNilString("Updated description"),
+				}
+				result := validateUpdatePoolParams(req, existingPool)
+				conflict, ok := result.(*gcpgenserver.V1betaUpdatePoolConflict)
+				assert.True(t, ok, "Expected V1betaUpdatePoolConflict for zone switch state %q", state)
+				assert.Equal(t, float64(http.StatusConflict), conflict.Code)
+				assert.Equal(t, "Update operation is not allowed when the pool is switching/switched to a different primary zone.", conflict.Message)
+			})
+		}
 	})
 }
 

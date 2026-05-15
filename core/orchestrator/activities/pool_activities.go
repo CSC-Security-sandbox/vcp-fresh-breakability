@@ -524,7 +524,6 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 	if updatePoolParams.Labels != nil {
 		pool.PoolAttributes.Labels = updatePoolParams.Labels
 	}
-
 	if updatePoolParams.AllowAutoTiering {
 		pool.AllowAutoTiering = true
 		pool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.HotTierSizeInBytes)
@@ -1273,6 +1272,29 @@ func (j *PoolActivity) UpdateRbacCheckSumInPool(ctx context.Context, pool *datam
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	return nil
+}
+
+func (j *PoolActivity) UpdateZoneSwitchPoolAttributes(ctx context.Context, pool *datamodel.Pool, zoneSwitchState string) error {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+
+	if pool.PoolAttributes == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("pool %s has nil PoolAttributes", pool.UUID))
+	}
+
+	pool.PoolAttributes.ZoneSwitchState = zoneSwitchState
+
+	updates := map[string]interface{}{
+		"pool_attributes": pool.PoolAttributes,
+	}
+
+	if err := se.UpdatePoolFields(ctx, pool.UUID, updates); err != nil {
+		logger.Errorf("Failed to update pool %s with pool attribute zone switch state: %v", pool.UUID, err)
+		return err
+	}
+
+	logger.Infof("Successfully updated zone switch state %s for pool %s", zoneSwitchState, pool.UUID)
 	return nil
 }
 

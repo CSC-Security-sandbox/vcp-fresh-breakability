@@ -55,6 +55,8 @@ type PoolAttributes struct {
 	AllocatedBytes  float64
 	NumberOfVolumes int64
 	IsRegionalHA    bool
+	IsZoneSwitched  bool
+	ZoneSwitchState string
 	Labels          map[string]string
 	LdapEnabled     bool
 }

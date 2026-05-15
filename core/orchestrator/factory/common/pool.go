@@ -92,6 +92,8 @@ func CreatePoolInDB(
 			IsRegionalHA:    params.IsRegionalHA,
 			LdapEnabled:     params.LdapEnabled,
 			AccountName:     account.Name,
+			IsZoneSwitched:  false,
+			ZoneSwitchState: models.ZonePrimary,
 		},
 		APIAccessMode: params.Mode,
 	}
@@ -174,6 +176,8 @@ func ConvertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			SecondaryZone:   pool.PoolAttributes.SecondaryZone,
 			Labels:          labels,
 			IsRegionalHA:    pool.PoolAttributes.IsRegionalHA,
+			IsZoneSwitched:  pool.PoolAttributes.IsZoneSwitched,
+			ZoneSwitchState: pool.PoolAttributes.ZoneSwitchState,
 			LdapEnabled:     ldapEnabled,
 		},
 		AutoTieringConfig: autoTieringConfig,

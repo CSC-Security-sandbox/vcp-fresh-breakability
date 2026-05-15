@@ -3392,6 +3392,368 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+// TestPoolResourceData_IsZoneSwitched_FromWorkflowsPackage exercises database/vcp/pools.go from this
+// package so filtered CI unit tests (which may omit database/vcp tests) still attribute coverage to pools.go.
+func TestPoolResourceData_IsZoneSwitched_FromWorkflowsPackage(t *testing.T) {
+	t.Run("nil PoolAttributes", func(t *testing.T) {
+		p := &database.PoolResourceData{PoolAttributes: nil}
+		assert.False(t, p.IsZoneSwitched())
+	})
+	t.Run("false", func(t *testing.T) {
+		p := &database.PoolResourceData{
+			PoolAttributes: &datamodel.PoolAttributes{IsZoneSwitched: false},
+		}
+		assert.False(t, p.IsZoneSwitched())
+	})
+	t.Run("true", func(t *testing.T) {
+		p := &database.PoolResourceData{
+			PoolAttributes: &datamodel.PoolAttributes{IsZoneSwitched: true},
+		}
+		assert.True(t, p.IsZoneSwitched())
+	})
+}
+
+// TestUpdatePoolWorkflow_ZoneSwitch_Succeeds covers the regional HA zone-switch branch in pool_workflows.go.
+func TestUpdatePoolWorkflow_ZoneSwitch_Succeeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	origFactory := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	t.Cleanup(func() { GetNewVSAClientWorkflowManager = origFactory })
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	sizeBytes := uint64(2 * 1024 * 1024 * 1024 * 1024)
+	throughput := int64(128)
+	iops := int64(2048)
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		Region:               "us-east4",
+		CurrentZone:          "test-secondary-zone",
+		SizeInBytes:          sizeBytes,
+		TotalThroughputMibps: throughput,
+		TotalIops:            nillable.ToPointer(iops),
+		QosType:              utils.QosTypeManual,
+		Description:          "same-description",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "test-pool-id"},
+		Description: "same-description",
+		QosType:     utils.QosTypeManual,
+		SizeInBytes: int64(sizeBytes),
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		VLMConfig: `{"deployment":{"deployment_id":"dep-1","labels":{"account_id":"acc"}}}`,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			ThroughputMibps: throughput,
+			Iops:            iops,
+			IsZoneSwitched:  false,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "test-bucket"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	env.OnActivity("UpdateZoneSwitchPoolAttributes", mock.Anything, mock.Anything, models.ZoneSwitching).Return(nil).Once()
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "dep-1"},
+	}, nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{
+		AdminPassword: "ontap-pw",
+	}, nil)
+
+	mockVSAClientWorkflowManager.On("ZoneSwitch", mock.Anything, mock.MatchedBy(func(req *vlm.ZoneSwitchRequest) bool {
+		return req != nil && req.Action == ZoneSwitch
+	})).Return(&vlm.ZoneSwitchResponse{
+		VLMConfig: vlm.VLMConfig{Deployment: vlm.DeploymentConfig{DeploymentID: "dep-after"}},
+	}, nil).Once()
+
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_ZoneRevert_Succeeds covers the zone-revert action when IsZoneSwitched is true.
+func TestUpdatePoolWorkflow_ZoneRevert_Succeeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	origFactory := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	t.Cleanup(func() { GetNewVSAClientWorkflowManager = origFactory })
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	sizeBytes := uint64(2 * 1024 * 1024 * 1024 * 1024)
+	throughput := int64(128)
+	iops := int64(2048)
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		Region:               "us-east4",
+		CurrentZone:          "test-primary-zone",
+		SizeInBytes:          sizeBytes,
+		TotalThroughputMibps: throughput,
+		TotalIops:            nillable.ToPointer(iops),
+		QosType:              utils.QosTypeManual,
+		Description:          "same-description",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "test-pool-id"},
+		Description: "same-description",
+		QosType:     utils.QosTypeManual,
+		SizeInBytes: int64(sizeBytes),
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		VLMConfig: `{"deployment":{"deployment_id":"dep-1","labels":{"account_id":"acc"}}}`,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-secondary-zone",
+			SecondaryZone:   "test-primary-zone",
+			ThroughputMibps: throughput,
+			Iops:            iops,
+			IsZoneSwitched:  true,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "test-bucket"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	env.OnActivity("UpdateZoneSwitchPoolAttributes", mock.Anything, mock.Anything, models.ZoneSwitching).Return(nil).Once()
+
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "dep-1"},
+	}, nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{
+		AdminPassword: "ontap-pw",
+	}, nil)
+
+	mockVSAClientWorkflowManager.On("ZoneSwitch", mock.Anything, mock.MatchedBy(func(req *vlm.ZoneSwitchRequest) bool {
+		return req != nil && req.Action == ZoneRevert
+	})).Return(&vlm.ZoneSwitchResponse{
+		VLMConfig: vlm.VLMConfig{Deployment: vlm.DeploymentConfig{DeploymentID: "dep-after-revert"}},
+	}, nil).Once()
+
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+	env.AssertExpectations(t)
+}
+
+func zoneSwitchWorkflowTestEnv(t *testing.T) (*testsuite.TestWorkflowEnvironment, *vlm.MockVlmWorkflowClient, *common.UpdatePoolParams, *datamodel.Pool, func()) {
+	t.Helper()
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	origFactory := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	cleanup := func() { GetNewVSAClientWorkflowManager = origFactory }
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.SvmActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	sizeBytes := uint64(2 * 1024 * 1024 * 1024 * 1024)
+	throughput := int64(128)
+	iops := int64(2048)
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		Region:               "us-east4",
+		CurrentZone:          "test-secondary-zone",
+		SizeInBytes:          sizeBytes,
+		TotalThroughputMibps: throughput,
+		TotalIops:            nillable.ToPointer(iops),
+		QosType:              utils.QosTypeManual,
+		Description:          "same-description",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "test-pool-id"},
+		Description: "same-description",
+		QosType:     utils.QosTypeManual,
+		SizeInBytes: int64(sizeBytes),
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		VLMConfig: `{"deployment":{"deployment_id":"dep-1","labels":{"account_id":"acc"}}}`,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			ThroughputMibps: throughput,
+			Iops:            iops,
+			IsZoneSwitched:  false,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "test-bucket"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	return env, mockVSAClientWorkflowManager, params, pool, cleanup
+}
+
+func TestUpdatePoolWorkflow_ZoneSwitch_UpdateZoneSwitchPoolAttributesFails(t *testing.T) {
+	env, mockVSA, params, pool, cleanup := zoneSwitchWorkflowTestEnv(t)
+	defer cleanup()
+
+	env.OnActivity("UpdateZoneSwitchPoolAttributes", mock.Anything, mock.Anything, models.ZoneSwitching).Return(errors.New("update zone switch attrs failed")).Once()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	mockVSA.AssertExpectations(t)
+	env.AssertExpectations(t)
+}
+
+func TestUpdatePoolWorkflow_ZoneSwitch_ParseVlmConfigFails(t *testing.T) {
+	env, mockVSA, params, pool, cleanup := zoneSwitchWorkflowTestEnv(t)
+	defer cleanup()
+
+	env.OnActivity("UpdateZoneSwitchPoolAttributes", mock.Anything, mock.Anything, models.ZoneSwitching).Return(nil).Once()
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return((*vlm.VLMConfig)(nil), errors.New("parse vlm config failed")).Maybe()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	mockVSA.AssertExpectations(t)
+	env.AssertExpectations(t)
+}
+
+func TestUpdatePoolWorkflow_ZoneSwitch_GetOnTapCredentialsFails(t *testing.T) {
+	env, mockVSA, params, pool, cleanup := zoneSwitchWorkflowTestEnv(t)
+	defer cleanup()
+
+	env.OnActivity("UpdateZoneSwitchPoolAttributes", mock.Anything, mock.Anything, models.ZoneSwitching).Return(nil).Once()
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "dep-1"},
+	}, nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return((*vlm.OntapCredentials)(nil), errors.New("get ontap credentials failed")).Maybe()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	mockVSA.AssertExpectations(t)
+	env.AssertExpectations(t)
+}
+
+func TestUpdatePoolWorkflow_ZoneSwitch_ZoneSwitchClientFails(t *testing.T) {
+	env, mockVSA, params, pool, cleanup := zoneSwitchWorkflowTestEnv(t)
+	defer cleanup()
+
+	env.OnActivity("UpdateZoneSwitchPoolAttributes", mock.Anything, mock.Anything, models.ZoneSwitching).Return(nil).Once()
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "dep-1"},
+	}, nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{
+		AdminPassword: "ontap-pw",
+	}, nil)
+
+	mockVSA.On("ZoneSwitch", mock.Anything, mock.MatchedBy(func(req *vlm.ZoneSwitchRequest) bool {
+		return req != nil && req.Action == ZoneSwitch
+	})).Return(nil, errors.New("vlm zone switch failed")).Once()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	mockVSA.AssertExpectations(t)
+	env.AssertExpectations(t)
+}
+
 func TestUpdatePoolWorkflowNoVLM_UsesDeepCopyForDbPool(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -19574,6 +19936,27 @@ func TestPrepareUpdateVSAClusterDeploymentRequest(t *testing.T) {
 
 		assert.Equal(tt, "", req.BucketName, "BucketName should be empty when not provided")
 		assert.Equal(tt, int64(-1), req.AutoTierThreshold, "AutoTierThreshold should be -1 even when bucket is empty")
+	})
+}
+
+func TestPrepareZoneSwitchRequest(t *testing.T) {
+	t.Run("sets VLM config credentials and switch action", func(t *testing.T) {
+		req := &vlm.ZoneSwitchRequest{}
+		cfg := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{DeploymentID: "dep-1"},
+		}
+		creds := vlm.OntapCredentials{AdminPassword: "secret"}
+		prepareZoneSwitchRequest(req, cfg, creds, ZoneSwitch)
+
+		assert.Equal(t, "dep-1", req.VLMConfig.Deployment.DeploymentID)
+		assert.Equal(t, "secret", req.OntapCredentials.AdminPassword)
+		assert.Equal(t, ZoneSwitch, req.Action)
+	})
+
+	t.Run("sets revert action", func(t *testing.T) {
+		req := &vlm.ZoneSwitchRequest{}
+		prepareZoneSwitchRequest(req, vlm.VLMConfig{}, vlm.OntapCredentials{}, ZoneRevert)
+		assert.Equal(t, ZoneRevert, req.Action)
 	})
 }
 

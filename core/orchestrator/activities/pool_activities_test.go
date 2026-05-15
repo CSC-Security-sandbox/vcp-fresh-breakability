@@ -9912,6 +9912,60 @@ func TestUpdatePoolFields_Error(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestUpdateZoneSwitchPoolAttributes_NilPoolAttributes_ReturnsError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+		PoolAttributes: nil,
+	}
+
+	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, coremodel.ZoneSwitching)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nil PoolAttributes")
+	mockStorage.AssertNotCalled(t, "UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateZoneSwitchPoolAttributes_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pa := &datamodel.PoolAttributes{PrimaryZone: "us-east4-a"}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+		PoolAttributes: pa,
+	}
+
+	mockStorage.On("UpdatePoolFields", mock.Anything, pool.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+		got, ok := updates["pool_attributes"].(*datamodel.PoolAttributes)
+		return ok && got == pa && got.ZoneSwitchState == coremodel.ZoneSwitching
+	})).Return(nil).Once()
+
+	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, coremodel.ZoneSwitching)
+	require.NoError(t, err)
+	assert.Equal(t, coremodel.ZoneSwitching, pa.ZoneSwitchState)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateZoneSwitchPoolAttributes_UpdatePoolFieldsError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pa := &datamodel.PoolAttributes{PrimaryZone: "us-east4-a"}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-3"},
+		PoolAttributes: pa,
+	}
+	dbErr := fmt.Errorf("database write failed")
+	mockStorage.On("UpdatePoolFields", mock.Anything, pool.UUID, mock.Anything).Return(dbErr).Once()
+
+	err := activity.UpdateZoneSwitchPoolAttributes(ctx, pool, coremodel.ZoneSwitched)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, dbErr)
+	mockStorage.AssertExpectations(t)
+}
+
 // ============================================================================
 // Tests for newly added zone validation functions
 // ============================================================================

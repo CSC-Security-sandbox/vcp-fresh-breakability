@@ -4935,3 +4935,24 @@ func TestCountActivePoolsByNetwork_NoMatchingNetwork_ReturnsZero(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), count)
 }
+
+func TestPoolResourceData_IsZoneSwitched(t *testing.T) {
+	t.Run("returns false when PoolAttributes is nil", func(t *testing.T) {
+		p := &PoolResourceData{PoolAttributes: nil}
+		assert.False(t, p.IsZoneSwitched())
+	})
+
+	t.Run("returns false when IsZoneSwitched is false", func(t *testing.T) {
+		p := &PoolResourceData{
+			PoolAttributes: &datamodel.PoolAttributes{IsZoneSwitched: false},
+		}
+		assert.False(t, p.IsZoneSwitched())
+	})
+
+	t.Run("returns true when IsZoneSwitched is true", func(t *testing.T) {
+		p := &PoolResourceData{
+			PoolAttributes: &datamodel.PoolAttributes{IsZoneSwitched: true},
+		}
+		assert.True(t, p.IsZoneSwitched())
+	})
+}

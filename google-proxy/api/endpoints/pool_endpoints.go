@@ -763,6 +763,12 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		param.TotalThroughputMibps = int64(existingPool.CustomPerformanceParams.Throughput)
 	}
 
+	if req.Zone.IsSet() {
+		param.CurrentZone = req.Zone.Value
+	} else if existingPool.PoolAttributes != nil && existingPool.PoolAttributes.PrimaryZone != "" {
+		param.CurrentZone = existingPool.PoolAttributes.PrimaryZone
+	}
+
 	if req.Labels.IsSet() {
 		jsonbLabels, err := validateLabels(req.Labels.Value)
 		if err != nil {
@@ -1278,10 +1284,48 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
-	if req.Zone.IsSet() && req.Zone.Value != existingPool.PoolAttributes.PrimaryZone {
+	pa := existingPool.PoolAttributes
+
+	// Zone switching is a mutually exclusive update operation: when zone is provided, no other fields may be set.
+	// This avoids ambiguous behavior (e.g., changing QoS/size and switching zones in the same request).
+	if req.Zone.IsSet() && pa != nil && pa.IsRegionalHA &&
+		(req.Description.IsSet() ||
+			req.QosType.IsSet() ||
+			req.SizeInBytes.IsSet() ||
+			req.TotalThroughputMibps.IsSet() ||
+			req.TotalIops.IsSet() ||
+			req.Labels.IsSet() ||
+			req.AllowAutoTiering.IsSet() ||
+			req.HotTierSizeInBytes.IsSet() ||
+			req.EnableHotTierAutoResize.IsSet() ||
+			req.ActiveDirectoryConfigId.IsSet() ||
+			req.GlobalAccessAllowed.IsSet() ||
+			req.CustomPerformanceEnabled.IsSet() ||
+			req.LargeCapacity.IsSet()) {
 		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
-			Message: "Migrating to a different Zone is currently not supported",
+			Message: "When 'zone' is provided, no other update fields are allowed",
+		}
+	}
+
+	if req.Zone.IsSet() && pa != nil && !pa.IsRegionalHA {
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "Zone cannot be specified for zonal pool update",
+		}
+	}
+
+	if req.Zone.IsSet() && pa != nil && pa.IsRegionalHA && req.Zone.Value != pa.PrimaryZone && req.Zone.Value != pa.SecondaryZone {
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "Target Zone is invalid",
+		}
+	}
+
+	if !req.Zone.IsSet() && pa != nil && (pa.ZoneSwitchState == models.ZoneSwitching || pa.ZoneSwitchState == models.ZoneSwitched) {
+		return &gcpgenserver.V1betaUpdatePoolConflict{
+			Code:    http.StatusConflict,
+			Message: "Update operation is not allowed when the pool is switching/switched to a different primary zone.",
 		}
 	}
 

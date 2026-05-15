@@ -928,6 +928,14 @@ func (p *PoolResourceData) IsRegionalHA() bool {
 	return false
 }
 
+// IsZoneSwitched returns whether the pool has completed a zone switch (see pool_attributes.is_zone_switched).
+func (p *PoolResourceData) IsZoneSwitched() bool {
+	if p.PoolAttributes != nil {
+		return p.PoolAttributes.IsZoneSwitched
+	}
+	return false
+}
+
 // ListPoolsForResourceData retrieves pools with only the fields required for aggregator resource data collection.
 // This is an optimized query with pagination support for fetchPoolData in telemetry aggregator.
 // Includes support for deleted_at filter to include recently deleted pools.
