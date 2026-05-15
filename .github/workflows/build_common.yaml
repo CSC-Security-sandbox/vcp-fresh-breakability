@@ -519,7 +519,7 @@ jobs:
           IMAGES_TO_BUILD: ${{ inputs.images_to_build }}
           PUSH_CHARTS: ${{ inputs.push_charts }}
         run: |
-          REQUIRED_IMAGES=("core" "vcp-worker")
+          REQUIRED_IMAGES=("vcp-worker" "oci-proxy")
           IFS=',' read -ra BUILT_IMAGES <<< "$IMAGES_TO_BUILD"
 
           for REQ in "${REQUIRED_IMAGES[@]}"; do
@@ -631,7 +631,7 @@ jobs:
           done
 
           # --- Container images (GHCR) ---
-          MANIFEST_IMAGES=("core" "vcp-worker" "oci-proxy")
+          MANIFEST_IMAGES=("vcp-worker" "oci-proxy")
           IMAGES_JSON="[]"
           for IMAGE in "${MANIFEST_IMAGES[@]}"; do
             GHCR_REF="ghcr.io/${GHCR_ORG}/${IMAGE_PATH}/${IMAGE}:${IMAGES_TAG}"
@@ -692,9 +692,6 @@ jobs:
 
           CHARTS_JSON="[]"
           if [[ "$PUSH_CHARTS" == "true" ]]; then
-            for CHART in vsa-control-plane vcp-worker-chart vlm-worker; do
-              append_chart "$CHART" "$HELM_PATH"
-            done
             IFS=' ' read -ra OCI_CHARTS <<< "$OCI_CHART_NAMES"
             for CHART in "${OCI_CHARTS[@]}"; do
               append_chart "$CHART" "$OCI_HELM_PATH"
@@ -714,22 +711,20 @@ jobs:
               "mediatorImageOcid": $mediatorOcid
             }]')
 
-          # --- Dockerfiles (existing in repo) ---
+          # --- Dockerfiles (OCI-only: worker/Dockerfile.oci and oci-proxy/Dockerfile) ---
           DOCKERFILES_JSON='[]'
-          for DF_DIR in vcp-core worker oci-proxy; do
-            if [ -f "${DF_DIR}/Dockerfile" ]; then
-              DOCKERFILES_JSON=$(echo "$DOCKERFILES_JSON" | jq \
-                --arg name "Dockerfile.${DF_DIR}" \
-                --arg sourcePath "${DF_DIR}/Dockerfile" \
-                '. + [{"name":$name,"sourcePath":$sourcePath}]')
-            fi
-            if [ -f "${DF_DIR}/Dockerfile.oci" ]; then
-              DOCKERFILES_JSON=$(echo "$DOCKERFILES_JSON" | jq \
-                --arg name "Dockerfile.oci.${DF_DIR}" \
-                --arg sourcePath "${DF_DIR}/Dockerfile.oci" \
-                '. + [{"name":$name,"sourcePath":$sourcePath}]')
-            fi
-          done
+          if [ -f "worker/Dockerfile.oci" ]; then
+            DOCKERFILES_JSON=$(echo "$DOCKERFILES_JSON" | jq \
+              --arg name "Dockerfile.oci.worker" \
+              --arg sourcePath "worker/Dockerfile.oci" \
+              '. + [{"name":$name,"sourcePath":$sourcePath}]')
+          fi
+          if [ -f "oci-proxy/Dockerfile.oci" ]; then
+            DOCKERFILES_JSON=$(echo "$DOCKERFILES_JSON" | jq \
+              --arg name "Dockerfile.oci.oci-proxy" \
+              --arg sourcePath "oci-proxy/Dockerfile.oci" \
+              '. + [{"name":$name,"sourcePath":$sourcePath}]')
+          fi
 
           # --- Build context bundle (OCI Dockerfiles + OCI config for binary-based image rebuild) ---
           # Ships OCI-specific Dockerfiles (Dockerfile.oci) so existing GCP Dockerfiles are untouched.
@@ -738,7 +733,7 @@ jobs:
           for DF_DIR in worker oci-proxy; do
             [ -f "${DF_DIR}/Dockerfile.oci" ] && BUNDLE_FILES="${BUNDLE_FILES} ${DF_DIR}/Dockerfile.oci"
           done
-          [ -d "common/vsa_config" ] && BUNDLE_FILES="${BUNDLE_FILES} common/vsa_config/"
+          [ -f "common/vsa_config/vlm-config-oci.json" ] && BUNDLE_FILES="${BUNDLE_FILES} common/vsa_config/vlm-config-oci.json"
           [ -f "config/vmrs_oci.yaml" ] && BUNDLE_FILES="${BUNDLE_FILES} config/vmrs_oci.yaml"
           if [ -n "$BUNDLE_FILES" ]; then
             tar czf "artifacts/${BUNDLE_NAME}" ${BUNDLE_FILES}
