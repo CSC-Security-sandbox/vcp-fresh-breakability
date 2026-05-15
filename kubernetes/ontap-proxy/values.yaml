@@ -107,7 +107,7 @@ iamRoleToUserMapping:
   enabled: false
 snaplockOperationEnabled: false
 privateCliOperationEnabled: false
-smcOperationEnabled: false
+smcOperationEnabled: true
 ontapClientErrorCodes:
   - "917621"
   - "1254223"
