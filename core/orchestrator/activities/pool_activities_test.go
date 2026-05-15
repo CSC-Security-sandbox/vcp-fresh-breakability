@@ -15246,9 +15246,9 @@ func TestPoolActivity_GetExpertModeCredentialsForOCI(t *testing.T) {
 	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
 
 	pool := &datamodel.Pool{
-		Name:           "test-pool",
-		DeploymentName: "test-deployment",
-		PoolOCID:       "ocid1.pool.oc1..testpool",
+		Name:                   "test-pool",
+		DeploymentName:         "test-deployment",
+		PoolExternalIdentifier: "ocid1.pool.oc1..testpool",
 	}
 
 	t.Run("success — admin password fetched from OCI Vault", func(t *testing.T) {

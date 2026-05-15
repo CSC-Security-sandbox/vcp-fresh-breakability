@@ -15,35 +15,34 @@ import (
 
 type Pool struct {
 	BaseModel
-	Name         string `gorm:"column:name"`
-	Description  string `gorm:"column:description"`
-	State        string `gorm:"column:state"`
-	StateDetails string `gorm:"column:state_details"`
-	VendorID     string `gorm:"column:vendor_id"`
-	// Partial unique index (not a table CHECK): duplicate non-empty OCIDs rejected; many rows may have empty pool_ocid (GCP).
-	PoolOCID          string             `gorm:"column:pool_ocid;type:text;uniqueIndex:idx_pools_pool_ocid_unique,where:pool_ocid <> ''"`
-	ServiceLevel      string             `gorm:"column:service_level"`
-	SizeInBytes       int64              `gorm:"column:size_in_bytes"`
-	UsedBytes         int64              `gorm:"column:used_bytes"`
-	Network           string             `gorm:"column:network;type:varchar(2048)"`
-	AllowAutoTiering  bool               `gorm:"column:allow_auto_tiering;default:false"`
-	AccountID         int64              `gorm:"column:account_id"`
-	Account           *Account           `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolAttributes    *PoolAttributes    `gorm:"column:pool_attributes;type:jsonb"`
-	ClusterDetails    ClusterDetails     `gorm:"column:cluster_details;type:jsonb"`
-	QosType           string             `gorm:"column:qos_type"`
-	AutoTieringConfig *AutoTieringConfig `gorm:"column:auto_tiering_config;type:jsonb"`
-	ServiceAccountId  string             `gorm:"column:service_account_id;type:text"`
-	KmsConfigID       sql.NullInt64      `gorm:"index"`
-	KmsConfig         *KmsConfig         `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	DeploymentName    string             `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
-	PoolCredentials   *PoolCredentials   `gorm:"column:pool_credentials;type:jsonb"`
-	SnHostProject     string             `gorm:"column:sn_host_project;index"`
-	VLMConfig         string             `gorm:"vlm_config;type:text"`
-	LargeCapacity     bool               `gorm:"column:large_capacity;default:false"`
-	SatisfyZI         bool               `gorm:"column:satisfy_zi;default:false"`
-	SatisfyZS         bool               `gorm:"column:satisfy_zs;default:false"`
-	AssetMetadata     *AssetMetadata     `gorm:"column:asset_metadata;type:jsonb"`
+	Name                   string             `gorm:"column:name"`
+	Description            string             `gorm:"column:description"`
+	State                  string             `gorm:"column:state"`
+	StateDetails           string             `gorm:"column:state_details"`
+	VendorID               string             `gorm:"column:vendor_id"`
+	PoolExternalIdentifier string             `gorm:"column:pool_external_identifier;type:text;uniqueIndex:idx_pools_pool_external_identifier_unique,where:pool_external_identifier <> ''"`
+	ServiceLevel           string             `gorm:"column:service_level"`
+	SizeInBytes            int64              `gorm:"column:size_in_bytes"`
+	UsedBytes              int64              `gorm:"column:used_bytes"`
+	Network                string             `gorm:"column:network;type:varchar(2048)"`
+	AllowAutoTiering       bool               `gorm:"column:allow_auto_tiering;default:false"`
+	AccountID              int64              `gorm:"column:account_id"`
+	Account                *Account           `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolAttributes         *PoolAttributes    `gorm:"column:pool_attributes;type:jsonb"`
+	ClusterDetails         ClusterDetails     `gorm:"column:cluster_details;type:jsonb"`
+	QosType                string             `gorm:"column:qos_type"`
+	AutoTieringConfig      *AutoTieringConfig `gorm:"column:auto_tiering_config;type:jsonb"`
+	ServiceAccountId       string             `gorm:"column:service_account_id;type:text"`
+	KmsConfigID            sql.NullInt64      `gorm:"index"`
+	KmsConfig              *KmsConfig         `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	DeploymentName         string             `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
+	PoolCredentials        *PoolCredentials   `gorm:"column:pool_credentials;type:jsonb"`
+	SnHostProject          string             `gorm:"column:sn_host_project;index"`
+	VLMConfig              string             `gorm:"vlm_config;type:text"`
+	LargeCapacity          bool               `gorm:"column:large_capacity;default:false"`
+	SatisfyZI              bool               `gorm:"column:satisfy_zi;default:false"`
+	SatisfyZS              bool               `gorm:"column:satisfy_zs;default:false"`
+	AssetMetadata          *AssetMetadata     `gorm:"column:asset_metadata;type:jsonb"`
 	// Build information - images used to create this pool
 	BuildInfo               *PoolBuildInfo         `gorm:"column:build_info;type:jsonb" json:"buildInfo,omitempty"`
 	ActiveDirectoryID       sql.NullInt64          `gorm:"column:active_directory_id"`

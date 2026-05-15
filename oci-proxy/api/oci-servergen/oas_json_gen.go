@@ -218,9 +218,31 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 		e.FieldStart("dataNicSubnetId")
 		e.Str(s.DataNicSubnetId)
 	}
+	{
+		if s.TieringConfig.Set {
+			e.FieldStart("tieringConfig")
+			s.TieringConfig.Encode(e)
+		}
+	}
+	{
+		if s.KmsKeyId.Set {
+			e.FieldStart("kmsKeyId")
+			s.KmsKeyId.Encode(e)
+		}
+	}
+	{
+		if s.NsgIds != nil {
+			e.FieldStart("nsgIds")
+			e.ArrStart()
+			for _, elem := range s.NsgIds {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
 }
 
-var jsonFieldsNameOfCreatePoolRequest = [14]string{
+var jsonFieldsNameOfCreatePoolRequest = [17]string{
 	0:  "poolOCID",
 	1:  "compartmentOCID",
 	2:  "displayName",
@@ -235,6 +257,9 @@ var jsonFieldsNameOfCreatePoolRequest = [14]string{
 	11: "ociAdminPassword",
 	12: "description",
 	13: "dataNicSubnetId",
+	14: "tieringConfig",
+	15: "kmsKeyId",
+	16: "nsgIds",
 }
 
 // Decode decodes CreatePoolRequest from json.
@@ -242,7 +267,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CreatePoolRequest to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -411,6 +436,45 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"dataNicSubnetId\"")
 			}
+		case "tieringConfig":
+			if err := func() error {
+				s.TieringConfig.Reset()
+				if err := s.TieringConfig.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tieringConfig\"")
+			}
+		case "kmsKeyId":
+			if err := func() error {
+				s.KmsKeyId.Reset()
+				if err := s.KmsKeyId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsKeyId\"")
+			}
+		case "nsgIds":
+			if err := func() error {
+				s.NsgIds = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.NsgIds = append(s.NsgIds, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"nsgIds\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -420,9 +484,10 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b01111111,
 		0b00101001,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2516,6 +2581,39 @@ func (s *OptString) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes TieringConfig as json.
+func (o OptTieringConfig) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes TieringConfig from json.
+func (o *OptTieringConfig) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptTieringConfig to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptTieringConfig) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptTieringConfig) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes WorkflowStatusError as json.
 func (o OptWorkflowStatusError) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -2976,6 +3074,153 @@ func (s *SvmOperationErrorResponse) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *SvmOperationErrorResponse) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *TieringConfig) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *TieringConfig) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("secretId")
+		e.Str(s.SecretId)
+	}
+	{
+		e.FieldStart("namespace")
+		e.Str(s.Namespace)
+	}
+	{
+		e.FieldStart("bucketName")
+		e.Str(s.BucketName)
+	}
+	{
+		e.FieldStart("serverName")
+		e.Str(s.ServerName)
+	}
+}
+
+var jsonFieldsNameOfTieringConfig = [4]string{
+	0: "secretId",
+	1: "namespace",
+	2: "bucketName",
+	3: "serverName",
+}
+
+// Decode decodes TieringConfig from json.
+func (s *TieringConfig) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TieringConfig to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "secretId":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.SecretId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secretId\"")
+			}
+		case "namespace":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Namespace = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"namespace\"")
+			}
+		case "bucketName":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.BucketName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bucketName\"")
+			}
+		case "serverName":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.ServerName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serverName\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode TieringConfig")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfTieringConfig) {
+					name = jsonFieldsNameOfTieringConfig[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *TieringConfig) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TieringConfig) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

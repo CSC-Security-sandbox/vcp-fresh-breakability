@@ -100,6 +100,28 @@ func (s *CreatePoolRequest) SetFake() {
 			s.DataNicSubnetId = "string"
 		}
 	}
+	{
+		{
+			s.TieringConfig.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsKeyId.SetFake()
+		}
+	}
+	{
+		{
+			s.NsgIds = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.NsgIds = append(s.NsgIds, elem)
+			}
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -454,6 +476,15 @@ func (s *OptString) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptTieringConfig) SetFake() {
+	var elem TieringConfig
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptWorkflowStatusError) SetFake() {
 	var elem WorkflowStatusError
 	{
@@ -532,6 +563,30 @@ func (s *SvmOperationErrorResponse) SetFake() {
 	{
 		{
 			s.ErrorMessage = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *TieringConfig) SetFake() {
+	{
+		{
+			s.SecretId = "string"
+		}
+	}
+	{
+		{
+			s.Namespace = "string"
+		}
+	}
+	{
+		{
+			s.BucketName = "string"
+		}
+	}
+	{
+		{
+			s.ServerName = "string"
 		}
 	}
 }

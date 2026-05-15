@@ -996,7 +996,7 @@ func (j *PoolActivity) GetExpertModeCredentialsForOCI(ctx context.Context, pool 
 	}
 
 	credentials.AdminPassword = secret.Value
-	ociService.GetLogger().Infof("Expert mode admin password fetched successfully from OCI Vault for pool: %s", pool.PoolOCID)
+	ociService.GetLogger().Infof("Expert mode admin password fetched successfully from OCI Vault for pool: %s", pool.PoolExternalIdentifier)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished GetExpertModeCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
 	return credentials, nil
 }

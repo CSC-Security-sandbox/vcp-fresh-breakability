@@ -83,7 +83,8 @@ paths:
                   iops: 1500
                 - sizeInGiB: 512
                   throughputGBps: 0.5
-                  iops: 1500              
+                  iops: 1500
+              dataEndpointCount: 2              
               dataNicSubnetId: "ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q"
               sizeInGiB: 100
               throughputGBps: 1
@@ -94,6 +95,7 @@ paths:
                 ocid: "ocid1.vaultsecret.oc1.eu-frankfurt-1.amaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 version: "1"
               description: "Demo pool"
+              serialNumberPrefix: "955000000000000000"
       responses:
         "202":
           description: Accepted. Pool creation in progress.
@@ -793,6 +795,35 @@ components:
           format: int64
           description: IOPS for the node.
 
+    TieringConfig:
+      type: object
+      description: |
+        Cloud tiering configuration pointing at an OCI Object Storage bucket reached
+        via its S3-compatible endpoint. All four fields are required when the parent
+        request supplies a tieringConfig object.
+      required:
+        - secretId
+        - namespace
+        - bucketName
+        - serverName
+      properties:
+        secretId:
+          type: string
+          description: |
+            OCI Vault secret OCID holding the S3-compatible Customer Secret Key
+            used to authenticate against the bucket.
+        namespace:
+          type: string
+          description: |
+            OCI Object Storage namespace that owns the bucket
+        bucketName:
+          type: string
+          description: Name of the OCI Object Storage bucket to tier cold data into.
+        serverName:
+          type: string
+          description: |
+            Hostname of the S3-compatible endpoint for the bucket
+
     CreatePoolRequest:
       type: object
       required:
@@ -863,7 +894,25 @@ components:
         dataNicSubnetId:
           type: string
           description: OCI subnet OCID for the data NIC
-
+        tieringConfig:
+          $ref: '#/components/schemas/TieringConfig'
+          description: |
+            Optional cloud tiering configuration. When provided, cold pool data is
+            tiered to the specified OCI Object Storage bucket via the S3-compatible
+            endpoint. Omit to disable tiering.
+        kmsKeyId:
+          type: string
+          description: |
+            Optional OCI Vault Master Encryption Key OCID used to encrypt pool data
+            at rest. When omitted, the service default encryption is used.
+        nsgIds:
+          type: array
+          description: |
+            Optional list of OCI Network Security Group OCIDs to attach to the pool's
+            VNICs. When omitted or empty, no NSGs are attached and only subnet-level
+            security rules apply.
+          items:
+            type: string
     CreateSvmRequest:
       type: object
       required:

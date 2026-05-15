@@ -22,9 +22,8 @@ import (
 )
 
 const (
-	ociSerialNumberLeadingPrefix = "955"
-	ociSerialNumberPrefix        = "000000000000000"
-	defaultOCIVSAUserBootargs    = "bootarg.use.cam.nda=true;bootarg.vm.vnvram_jswap_enable=false;bootarg.vm.nvramdevice=/dev/da2;bootarg.vm.cluster_ports=e0a.pv1;bootarg.vm.vnvram.ephemeral=true;bootarg.vm.nvme.lssd_size_for_ec=4294967296;"
+	defaultOCIVSAUserBootargs = "bootarg.use.cam.nda=true;bootarg.vm.vnvram_jswap_enable=false;bootarg.vm.nvramdevice=/dev/da2;bootarg.vm.cluster_ports=e0a.pv1;bootarg.vm.vnvram.ephemeral=true;bootarg.vm.nvme.lssd_size_for_ec=4294967296;"
+	password                  = "password"
 )
 
 var (
@@ -49,7 +48,8 @@ var (
 	ociExpertModeRbacHash         = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_CHECKSUM", "")
 	ociExpertModeUsername         = env.GetString("OCI_EXPERT_MODE_USERNAME", "ociadmin")
 	ociExpertModePassword         = env.GetString("OCI_EXPERT_MODE_PASSWORD", "")
-	password                      = "password"
+	ociSerialNumberLeadingPrefix  = "955"
+	ociSerialNumberPrefix         = "000000000000000"
 )
 
 // ValidateOCIWorkerStartupEnv ensures OCI worker startup has all required environment variables.
@@ -295,7 +295,24 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	}
 	emitStage(ctx, wfCreatePool, queueCustomer, stageMarkReady, resultSuccess)
 
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatePoolFields, pool.UUID, map[string]interface{}{
+		"build_info": NewPoolBuildInfo(workflow.Now(ctx), params.AccountName),
+	}).Get(dbHbCtx, nil)
+	if err != nil {
+		logger.Errorf("Failed to persist pool build info for pool %q: %v", pool.UUID, err)
+		err = nil
+	}
+
 	return nil, nil
+}
+
+func NewPoolBuildInfo(now time.Time, accountName string) *datamodel.PoolBuildInfo {
+	return &datamodel.PoolBuildInfo{
+		VSABuildImage:      vsaImageName,
+		MediatorBuildImage: vsaMediatorImageName,
+		OntapVersion:       utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(accountName)),
+		BuildTimestamp:     now,
+	}
 }
 
 // ociDefinedTags returns the OCI defined tags map (netapp-tags with deployment_id).
@@ -309,6 +326,16 @@ func ociDefinedTags(deploymentName string) map[string]map[string]interface{} {
 
 // ociDeploymentConfig builds the VLM DeploymentConfig for OCI (provider, deployment ID, images, OCI config, SP config, etc.).
 func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, sizeStr string, throughputMibps, iops int64, ociConfig vlm.OCIConfig) vlm.DeploymentConfig {
+	var deploymentType string
+	var enableAAConfig bool
+	if params.IsRegionalHA {
+		deploymentType = vlm.DeploymentTypeNonSharedHA
+		enableAAConfig = false
+	} else {
+		deploymentType = vlm.DeploymentTypeSharedHA
+		enableAAConfig = true
+	}
+
 	return vlm.DeploymentConfig{
 		Provider:           vlm.OCICloud,
 		DeploymentID:       pool.DeploymentName,
@@ -324,7 +351,7 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 			"pool_uuid":  pool.UUID,
 			"account_id": params.AccountName,
 		},
-		DeploymentType:       vlm.DeploymentTypeNonSharedHA,
+		DeploymentType:       deploymentType,
 		NumHAPair:            int(params.HAPairs),
 		VSAInstanceType:      ociVSAInstanceType,
 		MediatorInstanceType: ociMediatorInstanceType,
@@ -338,6 +365,9 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 		DevFlags: vlm.DevFlags{
 			ExtIPForNodeMgmt:         extIPForNodeMgmt,
 			AllowNonDenseShapeForVsa: allowNonDenseShapeForVSA,
+		},
+		DeploymentConfigFlags: vlm.DeploymentConfigFlags{
+			EnableAAConfig: enableAAConfig,
 		},
 	}
 }
@@ -399,7 +429,7 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 		vlmConfig.Deployment.Labels = make(map[string]string)
 	}
 	vlmConfig.Deployment.Labels["pool_name"] = pool.Name
-	vlmConfig.Deployment.Labels["pool_ocid"] = pool.PoolOCID
+	vlmConfig.Deployment.Labels["pool_ocid"] = pool.PoolExternalIdentifier
 	if pool.Account != nil {
 		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
 	}

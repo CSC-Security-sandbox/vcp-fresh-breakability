@@ -242,7 +242,9 @@ func TestDeletePool_ConflictWhenAlreadyDeleting(t *testing.T) {
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsConflictErr(err), "already-deleting must map to a conflict, not idempotent success")
-	assert.Contains(t, err.Error(), "deletion is already in progress")
+	assert.Contains(t, err.Error(), "transition state")
+	assert.Contains(t, err.Error(), models.LifeCycleStateDeleting,
+		"error must surface the actual state (DELETING) so callers can disambiguate from other transitions")
 	assert.Nil(t, pool, "no pool model is returned alongside a conflict error")
 	assert.Equal(t, "", wf)
 }

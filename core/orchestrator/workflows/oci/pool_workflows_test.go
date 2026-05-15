@@ -1,7 +1,9 @@
 package oci
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -14,6 +16,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/testsuite"
@@ -23,6 +27,7 @@ import (
 const (
 	testVSAImageOCID      = "ocid1.image.oc1.iad.aaaaaaaaef2bc4g6vf4rvsa4vd2e4pnqw2ot2qicxrjo5a3ohglr6i4exdjq"
 	testMediatorImageOCID = "ocid1.image.oc1.iad.aaaaaaaagakcrtyceuuvl6ts7xhqzzrdk3lv4z7tcqif3xpa6qsvppzflaaq"
+	testOCIOntapVersion   = "9.18.1"
 )
 
 // withVSAImageOCIDs sets package-level image OCIDs for the test (init-time env is not re-read; tests must assign).
@@ -35,9 +40,27 @@ func withVSAImageOCIDs(t *testing.T, vsa, mediator string) {
 	})
 }
 
+// withOCIOntapVersionDetails pins the package-level ONTAP version source that
+// utils.GetOntapVersionBasedOnAllowlisting reads from, and clears the
+// experimental override so non-allowlisted accounts deterministically receive
+// `current` regardless of the test's account name. Originals are restored via
+// t.Cleanup.
+func withOCIOntapVersionDetails(t *testing.T, current string) {
+	t.Helper()
+	origCurrent := envs.CurrentOntapVersionDetails
+	origExperimental := envs.ExperimentalOntapVersionDetails
+	envs.CurrentOntapVersionDetails = current
+	envs.ExperimentalOntapVersionDetails = ""
+	t.Cleanup(func() {
+		envs.CurrentOntapVersionDetails = origCurrent
+		envs.ExperimentalOntapVersionDetails = origExperimental
+	})
+}
+
 func setTestOCIImageEnv(t *testing.T) {
 	t.Helper()
 	withVSAImageOCIDs(t, testVSAImageOCID, testMediatorImageOCID)
+	withOCIOntapVersionDetails(t, testOCIOntapVersion)
 }
 
 // setOCIExpertModePassword overrides the package-level ociExpertModePassword
@@ -95,7 +118,7 @@ func TestValidateOCIWorkerStartupEnv(t *testing.T) {
 	})
 }
 
-func TestPrepareVLMConfig_CustomPerformanceAndFixedSerialPrefix(t *testing.T) {
+func TestPrepareVLMConfig_CustomPerformanceAndHardcodedSerialPrefix(t *testing.T) {
 	setTestOCIImageEnv(t)
 	iops := int64(5000)
 	params := &common.CreatePoolParams{
@@ -124,16 +147,9 @@ func TestPrepareVLMConfig_CustomPerformanceAndFixedSerialPrefix(t *testing.T) {
 	assert.Equal(t, int64(128), cfg.Deployment.SPConfig.Throughput)
 	assert.Equal(t, int64(5000), cfg.Deployment.SPConfig.IOps)
 
-	// SerialNumberPrefix is the concatenation of ociSerialNumberLeadingPrefix ("955")
-	// and the 15-zero ociSerialNumberPrefix const, yielding 18 characters total.
 	assert.Equal(t, ociSerialNumberLeadingPrefix+ociSerialNumberPrefix, cfg.Deployment.SerialNumberPrefix,
-		"SerialNumberPrefix must equal ociSerialNumberLeadingPrefix + ociSerialNumberPrefix")
-	assert.Equal(t, "955000000000000000", cfg.Deployment.SerialNumberPrefix,
-		"SerialNumberPrefix must be the literal 18-char fixed value")
-	assert.Len(t, cfg.Deployment.SerialNumberPrefix, 18,
-		"SerialNumberPrefix must be exactly 18 characters")
-	assert.Len(t, ociSerialNumberPrefix, 15,
-		"ociSerialNumberPrefix const must be exactly 15 zero digits")
+		"SerialNumberPrefix must be the hardcoded \"955\"+15 zeros emitted by the workflow; "+
+			"the API field is currently ignored end-to-end and the workflow is the single source of truth")
 }
 
 func TestPrepareVLMConfig_DerivesIopsFromThroughputWhenNil(t *testing.T) {
@@ -232,6 +248,263 @@ func TestPrepareVLMConfig_RejectsZeroHAPairs(t *testing.T) {
 		"error message must mention the offending field")
 }
 
+func TestOCIDeploymentConfig(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	cases := []struct {
+		name               string
+		isRegionalHA       bool
+		wantDeploymentTyp  string
+		wantEnableAAConfig bool
+	}{
+		{
+			name:               "RegionalHA_NonShared_AADisabled",
+			isRegionalHA:       true,
+			wantDeploymentTyp:  vlm.DeploymentTypeNonSharedHA,
+			wantEnableAAConfig: false,
+		},
+		{
+			name:               "ZonalHA_Shared_AAEnabled",
+			isRegionalHA:       false,
+			wantDeploymentTyp:  vlm.DeploymentTypeSharedHA,
+			wantEnableAAConfig: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			params := &common.CreatePoolParams{
+				AccountName:     "acct",
+				PrimaryZone:     "ad1",
+				SecondaryZone:   "ad2",
+				MediatorZone:    "ad3",
+				CompartmentOCID: "comp",
+				VendorSubNetID:  "subnet",
+				DataNICSubnetID: "data-subnet",
+				HAPairs:         2,
+				IsRegionalHA:    tc.isRegionalHA,
+			}
+			pool := &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-deploy"},
+				Name:           "pool-name",
+				DeploymentName: "dep-deploy",
+			}
+			ociConfig := vlm.OCIConfig{
+				CompartmentID:   params.CompartmentOCID,
+				SubnetID:        params.VendorSubNetID,
+				DataNICSubnetID: params.DataNICSubnetID,
+			}
+
+			got := ociDeploymentConfig(params, pool, "100Gi", 256, 8192, ociConfig)
+
+			// HA-mode-derived behavior: both DeploymentType and EnableAAConfig
+			// must follow IsRegionalHA in lockstep. See the doc comment above for
+			// why these two are intentionally coupled.
+			assert.Equal(tt, tc.wantDeploymentTyp, got.DeploymentType,
+				"DeploymentType must be derived from params.IsRegionalHA")
+			assert.Equal(tt, tc.wantEnableAAConfig, got.DeploymentConfigFlags.EnableAAConfig,
+				"DeploymentConfigFlags.EnableAAConfig must be the inverse of params.IsRegionalHA: AA on iff shared HA")
+			assert.False(tt, got.DeploymentConfigFlags.EnableAASupportSvm,
+				"EnableAASupportSvm is not wired for OCI; should be false in both HA modes")
+			assert.False(tt, got.DeploymentConfigFlags.EnableIlbSupport,
+				"EnableIlbSupport is not wired for OCI; should be false in both HA modes")
+			assert.Empty(tt, got.DeploymentConfigFlags.EnableNfsV364BitIdentifier,
+				"EnableNfsV364BitIdentifier is not wired for OCI; should be empty in both HA modes")
+
+			// Invariant fields - regression guard so the IsRegionalHA refactor cannot
+			// silently break the rest of the deployment-config wiring.
+			assert.Equal(tt, vlm.OCICloud, got.Provider)
+			assert.Equal(tt, pool.DeploymentName, got.DeploymentID)
+			assert.Equal(tt, ociSerialNumberLeadingPrefix+ociSerialNumberPrefix, got.SerialNumberPrefix,
+				"SerialNumberPrefix must be the hardcoded \"955\"+15 zeros — the workflow owns the format, params.SerialNumberPrefix no longer exists and the API value is ignored")
+			assert.Equal(tt, localRegion, got.Region)
+			assert.Equal(tt, vsaImageName, got.Images.VSAImageName)
+			assert.Equal(tt, vsaMediatorImageName, got.Images.MediatorImageName)
+			assert.Equal(tt, ociVSAUserBootargs, got.UserBootargs)
+			assert.Equal(tt, pool.Name, got.Labels["pool_name"])
+			assert.Equal(tt, pool.UUID, got.Labels["pool_uuid"])
+			assert.Equal(tt, params.AccountName, got.Labels["account_id"])
+			// pool_ocid is added later by prepareCreateVSAClusterDeploymentRequest;
+			// ociDeploymentConfig itself should not set it.
+			_, hasPoolOCID := got.Labels["pool_ocid"]
+			assert.False(tt, hasPoolOCID, "ociDeploymentConfig must not set pool_ocid label; it is added downstream")
+			assert.Equal(tt, int(params.HAPairs), got.NumHAPair)
+			assert.Equal(tt, ociVSAInstanceType, got.VSAInstanceType)
+			assert.Equal(tt, ociMediatorInstanceType, got.MediatorInstanceType)
+			assert.Equal(tt, dataDiskCount, got.DataDiskCount)
+			assert.Equal(tt, ociConfig, got.OCIConfig)
+			assert.Equal(tt, "100Gi", got.SPConfig.Size)
+			assert.Equal(tt, int64(256), got.SPConfig.Throughput)
+			assert.Equal(tt, int64(8192), got.SPConfig.IOps)
+			assert.Equal(tt, extIPForNodeMgmt, got.DevFlags.ExtIPForNodeMgmt)
+			assert.Equal(tt, allowNonDenseShapeForVSA, got.DevFlags.AllowNonDenseShapeForVsa)
+		})
+	}
+}
+
+// TestPrepareVLMConfig_DeploymentTypeReflectsIsRegionalHA confirms that the
+func TestPrepareVLMConfig_DeploymentTypeReflectsIsRegionalHA(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	cases := []struct {
+		name               string
+		isRegionalHA       bool
+		wantDeploymentTyp  string
+		wantEnableAAConfig bool
+	}{
+		{
+			name:               "RegionalHA_NonShared_AADisabled",
+			isRegionalHA:       true,
+			wantDeploymentTyp:  vlm.DeploymentTypeNonSharedHA,
+			wantEnableAAConfig: false,
+		},
+		{
+			name:               "ZonalHA_Shared_AAEnabled",
+			isRegionalHA:       false,
+			wantDeploymentTyp:  vlm.DeploymentTypeSharedHA,
+			wantEnableAAConfig: true,
+		},
+	}
+
+	iops := int64(5000)
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			params := &common.CreatePoolParams{
+				AccountName:     "acct",
+				SizeInBytes:     100 * 1024 * 1024 * 1024,
+				PrimaryZone:     "ad1",
+				SecondaryZone:   "ad2",
+				MediatorZone:    "ad3",
+				VendorSubNetID:  "subnet",
+				CompartmentOCID: "comp",
+				HAPairs:         1,
+				IsRegionalHA:    tc.isRegionalHA,
+				CustomPerformanceParams: &common.CustomPerformanceParams{
+					ThroughputMibps: 128,
+					Iops:            &iops,
+				},
+			}
+			pool := &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "u1"},
+				DeploymentName: "dep1",
+				Name:           "pool1",
+				Account:        &datamodel.Account{Name: "acct"},
+			}
+
+			cfg, err := prepareVLMConfig(params, pool)
+			require.NoError(tt, err)
+			require.NotNil(tt, cfg)
+			assert.Equal(tt, tc.wantDeploymentTyp, cfg.Deployment.DeploymentType,
+				"prepareVLMConfig must propagate IsRegionalHA into Deployment.DeploymentType")
+			assert.Equal(tt, tc.wantEnableAAConfig, cfg.Deployment.DeploymentConfigFlags.EnableAAConfig,
+				"prepareVLMConfig must propagate the IsRegionalHA-derived AA flag into Deployment.DeploymentConfigFlags.EnableAAConfig (active-active is on iff shared HA)")
+		})
+	}
+}
+
+func TestOCIDeploymentConfig_HAModeAndAAConfigAreInverselyCoupled(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	build := func(isRegionalHA bool) vlm.DeploymentConfig {
+		params := &common.CreatePoolParams{
+			AccountName:     "acct",
+			PrimaryZone:     "ad1",
+			SecondaryZone:   "ad2",
+			MediatorZone:    "ad3",
+			CompartmentOCID: "comp",
+			VendorSubNetID:  "subnet",
+			DataNICSubnetID: "data-subnet",
+			HAPairs:         1,
+			IsRegionalHA:    isRegionalHA,
+		}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-coupling"},
+			Name:           "pool-coupling",
+			DeploymentName: "dep-coupling",
+		}
+		return ociDeploymentConfig(params, pool, "100Gi", 256, 8192, vlm.OCIConfig{})
+	}
+
+	regional := build(true)
+	zonal := build(false)
+
+	// Direct inversion check: AA config is the boolean negation of "is regional HA".
+	assert.NotEqual(t, regional.DeploymentConfigFlags.EnableAAConfig,
+		zonal.DeploymentConfigFlags.EnableAAConfig,
+		"EnableAAConfig must differ between the two HA modes; identical values means the IsRegionalHA branch was bypassed for this flag")
+
+	// And the type must also differ — otherwise the test below devolves to
+	// asserting two unrelated boolean swings happen to match, which would
+	// not catch a copy-paste mistake.
+	assert.NotEqual(t, regional.DeploymentType, zonal.DeploymentType,
+		"DeploymentType must differ between the two HA modes")
+
+	// Coupling: the regional pair must be (NonShared, AA-off) and the zonal
+	// pair must be (Shared, AA-on). Asserting both pairs together catches the
+	// case where someone flips just one half of the invariant.
+	assert.Equal(t, vlm.DeploymentTypeNonSharedHA, regional.DeploymentType)
+	assert.False(t, regional.DeploymentConfigFlags.EnableAAConfig,
+		"regional HA implies non-shared deployment, which must NOT use active-active config")
+
+	assert.Equal(t, vlm.DeploymentTypeSharedHA, zonal.DeploymentType)
+	assert.True(t, zonal.DeploymentConfigFlags.EnableAAConfig,
+		"zonal HA implies shared deployment, which MUST use active-active config")
+}
+
+// TestOCIDeploymentConfig_SerialNumberPrefixIsHardcoded pins the workflow's
+// single source of truth for the VM serial-number prefix. The endpoint no
+// longer forwards a caller value (the API field is accepted but ignored), and
+// common.CreatePoolParams no longer carries a SerialNumberPrefix. So whatever
+// the inputs look like, the workflow must always emit the same "955" + 15
+// zeros value; any deviation here would silently change downstream VLM VM
+// serial generation.
+func TestOCIDeploymentConfig_SerialNumberPrefixIsHardcoded(t *testing.T) {
+	setTestOCIImageEnv(t)
+
+	params := &common.CreatePoolParams{
+		AccountName:     "acct",
+		PrimaryZone:     "ad1",
+		SecondaryZone:   "ad2",
+		MediatorZone:    "ad3",
+		CompartmentOCID: "comp",
+		VendorSubNetID:  "subnet",
+		DataNICSubnetID: "data-subnet",
+		HAPairs:         2,
+		IsRegionalHA:    false,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-prefix"},
+		Name:           "pool-name-prefix",
+		DeploymentName: "dep-name-prefix",
+	}
+	ociConfig := vlm.OCIConfig{
+		CompartmentID:   params.CompartmentOCID,
+		SubnetID:        params.VendorSubNetID,
+		DataNICSubnetID: params.DataNICSubnetID,
+	}
+
+	got := ociDeploymentConfig(params, pool, "100Gi", 256, 8192, ociConfig)
+
+	assert.Equal(t, "955000000000000000", got.SerialNumberPrefix,
+		"workflow must emit the hardcoded 18-character VLM serial-number prefix; the value (\"955\" + 15 zeros) is what VLM expects and is not configurable from params or the API")
+	assert.Equal(t, ociSerialNumberLeadingPrefix+ociSerialNumberPrefix, got.SerialNumberPrefix,
+		"the emitted prefix must equal the concatenation of the two package-level constants; if either constant changes, this regression test will surface it loudly")
+}
+
+// TestOCIDeploymentConfig_LegacySerialPrefixIsExactly18Chars locks in the two
+// constituent constants. Changing either is a coordinated rollout with VLM:
+// the leading "955" is an OCI realm marker, and the trailing 15 zeros are
+// load-bearing for VLM's serial-collision detection — neither should drift
+// unilaterally.
+func TestOCIDeploymentConfig_LegacySerialPrefixIsExactly18Chars(t *testing.T) {
+	assert.Equal(t, "955", ociSerialNumberLeadingPrefix,
+		"the leading prefix is the OCI realm marker; changing it requires a coordinated VLM rollout, not a unilateral constant edit")
+	assert.Equal(t, "000000000000000", ociSerialNumberPrefix,
+		"the trailing portion must remain exactly 15 zero digits — both the count and the all-zero pattern matter to VLM's serial-collision detection")
+	assert.Equal(t, "955000000000000000", ociSerialNumberLeadingPrefix+ociSerialNumberPrefix,
+		"the combined 18-character prefix must equal the historical value VLM has been seeing; any deviation breaks downstream VM serial generation silently")
+}
+
 func TestPrepareOCIDeleteVSAClusterDeploymentRequest(t *testing.T) {
 	req := &vlm.DeleteVSAClusterDeploymentRequest{}
 	pool := &datamodel.Pool{
@@ -260,10 +533,10 @@ func TestPrepareCreateVSAClusterDeploymentRequest_InitsNilLabels(t *testing.T) {
 		},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "u1"},
-		Name:      "pn",
-		PoolOCID:  "ocid.pool",
-		Account:   &datamodel.Account{Name: "aname"},
+		BaseModel:              datamodel.BaseModel{UUID: "u1"},
+		Name:                   "pn",
+		PoolExternalIdentifier: "ocid.pool",
+		Account:                &datamodel.Account{Name: "aname"},
 	}
 	cred := vlm.OntapCredentials{}
 	prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, cred, pool)
@@ -432,6 +705,10 @@ func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	// UpdatePoolFields stamps build_info after the pool is marked READY.
+	// Permissive mock — the dedicated TestOCICreatePoolWorkflow_PersistsBuildInfo
+	// test below asserts on the actual captured arguments.
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
 
@@ -699,6 +976,8 @@ func TestOCICreatePoolWorkflow_RunMethodCalled(t *testing.T) {
 
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	// UpdatePoolFields stamps build_info after the pool is marked READY.
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
 
@@ -758,6 +1037,8 @@ func TestOCICreatePoolWorkflow_ExpertModePasswordFromEnv(t *testing.T) {
 	// GetExpertModeCredentialsForOCI must NOT be called when the env var is pre-set.
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	// UpdatePoolFields stamps build_info after the pool is marked READY.
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
 
@@ -975,9 +1256,231 @@ func TestOCICreatePoolWorkflow_RunArgsValidation(t *testing.T) {
 	}
 }
 
-// TestOCIDeletePoolWorkflow_RunArgsValidation mirrors the Create-side coverage
-// for (*ociDeletePoolWorkflow).Run. Same validation block, same rationale —
-// keeping the two workflows in lock-step for reviewers.
+func TestNewPoolBuildInfo(t *testing.T) {
+	t.Run("StampsImagesAndCurrentOntapVersionForNonAllowlistedAccount", func(tt *testing.T) {
+		withVSAImageOCIDs(tt, testVSAImageOCID, testMediatorImageOCID)
+		withOCIOntapVersionDetails(tt, testOCIOntapVersion)
+		// Empty allowlist => GetOntapVersionBasedOnAllowlisting returns Current.
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
+		tt.Cleanup(func() { utils.SetExperimentalVersionAllowlistedAccountsForTesting("") })
+
+		stamp := time.Date(2026, time.May, 4, 10, 0, 0, 0, time.UTC)
+
+		got := NewPoolBuildInfo(stamp, "non-allowlisted-account")
+
+		require.NotNil(tt, got)
+		assert.Equal(tt, testVSAImageOCID, got.VSABuildImage,
+			"VSABuildImage must come from vsaImageName (VSA_IMAGE_NAME env, worker-side)")
+		assert.Equal(tt, testMediatorImageOCID, got.MediatorBuildImage,
+			"MediatorBuildImage must come from vsaMediatorImageName (VSA_MEDIATOR_IMAGE_NAME env, worker-side)")
+		assert.Equal(tt, testOCIOntapVersion, got.OntapVersion,
+			"non-allowlisted accounts must receive env.CurrentOntapVersionDetails after ExtractOntapVersion")
+		assert.Equal(tt, stamp, got.BuildTimestamp,
+			"BuildTimestamp must echo the caller-supplied time (replay-safety contract)")
+		assert.Empty(tt, got.RbacFileHash, "RbacFileHash should remain empty until the OCI RBAC validation flow lands")
+		assert.Empty(tt, got.RbacFileUrl, "RbacFileUrl should remain empty until the OCI RBAC validation flow lands")
+	})
+
+	t.Run("AllowlistedAccountReceivesExperimentalOntapVersion", func(tt *testing.T) {
+		const (
+			currentVersion      = "9.17.1P2"
+			experimentalVersion = "9.18.1"
+			allowlistedAccount  = "experimental-account"
+		)
+		withVSAImageOCIDs(tt, testVSAImageOCID, testMediatorImageOCID)
+
+		origCurrent := envs.CurrentOntapVersionDetails
+		origExperimental := envs.ExperimentalOntapVersionDetails
+		envs.CurrentOntapVersionDetails = currentVersion
+		envs.ExperimentalOntapVersionDetails = experimentalVersion
+		tt.Cleanup(func() {
+			envs.CurrentOntapVersionDetails = origCurrent
+			envs.ExperimentalOntapVersionDetails = origExperimental
+		})
+
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting(allowlistedAccount)
+		tt.Cleanup(func() { utils.SetExperimentalVersionAllowlistedAccountsForTesting("") })
+
+		got := NewPoolBuildInfo(time.Now(), allowlistedAccount)
+
+		require.NotNil(tt, got)
+		assert.Equal(tt, experimentalVersion, got.OntapVersion,
+			"allowlisted accounts must receive env.ExperimentalOntapVersionDetails (matches the delete-path call to GetOntapVersionBasedOnAllowlisting)")
+	})
+
+	t.Run("EmptyVersionDetailsProduceEmptyOntapVersion", func(tt *testing.T) {
+		withVSAImageOCIDs(tt, "", "")
+		withOCIOntapVersionDetails(tt, "")
+		stamp := time.Now()
+
+		got := NewPoolBuildInfo(stamp, "any-account")
+
+		require.NotNil(tt, got)
+		assert.Empty(tt, got.VSABuildImage)
+		assert.Empty(tt, got.MediatorBuildImage)
+		assert.Empty(tt, got.OntapVersion,
+			"with no current/experimental version configured, OntapVersion must be empty (no spurious default)")
+		assert.Equal(tt, stamp, got.BuildTimestamp)
+	})
+}
+
+func TestOCICreatePoolWorkflow_PersistsBuildInfo(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	const wantPoolUUID = "test-pool-uuid-buildinfo"
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: wantPoolUUID},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
+	var (
+		gotPoolUUID  string
+		gotBuildInfo *datamodel.PoolBuildInfo
+	)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			gotPoolUUID, _ = args[1].(string)
+			updates, ok := args[2].(map[string]interface{})
+			if !ok {
+				return
+			}
+			raw, ok := updates["build_info"]
+			if !ok {
+				return
+			}
+			encoded, err := json.Marshal(raw)
+			if err != nil {
+				return
+			}
+			var bi datamodel.PoolBuildInfo
+			if err := json.Unmarshal(encoded, &bi); err != nil {
+				return
+			}
+			gotBuildInfo = &bi
+		}).
+		Return(nil).
+		Once()
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+
+	assert.Equal(t, wantPoolUUID, gotPoolUUID,
+		"UpdatePoolFields must target the exact pool the workflow is creating")
+
+	require.NotNil(t, gotBuildInfo,
+		"UpdatePoolFields was never invoked with a build_info payload — the persistence step is missing")
+	assert.Equal(t, testVSAImageOCID, gotBuildInfo.VSABuildImage,
+		"VSABuildImage must reflect VSA_IMAGE_NAME from the worker container's env")
+	assert.Equal(t, testMediatorImageOCID, gotBuildInfo.MediatorBuildImage,
+		"MediatorBuildImage must reflect VSA_MEDIATOR_IMAGE_NAME from the worker container's env")
+	assert.Equal(t, testOCIOntapVersion, gotBuildInfo.OntapVersion,
+		"OntapVersion must reflect env.CurrentOntapVersionDetails for non-allowlisted accounts (mirrors the delete-path call to utils.GetOntapVersionBasedOnAllowlisting)")
+	assert.False(t, gotBuildInfo.BuildTimestamp.IsZero(),
+		"BuildTimestamp must be stamped with workflow.Now(ctx), not left as the zero value")
+
+	env.AssertExpectations(t)
+}
+
+func TestOCICreatePoolWorkflow_BuildInfoPersistFailureIsNonFatal(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid-buildinfo-fail"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
+	updatePoolFieldsAttempted := false
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { updatePoolFieldsAttempted = true }).
+		Return(assert.AnError)
+	erroredPoolCalled := false
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { erroredPoolCalled = true }).
+		Return(pool, nil).
+		Maybe()
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError(),
+		"build_info persistence failure must be swallowed (logged as non-critical), not surfaced as a workflow error")
+
+	assert.True(t, updatePoolFieldsAttempted,
+		"the build_info UpdatePoolFields call must actually be exercised — otherwise this test proves nothing about the failure branch")
+	assert.False(t, erroredPoolCalled,
+		"ErroredPool/rollback must NOT fire on build_info persistence failure: the pool is already marked ready by CreatedPool, so a rollback here would invalidate a usable pool")
+}
+
 func TestOCIDeletePoolWorkflow_RunArgsValidation(t *testing.T) {
 	validParams := &common.DeletePoolParams{}
 	validPool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "u"}, Name: "p"}

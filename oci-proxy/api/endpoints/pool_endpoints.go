@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -23,9 +25,55 @@ const (
 	invalidOPCRequestID                   = "Opc-Request-Id not set"
 	errMsgInvalidAdminPasswordVersion     = "ociAdminPassword.version must be a valid integer"
 	errMsgAdminPasswordVersionLessThanOne = "ociAdminPassword.version must be greater than or equal to 1"
-	errMsgOddDataEndpointConfig           = "dataEndpointConfig must have an even number of entries (one pair per HA pair)"
 	errMsgOddDataEndpointCount            = "dataEndpointCount must be a multiple of 2"
+	errMsgInvalidPoolOCID                 = "poolOCID must be a valid OCID"
+	errMsgInvalidCompartmentOCID          = "compartmentOCID must be a valid OCID"
+	errMsgInvalidSubnetID                 = "subnetId must be a valid OCID"
+	errMsgInvalidDataNicSubnetID          = "dataNicSubnetId must be a valid OCID"
+	errMsgInvalidAdminPasswordOCID        = "ociAdminPassword.ocid must be a valid OCID"
+	errMsgNonPositiveSizeInGiB            = "sizeInGiB must be greater than 0"
+	errMsgNonPositiveThroughputGBps       = "throughputGBps must be greater than 0"
+	errMsgInvalidTenancyOcid              = "tenancyOcid must be a valid OCID"
+	errMsgInvalidConfigForNonSharedHA     = "dataEndpointCount must be set to 2 for non-shared HA"
+	errMsgEmptyPoolOCID                   = "poolOCID must not be empty"
+	errMsgEmptyCompartmentOCID            = "compartmentOCID must not be empty"
+	errMsgEmptyDisplayName                = "displayName must not be empty"
+	errMsgEmptySubnetID                   = "subnetId must not be empty"
+	errMsgEmptyDataNicSubnetID            = "dataNicSubnetId must not be empty"
+	errMsgEmptyAdminPasswordOCID          = "ociAdminPassword.ocid must not be empty"
+	errMsgEmptyAdminPasswordVersion       = "ociAdminPassword.version must not be empty"
+	errMsgEmptyTenancyOcid                = "tenancyOcid must not be empty"
+	errMsgEmptyPrimaryAD                  = "primaryAvailabilityDomain must not be empty"
+	errMsgEmptySerialNumberPrefix         = "serialNumberPrefix must not be empty"
 )
+
+func normalizeCreatePoolRequest(req *ociserver.CreatePoolRequest, params *ociserver.CreatePoolParams) {
+	if params != nil {
+		params.TenancyOcid = strings.TrimSpace(params.TenancyOcid)
+	}
+	if req == nil {
+		return
+	}
+	req.PoolOCID = strings.TrimSpace(req.PoolOCID)
+	req.CompartmentOCID = strings.TrimSpace(req.CompartmentOCID)
+	req.DisplayName = strings.TrimSpace(req.DisplayName)
+	req.SubnetId = strings.TrimSpace(req.SubnetId)
+	req.PrimaryAvailabilityDomain = strings.TrimSpace(req.PrimaryAvailabilityDomain)
+	req.SecondaryAvailabilityDomain.Value = strings.TrimSpace(req.SecondaryAvailabilityDomain.Value)
+	req.MediatorAvailabilityDomain.Value = strings.TrimSpace(req.MediatorAvailabilityDomain.Value)
+	req.OciAdminPassword.Ocid = strings.TrimSpace(req.OciAdminPassword.Ocid)
+	req.OciAdminPassword.Version = strings.TrimSpace(req.OciAdminPassword.Version)
+	req.Description.Value = strings.TrimSpace(req.Description.Value)
+	req.DataNicSubnetId = strings.TrimSpace(req.DataNicSubnetId)
+}
+
+func normalizeDeletePoolParams(params *ociserver.DeletePoolParams) {
+	if params == nil {
+		return
+	}
+	params.PoolOCID = strings.TrimSpace(params.PoolOCID)
+	params.TenancyOcid = strings.TrimSpace(params.TenancyOcid)
+}
 
 // Handler implements the OCI API Handler interface.
 // Embedding UnimplementedHandler provides default 501 for any operation not overridden here.
@@ -83,14 +131,116 @@ func newCreatePoolBadRequest(opcRequestID, poolOCID, errMsg string) *ociserver.C
 	}
 }
 
+// ocidRegex matches a structurally valid OCI OCID.
+// Format: ocid1.<resource>.<realm>.[region][.future].<uniqueID>
+// The region and future-use segments may be empty (e.g. tenancy and compartment
+// OCIDs use "ocid1.tenancy.oc1..<uniqueID>"), so both 5- and 6-part forms are
+// accepted. Resource type, realm, and unique ID are required.
+var ocidRegex = regexp.MustCompile(
+	`^ocid1\.[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]*(\.[a-z0-9_-]*)?\.[a-z0-9_-]+$`,
+)
+
+func isValidOCID(s string) bool {
+	return ocidRegex.MatchString(strings.TrimSpace(s))
+}
+
+func validateCreatePoolRequest(req *ociserver.CreatePoolRequest, params *ociserver.CreatePoolParams) error {
+	if req == nil {
+		return errors.New("request body is required")
+	}
+	if params == nil {
+		return errors.New("request params are required")
+	}
+	normalizeCreatePoolRequest(req, params)
+
+	if req.PoolOCID == "" {
+		return errors.New(errMsgEmptyPoolOCID)
+	}
+	if !isValidOCID(req.PoolOCID) {
+		return errors.New(errMsgInvalidPoolOCID)
+	}
+	if req.CompartmentOCID == "" {
+		return errors.New(errMsgEmptyCompartmentOCID)
+	}
+	if !isValidOCID(req.CompartmentOCID) {
+		return errors.New(errMsgInvalidCompartmentOCID)
+	}
+	if req.DisplayName == "" {
+		return errors.New(errMsgEmptyDisplayName)
+	}
+	if req.SubnetId == "" {
+		return errors.New(errMsgEmptySubnetID)
+	}
+	if !isValidOCID(req.SubnetId) {
+		return errors.New(errMsgInvalidSubnetID)
+	}
+	if req.SizeInGiB <= 0 {
+		return errors.New(errMsgNonPositiveSizeInGiB)
+	}
+	if req.DataNicSubnetId == "" {
+		return errors.New(errMsgEmptyDataNicSubnetID)
+	}
+	if !isValidOCID(req.DataNicSubnetId) {
+		return errors.New(errMsgInvalidDataNicSubnetID)
+	}
+	if req.OciAdminPassword.Ocid == "" {
+		return errors.New(errMsgEmptyAdminPasswordOCID)
+	}
+	if !isValidOCID(req.OciAdminPassword.Ocid) {
+		return errors.New(errMsgInvalidAdminPasswordOCID)
+	}
+	if req.OciAdminPassword.Version == "" {
+		return errors.New(errMsgEmptyAdminPasswordVersion)
+	}
+	if req.ThroughputGBps <= 0 {
+		return errors.New(errMsgNonPositiveThroughputGBps)
+	}
+	if req.DataEndpointCount%2 != 0 {
+		return errors.New(errMsgOddDataEndpointCount)
+	}
+	if params.TenancyOcid == "" {
+		return errors.New(errMsgEmptyTenancyOcid)
+	}
+	if !isValidOCID(params.TenancyOcid) {
+		return errors.New(errMsgInvalidTenancyOcid)
+	}
+	// Must be checked before isSharedHA below: an empty primaryAvailabilityDomain
+	// would make isSharedHA("", "") return true and then propagate empty AD strings
+	// all the way to the orchestrator (since secondary/mediator default to primary).
+	if req.PrimaryAvailabilityDomain == "" {
+		return errors.New(errMsgEmptyPrimaryAD)
+	}
+	// For non-shared HA, dataEndpointCount must be set to 2
+	if !isSharedHA(req.PrimaryAvailabilityDomain, req.SecondaryAvailabilityDomain.Value) && req.DataEndpointCount != 2 {
+		return errors.New(errMsgInvalidConfigForNonSharedHA)
+	}
+	return nil
+}
+
+func isSharedHA(primaryAD, secondaryAD string) bool {
+	if secondaryAD == "" || secondaryAD == primaryAD {
+		return true
+	}
+	return false
+}
+
 // CreatePool returns 202 Accepted with opc-request-id, opc-work-request-id, and the created Pool.
 func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolRequest, params ociserver.CreatePoolParams) (ociserver.CreatePoolRes, error) {
 	logger := util.GetLogger(ctx)
+
+	if req == nil {
+		return newCreatePoolBadRequest(uuid.NewString(), "", "request body is required"), nil
+	}
 
 	opcRequestID, err := opcRequestIDFromContext(ctx)
 	if err != nil {
 		logger.Error("missing opc-request-id in context", "error", err)
 		return newCreatePoolBadRequest(uuid.NewString(), req.PoolOCID, invalidOPCRequestID), nil
+	}
+
+	if err := validateCreatePoolRequest(req, &params); err != nil {
+		logger.Error("CreatePool request validation failed", "error", err)
+		return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, err.Error()), nil
 	}
 
 	ociAdminPasswordVersion, err := strconv.ParseInt(req.OciAdminPassword.Version, 10, 64)
@@ -104,25 +254,27 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 		return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, errMsgAdminPasswordVersionLessThanOne), nil
 	}
 
-	if len(req.DataEndpointConfig)%2 != 0 {
-		logger.Error("dataEndpointConfig has odd number of entries", "count", len(req.DataEndpointConfig))
-		return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, errMsgOddDataEndpointConfig), nil
-	}
+	var secondaryAD, mediatorAD string
+	var isRegionalHA bool
 
-	if req.DataEndpointCount%2 != 0 {
-		logger.Error("dataEndpointCount is not a multiple of 2", "count", req.DataEndpointCount)
-		return newCreatePoolBadRequest(opcRequestID, req.PoolOCID, errMsgOddDataEndpointCount), nil
-	}
-
-	secondaryAD := req.SecondaryAvailabilityDomain.Value
-	if secondaryAD == "" {
+	// shared HA means secondary and primary are the same and mediator is absent
+	// secondaryAvailabilityDomain not set implies shared HA
+	// when secondaryAvailabilityDomain is set and is same as primaryAvailabilityDomain, it implies shared HA
+	if isSharedHA(req.PrimaryAvailabilityDomain, req.SecondaryAvailabilityDomain.Value) {
 		secondaryAD = req.PrimaryAvailabilityDomain
-	}
-	isRegionalHA := secondaryAD != req.PrimaryAvailabilityDomain
-
-	mediatorAD := req.MediatorAvailabilityDomain.Value
-	if mediatorAD == "" {
-		mediatorAD = req.PrimaryAvailabilityDomain
+		mediatorAD = req.MediatorAvailabilityDomain.Value
+		if mediatorAD == "" {
+			mediatorAD = req.PrimaryAvailabilityDomain
+		}
+		isRegionalHA = false
+	} else {
+		// non shared HA
+		secondaryAD = req.SecondaryAvailabilityDomain.Value
+		mediatorAD = req.MediatorAvailabilityDomain.Value
+		if mediatorAD == "" {
+			mediatorAD = req.PrimaryAvailabilityDomain
+		}
+		isRegionalHA = true
 	}
 
 	// Map the provided config to CreatePoolParams
@@ -319,9 +471,29 @@ func mapGetWorkflowQueryError(opcRequestID string, err error) ociserver.GetWorkf
 	}
 }
 
+func validateDeletePoolRequest(params *ociserver.DeletePoolParams) error {
+	if params == nil {
+		return errors.New("request params are required")
+	}
+	normalizeDeletePoolParams(params)
+
+	if params.PoolOCID == "" {
+		return errors.New(errMsgEmptyPoolOCID)
+	}
+	if !isValidOCID(params.PoolOCID) {
+		return errors.New(errMsgInvalidPoolOCID)
+	}
+	if params.TenancyOcid == "" {
+		return errors.New(errMsgEmptyTenancyOcid)
+	}
+	if !isValidOCID(params.TenancyOcid) {
+		return errors.New(errMsgInvalidTenancyOcid)
+	}
+	return nil
+}
+
 func (h *Handler) DeletePool(ctx context.Context, params ociserver.DeletePoolParams) (ociserver.DeletePoolRes, error) {
 	logger := util.GetLogger(ctx)
-	poolOCID := params.PoolOCID
 
 	opcRequestID, err := opcRequestIDFromContext(ctx)
 	if err != nil {
@@ -329,11 +501,25 @@ func (h *Handler) DeletePool(ctx context.Context, params ociserver.DeletePoolPar
 			OpcRequestID: uuid.NewString(),
 			Response: ociserver.PoolOperationErrorResponse{
 				Status:       string(workflowquery.WorkflowStatusFailed),
-				PoolOCID:     poolOCID,
+				PoolOCID:     params.PoolOCID,
 				ErrorMessage: invalidOPCRequestID,
 			},
 		}, nil
 	}
+
+	if err := validateDeletePoolRequest(&params); err != nil {
+		logger.Error("DeletePool request validation failed", "error", err)
+		return &ociserver.DeletePoolBadRequest{
+			OpcRequestID: opcRequestID,
+			Response: ociserver.PoolOperationErrorResponse{
+				Status:       string(workflowquery.WorkflowStatusFailed),
+				PoolOCID:     params.PoolOCID,
+				ErrorMessage: err.Error(),
+			},
+		}, nil
+	}
+
+	poolOCID := params.PoolOCID
 
 	// Map to DeletePoolParams - for OCI, AccountName is compartment OCID and PoolName is deployment name
 	deletePoolParams := &commonparams.DeletePoolParams{
@@ -372,7 +558,7 @@ func (h *Handler) DeletePool(ctx context.Context, params ociserver.DeletePoolPar
 				Response: ociserver.PoolOperationErrorResponse{
 					Status:       string(workflowquery.WorkflowStatusFailed),
 					PoolOCID:     poolOCID,
-					ErrorMessage: "Error deleting pool - Pool is already transitioning between states",
+					ErrorMessage: fmt.Errorf("Error deleting pool : %w", err).Error(),
 				},
 			}, nil
 		}

@@ -172,6 +172,17 @@ skaffold-dev:
 	export $(cat skaffold.env | xargs)
 	skaffold dev -p dev
 
+.PHONY: skaffold-dev-oci
+skaffold-dev-oci:
+	export $(cat skaffold.env | xargs)
+	@ctx="$$(kubectl config current-context 2>/dev/null)"; \
+	if [ "$$ctx" != "docker-desktop" ]; then \
+		echo "skaffold-dev-oci: refusing to run; current kubectl context is '$$ctx', expected 'docker-desktop'."; \
+		echo "Switch with: kubectl config use-context docker-desktop"; \
+		exit 1; \
+	fi; \
+	skaffold dev -p dev
+
 .PHONY: build-all-binaries-prod
 build-all-binaries-prod:
 	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all -t vsa-binaries-builder .

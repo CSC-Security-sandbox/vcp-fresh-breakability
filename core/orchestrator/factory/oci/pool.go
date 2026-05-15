@@ -83,18 +83,18 @@ func preparePool(
 		BaseModel: datamodel.BaseModel{
 			UUID: utils.RandomUUID(),
 		},
-		Name:             params.Name,
-		Account:          account,
-		AccountID:        account.ID,
-		VendorID:         params.VendorID,
-		PoolOCID:         params.PoolOCID,
-		Network:          params.VendorSubNetID,
-		SizeInBytes:      int64(params.SizeInBytes),
-		AllowAutoTiering: params.AllowAutoTiering,
-		Description:      params.Description,
-		ServiceLevel:     params.ServiceLevel,
-		QosType:          params.QosType,
-		LargeCapacity:    params.LargeCapacity,
+		Name:                   params.Name,
+		Account:                account,
+		AccountID:              account.ID,
+		VendorID:               params.VendorID,
+		PoolExternalIdentifier: params.PoolOCID,
+		Network:                params.VendorSubNetID,
+		SizeInBytes:            int64(params.SizeInBytes),
+		AllowAutoTiering:       params.AllowAutoTiering,
+		Description:            params.Description,
+		ServiceLevel:           params.ServiceLevel,
+		QosType:                params.QosType,
+		LargeCapacity:          params.LargeCapacity,
 		ClusterDetails: datamodel.ClusterDetails{
 			CompartmentOCID: params.CompartmentOCID,
 		},
@@ -227,7 +227,7 @@ func (o *OCIOrchestrator) DeletePool(ctx context.Context, params *commonparams.D
 		return nil, "", err
 	}
 
-	conditions := [][]interface{}{{"pool_ocid = ?", params.PoolOCID}}
+	conditions := [][]interface{}{{"pool_external_identifier = ?", params.PoolOCID}}
 	conditions = append(conditions, []interface{}{"account_id = ?", account.ID})
 	poolView, err := se.GetPoolByName(ctx, conditions)
 	if err != nil {
@@ -238,12 +238,7 @@ func (o *OCIOrchestrator) DeletePool(ctx context.Context, params *commonparams.D
 		return nil, "", err
 	}
 
-	switch {
-	case poolView.State == models.LifeCycleStateCreating:
-		return nil, "", customerrors.NewConflictErr("pool cannot be deleted while creation is in progress")
-	case poolView.State == models.LifeCycleStateDeleting:
-		return nil, "", customerrors.NewConflictErr("pool deletion is already in progress")
-	case utils.IsTransitionalState(poolView.State):
+	if utils.IsTransitionalState(poolView.State) {
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("pool is in transition state and cannot be deleted, state: %s", poolView.State))
 	}
 

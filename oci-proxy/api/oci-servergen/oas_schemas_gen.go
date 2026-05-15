@@ -167,6 +167,17 @@ type CreatePoolRequest struct {
 	Description OptString `json:"description"`
 	// OCI subnet OCID for the data NIC.
 	DataNicSubnetId string `json:"dataNicSubnetId"`
+	// Optional cloud tiering configuration. When provided, cold pool data is
+	// tiered to the specified OCI Object Storage bucket via the S3-compatible
+	// endpoint. Omit to disable tiering.
+	TieringConfig OptTieringConfig `json:"tieringConfig"`
+	// Optional OCI Vault Master Encryption Key OCID used to encrypt pool data
+	// at rest. When omitted, the service default encryption is used.
+	KmsKeyId OptString `json:"kmsKeyId"`
+	// Optional list of OCI Network Security Group OCIDs to attach to the pool's
+	// VNICs. When omitted or empty, no NSGs are attached and only subnet-level
+	// security rules apply.
+	NsgIds []string `json:"nsgIds"`
 }
 
 // GetPoolOCID returns the value of PoolOCID.
@@ -239,6 +250,21 @@ func (s *CreatePoolRequest) GetDataNicSubnetId() string {
 	return s.DataNicSubnetId
 }
 
+// GetTieringConfig returns the value of TieringConfig.
+func (s *CreatePoolRequest) GetTieringConfig() OptTieringConfig {
+	return s.TieringConfig
+}
+
+// GetKmsKeyId returns the value of KmsKeyId.
+func (s *CreatePoolRequest) GetKmsKeyId() OptString {
+	return s.KmsKeyId
+}
+
+// GetNsgIds returns the value of NsgIds.
+func (s *CreatePoolRequest) GetNsgIds() []string {
+	return s.NsgIds
+}
+
 // SetPoolOCID sets the value of PoolOCID.
 func (s *CreatePoolRequest) SetPoolOCID(val string) {
 	s.PoolOCID = val
@@ -307,6 +333,21 @@ func (s *CreatePoolRequest) SetDescription(val OptString) {
 // SetDataNicSubnetId sets the value of DataNicSubnetId.
 func (s *CreatePoolRequest) SetDataNicSubnetId(val string) {
 	s.DataNicSubnetId = val
+}
+
+// SetTieringConfig sets the value of TieringConfig.
+func (s *CreatePoolRequest) SetTieringConfig(val OptTieringConfig) {
+	s.TieringConfig = val
+}
+
+// SetKmsKeyId sets the value of KmsKeyId.
+func (s *CreatePoolRequest) SetKmsKeyId(val OptString) {
+	s.KmsKeyId = val
+}
+
+// SetNsgIds sets the value of NsgIds.
+func (s *CreatePoolRequest) SetNsgIds(val []string) {
+	s.NsgIds = val
 }
 
 type CreatePoolTooManyRequests PoolOperationErrorResponseHeaders
@@ -1620,6 +1661,52 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
+// NewOptTieringConfig returns new OptTieringConfig with value set to v.
+func NewOptTieringConfig(v TieringConfig) OptTieringConfig {
+	return OptTieringConfig{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptTieringConfig is optional TieringConfig.
+type OptTieringConfig struct {
+	Value TieringConfig
+	Set   bool
+}
+
+// IsSet returns true if OptTieringConfig was set.
+func (o OptTieringConfig) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptTieringConfig) Reset() {
+	var v TieringConfig
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptTieringConfig) SetTo(v TieringConfig) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptTieringConfig) Get() (v TieringConfig, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptTieringConfig) Or(d TieringConfig) TieringConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptWorkflowStatusError returns new OptWorkflowStatusError with value set to v.
 func NewOptWorkflowStatusError(v WorkflowStatusError) OptWorkflowStatusError {
 	return OptWorkflowStatusError{
@@ -2074,6 +2161,62 @@ func (s *SvmOperationErrorResponseHeaders) SetOpcRequestID(val string) {
 // SetResponse sets the value of Response.
 func (s *SvmOperationErrorResponseHeaders) SetResponse(val SvmOperationErrorResponse) {
 	s.Response = val
+}
+
+// Cloud tiering configuration pointing at an OCI Object Storage bucket reached
+// via its S3-compatible endpoint. All four fields are required when the parent
+// request supplies a tieringConfig object.
+// Ref: #/components/schemas/TieringConfig
+type TieringConfig struct {
+	// OCI Vault secret OCID holding the S3-compatible Customer Secret Key
+	// used to authenticate against the bucket.
+	SecretId string `json:"secretId"`
+	// OCI Object Storage namespace that owns the bucket.
+	Namespace string `json:"namespace"`
+	// Name of the OCI Object Storage bucket to tier cold data into.
+	BucketName string `json:"bucketName"`
+	// Hostname of the S3-compatible endpoint for the bucket.
+	ServerName string `json:"serverName"`
+}
+
+// GetSecretId returns the value of SecretId.
+func (s *TieringConfig) GetSecretId() string {
+	return s.SecretId
+}
+
+// GetNamespace returns the value of Namespace.
+func (s *TieringConfig) GetNamespace() string {
+	return s.Namespace
+}
+
+// GetBucketName returns the value of BucketName.
+func (s *TieringConfig) GetBucketName() string {
+	return s.BucketName
+}
+
+// GetServerName returns the value of ServerName.
+func (s *TieringConfig) GetServerName() string {
+	return s.ServerName
+}
+
+// SetSecretId sets the value of SecretId.
+func (s *TieringConfig) SetSecretId(val string) {
+	s.SecretId = val
+}
+
+// SetNamespace sets the value of Namespace.
+func (s *TieringConfig) SetNamespace(val string) {
+	s.Namespace = val
+}
+
+// SetBucketName sets the value of BucketName.
+func (s *TieringConfig) SetBucketName(val string) {
+	s.BucketName = val
+}
+
+// SetServerName sets the value of ServerName.
+func (s *TieringConfig) SetServerName(val string) {
+	s.ServerName = val
 }
 
 // Present when the workflow failed or timed out.

@@ -74,7 +74,7 @@ func TestCreatePoolRequest_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
-		{Input: "{\"compartmentOCID\":\"ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a\",\"dataEndpointConfig\":[{\"iops\":1500,\"sizeInGiB\":512,\"throughputGBps\":0.5},{\"iops\":1500,\"sizeInGiB\":512,\"throughputGBps\":0.5}],\"dataNicSubnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"description\":\"Demo pool\",\"displayName\":\"my-pool\",\"mediatorAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-3\",\"ociAdminPassword\":{\"ocid\":\"ocid1.vaultsecret.oc1.eu-frankfurt-1.amaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"version\":\"1\"},\"poolOCID\":\"ocid1.pool.oc1.eu-frankfurt-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"primaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-1\",\"secondaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-2\",\"sizeInGiB\":100,\"subnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"throughputGBps\":1}"},
+		{Input: "{\"compartmentOCID\":\"ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a\",\"dataEndpointConfig\":[{\"iops\":1500,\"sizeInGiB\":512,\"throughputGBps\":0.5},{\"iops\":1500,\"sizeInGiB\":512,\"throughputGBps\":0.5}],\"dataEndpointCount\":2,\"dataNicSubnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"description\":\"Demo pool\",\"displayName\":\"my-pool\",\"mediatorAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-3\",\"ociAdminPassword\":{\"ocid\":\"ocid1.vaultsecret.oc1.eu-frankfurt-1.amaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"version\":\"1\"},\"poolOCID\":\"ocid1.pool.oc1.eu-frankfurt-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"primaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-1\",\"secondaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-2\",\"serialNumberPrefix\":\"955000000000000000\",\"sizeInGiB\":100,\"subnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"throughputGBps\":1}"},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
@@ -497,6 +497,18 @@ func TestSvmOperationErrorResponse_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 SvmOperationErrorResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestTieringConfig_EncodeDecode(t *testing.T) {
+	var typ TieringConfig
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 TieringConfig
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestWorkflowStatusError_EncodeDecode(t *testing.T) {

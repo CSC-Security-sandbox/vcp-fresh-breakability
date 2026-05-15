@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -23,6 +24,31 @@ import (
 
 // defaultTestOPC matches middleware: a stable UUID used when tests do not care about the exact value.
 const defaultTestOPC = "aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee"
+
+const defaultTestTenancyOCID = "ocid1.tenancy.oc1..aaaaaaaatestaaa"
+
+func defaultCreatePoolParams() ociserver.CreatePoolParams {
+	return ociserver.CreatePoolParams{TenancyOcid: defaultTestTenancyOCID}
+}
+
+// validCreatePoolRequest returns a request that passes validateCreatePoolRequest:
+// shared HA (no secondary AD set) so the non-shared-HA rule does not apply, and
+// DataEndpointCount=2 to satisfy the parity check. Tests that exercise individual
+// validation branches mutate exactly one field at a time.
+func validCreatePoolRequest() *ociserver.CreatePoolRequest {
+	return &ociserver.CreatePoolRequest{
+		PoolOCID:                  "ocid1.pool.oc1..valid",
+		CompartmentOCID:           "ocid1.compartment.oc1..valid",
+		DisplayName:               "valid-pool",
+		SubnetId:                  "ocid1.subnet.oc1.iad.valid",
+		DataNicSubnetId:           "ocid1.subnet.oc1.iad.validdata",
+		PrimaryAvailabilityDomain: "ad1",
+		SizeInGiB:                 1024,
+		ThroughputGBps:            1.0,
+		DataEndpointCount:         2,
+		OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..valid", Version: "1"},
+	}
+}
 
 // gbpsToMibps converts GBps (SI, 10^9 bytes/s) to MiBps (2^20 bytes/s).
 func gbpsToMibps(gbps float64) int64 {
@@ -78,7 +104,7 @@ func TestCreatePool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "work-request-id", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.CreatePoolParams{}
+		params := defaultCreatePoolParams()
 		req := &ociserver.CreatePoolRequest{
 			PoolOCID:                    "ocid1.pool.oc1..aaa",
 			CompartmentOCID:             "ocid1.compartment.oc1..aaa",
@@ -135,7 +161,7 @@ func TestCreatePool(t *testing.T) {
 			State:          "ACTIVE",
 		}, "work-req-echo", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.CreatePoolParams{}
+		params := defaultCreatePoolParams()
 
 		res, err := h.CreatePool(contextWithOpcRequestID(nil, "client-request-id-123"), req, params)
 
@@ -152,9 +178,9 @@ func TestCreatePool(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		req := &ociserver.CreatePoolRequest{
 			PoolOCID:                  "ocid1.pool.oc1..ccc",
-			CompartmentOCID:           "comp-1",
+			CompartmentOCID:           "ocid1.compartment.oc1..testcomp",
 			DisplayName:               "my-pool",
-			SubnetId:                  "subnet-1",
+			SubnetId:                  "ocid1.subnet.oc1.iad.testsubnet",
 			DataNicSubnetId:           "ocid1.subnet.oc1..data",
 			PrimaryAvailabilityDomain: "ad1",
 			SizeInGiB:                 1024,
@@ -175,7 +201,7 @@ func TestCreatePool(t *testing.T) {
 			State:          "ACTIVE",
 		}, "work-req-populate", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.CreatePoolParams{}
+		params := defaultCreatePoolParams()
 
 		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
 
@@ -191,10 +217,10 @@ func TestCreatePool(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		req := &ociserver.CreatePoolRequest{
 			PoolOCID:                  "ocid1.pool.oc1..datanic",
-			CompartmentOCID:           "comp-1",
+			CompartmentOCID:           "ocid1.compartment.oc1..testcomp",
 			DisplayName:               "pool-with-data-nic",
-			SubnetId:                  "subnet-1",
-			DataNicSubnetId:           "subnet-data-1",
+			SubnetId:                  "ocid1.subnet.oc1.iad.testsubnet",
+			DataNicSubnetId:           "ocid1.subnet.oc1.iad.testdatasubnet",
 			PrimaryAvailabilityDomain: "ad1",
 			SizeInGiB:                 1024,
 			ThroughputGBps:            1.0,
@@ -219,7 +245,7 @@ func TestCreatePool(t *testing.T) {
 			}, "work-req-data-nic", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
 
-		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
+		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
 
 		assert.NoError(tt, err)
 		headers, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
@@ -232,7 +258,7 @@ func TestCreatePool(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(nil, "", utilserrors.NewUserInputValidationErr("invalid region"))
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.CreatePoolParams{}
+		params := defaultCreatePoolParams()
 		req := &ociserver.CreatePoolRequest{
 			PoolOCID:                  "ocid1.pool.oc1..aaa",
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
@@ -267,7 +293,7 @@ func TestCreatePool(t *testing.T) {
 		wrapped := fmt.Errorf("outer: %w", inner)
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(nil, "", wrapped)
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.CreatePoolParams{}
+		params := defaultCreatePoolParams()
 		req := &ociserver.CreatePoolRequest{
 			PoolOCID:                  "ocid1.pool.oc1..aaa",
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
@@ -297,7 +323,7 @@ func TestCreatePool(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(nil, "", utilserrors.NewConflictErr("pool already exists"))
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.CreatePoolParams{}
+		params := defaultCreatePoolParams()
 		req := &ociserver.CreatePoolRequest{
 			PoolOCID:                  "ocid1.pool.oc1..aaa",
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
@@ -330,7 +356,7 @@ func TestCreatePool(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(nil, "", errors.New("internal failure"))
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.CreatePoolParams{}
+		params := defaultCreatePoolParams()
 		req := &ociserver.CreatePoolRequest{
 			PoolOCID:                  "ocid1.pool.oc1..aaa",
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
@@ -503,7 +529,7 @@ func TestDeletePool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-123", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.DeletePoolParams{PoolOCID: "550e8400-e29b-41d4-a716-446655440000", TenancyOcid: "ocid1.compartment.oc1..aaa"}
+		params := ociserver.DeletePoolParams{PoolOCID: "ocid1.pool.oc1.iad.testdelete", TenancyOcid: "ocid1.tenancy.oc1..aaa"}
 		res, err := h.DeletePool(contextWithOpcRequestID(nil, defaultTestOPC), params)
 
 		assert.NoError(tt, err)
@@ -524,7 +550,7 @@ func TestDeletePool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-456", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.DeletePoolParams{PoolOCID: "550e8400-e29b-41d4-a716-446655440000", TenancyOcid: "ocid1.compartment.oc1..aaa"}
+		params := ociserver.DeletePoolParams{PoolOCID: "ocid1.pool.oc1.iad.testdelete", TenancyOcid: "ocid1.tenancy.oc1..aaa"}
 		res, err := h.DeletePool(contextWithOpcRequestID(nil, defaultTestOPC), params)
 
 		assert.NoError(tt, err)
@@ -542,7 +568,7 @@ func TestDeletePool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{PrimaryZone: "ad1", SecondaryZone: "ad2"},
 		}, "op-echo", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.DeletePoolParams{PoolOCID: "pool-uuid", TenancyOcid: "ocid1.compartment.oc1..aaa"}
+		params := ociserver.DeletePoolParams{PoolOCID: "ocid1.pool.oc1.iad.testecho", TenancyOcid: "ocid1.tenancy.oc1..aaa"}
 		res, err := h.DeletePool(contextWithOpcRequestID(nil, "delete-request-id"), params)
 
 		assert.NoError(tt, err)
@@ -554,7 +580,7 @@ func TestDeletePool(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(nil, "", utilserrors.NewNotFoundErr("pool not found", nil))
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.DeletePoolParams{PoolOCID: "550e8400-e29b-41d4-a716-446655440000", TenancyOcid: "ocid1.compartment.oc1..aaa"}
+		params := ociserver.DeletePoolParams{PoolOCID: "ocid1.pool.oc1.iad.testdelete", TenancyOcid: "ocid1.tenancy.oc1..aaa"}
 		res, err := h.DeletePool(contextWithOpcRequestID(nil, defaultTestOPC), params)
 
 		assert.NoError(tt, err)
@@ -585,12 +611,17 @@ func TestDeletePool(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(nil, "", utilserrors.NewConflictErr("in transition"))
 		h := Handler{Orchestrator: mockOrchestrator}
-		params := ociserver.DeletePoolParams{PoolOCID: "ocid1.pool.oc1..x", TenancyOcid: "ocid1.compartment.oc1..aaa"}
+		params := ociserver.DeletePoolParams{PoolOCID: "ocid1.pool.oc1..x", TenancyOcid: "ocid1.tenancy.oc1..aaa"}
 		res, err := h.DeletePool(contextWithOpcRequestID(nil, defaultTestOPC), params)
 		assert.NoError(tt, err)
 		conf, ok := res.(*ociserver.DeletePoolConflict)
 		assert.True(tt, ok)
-		assert.Contains(tt, conf.Response.ErrorMessage, "transitioning")
+		assert.Equal(tt, defaultTestOPC, conf.OpcRequestID)
+		assert.Equal(tt, params.PoolOCID, conf.Response.PoolOCID)
+		assert.Contains(tt, conf.Response.ErrorMessage, "Error deleting pool",
+			"handler must prefix the wrapped orchestrator conflict error so callers can distinguish from validation 409s")
+		assert.Contains(tt, conf.Response.ErrorMessage, "in transition",
+			"original orchestrator error must be preserved (not flattened) when wrapping")
 	})
 
 	t.Run("DeletePool returns 500 on generic orchestrator error", func(tt *testing.T) {
@@ -662,7 +693,7 @@ func TestCreatePool_MissingOPCRequestID(t *testing.T) {
 		},
 		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 	}
-	res, err := h.CreatePool(context.Background(), req, ociserver.CreatePoolParams{})
+	res, err := h.CreatePool(context.Background(), req, defaultCreatePoolParams())
 	assert.NoError(t, err)
 	bad, ok := res.(*ociserver.CreatePoolBadRequest)
 	assert.True(t, ok)
@@ -693,45 +724,11 @@ func TestCreatePool_EmptyWorkflowID(t *testing.T) {
 		},
 		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 	}
-	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
 	assert.NoError(t, err)
 	headers, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
 	assert.True(t, ok)
 	assert.Equal(t, "", headers.Response.WorkflowId)
-}
-
-func TestCreatePool_OddDataEndpointConfigRejected(t *testing.T) {
-	// No orchestrator expectations: rejection must short-circuit before CreatePool
-	// is ever invoked. testify will fail the test if the mock is called.
-	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
-	h := Handler{Orchestrator: mockOrchestrator}
-	req := &ociserver.CreatePoolRequest{
-		PoolOCID:                  "ocid1.pool.oc1..odd-cfg",
-		CompartmentOCID:           "ocid1.compartment.oc1..aaa",
-		DisplayName:               "odd-cfg-pool",
-		SubnetId:                  "ocid1.subnet.oc1..aaa",
-		DataNicSubnetId:           "ocid1.subnet.oc1..data",
-		PrimaryAvailabilityDomain: "ad1",
-		SizeInGiB:                 512,
-		ThroughputGBps:            1.0,
-		DataEndpointCount:         2,
-		DataEndpointConfig: []ociserver.DataEndpointConfig{
-			{SizeInGiB: 512, ThroughputGBps: 1.0},
-			{SizeInGiB: 512, ThroughputGBps: 1.0},
-			{SizeInGiB: 512, ThroughputGBps: 1.0},
-		},
-		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
-	}
-
-	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
-
-	assert.NoError(t, err)
-	bad, ok := res.(*ociserver.CreatePoolBadRequest)
-	assert.True(t, ok, "response should be *ociserver.CreatePoolBadRequest")
-	assert.Equal(t, defaultTestOPC, bad.OpcRequestID)
-	assert.Equal(t, req.PoolOCID, bad.Response.PoolOCID)
-	assert.Equal(t, string(workflowquery.WorkflowStatusFailed), bad.Response.Status)
-	assert.Equal(t, errMsgOddDataEndpointConfig, bad.Response.ErrorMessage)
 }
 
 func TestCreatePool_OddDataEndpointCountRejected(t *testing.T) {
@@ -750,7 +747,7 @@ func TestCreatePool_OddDataEndpointCountRejected(t *testing.T) {
 		OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 	}
 
-	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
 
 	assert.NoError(t, err)
 	bad, ok := res.(*ociserver.CreatePoolBadRequest)
@@ -790,7 +787,7 @@ func TestCreatePool_AdminPasswordVersionNotParseable(t *testing.T) {
 		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "not-a-number"},
 	}
 
-	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
 
 	assert.NoError(t, err)
 	bad, ok := res.(*ociserver.CreatePoolBadRequest)
@@ -820,7 +817,7 @@ func TestCreatePool_AdminPasswordVersionLessThanOne(t *testing.T) {
 		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "0"},
 	}
 
-	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
 
 	assert.NoError(t, err)
 	bad, ok := res.(*ociserver.CreatePoolBadRequest)
@@ -917,30 +914,32 @@ func TestDeletePool_MissingOPCRequestID(t *testing.T) {
 
 func TestCreatePool_MapsTopLevelFieldsToOrchestratorParams(t *testing.T) {
 	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	// Use shared HA (secondary unset) so DataEndpointCount=4 is allowed; this test
+	// pins the SizeInGiB→bytes, DataEndpointCount→HAPairs, and ThroughputGBps→MiBps
+	// mappings. Non-shared HA forces DataEndpointCount=2 (covered separately).
 	req := &ociserver.CreatePoolRequest{
-		PoolOCID:                    "ocid1.pool.oc1..top-level",
-		CompartmentOCID:             "comp-1",
-		DisplayName:                 "top-level-pool",
-		SubnetId:                    "subnet-1",
-		DataNicSubnetId:             "subnet-data-1",
-		PrimaryAvailabilityDomain:   "ad1",
-		SecondaryAvailabilityDomain: ociserver.NewOptString("ad2"),
-		SizeInGiB:                   200,
-		ThroughputGBps:              2,
-		DataEndpointCount:           4,
-		OciAdminPassword:            ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+		PoolOCID:                  "ocid1.pool.oc1..top-level",
+		CompartmentOCID:           "ocid1.compartment.oc1..testcomp",
+		DisplayName:               "top-level-pool",
+		SubnetId:                  "ocid1.subnet.oc1.iad.testsubnet",
+		DataNicSubnetId:           "ocid1.subnet.oc1.iad.testdatasubnet",
+		PrimaryAvailabilityDomain: "ad1",
+		SizeInGiB:                 200,
+		ThroughputGBps:            2,
+		DataEndpointCount:         4,
+		OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 	}
 	mockOrchestrator.EXPECT().
 		CreatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
 			return p != nil &&
 				p.SizeInBytes == 200*1024*1024*1024 &&
-				p.HAPairs == 2 &&
+				p.HAPairs == 2 && // DataEndpointCount(4) / 2
 				p.CustomPerformanceParams != nil &&
 				p.CustomPerformanceParams.ThroughputMibps == gbpsToMibps(2) &&
 				p.CustomPerformanceParams.Iops == nil &&
 				p.PrimaryZone == "ad1" &&
-				p.SecondaryZone == "ad2" &&
-				p.IsRegionalHA == true // ad1 != ad2 → derived as regional HA
+				p.SecondaryZone == "ad1" && // shared HA → secondary defaults to primary
+				p.IsRegionalHA == false // shared HA
 		})).
 		Return(&models.Pool{
 			BaseModel: models.BaseModel{UUID: "pool-top-level", CreatedAt: time.Now(), UpdatedAt: time.Now()},
@@ -949,7 +948,7 @@ func TestCreatePool_MapsTopLevelFieldsToOrchestratorParams(t *testing.T) {
 		}, "work-req-top-level", nil)
 	h := Handler{Orchestrator: mockOrchestrator}
 
-	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
 
 	assert.NoError(t, err)
 	headers, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
@@ -957,86 +956,108 @@ func TestCreatePool_MapsTopLevelFieldsToOrchestratorParams(t *testing.T) {
 	assert.Equal(t, "work-req-top-level", headers.Response.WorkflowId)
 }
 
+// TestCreatePool_AvailabilityDomainDerivation pins the post-validation derivation
+// of SecondaryZone, MediatorZone and IsRegionalHA on the orchestrator params.
+//
+// Semantics under the current handler (mediator handling is uniform across both
+// HA modes; only secondary/IsRegionalHA differ):
+//   - SecondaryZone:
+//   - Shared HA (secondary unset, empty, or equal to primary): defaults to primary.
+//   - Non-shared HA: SecondaryZone = the supplied secondary value.
+//   - IsRegionalHA: false when shared HA, true when non-shared HA.
+//   - MediatorZone (same rule in both branches):
+//   - = MediatorAvailabilityDomain.Value when non-empty (passed through), otherwise
+//   - = primary (defaulted) when MediatorAvailabilityDomain is unset or empty.
 func TestCreatePool_AvailabilityDomainDerivation(t *testing.T) {
 	cases := []struct {
 		name          string
 		primary       string
 		secondary     ociserver.OptString
 		mediator      ociserver.OptString
+		endpointCount int64
 		wantSecondary string // expected SecondaryZone on the orchestrator-bound params
 		wantMediator  string // expected MediatorZone on the orchestrator-bound params
 		wantRegHA     bool
 		description   string
 	}{
 		{
-			name:          "AllADsDistinct_IsRegional",
+			name:          "NonSharedHA_MediatorProvided_PassesThrough",
 			primary:       "ad1",
 			secondary:     ociserver.OptString{Value: "ad2", Set: true},
 			mediator:      ociserver.OptString{Value: "ad3", Set: true},
+			endpointCount: 2,
 			wantSecondary: "ad2",
-			wantMediator:  "ad3",
+			wantMediator:  "ad3", // non-empty mediator passed through verbatim
 			wantRegHA:     true,
-			description:   "primary != secondary, distinct mediator → cross-AD regional pool",
+			description:   "non-shared HA with mediator provided → mediatorAD = supplied value",
 		},
 		{
-			name:          "DifferentADs_MediatorDefaultsToPrimary_IsRegional",
+			name:          "NonSharedHA_MediatorUnset_DefaultsToPrimary",
 			primary:       "ad1",
 			secondary:     ociserver.OptString{Value: "ad2", Set: true},
 			mediator:      ociserver.OptString{},
+			endpointCount: 2,
 			wantSecondary: "ad2",
-			wantMediator:  "ad1", // mediator omitted → defaulted to primary
+			wantMediator:  "ad1", // mediator unset → defaulted to primary
 			wantRegHA:     true,
-			description:   "regional pool with mediator omitted → mediator defaulted to primary",
+			description:   "non-shared HA without mediator → mediatorAD = primary",
 		},
 		{
-			name:          "SameADs_IsZonal",
+			name:          "NonSharedHA_MediatorEmptyButSet_DefaultsToPrimary",
+			primary:       "ad1",
+			secondary:     ociserver.OptString{Value: "ad2", Set: true},
+			mediator:      ociserver.OptString{Value: "", Set: true},
+			endpointCount: 2,
+			wantSecondary: "ad2",
+			wantMediator:  "ad1", // empty value treated identically to unset
+			wantRegHA:     true,
+			description:   "non-shared HA with empty-but-set mediator → mediatorAD = primary",
+		},
+		{
+			name:          "SharedHA_MediatorProvided_PassesThrough",
 			primary:       "ad1",
 			secondary:     ociserver.OptString{Value: "ad1", Set: true},
-			mediator:      ociserver.OptString{Value: "ad1", Set: true},
+			mediator:      ociserver.OptString{Value: "ad9", Set: true}, // distinct value: proves pass-through, not coincidence
+			endpointCount: 2,
 			wantSecondary: "ad1",
-			wantMediator:  "ad1",
+			wantMediator:  "ad9", // shared HA does NOT clear mediator; supplied value flows through
 			wantRegHA:     false,
-			description:   "primary == secondary == mediator → single-AD zonal pool",
+			description:   "shared HA with mediator provided → mediatorAD = supplied value (not cleared)",
 		},
 		{
-			name:          "SecondaryAndMediatorUnset_DefaultToPrimary_IsZonal",
+			name:          "SharedHA_SecondaryAndMediatorUnset_MediatorDefaultsToPrimary",
 			primary:       "ad1",
 			secondary:     ociserver.OptString{},
 			mediator:      ociserver.OptString{},
-			wantSecondary: "ad1", // defaulted to primary
-			wantMediator:  "ad1", // defaulted to primary
+			endpointCount: 4, // shared HA imposes no DataEndpointCount==2 rule
+			wantSecondary: "ad1",
+			wantMediator:  "ad1", // defaulted to primary because mediator was empty
 			wantRegHA:     false,
-			description:   "neither secondary nor mediator provided → both defaulted to primary → zonal",
+			description:   "secondary unset → shared HA → secondary = primary, mediator defaulted to primary; count > 2 allowed",
 		},
 		{
-			name:          "SecondaryAndMediatorEmptyButSet_DefaultToPrimary_IsZonal",
+			name:          "SharedHA_SecondaryAndMediatorEmptyButSet_MediatorDefaultsToPrimary",
 			primary:       "ad1",
 			secondary:     ociserver.OptString{Value: "", Set: true},
 			mediator:      ociserver.OptString{Value: "", Set: true},
-			wantSecondary: "ad1", // empty value treated same as unset → defaulted to primary
-			wantMediator:  "ad1", // empty value treated same as unset → defaulted to primary
+			endpointCount: 2,
+			wantSecondary: "ad1",
+			wantMediator:  "ad1", // defaulted to primary because mediator was empty-but-set
 			wantRegHA:     false,
-			description:   "secondary and mediator explicitly empty → both defaulted to primary → zonal",
+			description:   "secondary and mediator explicitly empty → shared HA, mediator defaulted to primary",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(tt *testing.T) {
 			mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-			req := &ociserver.CreatePoolRequest{
-				PoolOCID:                     "ocid1.pool.oc1..reg-ha",
-				CompartmentOCID:              "comp-1",
-				DisplayName:                  "reg-ha-pool",
-				SubnetId:                     "subnet-1",
-				DataNicSubnetId:              "subnet-data-1",
-				PrimaryAvailabilityDomain:    tc.primary,
-				SecondaryAvailabilityDomain:  tc.secondary,
-				MediatorAvailabilityDomain:   tc.mediator,
-				SizeInGiB:                    1024,
-				ThroughputGBps:               1.0,
-				DataEndpointCount:            2,
-				OciAdminPassword:             ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
-			}
+			req := validCreatePoolRequest()
+			req.PoolOCID = "ocid1.pool.oc1..ad-deriv"
+			req.PrimaryAvailabilityDomain = tc.primary
+			req.SecondaryAvailabilityDomain = tc.secondary
+			req.MediatorAvailabilityDomain = tc.mediator
+			req.DataEndpointCount = tc.endpointCount
+
 			mockOrchestrator.EXPECT().
 				CreatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
 					return p != nil &&
@@ -1046,13 +1067,13 @@ func TestCreatePool_AvailabilityDomainDerivation(t *testing.T) {
 						p.IsRegionalHA == tc.wantRegHA
 				})).
 				Return(&models.Pool{
-					BaseModel: models.BaseModel{UUID: "pool-reg-ha", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+					BaseModel: models.BaseModel{UUID: "pool-ad-deriv", CreatedAt: time.Now(), UpdatedAt: time.Now()},
 					Name:      req.DisplayName,
 					State:     "CREATING",
-				}, "work-req-reg-ha", nil)
+				}, "work-req-ad-deriv", nil)
 			h := Handler{Orchestrator: mockOrchestrator}
 
-			res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
+			res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
 
 			assert.NoError(tt, err, tc.description)
 			_, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
@@ -1154,4 +1175,364 @@ func TestNewError(t *testing.T) {
 		assert.Equal(tt, http.StatusInternalServerError, res.StatusCode)
 		assert.Equal(tt, http.StatusText(http.StatusInternalServerError), res.Response.Message)
 	})
+}
+
+// TestIsSharedHA pins the shared-HA classification on the (primary, secondary) pair.
+// "Shared HA" means the pool runs in a single AD: the secondary is either unset
+// (empty) or identical to the primary. Anything else is non-shared (regional) HA.
+func TestIsSharedHA(t *testing.T) {
+	cases := []struct {
+		name      string
+		primary   string
+		secondary string
+		want      bool
+	}{
+		{name: "empty secondary is shared", primary: "ad1", secondary: "", want: true},
+		{name: "secondary equals primary is shared", primary: "ad1", secondary: "ad1", want: true},
+		{name: "secondary differs from primary is non-shared", primary: "ad1", secondary: "ad2", want: false},
+		{name: "both empty is shared", primary: "", secondary: "", want: true},
+		{name: "primary empty but secondary set is non-shared", primary: "", secondary: "ad1", want: false},
+		{name: "secondary differs by whitespace is non-shared (no trim)", primary: "ad1", secondary: " ad1", want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			assert.Equal(tt, tc.want, isSharedHA(tc.primary, tc.secondary))
+		})
+	}
+}
+
+// TestCreatePool_NonSharedHARequiresDataEndpointCount2 covers the new validation
+// rule: when the request describes a non-shared (regional) HA pool, DataEndpointCount
+// must be exactly 2. Any other (even) value must be rejected with a 400.
+func TestCreatePool_NonSharedHARequiresDataEndpointCount2(t *testing.T) {
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	h := Handler{Orchestrator: mockOrchestrator}
+	req := validCreatePoolRequest()
+	req.PoolOCID = "ocid1.pool.oc1..non-shared-bad-count"
+	req.SecondaryAvailabilityDomain = ociserver.OptString{Value: "ad2", Set: true} // non-shared
+	req.DataEndpointCount = 4                                                      // even but != 2
+
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+
+	assert.NoError(t, err)
+	bad, ok := res.(*ociserver.CreatePoolBadRequest)
+	assert.True(t, ok, "response should be *ociserver.CreatePoolBadRequest")
+	assert.Equal(t, defaultTestOPC, bad.OpcRequestID)
+	assert.Equal(t, req.PoolOCID, bad.Response.PoolOCID)
+	assert.Equal(t, string(workflowquery.WorkflowStatusFailed), bad.Response.Status)
+	assert.Equal(t, errMsgInvalidConfigForNonSharedHA, bad.Response.ErrorMessage)
+	// Orchestrator must not be invoked when validation fails up front.
+	mockOrchestrator.AssertNotCalled(t, "CreatePool", mock.Anything, mock.Anything)
+}
+
+// TestValidateCreatePoolRequest exercises every branch of validateCreatePoolRequest
+// directly (no Handler, no mock). Each non-nil-request case starts from a known-good
+// base and mutates exactly one field so the failing branch is unambiguous.
+func TestValidateCreatePoolRequest(t *testing.T) {
+	t.Run("nil request returns error", func(tt *testing.T) {
+		params := defaultCreatePoolParams()
+		err := validateCreatePoolRequest(nil, &params)
+		assert.EqualError(tt, err, "request body is required")
+	})
+
+	t.Run("nil params returns error", func(tt *testing.T) {
+		err := validateCreatePoolRequest(validCreatePoolRequest(), nil)
+		assert.EqualError(tt, err, "request params are required")
+	})
+
+	cases := []struct {
+		name    string
+		mutate  func(*ociserver.CreatePoolRequest, *ociserver.CreatePoolParams)
+		wantErr string // empty string means expect nil
+	}{
+		{
+			name:    "valid request passes",
+			mutate:  nil,
+			wantErr: "",
+		},
+		{
+			name:    "empty pool OCID rejected with empty error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.PoolOCID = "" },
+			wantErr: errMsgEmptyPoolOCID,
+		},
+		{
+			name:    "whitespace-only pool OCID rejected as empty after TrimSpace",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.PoolOCID = "   " },
+			wantErr: errMsgEmptyPoolOCID,
+		},
+		{
+			name:    "non-empty malformed pool OCID rejected with structural error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.PoolOCID = "not-an-ocid" },
+			wantErr: errMsgInvalidPoolOCID,
+		},
+		{
+			name:    "empty compartment OCID rejected with empty error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.CompartmentOCID = "" },
+			wantErr: errMsgEmptyCompartmentOCID,
+		},
+		{
+			name:    "non-empty malformed compartment OCID rejected with structural error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.CompartmentOCID = "x" },
+			wantErr: errMsgInvalidCompartmentOCID,
+		},
+		{
+			name:    "empty subnet OCID rejected with empty error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.SubnetId = "" },
+			wantErr: errMsgEmptySubnetID,
+		},
+		{
+			name:    "non-empty malformed subnet OCID rejected with structural error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.SubnetId = "subnet-123" },
+			wantErr: errMsgInvalidSubnetID,
+		},
+		{
+			name:    "zero size rejected",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.SizeInGiB = 0 },
+			wantErr: errMsgNonPositiveSizeInGiB,
+		},
+		{
+			name:    "negative size rejected",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.SizeInGiB = -1 },
+			wantErr: errMsgNonPositiveSizeInGiB,
+		},
+		{
+			name:    "empty data NIC subnet OCID rejected with empty error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.DataNicSubnetId = "" },
+			wantErr: errMsgEmptyDataNicSubnetID,
+		},
+		{
+			name: "non-empty malformed data NIC subnet OCID rejected with structural error",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.DataNicSubnetId = "data-subnet-1"
+			},
+			wantErr: errMsgInvalidDataNicSubnetID,
+		},
+		{
+			name:    "empty admin password OCID rejected with empty error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.OciAdminPassword.Ocid = "" },
+			wantErr: errMsgEmptyAdminPasswordOCID,
+		},
+		{
+			name:    "non-empty malformed admin password OCID rejected with structural error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.OciAdminPassword.Ocid = "x" },
+			wantErr: errMsgInvalidAdminPasswordOCID,
+		},
+		{
+			name:    "empty admin password version rejected with empty error",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.OciAdminPassword.Version = "" },
+			wantErr: errMsgEmptyAdminPasswordVersion,
+		},
+		{
+			name:    "zero throughput rejected",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.ThroughputGBps = 0 },
+			wantErr: errMsgNonPositiveThroughputGBps,
+		},
+		{
+			name:    "negative throughput rejected",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.ThroughputGBps = -0.5 },
+			wantErr: errMsgNonPositiveThroughputGBps,
+		},
+		{
+			name:    "odd DataEndpointCount rejected",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.DataEndpointCount = 3 },
+			wantErr: errMsgOddDataEndpointCount,
+		},
+		{
+			name:    "empty tenancy OCID (from params) rejected with empty error",
+			mutate:  func(_ *ociserver.CreatePoolRequest, p *ociserver.CreatePoolParams) { p.TenancyOcid = "" },
+			wantErr: errMsgEmptyTenancyOcid,
+		},
+		{
+			name:    "non-empty malformed tenancy OCID (from params) rejected with structural error",
+			mutate:  func(_ *ociserver.CreatePoolRequest, p *ociserver.CreatePoolParams) { p.TenancyOcid = "not-an-ocid" },
+			wantErr: errMsgInvalidTenancyOcid,
+		},
+		{
+			name:    "empty displayName rejected",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.DisplayName = "" },
+			wantErr: errMsgEmptyDisplayName,
+		},
+		{
+			name:    "whitespace-only displayName rejected (TrimSpace)",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.DisplayName = "   \t\n " },
+			wantErr: errMsgEmptyDisplayName,
+		},
+		{
+			name:    "empty primaryAvailabilityDomain rejected",
+			mutate:  func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) { r.PrimaryAvailabilityDomain = "" },
+			wantErr: errMsgEmptyPrimaryAD,
+		},
+		{
+			name: "whitespace-only primaryAvailabilityDomain rejected (TrimSpace)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.PrimaryAvailabilityDomain = " \t"
+			},
+			wantErr: errMsgEmptyPrimaryAD,
+		},
+		{
+			name: "non-shared HA with DataEndpointCount=4 rejected",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.SecondaryAvailabilityDomain = ociserver.OptString{Value: "ad2", Set: true}
+				r.DataEndpointCount = 4
+			},
+			wantErr: errMsgInvalidConfigForNonSharedHA,
+		},
+		{
+			name: "non-shared HA with DataEndpointCount=2 passes",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.SecondaryAvailabilityDomain = ociserver.OptString{Value: "ad2", Set: true}
+				r.DataEndpointCount = 2
+			},
+			wantErr: "",
+		},
+		{
+			name: "shared HA via secondary equal to primary with DataEndpointCount=4 passes",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.SecondaryAvailabilityDomain = ociserver.OptString{Value: "ad1", Set: true}
+				r.DataEndpointCount = 4
+			},
+			wantErr: "",
+		},
+		{
+			name: "shared HA via empty secondary with DataEndpointCount=4 passes",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.DataEndpointCount = 4
+			},
+			wantErr: "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			req := validCreatePoolRequest()
+			params := defaultCreatePoolParams()
+			if tc.mutate != nil {
+				tc.mutate(req, &params)
+			}
+			err := validateCreatePoolRequest(req, &params)
+			if tc.wantErr == "" {
+				assert.NoError(tt, err)
+				return
+			}
+			assert.EqualError(tt, err, tc.wantErr)
+		})
+	}
+}
+
+func TestValidateCreatePoolRequest_TrimsInPlace(t *testing.T) {
+	req := validCreatePoolRequest()
+	req.PoolOCID = "  ocid1.pool.oc1..valid  "
+	req.CompartmentOCID = "\tocid1.compartment.oc1..valid\n"
+	req.DisplayName = "  My Pool  "
+	req.SubnetId = " ocid1.subnet.oc1.iad.valid "
+	req.DataNicSubnetId = "\nocid1.subnet.oc1.iad.validdata\t"
+	req.PrimaryAvailabilityDomain = "  ad1\t"
+	req.SecondaryAvailabilityDomain = ociserver.OptString{Value: " ad1 ", Set: true}
+	req.MediatorAvailabilityDomain = ociserver.OptString{Value: "  ad9  ", Set: true}
+	req.OciAdminPassword = ociserver.OCIOCIDVersionRef{
+		Ocid:    " ocid1.secret.oc1..valid ",
+		Version: " 1 ",
+	}
+	req.Description = ociserver.OptString{Value: "  some desc  ", Set: true}
+	req.DataEndpointCount = 2
+
+	params := ociserver.CreatePoolParams{TenancyOcid: "  ocid1.tenancy.oc1..aaaaaaaatestaaa  "}
+
+	err := validateCreatePoolRequest(req, &params)
+	require.NoError(t, err, "padded-but-otherwise-valid request must validate after the in-place trim")
+
+	assert.Equal(t, "ocid1.pool.oc1..valid", req.PoolOCID,
+		"PoolOCID must be trimmed in place so the orchestrator and DB store the canonical form")
+	assert.Equal(t, "ocid1.compartment.oc1..valid", req.CompartmentOCID)
+	assert.Equal(t, "My Pool", req.DisplayName,
+		"DisplayName trim is critical: human-readable name must not carry copy/paste whitespace into the DB")
+	assert.Equal(t, "ocid1.subnet.oc1.iad.valid", req.SubnetId)
+	assert.Equal(t, "ocid1.subnet.oc1.iad.validdata", req.DataNicSubnetId)
+	assert.Equal(t, "ad1", req.PrimaryAvailabilityDomain)
+	assert.Equal(t, "ad1", req.SecondaryAvailabilityDomain.Value,
+		"OptString-wrapped optional fields must also be trimmed so isSharedHA's equality check is not defeated by whitespace")
+	assert.Equal(t, "ad9", req.MediatorAvailabilityDomain.Value)
+	assert.Equal(t, "ocid1.secret.oc1..valid", req.OciAdminPassword.Ocid)
+	assert.Equal(t, "1", req.OciAdminPassword.Version,
+		"Version is parsed by strconv.ParseInt downstream, which rejects ' 1 '; trim before validation lets the parse succeed")
+	assert.Equal(t, "some desc", req.Description.Value)
+	assert.Equal(t, "ocid1.tenancy.oc1..aaaaaaaatestaaa", params.TenancyOcid,
+		"path/query param TenancyOcid must be trimmed via the *params handle so the orchestrator AccountName matches the DB key")
+}
+
+// TestValidateDeletePoolRequest covers each validation branch for the Delete
+// path (no request body, only path/query params) and pins that nil params is
+// rejected before any field access.
+func TestValidateDeletePoolRequest(t *testing.T) {
+	t.Run("nil params returns error", func(tt *testing.T) {
+		err := validateDeletePoolRequest(nil)
+		assert.EqualError(tt, err, "request params are required")
+	})
+
+	t.Run("valid params pass", func(tt *testing.T) {
+		params := ociserver.DeletePoolParams{
+			PoolOCID:    "ocid1.pool.oc1.iad.valid",
+			TenancyOcid: defaultTestTenancyOCID,
+		}
+		assert.NoError(tt, validateDeletePoolRequest(&params))
+	})
+
+	t.Run("non-empty malformed PoolOCID rejected with structural error", func(tt *testing.T) {
+		params := ociserver.DeletePoolParams{
+			PoolOCID:    "not-an-ocid",
+			TenancyOcid: defaultTestTenancyOCID,
+		}
+		assert.EqualError(tt, validateDeletePoolRequest(&params), errMsgInvalidPoolOCID)
+	})
+
+	t.Run("empty PoolOCID rejected with empty error (not structural)", func(tt *testing.T) {
+		params := ociserver.DeletePoolParams{
+			PoolOCID:    "",
+			TenancyOcid: defaultTestTenancyOCID,
+		}
+		// errMsgEmptyPoolOCID, NOT errMsgInvalidPoolOCID — distinct caller mistake,
+		// distinct diagnostic.
+		assert.EqualError(tt, validateDeletePoolRequest(&params), errMsgEmptyPoolOCID)
+	})
+
+	t.Run("whitespace-only PoolOCID is empty-after-trim", func(tt *testing.T) {
+		params := ociserver.DeletePoolParams{
+			PoolOCID:    "  \t",
+			TenancyOcid: defaultTestTenancyOCID,
+		}
+		// The normalize step turns "  \t" into "" before validation,
+		// so this collapses to the empty-error path (not the structural one).
+		assert.EqualError(tt, validateDeletePoolRequest(&params), errMsgEmptyPoolOCID)
+	})
+
+	t.Run("empty TenancyOcid rejected with empty error", func(tt *testing.T) {
+		params := ociserver.DeletePoolParams{
+			PoolOCID:    "ocid1.pool.oc1.iad.valid",
+			TenancyOcid: "",
+		}
+		assert.EqualError(tt, validateDeletePoolRequest(&params), errMsgEmptyTenancyOcid)
+	})
+
+	t.Run("non-empty malformed TenancyOcid rejected with structural error", func(tt *testing.T) {
+		params := ociserver.DeletePoolParams{
+			PoolOCID:    "ocid1.pool.oc1.iad.valid",
+			TenancyOcid: "not-an-ocid",
+		}
+		assert.EqualError(tt, validateDeletePoolRequest(&params), errMsgInvalidTenancyOcid)
+	})
+}
+
+func TestValidateDeletePoolRequest_TrimsInPlace(t *testing.T) {
+	params := ociserver.DeletePoolParams{
+		PoolOCID:    " ocid1.pool.oc1.iad.valid\t",
+		TenancyOcid: "  ocid1.tenancy.oc1..aaaaaaaatestaaa  ",
+	}
+
+	require.NoError(t, validateDeletePoolRequest(&params),
+		"padded-but-otherwise-valid params must validate after the in-place trim")
+
+	assert.Equal(t, "ocid1.pool.oc1.iad.valid", params.PoolOCID,
+		"PoolOCID must be trimmed in place so the orchestrator's pool lookup matches the create-time value")
+	assert.Equal(t, "ocid1.tenancy.oc1..aaaaaaaatestaaa", params.TenancyOcid,
+		"TenancyOcid must be trimmed in place so AccountName matches the DB key")
 }
