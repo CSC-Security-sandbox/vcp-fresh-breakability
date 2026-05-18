@@ -519,7 +519,7 @@ jobs:
           IMAGES_TO_BUILD: ${{ inputs.images_to_build }}
           PUSH_CHARTS: ${{ inputs.push_charts }}
         run: |
-          REQUIRED_IMAGES=("vcp-worker" "oci-proxy")
+          REQUIRED_IMAGES=("vcp-worker")
           IFS=',' read -ra BUILT_IMAGES <<< "$IMAGES_TO_BUILD"
 
           for REQ in "${REQUIRED_IMAGES[@]}"; do
