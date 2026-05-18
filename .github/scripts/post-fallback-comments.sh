@@ -47,6 +47,13 @@ if [[ "$BC_MODE" == "advisory" ]]; then
 > 🔬 **Advisory mode** — This analysis is informational. No merges are blocked."
 fi
 
+# EU-18: Actions run link for verifiability
+RUN_LINK=""
+if [[ -n "${GITHUB_RUN_ID:-}" ]]; then
+  RUN_LINK="
+🔗 [View analysis run](${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+fi
+
 echo "Posting deterministic analysis comments (mode: $BC_MODE)..."
 
 # V8 FIX (C2): Detect discovered-but-not-analyzed PRs (cancelled batch timeout).
@@ -103,6 +110,7 @@ This PR was discovered but the analysis batch was cancelled or timed out before 
 
 **What to do:** Re-run the analysis: \`gh workflow run breakability-agent.yml\`
 
+${RUN_LINK}
 > 🔬 *Deterministic analysis — batch incomplete*"
   gh pr comment "$_CANCEL_PR" --body "$_CANCEL_COMMENT" 2>/dev/null && \
     echo "  Posted 'cancelled' comment for PR #$_CANCEL_PR" || true
@@ -732,6 +740,7 @@ else:
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · dev (CI) · $BUMP_DISPLAY
 
 GitHub Actions workflow dependency. No application code affected. No build verification needed.${CVE_LINE}${PLAN_LINE}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — CI-only change, no build impact*"
 
   elif [[ "$ECOSYSTEM" == "docker" && "$BUMP" != "major" ]]; then
@@ -740,6 +749,7 @@ GitHub Actions workflow dependency. No application code affected. No build verif
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · production · $BUMP_DISPLAY
 
 Docker base image $BUMP_DISPLAY bump. No application source changes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" && "$OOM_OVERRIDE" == "True" ]]; then
@@ -768,6 +778,7 @@ Build: ✅ infra OOM on unrelated sub-packages — not caused by this upgrade ·
 The CI runner ran out of memory (\`signal: killed\`) building sub-packages unrelated to \`$PKG\`. This PR's targeted packages are not affected. The same OOM occurs on \`main\` — it is an infrastructure limitation, not a code regression.${_OOM_PKG_NOTE}
 
 **Recommendation:** Safe to merge. The OOM is a CI runner memory issue, not caused by this $BUMP_DISPLAY bump.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" && "$BUMP" == "patch" && "$FILES_COUNT" -lt 5 ]]; then
@@ -778,6 +789,7 @@ The CI runner ran out of memory (\`signal: killed\`) building sub-packages unrel
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}
 
 $BUMP_DISPLAY bump with passing build. No new type errors introduced.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" && "$DEP_REL" == "transitive" ]]; then
@@ -788,6 +800,7 @@ $BUMP_DISPLAY bump with passing build. No new type errors introduced.${CVE_LINE}
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}**
 
 Transitive dependency — your code does not import it directly. Build passes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" ]]; then
@@ -808,6 +821,7 @@ Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT f
 - New type errors: $NEW_ERR_COUNT
 
 **Recommendation:** Review changelog for $BUMP_DISPLAY bump breaking changes. Build passes — merge when ready.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "fail" ]]; then
@@ -833,6 +847,7 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
 4. Re-run the breakability analysis after your fix
 
 **Do not merge — build is broken.** ($BUMP_DISPLAY bump)${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pre_existing" ]]; then
@@ -850,6 +865,7 @@ Build: ✅ verified — same result as main baseline, not caused by this change 
 The build produces the same errors on both \`main\` and this PR branch. This upgrade does **not** introduce new failures. Verified at **${VER_LABEL}**.
 
 **Recommendation:** Safe to merge. Pre-existing build issues are unrelated to this upgrade.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
     elif [[ "$VER_LABEL" == L1* ]]; then
       # L1: dependency resolution passed but build/type-check inconclusive
@@ -862,6 +878,7 @@ Build: ⚙️ same errors on main and PR branch — pre-existing failure, **not 
 Dependencies resolved successfully. The build fails on both \`main\` and this PR with the same errors. This upgrade does **not** introduce new failures. Full build verification was limited by pre-existing issues on \`main\`.
 
 **Recommendation:** Likely safe to merge — no new errors detected. Fix pre-existing build failures on \`main\` for full verification coverage.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
     else
       # L0: dependency resolution failed or build inconclusive.
@@ -879,6 +896,7 @@ Build: ⚙️ same errors on \`main\` and PR branch — **not caused by this upg
 Both \`main\` and this PR branch produce the same build errors. This upgrade does **not** introduce new failures. Build verification was limited by pre-existing infrastructure issues.
 
 **Recommendation:** Likely safe to merge — zero new errors detected. Fix baseline build on \`main\` for full verification.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
       else
         COMMENT="<!-- breakability-check -->
@@ -891,6 +909,7 @@ Build: ⚠️ build verification could not complete — infrastructure/configura
 2. Re-run analysis: \`gh workflow run breakability-agent.yml\`
 
 **Recommendation:** Cannot confirm safety. Fix build environment first, then re-analyze.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
       fi
     fi
@@ -903,6 +922,7 @@ Build: ⚠️ build verification could not complete — infrastructure/configura
 Build: ❌ new errors introduced by this PR (on top of pre-existing failures)${CVE_LINE}
 
 This upgrade introduces **$NEW_ERR_COUNT new error(s)** not present on \`main\`. Fix required before merging.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "security_review" ]]; then
@@ -916,27 +936,63 @@ Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT f
 Build passes, but \`npm audit\` found **critical or high** vulnerabilities in this upgrade. Manual security review recommended before merging.
 
 **Recommendation:** Review the npm audit output and CVE details. If vulnerabilities are in transitive deps not used by your code, merge may still be safe.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "vulns_introduced" ]]; then
     # V9.8 iter6 (A): PR build passes but govulncheck found NEW CVE(s) not on main.
     # This overrides SAFE because a PR that introduces vulnerabilities is never SAFE.
     _VULN_IDS_LIST="${VULN_NEW_LIST:-unknown}"
+    # EU-7: Extract reachability info from vuln_output (govulncheck shows call stacks for reachable vulns)
+    _VULN_REACHABILITY=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+output = d.get('vuln_output', '') or ''
+new_ids = d.get('vuln_new_findings', [])
+# govulncheck text output: 'Vulnerability #N: GO-XXXX' followed by 'Called by:' or 'Not called'
+reachable = []
+not_reachable = []
+for vid in new_ids:
+    if vid in output:
+        # Check if marked as called/reachable
+        idx = output.find(vid)
+        snippet = output[idx:idx+500]
+        if 'Call' in snippet or 'called' in snippet.lower():
+            reachable.append(vid)
+        else:
+            not_reachable.append(vid)
+    else:
+        reachable.append(vid)  # assume reachable if we can't parse
+if reachable:
+    print('⚠️ **Reachable from your code:** ' + ', '.join(reachable))
+if not_reachable:
+    print('ℹ️ Not called by your code (lower risk): ' + ', '.join(not_reachable))
+if not reachable and not not_reachable:
+    print('⚠️ Reachability unknown — run \\`govulncheck ./...\\` locally to check')
+" 2>/dev/null || echo "⚠️ Reachability unknown — run \`govulncheck ./...\` locally to check")
+    # EU-6: Get max severity for the new vulns
+    _VULN_SEVERITY_NOTE=""
+    if [[ -n "$CVE_MAX_SEVERITY" ]]; then
+      _VULN_SEVERITY_NOTE=" · Severity: **${CVE_MAX_SEVERITY}**"
+    fi
     COMMENT="<!-- breakability-check -->
 ## 🚨 SECURITY RISK — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${CVE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${_VULN_SEVERITY_NOTE}${CVE_LINE}
 
 ### 🚨 This PR introduces **$VULN_NEW_COUNT NEW vulnerability(ies)** not present on \`main\`
 
 **New CVEs:** $_VULN_IDS_LIST
+${_VULN_REACHABILITY}
 
 Pre-existing on main: $VULN_PREEXISTING_COUNT (unaffected by this PR).
 
 **Recommendation:** Do **NOT** merge until these vulnerabilities are addressed. Options:
 1. Bump to a later fixed version that patches these CVEs, or
 2. Close this PR and wait for an upstream fix, or
-3. If the vulnerable paths are not reachable from your code, document the risk and override with \`breakability:override-security\` label.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+3. If the vulnerable paths are not reachable from your code, document the risk and override with \`breakability:override-security\` label.
+${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — govulncheck diffed against \`main\` baseline*"
 
   elif [[ "$INSTALL_METHOD" == "infra_error" ]]; then
@@ -950,6 +1006,7 @@ Build: ⚠️ blocked by infrastructure error — build verification could not r
 The build check was blocked by an infrastructure issue (private registry, network timeout, or missing dependency not caused by this upgrade). **This is not a build failure from the upgrade.**
 
 **Recommendation:** Verify infrastructure health, then re-run. If infrastructure is healthy, review manually.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "conflict" ]]; then
@@ -959,6 +1016,7 @@ The build check was blocked by an infrastructure issue (private registry, networ
 
 This PR has merge conflicts and cannot be merged or analyzed until rebased.
 Run \`@dependabot recreate\` or rebase manually.${PLAN_LINE}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   else
@@ -969,6 +1027,7 @@ Run \`@dependabot recreate\` or rebase manually.${PLAN_LINE}${ADVISORY_FOOTER}
 Build analysis status: \`$VERDICT\` (verification: ${VER_LABEL:-unknown})${CVE_LINE}
 
 Automated build analysis was not conclusive for this PR. Manual review recommended.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
   fi
 
@@ -999,6 +1058,7 @@ Security fixes should be prioritized over routine dependency upgrades.
 $(if [[ "$VERDICT" == "pre_existing" && "$VER_LABEL" == L0* ]]; then echo "> If baseline build failures concern you, verify locally before merging. The security fix is independent of the baseline issue."; fi)
 
 Verification: **${VER_LABEL:-L0}**${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
     else
       # Has new errors BUT also fixes CVEs — show both facts prominently
@@ -1013,6 +1073,7 @@ $(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** 
 ### Recommendation
 **This PR fixes a $CVE_MAX_SEVERITY CVE but also introduces build errors.** Fix the build errors, then merge immediately.
 Do not delay — the security fix is critical.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
     fi
   fi
@@ -1603,15 +1664,19 @@ if cancelled:
 if security:
     lines.append("## 🛡️ Repository Security Posture")
     lines.append("")
+    _alerts_unavail = security.get("alerts_unavailable", False)
     open_alerts = security.get("total_open_alerts", 0)
     fixable = security.get("alerts_fixable_by_merging", 0)
-    lines.append(f"- Open Dependabot alerts: **{open_alerts}**")
-    if fixable:
-        lines.append(f"- Alerts fixable by merging these PRs: **{fixable}**")
-    by_sev = security.get("severity_counts", {})
-    if by_sev:
-        sev_str = ", ".join(f"{s}: {c}" for s, c in sorted(by_sev.items()))
-        lines.append(f"- By severity: {sev_str}")
+    if _alerts_unavail:
+        lines.append("- Open Dependabot alerts: **⚠️ Unavailable** (token missing `security_events` permission — set `BREAKABILITY_PAT` repo secret)")
+    else:
+        lines.append(f"- Open Dependabot alerts: **{open_alerts}**")
+        if fixable:
+            lines.append(f"- Alerts fixable by merging these PRs: **{fixable}**")
+        by_sev = security.get("severity_counts", {})
+        if by_sev:
+            sev_str = ", ".join(f"{s}: {c}" for s, c in sorted(by_sev.items()))
+            lines.append(f"- By severity: {sev_str}")
     lines.append("")
 
     # V9.8 iter6 (B): precise CVE fixes with severity + advisory links

@@ -251,7 +251,7 @@ try:
     )
     if result.returncode != 0:
         print("  Could not fetch Dependabot alerts (may need security permissions)")
-        alerts_raw = "[]"
+        alerts_raw = None  # Distinguish auth failure from genuinely empty
     else:
         lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
         alerts = [json.loads(l) for l in lines]
@@ -259,12 +259,14 @@ try:
 except Exception as e:
     print(f"  Security scan error: {e}")
     alerts = []
-    alerts_raw = "[]"
+    alerts_raw = None
 
+_alerts_unavailable = (alerts_raw is None)
 try:
-    alerts = json.loads(alerts_raw) if isinstance(alerts_raw, str) else alerts
+    alerts = json.loads(alerts_raw) if isinstance(alerts_raw, str) else (alerts if alerts_raw is None else [])
 except (json.JSONDecodeError, TypeError, ValueError):
     alerts = []
+    _alerts_unavailable = True
 
 open_alerts = [a for a in alerts if a.get("state") == "open"]
 severity_counts = {}
@@ -342,6 +344,7 @@ orphan_alerts.sort(key=lambda x: _SEV_ORDER.get((x["severity"] or "").lower(), 4
 
 security_posture = {
     "total_open_alerts": len(open_alerts),
+    "alerts_unavailable": _alerts_unavailable,
     "severity_counts": severity_counts,
     "total_cves_in_prs": total_cve_count,
     "prs_fixing_alerts": fixes_by_pr,

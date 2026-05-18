@@ -350,7 +350,7 @@ jobs:
       # The agent check (line 66-73 of post-fallback-comments.sh) still skips
       # PRs where the AI agent already posted richer comments.
       - name: Post deterministic analysis comments
-        if: steps.agent.outcome != 'success' || inputs.skip_agent == true
+        if: always()
         run: |
           chmod +x .github/scripts/post-fallback-comments.sh
           bash .github/scripts/post-fallback-comments.sh
