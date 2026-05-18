@@ -3611,25 +3611,6 @@ func validateFlexCacheUpdateParams(cacheParams *gcpgenserver.FlexCacheV1beta, db
 
 	cacheConfig, _ := cacheParams.CacheConfig.Get()
 
-	// Ensure that if writeback is changed, it's only being set to false
-	if cacheConfig.WritebackEnabled.IsSet() {
-		requestedValue, _ := cacheConfig.WritebackEnabled.Get()
-		if requestedValue {
-			currentWritebackEnabled := false
-			if dbVolume != nil &&
-				dbVolume.CacheParameters != nil &&
-				dbVolume.CacheParameters.CacheConfig != nil &&
-				dbVolume.CacheParameters.CacheConfig.WritebackEnabled != nil {
-				currentWritebackEnabled = *dbVolume.CacheParameters.CacheConfig.WritebackEnabled
-			}
-			if !currentWritebackEnabled {
-				return errors.NewUserInputValidationErr(
-					"WritebackEnabled may only be set to false with NetApp Cache Volumes",
-				)
-			}
-		}
-	}
-
 	if cacheConfig.AtimeScrubDays.IsSet() {
 		atimeScrubEnabled := false
 

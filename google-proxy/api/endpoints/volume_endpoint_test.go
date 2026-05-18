@@ -12828,7 +12828,7 @@ func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
 	})
 }
 
-func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
+func TestPrepareUpdateVolumeParams_CacheParams(t *testing.T) {
 	param := gcpgenserver.V1betaUpdateVolumeParams{
 		ProjectNumber:  "test-project",
 		LocationId:     "us-central1",
@@ -15641,7 +15641,6 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 				PeerIpAddresses:      []string{"10.0.0.1", "10.0.0.2"},
 				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(false),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
-					WritebackEnabled:        gcpgenserver.NewOptNilBool(true),
 					CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(true),
 				}),
 			},
@@ -15652,28 +15651,6 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 					PeerSvmName:          "svm1",
 					PeerIPAddresses:      []string{"10.0.0.1", "10.0.0.2"},
 					EnableGlobalFileLock: nillable.GetBoolPtr(false),
-					CacheConfig: &models.CacheConfig{
-						WritebackEnabled: nillable.GetBoolPtr(true),
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "Valid - update request without required fields (accepted by OpenAPI and application)",
-			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				// All required fields (peerVolumeName, peerClusterName, peerSvmName, peerIpAddresses) are missing
-				// This should pass OpenAPI validation and application validation for updates
-				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
-					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
-				}),
-			},
-			dbVolume: &models.Volume{
-				CacheParameters: &models.CacheParameters{
-					PeerVolumeName:  "origin",
-					PeerClusterName: "cluster1",
-					PeerSvmName:     "svm1",
-					PeerIPAddresses: []string{"10.0.0.1"},
 					CacheConfig: &models.CacheConfig{
 						WritebackEnabled: nillable.GetBoolPtr(true),
 					},
@@ -15757,7 +15734,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Invalid - setting WritebackEnabled to true when volume has WritebackEnabled false",
+			name: "Valid - setting WritebackEnabled to true when volume has WritebackEnabled false",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
@@ -15770,11 +15747,10 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
-			errMsg:  "WritebackEnabled may only be set to false with NetApp Cache Volumes",
+			wantErr: false,
 		},
 		{
-			name: "Invalid - setting WritebackEnabled to true when volume has no CacheConfig",
+			name: "Valid - setting WritebackEnabled to true when volume has no CacheConfig",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
@@ -15783,11 +15759,10 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			dbVolume: &models.Volume{
 				CacheParameters: &models.CacheParameters{},
 			},
-			wantErr: true,
-			errMsg:  "WritebackEnabled may only be set to false with NetApp Cache Volumes",
+			wantErr: false,
 		},
 		{
-			name: "Invalid - setting WritebackEnabled to true when volume has CacheConfig but WritebackEnabled is nil",
+			name: "Valid - setting WritebackEnabled to true when volume has CacheConfig but WritebackEnabled is nil",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
@@ -15798,8 +15773,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 					CacheConfig: &models.CacheConfig{},
 				},
 			},
-			wantErr: true,
-			errMsg:  "WritebackEnabled may only be set to false with NetApp Cache Volumes",
+			wantErr: false,
 		},
 		{
 			name: "Invalid - updating non-FlexCache volume with only EnableGlobalFileLock (no CacheConfig)",
@@ -15868,6 +15842,82 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Valid - update request without required fields (accepted by OpenAPI and application)", func(t *testing.T) {
+		err := validateFlexCacheUpdateParams(
+			&gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			&models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerVolumeName:  "origin",
+					PeerClusterName: "cluster1",
+					PeerSvmName:     "svm1",
+					PeerIPAddresses: []string{"10.0.0.1"},
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(true),
+					},
+				},
+			},
+		)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Valid - setting WritebackEnabled to true", func(t *testing.T) {
+		err := validateFlexCacheUpdateParams(
+			&gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			&models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(false),
+					},
+				},
+			},
+		)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Valid - setting WritebackEnabled to false", func(t *testing.T) {
+		err := validateFlexCacheUpdateParams(
+			&gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			&models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(true),
+					},
+				},
+			},
+		)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Valid - setting WritebackEnabled to false when volume has WritebackEnabled true", func(t *testing.T) {
+		err := validateFlexCacheUpdateParams(
+			&gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			&models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(true),
+					},
+				},
+			},
+		)
+		assert.NoError(t, err)
+	})
 }
 
 func TestValidateAllSquash_Positive(t *testing.T) {
