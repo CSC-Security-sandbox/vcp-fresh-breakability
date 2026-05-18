@@ -2572,7 +2572,6 @@ func TestValidateEnvironmentVariables_OCIRequiresWorkerTaskQueue(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "WORKER_TASK_QUEUE")
 
-	Hyperscaler = "oci"
 	WorkerTaskQueue = "customer-workflows"
 	assert.NoError(t, ValidateEnvironmentVariables())
 }

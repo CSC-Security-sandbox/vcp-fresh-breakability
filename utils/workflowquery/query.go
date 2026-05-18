@@ -57,9 +57,25 @@ type OCICreatePoolVMMetadata struct {
 	SizeInGiB       int64
 }
 
+type OCICredentialRefMetadata struct {
+	Ocid    string `json:"ocid,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
+// OCICreatePoolCredentialsMetadata captures the OCI Vault references created during
+// the OCICreatePoolWorkflow.
+type OCICreatePoolCredentialsMetadata struct {
+	Secret      *OCICredentialRefMetadata `json:"secret,omitempty"`
+	Certificate *OCICredentialRefMetadata `json:"certificate,omitempty"`
+}
+
 type OCICreatePoolMetadata struct {
 	PoolUUID string                    `json:"poolUUID,omitempty"`
 	Vms      []OCICreatePoolVMMetadata `json:"vms,omitempty"`
+	// Credentials surfaces OCI Vault references captured from the
+	// CreateOnTapCredentialsForOCI activity completion event. It is populated
+	// only after the parent OCICreatePoolWorkflow has terminated successfully.
+	Credentials *OCICreatePoolCredentialsMetadata `json:"credentials,omitempty"`
 }
 
 type OCICreateSVMLifMetadata struct {
@@ -84,7 +100,11 @@ const (
 	WorkflowStatusTimedOut   WorkflowStatus = "timed_out"
 )
 
-// Result is the JSON-friendly workflow query result: status, optional error, optional metadata.
+// Result is the JSON-friendly workflow query result: status, optional error,
+// and optional metadata. PoolMetadata and SvmMetadata are populated only once
+// the workflow has terminated successfully and represent the final,
+// authoritative payload of the OCICreatePoolWorkflow / OCICreateSVMWorkflow
+// respectively.
 type Result struct {
 	Status       WorkflowStatus         `json:"status"`
 	WorkflowType string                 `json:"workflow_type,omitempty"`
@@ -150,9 +170,26 @@ func normalizedStatus(s enums.WorkflowExecutionStatus) WorkflowStatus {
 	}
 }
 
+// Activity / child-workflow type names whose results we extract into metadata.
+const (
+	ociCreatePoolWorkflowName                = "OCICreatePoolWorkflow"
+	ociCreateSVMWorkflowName                 = "OCICreateSVMWorkflow"
+	createVSAClusterDeploymentWorkflowName   = "vlm.CreateVSAClusterDeploymentWorkflow"
+	createOnTapCredentialsForOCIActivityName = "CreateOnTapCredentialsForOCI"
+)
+
+// historyPageSize controls how many history events are fetched per RPC when
+// walking a terminated workflow. Both the failure-reason and completed-metadata
+// paths page through the entire history once, so a larger page size minimises
+// round-trips on long workflows.
+const historyPageSize int32 = 200
+
 // getCompletedWorkflowMetadata inspects Temporal history events of a completed
 // workflow and returns pool metadata, SVM metadata, or both nils depending on
-// the workflow type.
+// the workflow type. For an OCICreatePoolWorkflow it surfaces Vms (from the
+// VLM child completion) and Credentials (from the CreateOnTapCredentialsForOCI
+// activity completion). For an OCICreateSVMWorkflow it surfaces the SVM
+// payload from the workflow's terminal completion event.
 func getCompletedWorkflowMetadata(ctx context.Context, svc historyFetcher, namespace, workflowID, runID string) (*OCICreatePoolMetadata, *OCICreateSVMMetadata) {
 	allEvents, err := fetchAllHistory(ctx, svc, namespace, workflowID, runID)
 	if err != nil || len(allEvents) == 0 {
@@ -160,10 +197,20 @@ func getCompletedWorkflowMetadata(ctx context.Context, svc historyFetcher, names
 	}
 
 	var poolMeta *OCICreatePoolMetadata
+	var svmMeta *OCICreateSVMMetadata
 	var parentWorkflowType string
+	activityNameByScheduledEventID := make(map[int64]string)
+
+	ensurePoolMeta := func() *OCICreatePoolMetadata {
+		if poolMeta == nil {
+			poolMeta = &OCICreatePoolMetadata{}
+		}
+		return poolMeta
+	}
 
 	for _, ev := range allEvents {
-		if ev.EventType == enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED {
+		switch ev.EventType {
+		case enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
 			a := ev.GetWorkflowExecutionStartedEventAttributes()
 			if a == nil {
 				continue
@@ -171,32 +218,65 @@ func getCompletedWorkflowMetadata(ctx context.Context, svc historyFetcher, names
 			if a.GetWorkflowType() != nil && a.GetWorkflowType().GetName() != "" {
 				parentWorkflowType = a.GetWorkflowType().GetName()
 			}
-		}
 
-		if parentWorkflowType == "OCICreatePoolWorkflow" && ev.EventType == enums.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED {
+		case enums.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+			a := ev.GetActivityTaskScheduledEventAttributes()
+			if a == nil || a.GetActivityType() == nil {
+				continue
+			}
+			activityNameByScheduledEventID[ev.GetEventId()] = a.GetActivityType().GetName()
+
+		case enums.EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
+			if parentWorkflowType != ociCreatePoolWorkflowName {
+				continue
+			}
+			a := ev.GetActivityTaskCompletedEventAttributes()
+			if a == nil {
+				continue
+			}
+			if activityNameByScheduledEventID[a.GetScheduledEventId()] != createOnTapCredentialsForOCIActivityName {
+				continue
+			}
+			if creds := ociCreatePoolCredentialsFromPayloads(a.GetResult().GetPayloads()); creds != nil {
+				ensurePoolMeta().Credentials = creds
+			}
+
+		case enums.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED:
+			if parentWorkflowType != ociCreatePoolWorkflowName {
+				continue
+			}
 			a := ev.GetChildWorkflowExecutionCompletedEventAttributes()
 			if a == nil || a.GetWorkflowType() == nil {
 				continue
 			}
-			if a.GetWorkflowType().GetName() != "vlm.CreateVSAClusterDeploymentWorkflow" {
+			if a.GetWorkflowType().GetName() != createVSAClusterDeploymentWorkflowName {
 				continue
 			}
-			if a.GetResult() != nil && len(a.GetResult().GetPayloads()) > 0 {
-				if childMeta := vsaClusterChildMetadataFromPayloads(a.GetResult().GetPayloads()); childMeta != nil {
-					poolMeta = childMeta
-				}
+			if a.GetResult() == nil || len(a.GetResult().GetPayloads()) == 0 {
+				continue
 			}
-		}
+			if childMeta := vsaClusterChildMetadataFromPayloads(a.GetResult().GetPayloads()); childMeta != nil {
+				m := ensurePoolMeta()
+				m.PoolUUID = childMeta.PoolUUID
+				m.Vms = childMeta.Vms
+			}
 
-		if parentWorkflowType == "OCICreateSVMWorkflow" && ev.EventType == enums.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED {
+		case enums.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+			if parentWorkflowType != ociCreateSVMWorkflowName {
+				continue
+			}
 			a := ev.GetWorkflowExecutionCompletedEventAttributes()
 			if a == nil || a.GetResult() == nil {
 				continue
 			}
-			if svmMeta := svmResultFromPayloads(a.GetResult().GetPayloads()); svmMeta != nil {
-				return nil, svmMeta
+			if m := svmResultFromPayloads(a.GetResult().GetPayloads()); m != nil {
+				svmMeta = m
 			}
 		}
+	}
+
+	if svmMeta != nil {
+		return nil, svmMeta
 	}
 	return poolMeta, nil
 }
@@ -217,26 +297,52 @@ func svmResultFromPayloads(payloads []*commonpb.Payload) *OCICreateSVMMetadata {
 	return &meta
 }
 
-func fetchAllHistory(ctx context.Context, svc historyFetcher, namespace, workflowID, runID string) ([]*historypb.HistoryEvent, error) {
+// pageHistory walks workflow execution history one page at a time and invokes
+// processPage for each. processPage returns true to stop pagination early
+// (the caller has all the data it needs); returning false continues to the
+// next page. Iteration also stops naturally when Temporal hands back an empty
+// NextPageToken or a nil History.
+func pageHistory(
+	ctx context.Context,
+	svc historyFetcher,
+	namespace, workflowID, runID string,
+	pageSize int32,
+	processPage func(events []*historypb.HistoryEvent) (done bool),
+) error {
 	req := &workflowservice.GetWorkflowExecutionHistoryRequest{
 		Namespace:       namespace,
 		Execution:       &commonpb.WorkflowExecution{WorkflowId: workflowID, RunId: runID},
-		MaximumPageSize: 200,
+		MaximumPageSize: pageSize,
 	}
-	var allEvents []*historypb.HistoryEvent
 	for {
 		resp, err := svc.GetWorkflowExecutionHistory(ctx, req)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if resp == nil || resp.History == nil {
-			break
+			return nil
 		}
-		allEvents = append(allEvents, resp.History.Events...)
+		if processPage(resp.History.Events) {
+			return nil
+		}
 		if len(resp.NextPageToken) == 0 {
-			break
+			return nil
 		}
 		req.NextPageToken = resp.NextPageToken
+	}
+}
+
+// fetchAllHistory pages through the entire workflow history. Used by the
+// failure-reason extractor and the completed-workflow metadata extractor,
+// both of which need to see every event of a terminated workflow.
+func fetchAllHistory(ctx context.Context, svc historyFetcher, namespace, workflowID, runID string) ([]*historypb.HistoryEvent, error) {
+	var allEvents []*historypb.HistoryEvent
+	err := pageHistory(ctx, svc, namespace, workflowID, runID, historyPageSize, func(events []*historypb.HistoryEvent) bool {
+		allEvents = append(allEvents, events...)
+		return false
+	})
+	if err != nil {
+		return nil, err
 	}
 	return allEvents, nil
 }

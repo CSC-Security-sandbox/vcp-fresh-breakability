@@ -90,7 +90,9 @@ workerConfig:
   ociResourcePrincipalVersion: "2.2"
   ociExpertModePassword: ""
   ociOntapAdminPassword: ""
-
+  ociVaultOcid: ""
+  ociMasterKeyOcid: ""
+  ociCompartmentOcid: ""
 
   metricsPort: "9090"
 

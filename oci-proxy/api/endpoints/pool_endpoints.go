@@ -403,7 +403,7 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 		resp.PoolMetadata = ociserver.NewOptOCICreatePoolWorkflowMetadata(
 			ociserver.OCICreatePoolWorkflowMetadata{
 				Vms:         vms,
-				Credentials: ociserver.OCICreatePoolWorkflowCredentials{},
+				Credentials: buildWorkflowCredentialsResponse(res.PoolMetadata.Credentials),
 			},
 		)
 	}
@@ -433,6 +433,30 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 		OpcRequestID: opcRequestID,
 		Response:     resp,
 	}, nil
+}
+
+// buildWorkflowCredentialsResponse maps the workflowquery credentials metadata
+// into the API contract. Both `secret` and `certificate` are required by the
+// schema, so we always emit them as objects; missing references collapse to
+// empty {ocid:"", version:""} placeholders.
+func buildWorkflowCredentialsResponse(creds *workflowquery.OCICreatePoolCredentialsMetadata) ociserver.OCICreatePoolWorkflowCredentials {
+	out := ociserver.OCICreatePoolWorkflowCredentials{}
+	if creds == nil {
+		return out
+	}
+	if creds.Secret != nil {
+		out.Secret = ociserver.OCIOCIDVersionRef{
+			Ocid:    creds.Secret.Ocid,
+			Version: creds.Secret.Version,
+		}
+	}
+	if creds.Certificate != nil {
+		out.Certificate = ociserver.OCIOCIDVersionRef{
+			Ocid:    creds.Certificate.Ocid,
+			Version: creds.Certificate.Version,
+		}
+	}
+	return out
 }
 
 func (h *Handler) nodeUUIDsByName(ctx context.Context, poolUUID string) map[string]string {

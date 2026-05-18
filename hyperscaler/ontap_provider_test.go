@@ -4,18 +4,30 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 
+	ocicommon "github.com/oracle/oci-go-sdk/v65/common"
+	"github.com/oracle/oci-go-sdk/v65/secrets"
+	"github.com/oracle/oci-go-sdk/v65/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	common2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler3 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	oci2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -304,6 +316,93 @@ func Test_GetProviderByNode(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
+}
+
+// Test_GetProviderByNode_OCI_USERNAME_PWD_SEC_MGR_Success exercises the OCI
+// branch added to _getProviderByNode: when env.GetHyperscaler() == "oci"
+// and Node.AuthType == USERNAME_PWD_SEC_MGR, the provider builder must look
+// the password up via GetPasswordFromCacheOrOCIVault using Node.ExternalSecret
+// (NOT Node.SecretID, which is the GCP Secret Manager key). On the GCP path
+// (env.GetHyperscaler() == "gcp", the default) the same branch falls through
+// to GetPasswordFromCacheOrSecretManager — see the existing
+// Test_GetProviderByNode subtests "USERNAME_PWD_SEC_MGR success" / "error"
+// for that side.
+//
+// This test is the unified-path replacement for the deleted
+// Test_GetOCIProviderByNode_SecMgrSuccess that previously guarded the OCI
+// vault lookup against silent regressions to the GCP code path.
+func Test_GetProviderByNode_OCI_USERNAME_PWD_SEC_MGR_Success(t *testing.T) {
+	origHS := env.Hyperscaler
+	defer func() { env.Hyperscaler = origHS }()
+	env.Hyperscaler = common.ProviderOCI
+
+	origGetVault := GetPasswordFromCacheOrOCIVault
+	defer func() { GetPasswordFromCacheOrOCIVault = origGetVault }()
+
+	expectedRef := &datamodel.ExternalCredRef{
+		Name:               "ocnv-cafef00d-secret",
+		ExternalIdentifier: "ocid1.vaultsecret.oc1..xyz",
+		Version:            7,
+	}
+	var capturedRef *datamodel.ExternalCredRef
+	GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+		capturedRef = ref
+		return "vault-pw", nil
+	}
+
+	node := &models.Node{
+		Name:                           "node-1",
+		EndpointAddressesToHostNameMap: map[string]string{"10.0.0.1": "host-1"},
+		AuthType:                       env.USERNAME_PWD_SEC_MGR,
+		// SecretID intentionally populated. If anyone ever changes the OCI
+		// branch to fall back to SecretID (the GCP key) instead of the
+		// ExternalCredRef, this test catches it via the captured-ref assertion.
+		SecretID:       "projects/foo/secrets/bar",
+		ExternalSecret: expectedRef,
+	}
+
+	provider, err := _getProviderByNode(context.Background(), node)
+	assert.NoError(t, err)
+	assert.NotNil(t, provider)
+
+	if assert.NotNil(t, capturedRef, "OCI Vault lookup must be invoked with a non-nil ref") {
+		assert.Same(t, expectedRef, capturedRef,
+			"the exact ExternalCredRef from Node must be passed through; never synthesised from SecretID")
+	}
+}
+
+// Test_GetProviderByNode_OCI_USERNAME_PWD_SEC_MGR_VaultFetchFails verifies
+// that vault-side failures on the OCI path are surfaced under
+// coreerrors.ErrOCIResourceFetchError (not the generic ErrGCPResourceFetchError
+// used by the default branch). This distinction lets steady-state callers
+// retry / log OCI failures separately from GCP Secret Manager failures.
+func Test_GetProviderByNode_OCI_USERNAME_PWD_SEC_MGR_VaultFetchFails(t *testing.T) {
+	origHS := env.Hyperscaler
+	defer func() { env.Hyperscaler = origHS }()
+	env.Hyperscaler = common.ProviderOCI
+
+	origGetVault := GetPasswordFromCacheOrOCIVault
+	defer func() { GetPasswordFromCacheOrOCIVault = origGetVault }()
+	GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+		return "", fmt.Errorf("vault: 403 forbidden")
+	}
+
+	node := &models.Node{
+		Name:                           "node-1",
+		EndpointAddressesToHostNameMap: map[string]string{"10.0.0.1": "host-1"},
+		AuthType:                       env.USERNAME_PWD_SEC_MGR,
+		ExternalSecret:                 &datamodel.ExternalCredRef{Name: "n", ExternalIdentifier: "o"},
+	}
+
+	provider, err := _getProviderByNode(context.Background(), node)
+	assert.Nil(t, provider)
+	require.Error(t, err)
+
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+		assert.Equal(t, coreerrors.ErrOCIResourceFetchError, cerr.TrackingID,
+			"vault failures must surface under ErrOCIResourceFetchError so callers can distinguish them from GCP Secret Manager failures")
+	}
 }
 
 // Unit test for NewGcpServices in core/orchestrator/activities/pool_activities_test.go
@@ -1923,3 +2022,728 @@ func Test_GetProviderByNodeWithFastConnection(t *testing.T) {
 		assert.Nil(t, provider)
 	})
 }
+
+// Test_validateOCIVaultConfig exercises the pre-flight validator that
+// _generatePasswordForVSAClusterOCI and _deletePasswordForVSAClusterOCI rely on
+// to surface missing OCI vault env vars as ErrOCIClientInitializationError
+// instead of an opaque OCI HTTP 400 from the SDK.
+func Test_validateOCIVaultConfig(t *testing.T) {
+	// Snapshot and restore the env-package globals so the subtests don't leak
+	// state into each other or into other tests in this package.
+	origVault := env.OCIVaultOCID
+	origCompartment := env.OCICompartmentOCID
+	origMasterKey := env.OCIMasterKeyOCID
+	defer func() {
+		env.OCIVaultOCID = origVault
+		env.OCICompartmentOCID = origCompartment
+		env.OCIMasterKeyOCID = origMasterKey
+	}()
+
+	t.Run("write mode — all three vars set returns nil", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIMasterKeyOCID = "ocid1.key.oc1..test"
+
+		assert.NoError(t, _validateOCIVaultConfig(true))
+	})
+
+	t.Run("write mode — only vault set reports compartment + master key missing", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+		env.OCICompartmentOCID = ""
+		env.OCIMasterKeyOCID = ""
+
+		err := _validateOCIVaultConfig(true)
+		if !assert.Error(t, err) {
+			return
+		}
+
+		cerr, ok := err.(*coreerrors.CustomError)
+		if !assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+			return
+		}
+		assert.Equal(t, coreerrors.ErrOCIClientInitializationError, cerr.TrackingID)
+		// CustomError.Error() returns the canned message from the error map; the
+		// dynamic list of missing env var names lives on OriginalErr.
+		assert.NotNil(t, cerr.OriginalErr)
+		origMsg := cerr.OriginalErr.Error()
+		assert.Contains(t, origMsg, "OCI_COMPARTMENT_OCID")
+		assert.Contains(t, origMsg, "OCI_MASTER_KEY_OCID")
+		assert.NotContains(t, origMsg, "OCI_VAULT_OCID")
+	})
+
+	t.Run("write mode — all empty reports all three", func(t *testing.T) {
+		env.OCIVaultOCID = ""
+		env.OCICompartmentOCID = ""
+		env.OCIMasterKeyOCID = ""
+
+		err := _validateOCIVaultConfig(true)
+		if !assert.Error(t, err) {
+			return
+		}
+		cerr, ok := err.(*coreerrors.CustomError)
+		if !assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+			return
+		}
+		assert.NotNil(t, cerr.OriginalErr)
+		origMsg := cerr.OriginalErr.Error()
+		assert.Contains(t, origMsg, "OCI_VAULT_OCID")
+		assert.Contains(t, origMsg, "OCI_COMPARTMENT_OCID")
+		assert.Contains(t, origMsg, "OCI_MASTER_KEY_OCID")
+	})
+
+	t.Run("read mode — only vault required, all empty reports vault only", func(t *testing.T) {
+		env.OCIVaultOCID = ""
+		env.OCICompartmentOCID = ""
+		env.OCIMasterKeyOCID = ""
+
+		err := _validateOCIVaultConfig(false)
+		if !assert.Error(t, err) {
+			return
+		}
+
+		cerr, ok := err.(*coreerrors.CustomError)
+		if !assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+			return
+		}
+		assert.Equal(t, coreerrors.ErrOCIClientInitializationError, cerr.TrackingID)
+		assert.NotNil(t, cerr.OriginalErr)
+		origMsg := cerr.OriginalErr.Error()
+		assert.Contains(t, origMsg, "OCI_VAULT_OCID")
+		assert.NotContains(t, origMsg, "OCI_COMPARTMENT_OCID")
+		assert.NotContains(t, origMsg, "OCI_MASTER_KEY_OCID")
+	})
+
+	t.Run("read mode — vault set returns nil regardless of write-only vars", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+		env.OCICompartmentOCID = ""
+		env.OCIMasterKeyOCID = ""
+
+		assert.NoError(t, _validateOCIVaultConfig(false))
+	})
+}
+
+// ---------------------------------------------------------------------------
+// _getPasswordFromCacheOrOCIVault
+// ---------------------------------------------------------------------------
+//
+// The cache-or-vault helper short-circuits in three observable ways: (1) bad
+// input, (2) cache hit, and (3) vault fetch (which we cover only for the
+// "OCI client could not be initialised" failure path because exercising the
+// full vault round-trip would require a real OCI HTTP fixture).
+
+func Test_GetPasswordFromCacheOrOCIVault_NilRef(t *testing.T) {
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), nil)
+	assert.Empty(t, pw)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "OCI vault reference is empty")
+}
+
+func Test_GetPasswordFromCacheOrOCIVault_EmptyName(t *testing.T) {
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: ""})
+	assert.Empty(t, pw)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "OCI vault reference is empty")
+}
+
+func Test_GetPasswordFromCacheOrOCIVault_CacheHit(t *testing.T) {
+	// Use a unique name to avoid colliding with cache entries left behind by
+	// other tests in this package (the cache is process-scoped).
+	const cacheKey = "test-getpasswordfromcache-hit-secret"
+
+	origGet := common.GetFromUserAuthCache
+	defer func() { common.GetFromUserAuthCache = origGet }()
+	common.GetFromUserAuthCache = func(key string) (*models.UserCache, bool) {
+		assert.Equal(t, cacheKey, key)
+		return &models.UserCache{Password: "cached-pw"}, true
+	}
+
+	// Force a panic if the function falls through to GetOCIService — that
+	// would mean the cache hit was ignored.
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		t.Fatalf("OCI service must not be initialised when cache contains a value")
+		return nil, nil
+	}
+
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey})
+	assert.NoError(t, err)
+	assert.Equal(t, "cached-pw", pw)
+}
+
+func Test_GetPasswordFromCacheOrOCIVault_GetOCIServiceFails(t *testing.T) {
+	const cacheKey = "test-getpasswordfromcache-svcfail-secret"
+
+	origGet := common.GetFromUserAuthCache
+	defer func() { common.GetFromUserAuthCache = origGet }()
+	// Cache miss so the function falls through to GetOCIService.
+	common.GetFromUserAuthCache = func(key string) (*models.UserCache, bool) {
+		return nil, false
+	}
+
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		return nil, fmt.Errorf("oci client init failed")
+	}
+
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey})
+	assert.Empty(t, pw)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "oci client init failed")
+}
+
+// ---------------------------------------------------------------------------
+// OCI test infrastructure
+//
+// mockOCIHTTPDispatcher and mockOCIServiceError mirror the private helpers in
+// hyperscaler/oci/provider_test.go so that tests in this package can build
+// fully-initialised OciServices backed by HTTP-level mocks without needing a
+// real OCI environment or credentials.
+// ---------------------------------------------------------------------------
+
+type mockOCIHTTPDispatcher struct {
+	doFunc func(req *http.Request) (*http.Response, error)
+}
+
+func (m *mockOCIHTTPDispatcher) Do(req *http.Request) (*http.Response, error) {
+	return m.doFunc(req)
+}
+
+// mockOCIServiceError implements oci-go-sdk/v65/common.ServiceError so that
+// common.IsServiceError returns true and GetHTTPStatusCode() is honoured.
+type mockOCIServiceError struct {
+	statusCode int
+	code       string
+	message    string
+}
+
+func (e *mockOCIServiceError) GetHTTPStatusCode() int  { return e.statusCode }
+func (e *mockOCIServiceError) GetMessage() string      { return e.message }
+func (e *mockOCIServiceError) GetCode() string         { return e.code }
+func (e *mockOCIServiceError) GetOpcRequestID() string { return "" }
+func (e *mockOCIServiceError) Error() string {
+	return fmt.Sprintf("Service error: %s (status %d)", e.message, e.statusCode)
+}
+
+// mockOCIJSONResponse builds a minimal *http.Response carrying a JSON body.
+func mockOCIJSONResponse(statusCode int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: statusCode,
+		Header: http.Header{
+			"Content-Type":   []string{"application/json"},
+			"Opc-Request-Id": []string{"test-req-id"},
+		},
+		Body:    io.NopCloser(strings.NewReader(body)),
+		Request: &http.Request{URL: &url.URL{Path: "/mock"}},
+	}
+}
+
+// testOCIRSAPrivateKeyPEM generates a throwaway RSA private key in PEM format
+// for use with ocicommon.NewRawConfigurationProvider in tests.
+func testOCIRSAPrivateKeyPEM(t *testing.T) string {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	der := x509.MarshalPKCS1PrivateKey(key)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: der}))
+}
+
+// newTestOciServicesForHyperscaler creates an OciServices value backed by mock
+// HTTP dispatchers. Pass nil for a dispatcher you don't need in a given test.
+//
+//   - vaultDispatcher   → intercepted by vault.VaultsClient (CreateSecret, GetSecret,
+//     ScheduleSecretDeletion)
+//   - secretsDispatcher → intercepted by secrets.SecretsClient (GetSecretBundleByName,
+//     GetSecretBundle)
+func newTestOciServicesForHyperscaler(t *testing.T, vaultDispatcher, secretsDispatcher *mockOCIHTTPDispatcher) oci2.OciServices {
+	t.Helper()
+	ctx := context.Background()
+	pemKey := testOCIRSAPrivateKeyPEM(t)
+
+	configProvider := ocicommon.NewRawConfigurationProvider(
+		"ocid1.tenancy.oc1..test",
+		"ocid1.user.oc1..test",
+		"us-ashburn-1",
+		"aa:bb:cc:dd:ee:ff:00:11",
+		pemKey,
+		nil,
+	)
+
+	vaultCl, err := vault.NewVaultsClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+	if vaultDispatcher != nil {
+		vaultCl.HTTPClient = vaultDispatcher
+	}
+
+	secretsCl, err := secrets.NewSecretsClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+	if secretsDispatcher != nil {
+		secretsCl.HTTPClient = secretsDispatcher
+	}
+
+	return oci2.OciServices{
+		Ctx:             ctx,
+		Logger:          log.NewLogger(),
+		AdminOCIService: oci2.NewAdminOCIService(vaultCl, secretsCl),
+	}
+}
+
+// ---------------------------------------------------------------------------
+// _generatePasswordForVSAClusterOCI
+// ---------------------------------------------------------------------------
+
+func Test_GeneratePasswordForVSAClusterOCI(t *testing.T) {
+	origVault := env.OCIVaultOCID
+	origCompartment := env.OCICompartmentOCID
+	origMasterKey := env.OCIMasterKeyOCID
+	defer func() {
+		env.OCIVaultOCID = origVault
+		env.OCICompartmentOCID = origCompartment
+		env.OCIMasterKeyOCID = origMasterKey
+	}()
+
+	const secretName = "test-generate-ontap-admin-secret"
+
+	t.Run("config invalid — returns ErrOCIClientInitializationError before any OCI call", func(t *testing.T) {
+		env.OCIVaultOCID = ""
+		env.OCICompartmentOCID = ""
+		env.OCIMasterKeyOCID = ""
+
+		svc := newTestOciServicesForHyperscaler(t, nil, nil)
+		result, err := _generatePasswordForVSAClusterOCI(svc, secretName)
+		assert.Nil(t, result)
+		require.Error(t, err)
+
+		cerr, ok := err.(*coreerrors.CustomError)
+		if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+			assert.Equal(t, coreerrors.ErrOCIClientInitializationError, cerr.TrackingID)
+		}
+	})
+
+	t.Run("GetSecretByName fails — error propagated", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIMasterKeyOCID = "ocid1.key.oc1..test"
+
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, &mockOCIServiceError{statusCode: http.StatusForbidden, code: "NotAuthorized", message: "access denied"}
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
+		result, err := _generatePasswordForVSAClusterOCI(svc, secretName)
+		assert.Nil(t, result)
+		assert.Error(t, err)
+	})
+
+	t.Run("secret already exists — existing secret returned without CreateSecret", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIMasterKeyOCID = "ocid1.key.oc1..test"
+
+		encodedPW := base64.StdEncoding.EncodeToString([]byte("existing-password"))
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"secretId":      "ocid1.vaultsecret.oc1..existing",
+					"versionNumber": 1,
+					"secretBundleContent": {
+						"contentType": "BASE64",
+						"content":     "`+encodedPW+`"
+					}
+				}`), nil
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
+		result, err := _generatePasswordForVSAClusterOCI(svc, secretName)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "existing-password", result.Value)
+		assert.Equal(t, "ocid1.vaultsecret.oc1..existing", result.Ocid)
+	})
+
+	t.Run("secret not found — GenerateStrongPassword fails — error propagated", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIMasterKeyOCID = "ocid1.key.oc1..test"
+
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
+			},
+		}
+
+		origGeneratePW := utils.GenerateStrongPassword
+		defer func() { utils.GenerateStrongPassword = origGeneratePW }()
+		utils.GenerateStrongPassword = func(length int) (string, error) {
+			return "", fmt.Errorf("entropy source failed")
+		}
+
+		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
+		result, err := _generatePasswordForVSAClusterOCI(svc, secretName)
+		assert.Nil(t, result)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "entropy source failed")
+	})
+
+	t.Run("secret not found — CreateSecret fails — error propagated", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIMasterKeyOCID = "ocid1.key.oc1..test"
+
+		origGeneratePW := utils.GenerateStrongPassword
+		defer func() { utils.GenerateStrongPassword = origGeneratePW }()
+		utils.GenerateStrongPassword = func(length int) (string, error) {
+			return "StrongPassword1!", nil
+		}
+
+		// secrets client: 404 → GetSecretByName returns nil, nil
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
+			},
+		}
+		// vault client: error on CreateSecret
+		vaultDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, &mockOCIServiceError{statusCode: http.StatusBadRequest, code: "InvalidParameter", message: "vault invalid"}
+			},
+		}
+
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
+		result, err := _generatePasswordForVSAClusterOCI(svc, secretName)
+		assert.Nil(t, result)
+		assert.Error(t, err)
+	})
+
+	t.Run("success — new secret created and password added to cache", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+		env.OCICompartmentOCID = "ocid1.compartment.oc1..test"
+		env.OCIMasterKeyOCID = "ocid1.key.oc1..test"
+
+		const createdOCID = "ocid1.vaultsecret.oc1..created"
+		const createdName = "test-generate-success-secret"
+
+		origGeneratePW := utils.GenerateStrongPassword
+		defer func() { utils.GenerateStrongPassword = origGeneratePW }()
+		utils.GenerateStrongPassword = func(length int) (string, error) {
+			return "StrongPassword1!", nil
+		}
+		defer common.RemoveFromUserAuthCache(createdName)
+
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
+			},
+		}
+		vaultDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":             "`+createdOCID+`",
+					"secretName":     "`+createdName+`",
+					"lifecycleState": "ACTIVE",
+					"currentVersionNumber": 1
+				}`), nil
+			},
+		}
+
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
+		result, err := _generatePasswordForVSAClusterOCI(svc, createdName)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, createdOCID, result.Ocid)
+		assert.Equal(t, "StrongPassword1!", result.Value)
+		assert.Equal(t, createdName, result.Name)
+
+		// Cache must be populated after successful creation.
+		cached, exists := common.GetFromUserAuthCache(createdName)
+		assert.True(t, exists)
+		if assert.NotNil(t, cached) {
+			assert.Equal(t, "StrongPassword1!", cached.Password)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// _deletePasswordForVSAClusterOCI
+// ---------------------------------------------------------------------------
+
+func Test_DeletePasswordForVSAClusterOCI(t *testing.T) {
+	origVault := env.OCIVaultOCID
+	defer func() { env.OCIVaultOCID = origVault }()
+
+	const secretOCID = "ocid1.vaultsecret.oc1..todelete"
+	const scheduleDeletionPath = "scheduleDeletion"
+
+	t.Run("config invalid — returns ErrOCIClientInitializationError before any OCI call", func(t *testing.T) {
+		env.OCIVaultOCID = ""
+
+		svc := newTestOciServicesForHyperscaler(t, nil, nil)
+		err := _deletePasswordForVSAClusterOCI(svc, "any-secret")
+		require.Error(t, err)
+
+		cerr, ok := err.(*coreerrors.CustomError)
+		if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+			assert.Equal(t, coreerrors.ErrOCIClientInitializationError, cerr.TrackingID)
+		}
+	})
+
+	t.Run("GetSecretByName fails — error propagated", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, &mockOCIServiceError{statusCode: http.StatusForbidden, code: "NotAuthorized", message: "access denied"}
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
+		err := _deletePasswordForVSAClusterOCI(svc, "any-secret")
+		assert.Error(t, err)
+	})
+
+	t.Run("secret not found — no-op, cache entry cleared", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+		const name = "test-delete-notfound-secret"
+		common.AddToUserAuthCache(name, "some-pw")
+
+		// 404 → GetSecretByName returns nil, nil → DeleteSecret not called
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
+		err := _deletePasswordForVSAClusterOCI(svc, name)
+		assert.NoError(t, err)
+
+		_, exists := common.GetFromUserAuthCache(name)
+		assert.False(t, exists, "cache entry should be removed even when secret is not in OCI Vault")
+	})
+
+	t.Run("DeleteSecret fails — error propagated", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+		const name = "test-delete-delfail-secret"
+		encodedPW := base64.StdEncoding.EncodeToString([]byte("pw"))
+
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"secretId":      "`+secretOCID+`",
+					"versionNumber": 1,
+					"secretBundleContent": {
+						"contentType": "BASE64",
+						"content":     "`+encodedPW+`"
+					}
+				}`), nil
+			},
+		}
+		vaultDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				if strings.Contains(req.URL.Path, scheduleDeletionPath) {
+					return nil, &mockOCIServiceError{statusCode: http.StatusConflict, code: "Conflict", message: "deletion conflict"}
+				}
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":             "`+secretOCID+`",
+					"secretName":     "`+name+`",
+					"lifecycleState": "ACTIVE"
+				}`), nil
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
+		err := _deletePasswordForVSAClusterOCI(svc, name)
+		assert.Error(t, err)
+	})
+
+	t.Run("success — secret deleted, cache cleared", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+		const name = "test-delete-success-secret"
+		common.AddToUserAuthCache(name, "cached-pw")
+
+		encodedPW := base64.StdEncoding.EncodeToString([]byte("cached-pw"))
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"secretId":      "`+secretOCID+`",
+					"versionNumber": 1,
+					"secretBundleContent": {
+						"contentType": "BASE64",
+						"content":     "`+encodedPW+`"
+					}
+				}`), nil
+			},
+		}
+		vaultDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				if strings.Contains(req.URL.Path, scheduleDeletionPath) {
+					return mockOCIJSONResponse(http.StatusOK, `{}`), nil
+				}
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":             "`+secretOCID+`",
+					"secretName":     "`+name+`",
+					"lifecycleState": "ACTIVE"
+				}`), nil
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
+		err := _deletePasswordForVSAClusterOCI(svc, name)
+		assert.NoError(t, err)
+
+		_, exists := common.GetFromUserAuthCache(name)
+		assert.False(t, exists, "cache entry should be removed on successful deletion")
+	})
+
+	t.Run("success — cache miss is not an error", func(t *testing.T) {
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+		const name = "test-delete-cachemiss-secret"
+		// No cache entry pre-populated — function should still return nil.
+
+		encodedPW := base64.StdEncoding.EncodeToString([]byte("pw"))
+		secretsDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"secretId":      "`+secretOCID+`",
+					"versionNumber": 1,
+					"secretBundleContent": {
+						"contentType": "BASE64",
+						"content":     "`+encodedPW+`"
+					}
+				}`), nil
+			},
+		}
+		vaultDispatcher := &mockOCIHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				if strings.Contains(req.URL.Path, scheduleDeletionPath) {
+					return mockOCIJSONResponse(http.StatusOK, `{}`), nil
+				}
+				return mockOCIJSONResponse(http.StatusOK, `{
+					"id":             "`+secretOCID+`",
+					"secretName":     "`+name+`",
+					"lifecycleState": "ACTIVE"
+				}`), nil
+			},
+		}
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
+		err := _deletePasswordForVSAClusterOCI(svc, name)
+		assert.NoError(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// _getPasswordFromCacheOrOCIVault — additional paths
+//
+// The tests below cover paths introduced in this branch that are not
+// exercised by the earlier Test_GetPasswordFromCacheOrOCIVault_* tests:
+//   - _validateOCIVaultConfig fails after GetOCIService succeeds
+//   - Vault fetch succeeds (full happy path through GetSecretByName)
+//   - Vault fetch returns nil (secret not found)
+// ---------------------------------------------------------------------------
+
+func Test_GetPasswordFromCacheOrOCIVault_ValidateConfigFails(t *testing.T) {
+	const cacheKey = "test-cache-validate-fail-secret"
+
+	origVault := env.OCIVaultOCID
+	defer func() { env.OCIVaultOCID = origVault }()
+	env.OCIVaultOCID = "" // triggers _validateOCIVaultConfig(false) failure
+
+	origGet := common.GetFromUserAuthCache
+	defer func() { common.GetFromUserAuthCache = origGet }()
+	common.GetFromUserAuthCache = func(key string) (*models.UserCache, bool) {
+		return nil, false // cache miss so we proceed past cache check
+	}
+
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		return &oci2.OciServices{Ctx: ctx, Logger: log.NewLogger()}, nil
+	}
+
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey})
+	assert.Empty(t, pw)
+	require.Error(t, err)
+
+	cerr, ok := err.(*coreerrors.CustomError)
+	if assert.True(t, ok, "expected *coreerrors.CustomError, got %T", err) {
+		assert.Equal(t, coreerrors.ErrOCIClientInitializationError, cerr.TrackingID)
+	}
+}
+
+func Test_GetPasswordFromCacheOrOCIVault_VaultFetchSuccess(t *testing.T) {
+	const cacheKey = "test-cache-vaultfetch-success-secret"
+
+	origVault := env.OCIVaultOCID
+	defer func() {
+		env.OCIVaultOCID = origVault
+		common.RemoveFromUserAuthCache(cacheKey)
+	}()
+	env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+	origGet := common.GetFromUserAuthCache
+	defer func() { common.GetFromUserAuthCache = origGet }()
+	common.GetFromUserAuthCache = func(key string) (*models.UserCache, bool) {
+		return nil, false // cache miss — fall through to OCI Vault
+	}
+
+	encodedPW := base64.StdEncoding.EncodeToString([]byte("vault-fetched-pw"))
+	secretsDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return mockOCIJSONResponse(http.StatusOK, `{
+				"secretId":      "ocid1.vaultsecret.oc1..found",
+				"versionNumber": 1,
+				"secretBundleContent": {
+					"contentType": "BASE64",
+					"content":     "`+encodedPW+`"
+				}
+			}`), nil
+		},
+	}
+
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
+		return &svc, nil
+	}
+
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey})
+	assert.NoError(t, err)
+	assert.Equal(t, "vault-fetched-pw", pw)
+}
+
+func Test_GetPasswordFromCacheOrOCIVault_SecretNotFound(t *testing.T) {
+	const cacheKey = "test-cache-secretnotfound-secret"
+
+	origVault := env.OCIVaultOCID
+	defer func() { env.OCIVaultOCID = origVault }()
+	env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+	origGet := common.GetFromUserAuthCache
+	defer func() { common.GetFromUserAuthCache = origGet }()
+	common.GetFromUserAuthCache = func(key string) (*models.UserCache, bool) {
+		return nil, false
+	}
+
+	// 404 → GetSecretByName returns nil, nil → "empty or not found" error
+	secretsDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
+		},
+	}
+
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
+		return &svc, nil
+	}
+
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey})
+	assert.Empty(t, pw)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty or not found")
+}
+

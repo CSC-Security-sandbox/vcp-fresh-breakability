@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/validators"
@@ -173,6 +174,7 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
 		},
 	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
 
 	defer func() {
 		if err != nil {
@@ -194,9 +196,24 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		err = fmt.Errorf("pool credentials are required to create ONTAP admin credentials for pool %q", pool.Name)
 		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, err))
 	}
-	credConfig := &vlm.OntapCredentials{
-		AdminPassword: pool.PoolCredentials.Password,
-		Certificate:   vlm.OntapCertificate{},
+	credConfig := &activities.OCICreatePoolCredentials{}
+	var ociSecret *datamodel.ExternalCredRef
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOnTapCredentialsForOCI, pool).Get(ctx, credConfig)
+	if err != nil {
+		logger.Errorf("Failed to create ONTAP credentials for OCI pool: %v", err)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	if !disableVsaCleanupOnVLMFailure {
+		rollbackManager.AddActivity(poolActivity.DeleteOnTapCredentialsForOCI, pool)
+	}
+	if credConfig.Secret != nil {
+		ociSecret = &datamodel.ExternalCredRef{
+			Name:               credConfig.Secret.Name,
+			Version:            credConfig.Secret.Version,
+			ExternalIdentifier: credConfig.Secret.ExternalIdentifier,
+		}
+		//   pool.PoolCredentials.ExternalCertificate = ociCertificate
+		pool.PoolCredentials.ExternalSecret = ociSecret
 	}
 
 	// Get VLM worker queue
@@ -211,7 +228,7 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 
 	// Prepare CreateVSAClusterDeploymentRequest
 	createVSAClusterDeploymentRequest := &vlm.CreateVSAClusterDeploymentRequest{}
-	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig, pool)
+	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, credConfig.OntapCredentials, pool)
 
 	if !disableVsaCleanupOnVLMFailure {
 		req := &vlm.DeleteVSAClusterDeploymentRequest{}
@@ -230,9 +247,6 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	}
 	emitStage(ctx, wfCreatePool, queueCustomer, stageVLMDeploy, resultSuccess)
 
-	// Apply shared activity options for DB operations.
-	ctx = workflow.WithActivityOptions(ctx, ao)
-
 	expertModeAdminPassword := ociExpertModePassword
 	if expertModeAdminPassword == "" {
 		if params.OciAdminPassword == nil || params.OciAdminPassword.Ocid == "" {
@@ -242,14 +256,15 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		expertModeConfig := &vlm.OntapCredentials{}
 		err = workflow.ExecuteActivity(ctx, poolActivity.GetExpertModeCredentialsForOCI, pool, params.OciAdminPassword).Get(ctx, &expertModeConfig)
 		if err != nil {
-			return nil, vsaerrors.ExtractCustomError(err)
+			logger.Errorf("Failed to get expert mode credentials for OCI pool: %v", err)
+			return nil, workflows.ConvertToVSAError(err)
 		}
 		expertModeAdminPassword = expertModeConfig.AdminPassword
 	}
 
 	expertModeReq := &vlm.OntapExpertModeUserConfig{
 		VLMConfig:          createVSAClusterDeploymentResponse.VLMConfig,
-		OntapCredentials:   *credConfig,
+		OntapCredentials:   credConfig.OntapCredentials,
 		RbacFileURL:        ociExpertModeRbacURL,
 		RbacFileChecksum:   ociExpertModeRbacHash,
 		Username:           ociExpertModeUsername,
@@ -275,8 +290,8 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	// This inherits StartToCloseTimeout from parent context but uses shorter heartbeat timeout
 	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 
-	// Save VSA node details to database
-	// This persists the node information (VM1, VM2, mediator) from the VLM config response
+	// Save VSA node details to database.
+	// This persists the node information (VM1, VM2, mediator) from the VLM config response.
 	hostMap := make(map[string]string) // Empty hostMap for OCI (DNS handled differently than GCP)
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SaveVSANodeDetails, pool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, &hostMap).Get(dbHbCtx, nil)
 	if err != nil {
@@ -563,6 +578,19 @@ func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	emitStage(ctx, wfDeletePool, queueCustomer, stageVLMDelete, resultSuccess)
+
+	// Delete the ONTAP admin password secret from OCI Vault after the VSA cluster is gone.
+	// Secret name is derived from DeploymentName; the activity is idempotent if no secret exists
+	// (e.g. pools created with AuthType=USERNAME_PWD where no vault secret was ever provisioned).
+	// TODO(oci-cert): once OCI expert-mode certificates are introduced, the activity will
+	// additionally revoke the cert; the same compound guard then makes revocation skippable
+	// for debug sessions, matching GCP exactly.
+	if pool.DeploymentName != "" && (!disableVsaCleanupOnVLMFailure || pool.State != models.LifeCycleStateError) {
+		err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteOnTapCredentialsForOCI, pool).Get(hyperscalerCtx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
 
 	// Mark pool as deleted
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.DeletePoolResources, pool).Get(dbHbCtx, nil)

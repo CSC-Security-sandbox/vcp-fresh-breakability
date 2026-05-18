@@ -967,6 +967,95 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	return credentials, nil
 }
 
+// OCICreatePoolCredentials wraps the ONTAP credentials together with the OCI Vault
+// references for the secret (and, in the future, certificate) created during pool provisioning.
+//
+// OntapCredentials is intentionally a value (not a pointer) so that callers can
+// safely access OntapCredentials.AdminPassword without a nil-check after
+// workflow.Future.Get; a missing/zero payload yields a zero OntapCredentials,
+// not a nil-deref panic inside the workflow goroutine.
+type OCICreatePoolCredentials struct {
+	OntapCredentials vlm.OntapCredentials       `json:"ontap_credentials"`
+	Secret           *datamodel.ExternalCredRef `json:"secret,omitempty"`
+	Certificate      *datamodel.ExternalCredRef `json:"certificate,omitempty"`
+}
+
+// CreateOnTapCredentialsForOCI creates ONTAP admin credentials for the OCI pool based on the authentication type
+func (j *PoolActivity) CreateOnTapCredentialsForOCI(ctx context.Context, pool *datamodel.Pool) (*OCICreatePoolCredentials, error) {
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting CreateOnTapCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+
+	if pool.PoolCredentials == nil {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool.PoolCredentials must not be nil")))
+	}
+
+	ociService, err := hyperscaler2.GetOCIService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err))
+	}
+	credentials := &OCICreatePoolCredentials{}
+
+	switch pool.PoolCredentials.AuthType {
+	case env.USER_CERTIFICATE:
+		// TODO: Implement in future prs
+	case env.USERNAME_PWD_SEC_MGR:
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating password for ONTAP credentials in OCI Vault - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+		secretName := ociOntapAdminSecretName(pool)
+		secret, err := hyperscaler2.GeneratePasswordForVSAClusterOCI(*ociService, secretName)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if secret == nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError,
+					fmt.Errorf("OCI Vault returned nil secret without error for secret %q", secretName)))
+		}
+		credentials.OntapCredentials = vlm.OntapCredentials{AdminPassword: secret.Value}
+		credentials.Secret = &datamodel.ExternalCredRef{
+			Name:               secret.Name,
+			Version:            secret.Version,
+			ExternalIdentifier: secret.Ocid,
+		}
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Password generated successfully in OCI Vault - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+	default:
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Using default password for ONTAP credentials, CreateOnTapCredentialsForOCI - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+		credentials.OntapCredentials = vlm.OntapCredentials{AdminPassword: pool.PoolCredentials.Password}
+	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished CreateOnTapCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+	return credentials, nil
+}
+
+// DeleteOnTapCredentialsForOCI deletes the ONTAP admin password secret stored in OCI Vault for the given pool.
+// The secret name is derived from the pool DeploymentName.
+// If the secret does not exist the activity succeeds silently (idempotent).
+func (j *PoolActivity) DeleteOnTapCredentialsForOCI(ctx context.Context, pool *datamodel.Pool) error {
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting DeleteOnTapCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+
+	if pool.PoolCredentials == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool.PoolCredentials must not be nil")))
+	}
+
+	ociService, err := hyperscaler2.GetOCIService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err))
+	}
+	switch pool.PoolCredentials.AuthType {
+	case env.USERNAME_PWD_SEC_MGR:
+		activity.RecordHeartbeat(ctx, "Deleting password from Vault")
+		secretName := ociOntapAdminSecretName(pool)
+		if err := hyperscaler2.DeletePasswordForVSAClusterOCI(*ociService, secretName); err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		activity.RecordHeartbeat(ctx, "Password deleted successfully from Vault")
+	default:
+		activity.RecordHeartbeat(ctx, "No deletion needed for default password type")
+		return nil
+	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished DeleteOnTapCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+	return nil
+}
+
 // GetExpertModeCredentialsForOCI retrieves ONTAP expert mode credentials based on the authentication type for OCI
 func (j *PoolActivity) GetExpertModeCredentialsForOCI(ctx context.Context, pool *datamodel.Pool, ociAdminPassword *commonparams.OciAdminPassword) (*vlm.OntapCredentials, error) {
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting GetExpertModeCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
@@ -2070,6 +2159,13 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		Password:                       pool.PoolCredentials.Password,
 		AuthType:                       pool.PoolCredentials.AuthType,
 		CaURI:                          caURI,
+		// External-secret-store credential references are populated only on the
+		// OCI path (the OCI workflow writes them onto pool.PoolCredentials before
+		// calling this activity). On GCP they are nil and have no effect.
+		// Downstream provider builders (_getProviderByNode) need them on the
+		// in-memory Node so the OCI Vault password lookup can resolve.
+		ExternalSecret:      pool.PoolCredentials.ExternalSecret,
+		ExternalCertificate: pool.PoolCredentials.ExternalCertificate,
 	}
 
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
@@ -3677,4 +3773,8 @@ func subnetCIDRWithinRange(subnetCIDR string, rangeCIDR string) bool {
 		return false
 	}
 	return rangeNet.Contains(subnetIP)
+}
+
+func ociOntapAdminSecretName(pool *datamodel.Pool) string {
+	return fmt.Sprintf("%s-secret", pool.DeploymentName)
 }

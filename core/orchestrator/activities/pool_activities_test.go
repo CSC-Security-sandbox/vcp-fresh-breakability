@@ -1331,6 +1331,78 @@ func Test_SaveVSANodeDetails_Success(t *testing.T) {
 	assert.Equal(t, "node1", node.Name)
 }
 
+// Test_SaveNodeDetails_PropagatesExternalCredsForOCI is the regression guard
+// for the inner contract that makes the unified SaveVSANodeDetails work for
+// OCI: when PoolCredentials carries ExternalSecret / ExternalCertificate
+// (which the OCI workflow writes onto pool.PoolCredentials before invoking
+// the activity — search for "pool.PoolCredentials.ExternalSecret = ociSecret"
+// in core/orchestrator/workflows/oci/pool_workflows.go), _saveNodeDetails must
+// copy them onto the in-memory *models.Node it builds. Otherwise the
+// downstream OCI Vault password lookup inside _getProviderByNode has no ref
+// to query and the activity fails with "OCI vault reference is empty" wrapped
+// as ErrOCIResourceFetchError. On GCP these fields are nil and have no effect,
+// so this test only matters for the OCI path.
+func Test_SaveNodeDetails_PropagatesExternalCredsForOCI(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+
+	// Capture the *coremodel.Node that arrives at GetProviderByNode — that is
+	// the assertion target. The contract is: ExternalSecret / ExternalCertificate
+	// on PoolCredentials must surface on the built node, by reference.
+	origGetProvider := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = origGetProvider }()
+	var capturedNode *coremodel.Node
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		capturedNode = node
+		return mockProvider, nil
+	}
+
+	mockProvider.On("GetNodeByName", mock.Anything).Return(&vsa.Node{ExternalUUID: "ext-uuid"}, nil)
+	mockStorage.On("CreateNode", mock.Anything, mock.Anything).Return(&datamodel.Node{}, nil)
+
+	expectedSecret := &datamodel.ExternalCredRef{
+		Name:               "ocnv-cafef00d-secret",
+		ExternalIdentifier: "ocid1.vaultsecret.oc1..xyz",
+		Version:            3,
+	}
+	expectedCert := &datamodel.ExternalCredRef{
+		Name:               "ocnv-cafef00d-cert",
+		ExternalIdentifier: "ocid1.certificate.oc1..abc",
+		Version:            5,
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType:            env.USERNAME_PWD_SEC_MGR,
+			SecretID:            "secret-id",
+			CertificateID:       "cert-id",
+			ExternalSecret:      expectedSecret,
+			ExternalCertificate: expectedCert,
+		},
+	}
+	vmConfig := vlm.VMConfig{
+		HostName:   "node-1",
+		SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{vlm.LIFTypeNodeMgmt: {IP: "10.0.0.1"}},
+		Zone:       "us-ashburn-1-ad-1",
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	_, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, vlm.DeploymentConfig{VSAInstanceType: "VM.Standard3.Flex"}, pool, "dep-1", map[string]string{})
+	require.NoError(t, err)
+
+	if assert.NotNil(t, capturedNode, "GetProviderByNode must be invoked with a built node") {
+		// Pointer-equality is intentional: a deep-copy or struct-copy in the
+		// future would also be a behaviour change worth flagging here.
+		assert.Same(t, expectedSecret, capturedNode.ExternalSecret,
+			"ExternalSecret must be propagated by reference from PoolCredentials onto the in-memory Node so the OCI Vault lookup in _getProviderByNode resolves")
+		assert.Same(t, expectedCert, capturedNode.ExternalCertificate,
+			"ExternalCertificate must be propagated by reference from PoolCredentials onto the in-memory Node")
+	}
+	mockProvider.AssertExpectations(t)
+}
+
 func Test_DeletePoolResourcesOnRollback_Success(t *testing.T) {
 	// Setup Temporal test environment
 	var ts testsuite.WorkflowTestSuite
@@ -16146,4 +16218,444 @@ func TestMarkAddressRangesCreated_UpdateStateToCreated_Error(t *testing.T) {
 	err := activity.MarkAddressRangesCreated(ctx, pool)
 	assert.ErrorContains(t, err, "update to created error")
 	mockStorage.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// CreateOnTapCredentialsForOCI / DeleteOnTapCredentialsForOCI
+// ---------------------------------------------------------------------------
+//
+// These activities are the OCI-equivalent counterparts to the GCP credential
+// helpers. The tests below stub the package-level indirection variables that
+// the activity reaches through (hyperscaler2.GetOCIService,
+// hyperscaler2.GeneratePasswordForVSAClusterOCI, etc.) so behaviour can be
+// asserted without an OCI backend. We exercise the activities through the
+// Temporal test environment to cover the actual call site, including the
+// vsaerrors.WrapAsTemporalApplicationError wrapping that production code
+// depends on for retry classification.
+
+// TestPoolActivity_CreateOnTapCredentialsForOCI_GetOCIServiceFails ensures the
+// activity surfaces a Temporal application error when the OCI client cannot be
+// initialised, before any branch logic runs.
+func TestPoolActivity_CreateOnTapCredentialsForOCI_GetOCIServiceFails(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return nil, fmt.Errorf("OCI client init failed")
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.CreateOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "dep-1",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD,
+			Password: "ignored",
+		},
+	}
+	_, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
+	assert.Error(t, err)
+}
+
+// TestPoolActivity_CreateOnTapCredentialsForOCI_NilPoolCredentials guards the
+// invariant that pool.PoolCredentials must be non-nil before the AuthType
+// switch. The activity must reject the input as non-retryable validation
+// rather than nil-deref inside the workflow goroutine, and must short-circuit
+// before any external client (OCI service / OCI Vault generator) is touched.
+func TestPoolActivity_CreateOnTapCredentialsForOCI_NilPoolCredentials(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		t.Fatalf("OCI service must not be initialised when pool.PoolCredentials is nil")
+		return nil, nil
+	}
+
+	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
+	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+		t.Fatalf("OCI Vault password generation must not be invoked when pool.PoolCredentials is nil")
+		return nil, nil
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.CreateOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:            "p1",
+		DeploymentName:  "dep-1",
+		PoolCredentials: nil,
+	}
+	_, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pool.PoolCredentials must not be nil")
+}
+
+// TestPoolActivity_CreateOnTapCredentialsForOCI_DefaultPassword exercises the
+// default branch: the activity must echo back pool.PoolCredentials.Password
+// without calling the OCI Vault generation helper.
+func TestPoolActivity_CreateOnTapCredentialsForOCI_DefaultPassword(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+	}
+
+	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
+	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+		t.Fatalf("OCI Vault password generation must not be invoked for the default (USERNAME_PWD) branch")
+		return nil, nil
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.CreateOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "dep-1",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD,
+			Password: "node-pw",
+		},
+	}
+	encoded, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
+	require.NoError(t, err)
+	var creds *activities.OCICreatePoolCredentials
+	require.NoError(t, encoded.Get(&creds))
+	assert.Equal(t, "node-pw", creds.OntapCredentials.AdminPassword)
+	assert.Nil(t, creds.Secret)
+	assert.Nil(t, creds.Certificate)
+}
+
+// TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificateNoop covers the
+// USER_CERTIFICATE branch which is intentionally a no-op today (the cert flow
+// will be implemented in a follow-up). It must still return successfully and
+// must not invoke the password generator.
+func TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificateNoop(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+	}
+
+	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
+	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+		t.Fatalf("password generation must not be invoked for the certificate branch")
+		return nil, nil
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.CreateOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "dep-1",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType:      env.USER_CERTIFICATE,
+			SecretID:      "dep-1-secret",
+			CertificateID: "dep-1-cert",
+		},
+	}
+	encoded, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
+	require.NoError(t, err)
+	var creds *activities.OCICreatePoolCredentials
+	require.NoError(t, encoded.Get(&creds))
+	assert.Empty(t, creds.OntapCredentials.AdminPassword,
+		"USER_CERTIFICATE branch should not populate an admin password yet")
+	assert.Nil(t, creds.Secret)
+	assert.Nil(t, creds.Certificate)
+}
+
+// TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrSuccess covers the happy
+// path of the USERNAME_PWD_SEC_MGR branch: the deployment-scoped secret name
+// is forwarded to the OCI Vault generator and the response is mapped onto both
+// OntapCredentials.AdminPassword and the persisted ExternalCredRef.
+func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrSuccess(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+	}
+
+	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
+	var capturedSecretName string
+	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+		capturedSecretName = secretName
+		return &oci.OCICustomSecret{
+			Ocid:    "ocid1.vaultsecret.oc1..abc",
+			Name:    secretName,
+			Value:   "vault-generated-pw",
+			Version: 7,
+		}, nil
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.CreateOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "ocnv-deadbeef",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD_SEC_MGR,
+		},
+	}
+	encoded, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
+	require.NoError(t, err)
+
+	assert.Equal(t, "ocnv-deadbeef-secret", capturedSecretName,
+		"secret name must be derived from pool.DeploymentName via ociOntapAdminSecretName")
+
+	var creds *activities.OCICreatePoolCredentials
+	require.NoError(t, encoded.Get(&creds))
+	assert.Equal(t, "vault-generated-pw", creds.OntapCredentials.AdminPassword)
+	require.NotNil(t, creds.Secret)
+	assert.Equal(t, "ocnv-deadbeef-secret", creds.Secret.Name)
+	assert.Equal(t, "ocid1.vaultsecret.oc1..abc", creds.Secret.ExternalIdentifier)
+	assert.Equal(t, int64(7), creds.Secret.Version)
+}
+
+// TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrGenerateFails ensures
+// failures from the OCI Vault generator are surfaced as Temporal application
+// errors and that no partial credentials are returned.
+func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrGenerateFails(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+	}
+
+	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
+	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+		return nil, fmt.Errorf("vault: insufficient permissions")
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.CreateOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "ocnv-deadbeef",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD_SEC_MGR,
+		},
+	}
+	_, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vault: insufficient permissions")
+}
+
+// TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrNilSecret guards the
+// downstream contract that GeneratePasswordForVSAClusterOCI must return a
+// non-nil *oci.OCICustomSecret on success. If the helper ever regresses to
+// returning (nil, nil) — or a future test/refactor mistakenly stubs it that
+// way — the activity must surface a typed Temporal application error rather
+// than nil-deref on secret.Value / secret.Name / secret.Ocid and crash the
+// worker goroutine.
+//
+// Note: vsaerrors.WrapAsTemporalApplicationError masks the inner error string
+// ("OCI Vault returned nil secret ..." becomes "An internal error occurred."),
+// so we assert that the generator stub was actually invoked AND the activity
+// returned a non-nil error. That combination can only be produced by the new
+// nil-secret guard — any earlier short-circuit would skip the stub, and a
+// missing guard would nil-deref inside the activity goroutine instead of
+// returning a clean error.
+func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrNilSecret(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+	}
+
+	var generatorCalled bool
+	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
+	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+		generatorCalled = true
+		return nil, nil
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.CreateOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "ocnv-deadbeef",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD_SEC_MGR,
+		},
+	}
+	_, err := tEnv.ExecuteActivity(act.CreateOnTapCredentialsForOCI, pool)
+	require.Error(t, err)
+	assert.True(t, generatorCalled, "GeneratePasswordForVSAClusterOCI must be invoked before the nil-secret guard fires")
+}
+
+// TestPoolActivity_DeleteOnTapCredentialsForOCI_GetOCIServiceFails verifies
+// the same client-init guard the create path uses. The pool is constructed
+// with a non-nil PoolCredentials so this test exercises the OCI client-init
+// failure specifically and not the unrelated nil-credentials guard, whose
+// own coverage lives in TestPoolActivity_DeleteOnTapCredentialsForOCI_NilPoolCredentials.
+//
+// Note: vsaerrors.WrapAsTemporalApplicationError masks the inner error string
+// ("OCI client init failed" becomes "An internal error occurred."), so we
+// assert that the GetOCIService stub was actually invoked rather than
+// pattern-matching on the surfaced message.
+func TestPoolActivity_DeleteOnTapCredentialsForOCI_GetOCIServiceFails(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	var getOCIServiceCalled bool
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		getOCIServiceCalled = true
+		return nil, fmt.Errorf("OCI client init failed")
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.DeleteOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "dep-1",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD_SEC_MGR,
+		},
+	}
+	_, err := tEnv.ExecuteActivity(act.DeleteOnTapCredentialsForOCI, pool)
+	require.Error(t, err)
+	assert.True(t, getOCIServiceCalled, "GetOCIService must be reached when PoolCredentials is non-nil")
+}
+
+// TestPoolActivity_DeleteOnTapCredentialsForOCI_NilPoolCredentials guards the
+// invariant that pool.PoolCredentials must be non-nil before the AuthType
+// switch. The activity must reject the input as non-retryable validation
+// rather than nil-deref inside the workflow goroutine, and must short-circuit
+// before any external client (OCI service / OCI Vault deletion helper) is
+// touched.
+func TestPoolActivity_DeleteOnTapCredentialsForOCI_NilPoolCredentials(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		t.Fatalf("OCI service must not be initialised when pool.PoolCredentials is nil")
+		return nil, nil
+	}
+
+	origDel := hyperscaler2.DeletePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.DeletePasswordForVSAClusterOCI = origDel }()
+	hyperscaler2.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
+		t.Fatalf("OCI Vault password deletion must not be invoked when pool.PoolCredentials is nil")
+		return nil
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.DeleteOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:            "p1",
+		DeploymentName:  "dep-1",
+		PoolCredentials: nil,
+	}
+	_, err := tEnv.ExecuteActivity(act.DeleteOnTapCredentialsForOCI, pool)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pool.PoolCredentials must not be nil")
+}
+
+// TestPoolActivity_DeleteOnTapCredentialsForOCI_Success exercises the happy
+// path: the deployment-scoped secret name is forwarded to the deletion helper
+// and the activity returns nil. It also defends the contract that the
+// deletion helper is invoked with the exact secret name produced by
+// ociOntapAdminSecretName so the two activities stay in sync.
+func TestPoolActivity_DeleteOnTapCredentialsForOCI_Success(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+	}
+
+	origDel := hyperscaler2.DeletePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.DeletePasswordForVSAClusterOCI = origDel }()
+	var capturedSecretName string
+	hyperscaler2.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
+		capturedSecretName = secretName
+		return nil
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.DeleteOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "ocnv-cafef00d",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD_SEC_MGR,
+		},
+	}
+	_, err := tEnv.ExecuteActivity(act.DeleteOnTapCredentialsForOCI, pool)
+	require.NoError(t, err)
+	assert.Equal(t, "ocnv-cafef00d-secret", capturedSecretName)
+}
+
+// TestPoolActivity_DeleteOnTapCredentialsForOCI_DeleteFails ensures helper
+// errors propagate as Temporal application errors so the workflow can decide
+// retry vs. compensation.
+func TestPoolActivity_DeleteOnTapCredentialsForOCI_DeleteFails(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+	hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+	}
+
+	origDel := hyperscaler2.DeletePasswordForVSAClusterOCI
+	defer func() { hyperscaler2.DeletePasswordForVSAClusterOCI = origDel }()
+	hyperscaler2.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
+		return fmt.Errorf("vault: conflict")
+	}
+
+	ts := &testsuite.WorkflowTestSuite{}
+	tEnv := ts.NewTestActivityEnvironment()
+	tEnv.RegisterActivity(act.DeleteOnTapCredentialsForOCI)
+
+	pool := &datamodel.Pool{
+		Name:           "p1",
+		DeploymentName: "ocnv-cafef00d",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD_SEC_MGR,
+		},
+	}
+	_, err := tEnv.ExecuteActivity(act.DeleteOnTapCredentialsForOCI, pool)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vault: conflict")
 }

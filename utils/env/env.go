@@ -466,6 +466,11 @@ var (
 	//   "oke_workload_identity" — for pods on OKE with workload identity federation
 	// Defaults to "oke_workload_identity".
 	OCIAuthType = GetString("OCI_AUTH_TYPE", "oke_workload_identity")
+
+	// OCIOntapAdminUsername is the ONTAP cluster admin username applied at
+	// pool-creation time on OCI. Captured once at process start so the
+	// orchestrator factory and the OCI pool workflow agree on a single value
+	OCIOntapAdminUsername = GetString("OCI_ONTAP_ADMIN_USERNAME", "admin")
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges

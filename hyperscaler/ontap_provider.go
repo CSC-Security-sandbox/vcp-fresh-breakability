@@ -9,6 +9,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -98,12 +99,23 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 
 	var password string
 	if node.AuthType == env.USERNAME_PWD_SEC_MGR {
-		secret, err := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
-		if err != nil {
-			util.GetLogger(ctx).Errorf("Failed to get password for node %s: %v", node.Name, err)
-			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
+		switch env.GetHyperscaler() {
+		case common.ProviderOCI:
+			util.GetLogger(ctx).Infof("Using OCI Vault for credentials for node %s", node.Name)
+			secret, err := GetPasswordFromCacheOrOCIVault(ctx, node.ExternalSecret)
+			if err != nil {
+				util.GetLogger(ctx).Errorf("Failed to get password from OCI Vault for node %s: %v", node.Name, err)
+				return nil, errors.NewVCPError(errors.ErrOCIResourceFetchError, err)
+			}
+			password = secret
+		default:
+			secret, err := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
+			if err != nil {
+				util.GetLogger(ctx).Errorf("Failed to get password for node %s: %v", node.Name, err)
+				return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
+			}
+			password = secret
 		}
-		password = secret
 	} else {
 		password = node.Password
 	}
@@ -197,9 +209,15 @@ var GenerateAndCreateCertificateForVSACluster = _generateAndCreateCertificateFor
 
 var GeneratePasswordForVSACluster = _generatePasswordForVSACluster
 
+var GeneratePasswordForVSAClusterOCI = _generatePasswordForVSAClusterOCI
+
+var DeletePasswordForVSAClusterOCI = _deletePasswordForVSAClusterOCI
+
 var GetPasswordForVSACluster = _getPasswordForVSACluster
 
 var GetPasswordFromCacheOrSecretManager = _getPasswordFromCacheOrSecretManager
+
+var GetPasswordFromCacheOrOCIVault = _getPasswordFromCacheOrOCIVault
 
 var GenerateCSR = _generateCSR
 
@@ -464,6 +482,115 @@ func _generatePasswordForVSACluster(gcpService GoogleServices, secretID string) 
 	return secret, nil
 }
 
+// _validateOCIVaultConfig returns a typed configuration error if any of the OCI
+// vault identifiers required for password create/lookup/delete are empty.
+//
+// requireWriteConfig=true additionally validates compartment and master key
+// OCIDs, which are only needed when creating new secrets (CreateSecret). The
+// delete and lookup paths only need OCI_VAULT_OCID.
+//
+// Failing fast here surfaces operator misconfiguration as
+// ErrOCIClientInitializationError instead of an opaque OCI HTTP 400
+// ("VaultId must be provided") emitted from deep inside the SDK.
+func _validateOCIVaultConfig(requireWriteConfig bool) error {
+	var missing []string
+	if env.OCIVaultOCID == "" {
+		missing = append(missing, "OCI_VAULT_OCID")
+	}
+	if requireWriteConfig {
+		if env.OCICompartmentOCID == "" {
+			missing = append(missing, "OCI_COMPARTMENT_OCID")
+		}
+		if env.OCIMasterKeyOCID == "" {
+			missing = append(missing, "OCI_MASTER_KEY_OCID")
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return errors.NewVCPError(
+		errors.ErrOCIClientInitializationError,
+		fmt.Errorf("OCI vault configuration incomplete; missing env var(s): %s", strings.Join(missing, ", ")),
+	)
+}
+
+// _generatePasswordForVSAClusterOCI generates a strong password and creates a secret in OCI Vault
+// if one with the given name does not already exist. The function is idempotent: when GetSecretByName
+// returns an existing secret it is returned unchanged, which makes activity retries safe.
+//
+// Requires OCI_COMPARTMENT_OCID, OCI_VAULT_OCID, and OCI_MASTER_KEY_OCID to be set; missing config
+// is surfaced as ErrOCIClientInitializationError before any OCI API call is made.
+func _generatePasswordForVSAClusterOCI(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	logger := ociService.GetLogger()
+
+	if err := _validateOCIVaultConfig(true); err != nil {
+		logger.Errorf("OCI vault config invalid for secretName %s: %v", secretName, err)
+		return nil, err
+	}
+
+	compartmentOCID := env.OCICompartmentOCID
+	vaultOCID := env.OCIVaultOCID
+	masterKeyOCID := env.OCIMasterKeyOCID
+
+	var ociSecret *oci.OCICustomSecret
+	ociSecret, getSecretError := ociService.GetSecretByName(secretName, vaultOCID)
+	if getSecretError != nil {
+		return nil, getSecretError
+	}
+	if ociSecret == nil {
+		password, err := utils.GenerateStrongPassword(12)
+		if err != nil {
+			logger.Errorf("failed to generate password for secretName: %s, err : %v", secretName, err)
+			return nil, err
+		}
+
+		ociSecret, err = ociService.CreateSecret(compartmentOCID, vaultOCID, masterKeyOCID, secretName, password)
+		if err != nil {
+			return nil, err
+		}
+
+		common.AddToUserAuthCache(secretName, ociSecret.Value)
+	}
+	return ociSecret, nil
+}
+
+// _deletePasswordForVSAClusterOCI deletes the ONTAP admin password secret from OCI Vault.
+// It looks up the secret by name first — if it does not exist the call is a no-op (idempotent).
+// DeleteSecret itself is idempotent w.r.t. lifecycle state: secrets already in
+// PENDING_DELETION / DELETED are skipped at the OCI client layer, so retries are safe.
+//
+// Requires OCI_VAULT_OCID to be set; missing config is surfaced as
+// ErrOCIClientInitializationError before any OCI API call is made.
+func _deletePasswordForVSAClusterOCI(ociService oci.OciServices, secretName string) error {
+	logger := ociService.GetLogger()
+
+	if err := _validateOCIVaultConfig(false); err != nil {
+		logger.Errorf("OCI vault config invalid for secretName %s: %v", secretName, err)
+		return err
+	}
+
+	secret, err := ociService.GetSecretByName(secretName, env.OCIVaultOCID)
+	if err != nil {
+		logger.Errorf("failed to look up secret %s for deletion: %v", secretName, err)
+		return err
+	}
+
+	if secret != nil {
+		err = ociService.DeleteSecret(secret.Ocid)
+		if err != nil {
+			logger.Errorf("failed to delete secret %s (OCID: %s): %v", secretName, secret.Ocid, err)
+			return err
+		}
+	}
+	// Cache miss is expected when the pool was created with AuthType=USERNAME_PWD (no vault
+	// secret created), when the cache was evicted, or when this worker never populated the
+	// cache for this pool. None of those is an error condition.
+	if !common.RemoveFromUserAuthCache(secretName) {
+		logger.Debugf("no cached password to remove for secretName: %s", secretName)
+	}
+	return nil
+}
+
 // _getPasswordForVSACluster retrieves the password for a VSA cluster from GCP Secret Manager.
 func _getPasswordForVSACluster(gcpService GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
 	secret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, secretID)
@@ -492,6 +619,34 @@ func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) 
 	}
 	password = userCache.Password
 	return password, nil
+}
+
+// _getPasswordFromCacheOrOCIVault Cache is keyed by the OCI secret Name;
+// on miss it fetches the latest version from OCI Vault.
+func _getPasswordFromCacheOrOCIVault(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+	if ref == nil || ref.Name == "" {
+		return "", errors2.New("OCI vault reference is empty")
+	}
+	if userCache, exist := common.GetFromUserAuthCache(ref.Name); exist && userCache.Password != "" {
+		return userCache.Password, nil
+	}
+	ociService, err := GetOCIService(ctx)
+	if err != nil {
+		return "", err
+	}
+	if err := _validateOCIVaultConfig(false); err != nil {
+		ociService.Logger.Errorf("OCI vault config invalid for secretName %s: %v", ref.Name, err)
+		return "", err
+	}
+	secret, err := ociService.GetSecretByName(ref.Name, env.OCIVaultOCID)
+	if err != nil {
+		return "", err
+	}
+	if secret == nil || secret.Value == "" {
+		return "", fmt.Errorf("OCI vault secret %s is empty or not found", ref.Name)
+	}
+	common.AddToUserAuthCache(ref.Name, secret.Value)
+	return secret.Value, nil
 }
 
 // _deletePasswordFromSecretManagerAndCache generates a strong password and creates a secret in GCP Secret Manager.

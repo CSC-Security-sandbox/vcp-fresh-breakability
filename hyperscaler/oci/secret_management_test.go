@@ -635,10 +635,23 @@ func TestGetSecretWithCustomVersion(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDeleteSecret(t *testing.T) {
-	t.Run("positive — deletion scheduled successfully", func(t *testing.T) {
+	// DeleteSecret first issues GET /secrets/{id} (lifecycle pre-flight) and then,
+	// only if the secret is not already in a deletion state, POSTs to
+	// /secrets/{id}/actions/scheduleDeletion. The dispatchers below discriminate
+	// the two calls by request URL path.
+	const scheduleDeletionPathFragment = "scheduleDeletion"
+
+	t.Run("positive — active secret: deletion scheduled successfully", func(t *testing.T) {
 		dispatcher := &mockHTTPDispatcher{
 			doFunc: func(req *http.Request) (*http.Response, error) {
-				return mockJSONResponse(http.StatusOK, `{}`), nil
+				if strings.Contains(req.URL.Path, scheduleDeletionPathFragment) {
+					return mockJSONResponse(http.StatusOK, `{}`), nil
+				}
+				return mockJSONResponse(http.StatusOK, `{
+					"id":             "ocid1.vaultsecret.oc1..todelete",
+					"secretName":     "to-delete",
+					"lifecycleState": "ACTIVE"
+				}`), nil
 			},
 		}
 		svc := newTestOciServices(t, dispatcher, nil)
@@ -647,22 +660,88 @@ func TestDeleteSecret(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("negative — API returns conflict error", func(t *testing.T) {
+	t.Run("positive — secret already PENDING_DELETION: ScheduleSecretDeletion is skipped", func(t *testing.T) {
+		var scheduleDeletionCalled bool
 		dispatcher := &mockHTTPDispatcher{
 			doFunc: func(req *http.Request) (*http.Response, error) {
-				return nil, &mockServiceError{statusCode: http.StatusConflict, code: "Conflict", message: "secret is already scheduled for deletion"}
+				if strings.Contains(req.URL.Path, scheduleDeletionPathFragment) {
+					scheduleDeletionCalled = true
+					return mockJSONResponse(http.StatusConflict, `{"code":"Conflict","message":"already scheduled"}`), nil
+				}
+				return mockJSONResponse(http.StatusOK, `{
+					"id":             "ocid1.vaultsecret.oc1..alreadydeleting",
+					"secretName":     "old-secret",
+					"lifecycleState": "PENDING_DELETION"
+				}`), nil
 			},
 		}
 		svc := newTestOciServices(t, dispatcher, nil)
 
 		err := svc.DeleteSecret("ocid1.vaultsecret.oc1..alreadydeleting")
+		assert.NoError(t, err)
+		assert.False(t, scheduleDeletionCalled, "ScheduleSecretDeletion must not be invoked for secrets already in deletion state")
+	})
+
+	t.Run("positive — GetSecret 404 treated as already deleted (no-op)", func(t *testing.T) {
+		var scheduleDeletionCalled bool
+		dispatcher := &mockHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				if strings.Contains(req.URL.Path, scheduleDeletionPathFragment) {
+					scheduleDeletionCalled = true
+					return mockJSONResponse(http.StatusOK, `{}`), nil
+				}
+				return nil, &mockServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
+			},
+		}
+		svc := newTestOciServices(t, dispatcher, nil)
+
+		err := svc.DeleteSecret("ocid1.vaultsecret.oc1..gone")
+		assert.NoError(t, err)
+		assert.False(t, scheduleDeletionCalled)
+	})
+
+	t.Run("negative — ScheduleSecretDeletion returns conflict for an active secret", func(t *testing.T) {
+		dispatcher := &mockHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				if strings.Contains(req.URL.Path, scheduleDeletionPathFragment) {
+					return nil, &mockServiceError{statusCode: http.StatusConflict, code: "Conflict", message: "secret is already scheduled for deletion"}
+				}
+				return mockJSONResponse(http.StatusOK, `{
+					"id":             "ocid1.vaultsecret.oc1..racy",
+					"secretName":     "racy",
+					"lifecycleState": "ACTIVE"
+				}`), nil
+			},
+		}
+		svc := newTestOciServices(t, dispatcher, nil)
+
+		err := svc.DeleteSecret("ocid1.vaultsecret.oc1..racy")
 		assert.Error(t, err)
 	})
 
-	t.Run("negative — transport error", func(t *testing.T) {
+	t.Run("negative — GetSecret transport error", func(t *testing.T) {
 		dispatcher := &mockHTTPDispatcher{
 			doFunc: func(req *http.Request) (*http.Response, error) {
 				return nil, errors.New("network timeout")
+			},
+		}
+		svc := newTestOciServices(t, dispatcher, nil)
+
+		err := svc.DeleteSecret("ocid1.vaultsecret.oc1..test")
+		assert.Error(t, err)
+	})
+
+	t.Run("negative — ScheduleSecretDeletion transport error", func(t *testing.T) {
+		dispatcher := &mockHTTPDispatcher{
+			doFunc: func(req *http.Request) (*http.Response, error) {
+				if strings.Contains(req.URL.Path, scheduleDeletionPathFragment) {
+					return nil, errors.New("network timeout")
+				}
+				return mockJSONResponse(http.StatusOK, `{
+					"id":             "ocid1.vaultsecret.oc1..test",
+					"secretName":     "test",
+					"lifecycleState": "ACTIVE"
+				}`), nil
 			},
 		}
 		svc := newTestOciServices(t, dispatcher, nil)

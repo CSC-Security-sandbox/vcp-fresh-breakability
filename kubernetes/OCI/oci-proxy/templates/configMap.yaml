@@ -32,6 +32,7 @@ data:
   READINESS_PROBE_PERIOD_SECONDS: "{{ index .Values "readinessProbe" "periodSeconds" }}"
   HYPERSCALER: "{{ index .Values "hyperScaler" }}"
   OCI_ONTAP_ADMIN_PASSWORD: "{{ index .Values "ociOntapAdminPassword" }}"
+  VSA_AUTH_TYPE: "{{ index .Values "vsaAuthType" }}" #0 for username/password, 1 for username/password in vault and 2 for certificate authentication
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

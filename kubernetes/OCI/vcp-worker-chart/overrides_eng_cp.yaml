@@ -13,6 +13,9 @@ workerConfig:
   vsaMediatorImageName: "ocid1.image.oc1.iad.aaaaaaaa7jahxa2up4364shyrd6x3tv3ijmip2umefrvoh754k3lorhmchva"
   vsaImageName: "ocid1.image.oc1.iad.aaaaaaaa7dxr6bmgmppzftu3jbdcgjcyfypbsirbjopvim6x5ooasfqwp4oa"
   secretUri: "ocid1.vaultsecret.oc1.iad.amaaaaaarxzkjlqajgrscsxpkbduu4rcocmwi4wh57okquxkqibzwl6vyjxa"
+  ociVaultOcid: "ocid1.vault.oc1.iad.eju42binaahsi.abuwcljtha5cq66ha3q6lb6di7wn3ttuz542asib3oag27k7dljv3cjpnjta"
+  ociMasterKeyOcid: "ocid1.key.oc1.iad.eju42binaahsi.abuwcljtradfmzabqxbh26ahck62gomw2rquavpujf4uqblyyn6xxfiv3q4a"
+  ociCompartmentOcid: "ocid1.compartment.oc1..aaaaaaaa7lsqinxtgemwxgirwbhi6f23w2pbc3p5hp6rtmmengbtnywy3crq"
 
 # Image configuration (OCIR)
 images:

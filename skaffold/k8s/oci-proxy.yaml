@@ -78,7 +78,7 @@ spec:
             - name: HYPERSCALER
               value: "oci"
             # ONTAP admin password for OCI pool credentials (preparePool); matches Go default—use a Secret in real deployments.
-            - name: OCI_ONTAP_ADMIN_PASSWORD
+            - name: VSA_NODE_PASSWORD
               value: "Netapp1!"
             - name: OCI_ONTAP_ADMIN_USERNAME
               value: "admin"

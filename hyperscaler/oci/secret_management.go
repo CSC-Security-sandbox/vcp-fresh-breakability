@@ -228,13 +228,36 @@ func (ociService *OciServices) GetSecretWithCustomVersion(secretID string, versi
 // PENDING_DELETION state and is permanently removed after the configured
 // retention period (minimum 1 day, default 30 days).
 //
+// The call is idempotent: if the secret is already in a deletion lifecycle state
+// (SCHEDULING_DELETION / PENDING_DELETION / DELETING / DELETED) we skip the
+// ScheduleSecretDeletion call to avoid the HTTP 409 Conflict that OCI returns
+// for re-deletion attempts. This makes retries after partial failures safe.
+//
 // Docs: https://docs.oracle.com/en-us/iaas/api/#/en/secretmgmt/20180608/Secret/ScheduleSecretDeletion
 func (ociService *OciServices) DeleteSecret(secretID string) error {
 	retentionDays := env.OCISecretDeletionRetentionDays
 	ociService.Logger.Infof("Calling DeleteSecret (ScheduleSecretDeletion) for secretID: %s, retentionDays: %d", secretID, retentionDays)
 
+	// Pre-flight lifecycle check — avoid the conflict error when the secret is already
+	// scheduled for / undergoing deletion. Treat 404 as "already gone" (no-op).
+	secretResp, err := ociService.AdminOCIService.vaultClient.GetSecret(ociService.Ctx, vault.GetSecretRequest{
+		SecretId: ocicommon.String(secretID),
+	})
+	if err != nil {
+		if ociResourceNotFoundCheck(err) == nil {
+			ociService.Logger.Infof("DeleteSecret: secret %s not found, treating as already deleted", secretID)
+			return nil
+		}
+		ociService.Logger.Errorf("DeleteSecret: GetSecret failed for secretID: %s, err: %s", secretID, err.Error())
+		return vsaerrors.NewVCPError(vsaerrors.ErrOCIResourceFetchError, err)
+	}
+	if isSecretInDeletionState(secretResp.Secret.LifecycleState) {
+		ociService.Logger.Infof("DeleteSecret: secret %s already in %s state, skipping ScheduleSecretDeletion", secretID, secretResp.Secret.LifecycleState)
+		return nil
+	}
+
 	deletionTime := time.Now().UTC().AddDate(0, 0, retentionDays)
-	_, err := ociService.AdminOCIService.vaultClient.ScheduleSecretDeletion(ociService.Ctx, vault.ScheduleSecretDeletionRequest{
+	_, err = ociService.AdminOCIService.vaultClient.ScheduleSecretDeletion(ociService.Ctx, vault.ScheduleSecretDeletionRequest{
 		SecretId: ocicommon.String(secretID),
 		ScheduleSecretDeletionDetails: vault.ScheduleSecretDeletionDetails{
 			TimeOfDeletion: &ocicommon.SDKTime{Time: deletionTime},

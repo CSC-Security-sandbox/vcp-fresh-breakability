@@ -116,7 +116,15 @@ type PoolCredentials struct {
 	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
 	// Note: Region and VCPAdmin remain as environment variables
 	CaURI string `json:"ca_uri,omitempty"`
+
+	ExternalSecret      *models.ExternalCredRef `json:"external_secret,omitempty"`
+	ExternalCertificate *models.ExternalCredRef `json:"external_certificate,omitempty"`
 }
+
+// ExternalCredRef is re-exported from core/models so existing call sites that
+// use datamodel.ExternalCredRef continue to compile after the type moved to
+// break a core/models → core/datamodel import cycle.
+type ExternalCredRef = models.ExternalCredRef
 
 type AssetMetadata struct {
 	ChildAssets []ChildAsset `json:"child_assets"`

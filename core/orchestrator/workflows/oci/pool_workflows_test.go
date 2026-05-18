@@ -99,6 +99,19 @@ func withOCIWorkerStartupEnv(t *testing.T, vsa, mediator, adminPassword, region,
 	})
 }
 
+// registerOCICreatePoolOntapCredentialMocks stubs OCI Vault admin credential activities so tests do
+// not call real OCI APIs. The OCI create-pool workflow always invokes CreateOnTapCredentialsForOCI
+// (the activity itself decides whether to provision a vault secret based on pool.PoolCredentials.AuthType).
+// Call only after env.RegisterActivity(&activities.PoolActivity{...}) (Temporal test suite requirement).
+func registerOCICreatePoolOntapCredentialMocks(env *testsuite.TestWorkflowEnvironment) {
+	env.OnActivity("CreateOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return(&activities.OCICreatePoolCredentials{
+			OntapCredentials: vlm.OntapCredentials{AdminPassword: "test-ontap-admin-password"},
+			Secret:           &datamodel.ExternalCredRef{Name: "test-secret", Version: 1, ExternalIdentifier: "ocid1.vaultsecret.oc1..testsecretocid"},
+		}, nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentialsForOCI", mock.Anything, mock.Anything).Return(nil).Maybe()
+}
+
 func TestValidateOCIWorkerStartupEnv(t *testing.T) {
 	t.Run("ok when all required vars are present", func(t *testing.T) {
 		withOCIWorkerStartupEnv(t, testVSAImageOCID, testMediatorImageOCID, "Netapp1!", "us-ashburn-1", "ocid1.vaultsecret.oc1..aaa")
@@ -569,6 +582,7 @@ func TestOCIDeletePoolWorkflow_Success(t *testing.T) {
 		Account:        &datamodel.Account{Name: "test-account"},
 	}
 
+	env.OnActivity("DeleteOnTapCredentialsForOCI", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 
 	mockVlm := vlm.NewMockVlmWorkflowClient(t)
@@ -666,6 +680,7 @@ func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -703,6 +718,8 @@ func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
 
+	// SaveVSANodeDetails (the unified, hyperscaler-agnostic activity now used by
+	// the OCI workflow as well) takes (ctx, pool, vlmConfig, deploymentName, hostMap) → 5 matchers.
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 	// UpdatePoolFields stamps build_info after the pool is marked READY.
@@ -718,6 +735,172 @@ func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+// TestOCICreatePoolWorkflow_PersistsExternalSecretOnPoolCredentials is the regression
+// guard for the steady-state OCI vault rehydration bug.
+//
+// CreateOnTapCredentialsForOCI is the only place that knows the Name / OCID /
+// Version of the freshly created OCI Vault secret — that information exists
+// nowhere else in the system. The workflow must copy it onto
+// pool.PoolCredentials.ExternalSecret before exiting, so the JSONB credentials blob
+// persisted by CreatedPool's se.UpdatedPool call carries the reference for
+// every future operation that loads the pool from the DB.
+//
+// Without this write-back, downstream callers that build *models.Node via
+// hyperscaler.CreateNodeForProvider — and the unified _saveNodeDetails, which
+// also reads ExternalSecret off PoolCredentials — see
+// PoolCredentials.ExternalSecret == nil, which gets copied (as nil) onto the
+// runtime node, which causes _getProviderByNode → _getPasswordFromCacheOrOCIVault
+// (when env.GetHyperscaler()=="oci") to return "OCI vault reference is empty"
+// wrapped as ErrOCIResourceFetchError. That failure mode is what this test
+// prevents from ever silently re-emerging.
+func TestOCICreatePoolWorkflow_PersistsExternalSecretOnPoolCredentials(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+
+	var ts testsuite.WorkflowTestSuite
+	wfEnv := ts.NewTestWorkflowEnvironment()
+	wfEnv.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(wfEnv)
+
+	mockStorage := database.NewMockStorage(t)
+	wfEnv.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	wfEnv.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	// The secret coordinates the vault returns to the activity. These three
+	// fields, taken together, are the entire payload that has to round-trip
+	// from the activity through the workflow into the persisted pool row.
+	expectedRef := &datamodel.ExternalCredRef{
+		Name:               "ocnv-regression-secret",
+		Version:            7,
+		ExternalIdentifier: "ocid1.vaultsecret.oc1..regression",
+	}
+
+	// Stub CreateOnTapCredentialsForOCI to return the known ref. We do NOT
+	// reuse registerOCICreatePoolOntapCredentialMocks here because that helper
+	// uses .Maybe() and a different secret payload; this test wants a strict
+	// expectation on the returned ref so the assertion below is unambiguous.
+	wfEnv.OnActivity("CreateOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return(&activities.OCICreatePoolCredentials{
+			OntapCredentials: vlm.OntapCredentials{AdminPassword: "test-ontap-admin-password"},
+			Secret:           expectedRef,
+		}, nil)
+	wfEnv.OnActivity("DeleteOnTapCredentialsForOCI", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		AccountID: 12345,
+		VendorID:  "test-vendor",
+		Account:   &datamodel.Account{Name: "test-account"},
+		// PoolCredentials must be non-nil (the workflow rejects nil at
+		// line 191) but ExternalSecret is intentionally nil here — that's the
+		// production starting state we are testing the workflow can heal.
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	wfEnv.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	// Capture the pool that arrives at SaveVSANodeDetails as well as
+	// CreatedPool. We assert against both: the former proves the mutation is
+	// in place by the time the node-save activity runs (so the unified
+	// _saveNodeDetails — which now reads pool.PoolCredentials.ExternalSecret
+	// and propagates it onto the in-memory Node so the OCI vault lookup can
+	// resolve — sees it), and the latter proves the mutation is in place by
+	// the time the JSONB column is actually persisted via se.UpdatedPool.
+	//
+	// SaveVSANodeDetails takes (ctx, pool, vlmConfig, deploymentName, hostMap) → 5 matchers.
+	var saveNodeDetailsPool, createdPoolPool *datamodel.Pool
+	wfEnv.OnActivity("SaveVSANodeDetails",
+		mock.Anything,
+		mock.MatchedBy(func(p *datamodel.Pool) bool {
+			saveNodeDetailsPool = p
+			return true
+		}),
+		mock.Anything, mock.Anything, mock.Anything,
+	).Return((*datamodel.Node)(nil), nil)
+	wfEnv.OnActivity("CreatedPool",
+		mock.Anything,
+		mock.MatchedBy(func(p *datamodel.Pool) bool {
+			createdPoolPool = p
+			return true
+		}),
+		mock.Anything,
+	).Return(pool, nil)
+	// The workflow persists build_info via UpdatePoolFields after CreatedPool
+	// (see pool_workflows.go: "build_info": NewPoolBuildInfo(...)). This test
+	// is not asserting on build_info — TestOCICreatePoolWorkflow_PersistsBuildInfo
+	// owns that contract — so a permissive stub is sufficient. Without it the
+	// activity nil-derefs in the mock and surfaces as a workflow error,
+	// masking the credential-persistence assertions below.
+	wfEnv.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	wfEnv.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, wfEnv.IsWorkflowCompleted())
+	require.NoError(t, wfEnv.GetWorkflowError())
+
+	// Primary assertion: the pool that reaches CreatedPool — and therefore
+	// the pool whose JSONB credentials blob is persisted — must carry the
+	// ExternalSecret produced by CreateOnTapCredentialsForOCI. Field-by-field
+	// equality (not pointer identity) because Temporal serializes activity
+	// arguments through its data converter.
+	if assert.NotNil(t, createdPoolPool, "CreatedPool must be invoked with the workflow's pool") {
+		if assert.NotNil(t, createdPoolPool.PoolCredentials, "PoolCredentials must be present on the persisted pool") {
+			if assert.NotNil(t, createdPoolPool.PoolCredentials.ExternalSecret,
+				"ExternalSecret must be persisted onto PoolCredentials before the workflow exits — "+
+					"otherwise CreateNodeForProvider will re-hydrate nil and downstream OCI vault "+
+					"lookups fail with \"OCI vault reference is empty\"") {
+				assert.Equal(t, expectedRef.Name, createdPoolPool.PoolCredentials.ExternalSecret.Name)
+				assert.Equal(t, expectedRef.Version, createdPoolPool.PoolCredentials.ExternalSecret.Version)
+				assert.Equal(t, expectedRef.ExternalIdentifier, createdPoolPool.PoolCredentials.ExternalSecret.ExternalIdentifier)
+			}
+			// ExternalCertificate stays nil today (the cert flow is a TODO in
+			// CreateOnTapCredentialsForOCI). When that lands, replace this
+			// nil-check with a positive assertion mirroring ExternalSecret above.
+			assert.Nil(t, createdPoolPool.PoolCredentials.ExternalCertificate,
+				"ExternalCertificate is expected to be nil until the OCI certificate flow is wired up; "+
+					"if this assertion fires, mirror the ExternalSecret assertions above for the cert ref")
+		}
+	}
+
+	// Secondary assertion: the same mutation is visible to
+	// SaveVSANodeDetails, which runs before CreatedPool. This pins the
+	// ordering invariant — if anyone moves the credential write-back below
+	// SaveVSANodeDetails, this assertion will catch it even though the
+	// primary assertion above might still pass.
+	if assert.NotNil(t, saveNodeDetailsPool, "SaveVSANodeDetails must be invoked with the workflow's pool") {
+		if assert.NotNil(t, saveNodeDetailsPool.PoolCredentials) {
+			assert.NotNil(t, saveNodeDetailsPool.PoolCredentials.ExternalSecret,
+				"the credential write-back must happen before SaveVSANodeDetails runs, "+
+					"so _saveNodeDetails (which reads ExternalSecret off the passed-in pool "+
+					"and copies it onto the in-memory models.Node) sees the populated value")
+		}
+	}
+
+	wfEnv.AssertExpectations(t)
+}
+
 func TestOCICreatePoolWorkflow_SetupError(t *testing.T) {
 	setTestOCIImageEnv(t)
 	var ts testsuite.WorkflowTestSuite
@@ -728,6 +911,7 @@ func TestOCICreatePoolWorkflow_SetupError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	// Set up test data with invalid params to cause setup error
 	params := &common.CreatePoolParams{
@@ -773,6 +957,7 @@ func TestOCICreatePoolWorkflow_EnsureJobStateError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -823,6 +1008,7 @@ func TestOCICreatePoolWorkflow_UpdateJobStatusError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -860,6 +1046,7 @@ func TestOCICreatePoolWorkflow_UpdateJobStatusError(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
 
+	// SaveVSANodeDetails takes (ctx, pool, vlmConfig, deploymentName, hostMap) → 5 matchers.
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Pool)(nil), assert.AnError)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
@@ -883,6 +1070,7 @@ func TestOCICreatePoolWorkflow_SaveVSANodeDetailsFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -915,6 +1103,7 @@ func TestOCICreatePoolWorkflow_SaveVSANodeDetailsFailure(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
 
+	// SaveVSANodeDetails takes (ctx, pool, vlmConfig, deploymentName, hostMap) → 5 matchers.
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), assert.AnError)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 
@@ -937,6 +1126,7 @@ func TestOCICreatePoolWorkflow_RunMethodCalled(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -974,6 +1164,7 @@ func TestOCICreatePoolWorkflow_RunMethodCalled(t *testing.T) {
 	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
 	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
 
+	// SaveVSANodeDetails takes (ctx, pool, vlmConfig, deploymentName, hostMap) → 5 matchers.
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 	// UpdatePoolFields stamps build_info after the pool is marked READY.
@@ -1005,6 +1196,7 @@ func TestOCICreatePoolWorkflow_ExpertModePasswordFromEnv(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -1035,6 +1227,7 @@ func TestOCICreatePoolWorkflow_ExpertModePasswordFromEnv(t *testing.T) {
 	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
 
 	// GetExpertModeCredentialsForOCI must NOT be called when the env var is pre-set.
+	// SaveVSANodeDetails takes (ctx, pool, vlmConfig, deploymentName, hostMap) → 5 matchers.
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 	// UpdatePoolFields stamps build_info after the pool is marked READY.
@@ -1061,6 +1254,7 @@ func TestOCICreatePoolWorkflow_CreateExpertModeCredentialsFails(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -1115,6 +1309,7 @@ func TestOCICreatePoolWorkflow_CreateVSAExpertModeUserFails(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",
@@ -1145,6 +1340,62 @@ func TestOCICreatePoolWorkflow_CreateVSAExpertModeUserFails(t *testing.T) {
 
 	// Rollback path: ErroredPool is called; SaveVSANodeDetails and CreatedPool are never reached.
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestOCICreatePoolWorkflow_RollbackDeletesOntapSecretAfterVLMCreateFails asserts that when
+// CreateOnTapCredentialsForOCI has created a vault secret, a failure at CreateVSAClusterDeployment
+// triggers rollback: VLM delete child workflow runs first (LIFO), then DeleteOnTapCredentialsForOCI.
+func TestOCICreatePoolWorkflow_RollbackDeletesOntapSecretAfterVLMCreateFails(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		DeploymentName:  "dep-rollback-test",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "rollback-pass"},
+	}
+
+	env.OnActivity("CreateOnTapCredentialsForOCI", mock.Anything, mock.Anything).
+		Return(&activities.OCICreatePoolCredentials{
+			OntapCredentials: vlm.OntapCredentials{AdminPassword: "vault-generated-password"},
+			Secret:           &datamodel.ExternalCredRef{Name: "dep-rollback-test-secret", Version: 1, ExternalIdentifier: "ocid1.vaultsecret.oc1..rollbacksecretocid"},
+		}, nil).Once()
+	env.OnActivity("DeleteOnTapCredentialsForOCI", mock.Anything, mock.Anything).Return(nil).Once()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil).Once()
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return((*vlm.CreateVSAClusterDeploymentResponse)(nil), assert.AnError)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
 
 	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
 
@@ -1336,6 +1587,11 @@ func TestOCICreatePoolWorkflow_PersistsBuildInfo(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	// The OCI create-pool workflow now always invokes CreateOnTapCredentialsForOCI
+	// before SaveVSANodeDetails / CreatedPool. Without a stub the activity tries
+	// to initialise a real OCI Vault client and fails its retries, rolling the
+	// workflow back before UpdatePoolFields is ever reached.
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	const wantPoolUUID = "test-pool-uuid-buildinfo"
 	params := &common.CreatePoolParams{
@@ -1429,6 +1685,11 @@ func TestOCICreatePoolWorkflow_BuildInfoPersistFailureIsNonFatal(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	// See sibling TestOCICreatePoolWorkflow_PersistsBuildInfo: without this stub
+	// the OCI ontap-credential activity hits a real OCI Vault client init and
+	// the workflow rolls back before reaching the UpdatePoolFields call this
+	// test is targeting.
+	registerOCICreatePoolOntapCredentialMocks(env)
 
 	params := &common.CreatePoolParams{
 		Name:        "test-pool",

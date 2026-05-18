@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -22,17 +23,28 @@ import (
 	"gorm.io/gorm"
 )
 
-func withOCIAdminCreds(t *testing.T, username, password string) {
+// withOCIOntapAdminCreds overrides the env-package globals that the OCI factory
+// reads and restores them on test cleanup. We override the package vars
+// directly (rather than t.Setenv) because env.OCIOntapAdminUsername and
+// env.NodePassword are captured once at process start; t.Setenv would not
+// affect what the factory observes.
+//
+// Note: the OCI default (USERNAME_PWD) credential branch reads the cluster
+// admin password from env.NodePassword (shared with GCP)
+func withOCIOntapAdminCreds(t *testing.T, username, password string) {
 	t.Helper()
-	origUser, origPass := ociOntapAdminUsername, ociOntapAdminPassword
-	ociOntapAdminUsername, ociOntapAdminPassword = username, password
+	origUsername := env.OCIOntapAdminUsername
+	origPassword := env.NodePassword
 	t.Cleanup(func() {
-		ociOntapAdminUsername, ociOntapAdminPassword = origUser, origPass
+		env.OCIOntapAdminUsername = origUsername
+		env.NodePassword = origPassword
 	})
+	env.OCIOntapAdminUsername = username
+	env.NodePassword = password
 }
 
 func TestPreparePool_OntapAdminCredentialsFromEnv(t *testing.T) {
-	withOCIAdminCreds(t, "svc-admin", "secret-pass")
+	withOCIOntapAdminCreds(t, "svc-admin", "secret-pass")
 
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
 	iops := int64(100)
@@ -50,7 +62,7 @@ func TestPreparePool_OntapAdminCredentialsFromEnv(t *testing.T) {
 }
 
 func TestPreparePool_KmsConfigAndActiveDirectory(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "pw")
+	withOCIOntapAdminCreds(t, "admin", "pw")
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
 	params := &commonparams.CreatePoolParams{
 		Name: "pool1",
@@ -71,7 +83,7 @@ func TestPreparePool_KmsConfigAndActiveDirectory(t *testing.T) {
 }
 
 func TestPreparePool_UsesPreGeneratedDeploymentName(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "pw")
+	withOCIOntapAdminCreds(t, "admin", "pw")
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
 	params := &commonparams.CreatePoolParams{
 		Name:           "pool1",
@@ -81,8 +93,72 @@ func TestPreparePool_UsesPreGeneratedDeploymentName(t *testing.T) {
 	assert.Equal(t, "preset-deployment-name", pool.DeploymentName)
 }
 
+// withAuthType overrides env.AuthType for the duration of a test so we can
+// exercise the non-default credential branches in preparePool without relying
+// on VSA_AUTH_TYPE being set in the environment when the process started.
+func withAuthType(t *testing.T, authType int) {
+	t.Helper()
+	orig := env.AuthType
+	t.Cleanup(func() { env.AuthType = orig })
+	env.AuthType = authType
+}
+
+// TestPreparePool_UsernamePwdSecMgrBranch verifies the env.USERNAME_PWD_SEC_MGR
+// branch of preparePool: PoolCredentials must be populated with the deployment
+// scoped SecretID, the configured admin username, and an empty password (the
+// password lives in OCI Vault and is fetched at credential-creation time).
+func TestPreparePool_UsernamePwdSecMgrBranch(t *testing.T) {
+	withOCIOntapAdminCreds(t, "vault-admin", "ignored-when-secmgr")
+	withAuthType(t, env.USERNAME_PWD_SEC_MGR)
+
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
+	params := &commonparams.CreatePoolParams{
+		Name:           "pool1",
+		DeploymentName: "ocnv-deadbeefcafebabe",
+	}
+
+	pool := preparePool(params, acc, 0)
+
+	require.NotNil(t, pool.PoolCredentials)
+	assert.Equal(t, env.USERNAME_PWD_SEC_MGR, pool.PoolCredentials.AuthType)
+	assert.Equal(t, "ocnv-deadbeefcafebabe-secret", pool.PoolCredentials.SecretID)
+	assert.Empty(t, pool.PoolCredentials.CertificateID)
+	assert.Empty(t, pool.PoolCredentials.Password,
+		"password must be empty for sec-mgr branch; it is fetched from OCI Vault later")
+	assert.Equal(t, "vault-admin", pool.PoolCredentials.Username)
+}
+
+// TestPreparePool_UserCertificateBranch verifies the env.USER_CERTIFICATE
+// branch: both SecretID and CertificateID are derived from the deployment
+// name, password/username are intentionally left empty (auth happens via the
+// client cert), and AuthType is propagated to the pool record.
+func TestPreparePool_UserCertificateBranch(t *testing.T) {
+	withOCIOntapAdminCreds(t, "ignored-when-cert", "ignored-when-cert")
+	withAuthType(t, env.USER_CERTIFICATE)
+
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
+	params := &commonparams.CreatePoolParams{
+		Name:           "pool1",
+		DeploymentName: "ocnv-abc123",
+	}
+
+	pool := preparePool(params, acc, 0)
+
+	require.NotNil(t, pool.PoolCredentials)
+	assert.Equal(t, env.USER_CERTIFICATE, pool.PoolCredentials.AuthType)
+	assert.Equal(t, "ocnv-abc123-secret", pool.PoolCredentials.SecretID)
+	assert.Equal(t, "ocnv-abc123-cert", pool.PoolCredentials.CertificateID)
+	assert.Empty(t, pool.PoolCredentials.Password)
+	assert.Empty(t, pool.PoolCredentials.Username)
+}
+
 func TestPreparePool_OntapAdminDefaultsWhenEnvUnset(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "")
+	// "admin" is the env-package default for OCIOntapAdminUsername when
+	// OCI_ONTAP_ADMIN_USERNAME is unset at process start; "" represents
+	// VSA_NODE_PASSWORD being unset (env.NodePassword default). Override
+	// directly so this test stays hermetic regardless of what was set when
+	// the process launched.
+	withOCIOntapAdminCreds(t, "admin", "")
 
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
 	iops := int64(100)
@@ -100,7 +176,7 @@ func TestPreparePool_OntapAdminDefaultsWhenEnvUnset(t *testing.T) {
 
 // TestCreatePool_Integration uses a real in-memory database for integration testing
 func TestCreatePool_Integration(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "Netapp1!")
+	withOCIOntapAdminCreds(t, "admin", "Netapp1!")
 
 	ctx := context.Background()
 	mockLogger := log.NewLogger()
@@ -360,7 +436,7 @@ func TestCreatePool_GetOrCreateAccountFails(t *testing.T) {
 }
 
 func TestCreatePool_CreatingPoolConflictPassesThrough(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "x")
+	withOCIOntapAdminCreds(t, "admin", "x")
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
@@ -388,7 +464,7 @@ func TestCreatePool_CreatingPoolConflictPassesThrough(t *testing.T) {
 }
 
 func TestCreatePool_CreatingPoolVCPErrorWrappedConflictPassesThrough(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "x")
+	withOCIOntapAdminCreds(t, "admin", "x")
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
@@ -416,7 +492,7 @@ func TestCreatePool_CreatingPoolVCPErrorWrappedConflictPassesThrough(t *testing.
 }
 
 func TestCreatePool_CreatingPoolNonConflictReturnsError(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "x")
+	withOCIOntapAdminCreds(t, "admin", "x")
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
@@ -447,7 +523,7 @@ func TestCreatePool_CreatingPoolNonConflictReturnsError(t *testing.T) {
 // TestCreatePool_SucceedsWithoutVSAImageEnv documents that VSA / mediator image OCIDs are validated at OCI
 // customer worker startup (see worker/main.go), not in CreatePool — oci-proxy need not set VSA_IMAGE_*.
 func TestCreatePool_SucceedsWithoutVSAImageEnv(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "Netapp1!")
+	withOCIOntapAdminCreds(t, "admin", "Netapp1!")
 	t.Cleanup(func() {
 		_ = os.Unsetenv("VSA_IMAGE_NAME")
 		_ = os.Unsetenv("VSA_MEDIATOR_IMAGE_NAME")
@@ -492,7 +568,7 @@ func TestCreatePool_SucceedsWithoutVSAImageEnv(t *testing.T) {
 }
 
 func TestCreatePool_WorkflowStartFails(t *testing.T) {
-	withOCIAdminCreds(t, "admin", "Netapp1!")
+	withOCIOntapAdminCreds(t, "admin", "Netapp1!")
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())

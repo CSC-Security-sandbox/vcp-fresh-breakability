@@ -200,6 +200,14 @@ func _initializeSecretsClient() (*secrets.SecretsClient, error) {
 	return &client, nil
 }
 
+// NewAdminOCIService creates an AdminOCIService from pre-built SDK clients.
+// This allows callers (including test code in other packages) to construct
+// an OciServices backed by controlled or mock-backed clients without going
+// through the full InitializeClients authentication flow.
+func NewAdminOCIService(vaultClient vault.VaultsClient, secretsClient secrets.SecretsClient) *AdminOCIService {
+	return &AdminOCIService{vaultClient: vaultClient, secretsClient: secretsClient}
+}
+
 // ociResourceNotFoundCheck mirrors googleResourceNotFoundCheck: it returns nil
 // when the error is an HTTP 404 (resource not found), allowing callers to
 // distinguish "not found" from real failures.

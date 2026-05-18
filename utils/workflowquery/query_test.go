@@ -257,7 +257,7 @@ func TestGetWorkflowFailureReason_LastFailureWins(t *testing.T) {
 	require.Contains(t, werr.Message, "second")
 }
 
-func TestGetWorkflowInputMetadata_OCIPoolChildResult(t *testing.T) {
+func TestGetCompletedWorkflowMetadata_OCIPoolChildResult(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	childJSON := map[string]interface{}{
@@ -312,7 +312,124 @@ func TestGetWorkflowInputMetadata_OCIPoolChildResult(t *testing.T) {
 	require.Equal(t, "150.136.212.147", poolMeta.Vms[0].VSAManagementIP)
 }
 
-func TestGetWorkflowInputMetadata_WrongParentOrChildSkipped(t *testing.T) {
+func TestGetCompletedWorkflowMetadata_PoolCredentialsAndVMs(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	credBody, err := json.Marshal(map[string]interface{}{
+		"secret": map[string]interface{}{"name": "ontap-admin-secret", "version": 2},
+	})
+	require.NoError(t, err)
+	childBody, err := json.Marshal(map[string]interface{}{
+		"vlm_config": map[string]interface{}{
+			"cloud": map[string]interface{}{
+				"ha_pair": []interface{}{
+					map[string]interface{}{
+						"vm1": map[string]interface{}{
+							"name":              "vm-1",
+							"serial_number":     "9551",
+							"vsa_management_ip": "10.0.0.10",
+							"lifs": map[string]interface{}{
+								"intercluster":     map[string]interface{}{"ip": "10.0.0.11"},
+								"nodemgmtinternal": map[string]interface{}{"ip": "10.0.0.12"},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	events := []*historypb.HistoryEvent{
+		{
+			EventType: enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
+				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "OCICreatePoolWorkflow"},
+				},
+			},
+		},
+		{
+			EventId:   5,
+			EventType: enums.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+			Attributes: &historypb.HistoryEvent_ActivityTaskScheduledEventAttributes{
+				ActivityTaskScheduledEventAttributes: &historypb.ActivityTaskScheduledEventAttributes{
+					ActivityType: &commonpb.ActivityType{Name: "CreateOnTapCredentialsForOCI"},
+				},
+			},
+		},
+		{
+			EventType: enums.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+			Attributes: &historypb.HistoryEvent_ActivityTaskCompletedEventAttributes{
+				ActivityTaskCompletedEventAttributes: &historypb.ActivityTaskCompletedEventAttributes{
+					ScheduledEventId: 5,
+					Result:           &commonpb.Payloads{Payloads: []*commonpb.Payload{{Data: credBody}}},
+				},
+			},
+		},
+		{
+			EventType: enums.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED,
+			Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionCompletedEventAttributes{
+				ChildWorkflowExecutionCompletedEventAttributes: &historypb.ChildWorkflowExecutionCompletedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "vlm.CreateVSAClusterDeploymentWorkflow"},
+					Result:       &commonpb.Payloads{Payloads: []*commonpb.Payload{{Data: childBody}}},
+				},
+			},
+		},
+	}
+	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.Nil(t, svmMeta, "SVM metadata must remain nil for an OCICreatePoolWorkflow")
+	require.NotNil(t, poolMeta)
+	require.Len(t, poolMeta.Vms, 1)
+	require.Equal(t, "vm-1", poolMeta.Vms[0].Name)
+	require.NotNil(t, poolMeta.Credentials)
+	require.NotNil(t, poolMeta.Credentials.Secret)
+	require.Equal(t, "ontap-admin-secret", poolMeta.Credentials.Secret.Ocid)
+	require.Equal(t, "2", poolMeta.Credentials.Secret.Version)
+}
+
+func TestGetCompletedWorkflowMetadata_OtherActivitiesIgnored(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	body, err := json.Marshal(map[string]string{"k": "v"})
+	require.NoError(t, err)
+	events := []*historypb.HistoryEvent{
+		{
+			EventType: enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
+				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "OCICreatePoolWorkflow"},
+				},
+			},
+		},
+		{
+			EventId:   5,
+			EventType: enums.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+			Attributes: &historypb.HistoryEvent_ActivityTaskScheduledEventAttributes{
+				ActivityTaskScheduledEventAttributes: &historypb.ActivityTaskScheduledEventAttributes{
+					ActivityType: &commonpb.ActivityType{Name: "SomeUnrelatedActivity"},
+				},
+			},
+		},
+		{
+			EventType: enums.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+			Attributes: &historypb.HistoryEvent_ActivityTaskCompletedEventAttributes{
+				ActivityTaskCompletedEventAttributes: &historypb.ActivityTaskCompletedEventAttributes{
+					ScheduledEventId: 5,
+					Result:           &commonpb.Payloads{Payloads: []*commonpb.Payload{{Data: body}}},
+				},
+			},
+		},
+	}
+	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.Nil(t, poolMeta, "no metadata when only unrelated activities have completed")
+	require.Nil(t, svmMeta)
+}
+
+func TestGetCompletedWorkflowMetadata_WrongParentOrChildSkipped(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	raw, err := json.Marshal(map[string]string{"x": "y"})

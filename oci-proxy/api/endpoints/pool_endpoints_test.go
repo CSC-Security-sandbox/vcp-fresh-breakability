@@ -469,6 +469,67 @@ func TestGetWorkflow(t *testing.T) {
 		}
 	})
 
+	t.Run("GetWorkflow surfaces credentials.secret from completed pool workflow metadata", func(tt *testing.T) {
+		orig := workflowQueryFn
+		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
+			return workflowquery.Result{
+				Status:       workflowquery.WorkflowStatusCompleted,
+				WorkflowType: "OCICreatePoolWorkflow",
+				PoolMetadata: &workflowquery.OCICreatePoolMetadata{
+					Credentials: &workflowquery.OCICreatePoolCredentialsMetadata{
+						Secret: &workflowquery.OCICredentialRefMetadata{
+							Ocid:    "FsnIdocnv-2bbd1dd79fa45f97-ontap-admin",
+							Version: "3",
+						},
+					},
+				},
+			}, nil
+		}
+		tt.Cleanup(func() { workflowQueryFn = orig })
+
+		h := Handler{}
+		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-2"})
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		assert.True(tt, ok)
+		assert.Equal(tt, "completed", headers.Response.Status)
+		assert.True(tt, headers.Response.PoolMetadata.IsSet())
+		meta, ok := headers.Response.PoolMetadata.Get()
+		assert.True(tt, ok)
+		assert.Empty(tt, meta.Vms)
+		assert.Equal(tt, "FsnIdocnv-2bbd1dd79fa45f97-ontap-admin", meta.Credentials.Secret.Ocid)
+		assert.Equal(tt, "3", meta.Credentials.Secret.Version)
+		// Certificate is reserved for future PRs and must collapse to empty placeholder.
+		assert.Equal(tt, "", meta.Credentials.Certificate.Ocid)
+		assert.Equal(tt, "", meta.Credentials.Certificate.Version)
+	})
+
+	t.Run("GetWorkflow emits empty credentials when pool metadata has none", func(tt *testing.T) {
+		orig := workflowQueryFn
+		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
+			return workflowquery.Result{
+				Status:       workflowquery.WorkflowStatusCompleted,
+				WorkflowType: "OCICreatePoolWorkflow",
+				PoolMetadata: &workflowquery.OCICreatePoolMetadata{
+					Vms: []workflowquery.OCICreatePoolVMMetadata{{Name: "vm-x"}},
+				},
+			}, nil
+		}
+		tt.Cleanup(func() { workflowQueryFn = orig })
+
+		h := Handler{}
+		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-3"})
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		assert.True(tt, ok)
+		meta, ok := headers.Response.PoolMetadata.Get()
+		assert.True(tt, ok)
+		assert.Equal(tt, "", meta.Credentials.Secret.Ocid)
+		assert.Equal(tt, "", meta.Credentials.Secret.Version)
+		assert.Equal(tt, "", meta.Credentials.Certificate.Ocid)
+		assert.Equal(tt, "", meta.Credentials.Certificate.Version)
+	})
+
 	t.Run("GetWorkflow maps SVM metadata when query returns SVM result", func(tt *testing.T) {
 		orig := workflowQueryFn
 		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {

@@ -36,8 +36,6 @@ const (
 var (
 	// ociDeploymentPrefix is the OCI deployment name prefix, from OCI_DEPLOYMENT_NAME_PREFIX (default "ocnv-").
 	ociDeploymentPrefix         = env.GetString("OCI_DEPLOYMENT_NAME_PREFIX", "ocnv-")
-	ociOntapAdminPassword       = env.GetString("OCI_ONTAP_ADMIN_PASSWORD", "")
-	ociOntapAdminUsername       = env.GetString("OCI_ONTAP_ADMIN_USERNAME", "admin")
 	ociDeploymentNameValidChars = regexp.MustCompile(`[^a-z0-9-]`)
 )
 
@@ -142,12 +140,31 @@ func preparePool(
 		poolObj.DeploymentName = params.DeploymentName
 	}
 
-	poolObj.PoolCredentials = &datamodel.PoolCredentials{
-		SecretID:      "",
-		CertificateID: "",
-		Password:      ociOntapAdminPassword,
-		AuthType:      env.USERNAME_PWD,
-		Username:      ociOntapAdminUsername,
+	switch env.AuthType {
+	case env.USER_CERTIFICATE:
+		poolObj.PoolCredentials = &datamodel.PoolCredentials{
+			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
+			CertificateID: fmt.Sprintf("%s-cert", poolObj.DeploymentName),
+			Password:      "",
+			AuthType:      env.USER_CERTIFICATE,
+			// Username:      fmt.Sprintf("%s%s", userName, VCP_ADMIN_CERT_UN_SUFFIX),
+		}
+	case env.USERNAME_PWD_SEC_MGR:
+		poolObj.PoolCredentials = &datamodel.PoolCredentials{
+			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
+			CertificateID: "",
+			Password:      "",
+			AuthType:      env.USERNAME_PWD_SEC_MGR,
+			Username:      env.OCIOntapAdminUsername,
+		}
+	default:
+		poolObj.PoolCredentials = &datamodel.PoolCredentials{
+			SecretID:      "",
+			CertificateID: "",
+			Password:      env.NodePassword,
+			AuthType:      env.USERNAME_PWD,
+			Username:      env.OCIOntapAdminUsername,
+		}
 	}
 
 	return poolObj

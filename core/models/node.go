@@ -22,6 +22,9 @@ type Node struct {
 	// Certificate-related configuration (from database with env var fallback)
 	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
 	CaURI string `json:"ca_uri,omitempty"`
+
+	ExternalSecret      *ExternalCredRef `json:"external_secret,omitempty"`
+	ExternalCertificate *ExternalCredRef `json:"external_certificate,omitempty"`
 }
 
 // GetCaURIWithFallback gets ca_uri from Node, falling back to environment variables if not set.

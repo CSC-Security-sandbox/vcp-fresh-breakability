@@ -564,10 +564,10 @@ func TestCreateNodeForProvider_CAFieldsForNonCertificateAuth(t *testing.T) {
 		},
 		DeploymentName: "test-deployment",
 		OntapCredentials: &datamodel.PoolCredentials{
-			Password:  "password123",
-			SecretID:   "secret-id",
-			AuthType:   env.USERNAME_PWD,
-			CaURI:      "test-ca-pool-deployed-project-id/test-ca-pool-name/test-ca-name",
+			Password: "password123",
+			SecretID: "secret-id",
+			AuthType: env.USERNAME_PWD,
+			CaURI:    "test-ca-pool-deployed-project-id/test-ca-pool-name/test-ca-name",
 		},
 	}
 

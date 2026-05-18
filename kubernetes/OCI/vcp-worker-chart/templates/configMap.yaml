@@ -18,6 +18,8 @@ data:
   {{- end }}
   TEMPORAL_ADDRESS: {{ $.Values.workerConfig.temporalAddress | quote }}
   HYPERSCALER: {{ $.Values.global.hyperscaler | default $.Values.global.environment | quote }}
+  # 0 : username/password, 1 : username/password in OCI Vault. Certificate authentication (2) is not yet supported on OCI.
+  VSA_AUTH_TYPE: {{ $.Values.workerConfig.vsaAuthType | default "0" | quote }}
   DB_TYPE: {{ $.Values.workerConfig.database.type | quote }}
   DB_PORT: {{ $.Values.workerConfig.database.port | quote }}
   DB_NAME: {{ $.Values.workerConfig.database.dbname | quote }}
@@ -99,6 +101,9 @@ data:
   OCI_RESOURCE_PRINCIPAL_VERSION: {{ $.Values.workerConfig.ociResourcePrincipalVersion | quote }}
   OCI_EXPERT_MODE_PASSWORD: {{ $.Values.workerConfig.ociExpertModePassword | quote }}
   OCI_ONTAP_ADMIN_PASSWORD: {{ $.Values.workerConfig.ociOntapAdminPassword | quote }}
+  OCI_VAULT_OCID: {{ $.Values.workerConfig.ociVaultOcid | quote }}
+  OCI_MASTER_KEY_OCID: {{ $.Values.workerConfig.ociMasterKeyOcid | quote }}
+  OCI_COMPARTMENT_OCID: {{ $.Values.workerConfig.ociCompartmentOcid | quote }}
 
 
 ---
