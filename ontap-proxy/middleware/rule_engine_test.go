@@ -240,6 +240,22 @@ func TestFindMatchingRule(t *testing.T) {
 		assert.NotNil(t, rule.GET)
 	})
 
+	t.Run("WhenTrailingSlash_ShouldMatchRuleWithoutSlash", func(t *testing.T) {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
+			return "/api/storage/flexcache/flexcaches/"
+		}
+		defer func() { extractOntapPath = originalExtract }()
+
+		logger := util.GetLogger(context.Background())
+
+		rule, path, found := findMatchingRule("/ontap/api/storage/flexcache/flexcaches/", logger)
+
+		assert.True(t, found, "trailing slash should match rule without slash")
+		assert.Equal(t, "/api/storage/flexcache/flexcaches", path)
+		assert.NotNil(t, rule)
+	})
+
 	t.Run("WhenClusterCounterTablesSubPath_ShouldMatchWildcardRule", func(t *testing.T) {
 		originalExtract := extractOntapPath
 		extractOntapPath = func(fullPath string) string {

@@ -84,6 +84,9 @@ func findMatchingRule(requestPath string, logger log.Logger) (dsl.Rule, string, 
 
 	proxyRules := rules.GetProxyRules()
 
+	// Normalize trailing slash so "api/storage/flexcache/flexcaches/" matches the rule for "api/storage/flexcache/flexcaches"
+	path = strings.TrimSuffix(path, "/")
+
 	// Try exact match first
 	if rule, ok := proxyRules[path]; ok {
 		return rule, path, true
