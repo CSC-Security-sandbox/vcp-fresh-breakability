@@ -317,6 +317,8 @@ def _semver_gte(a, b):
     return pa >= pb
 
 cve_fixes, orphan_alerts = [], []
+_seen_fixes = set()
+_seen_orphans = set()
 for a in open_alerts:
     alert_pkg = a.get("dependency", {}).get("package", "")
     fpv = a.get("security_vulnerability", {}).get("first_patched_version")
@@ -326,18 +328,24 @@ for a in open_alerts:
     matched = False
     for num, pr in prs.items():
         if pr.get("package", "") == alert_pkg and fpv and _semver_gte(pr.get("to", ""), fpv):
-            cve_fixes.append({
-                "pr": int(num) if str(num).isdigit() else num,
-                "package": alert_pkg, "cve_id": cve, "severity": sev,
-                "from_version": pr.get("from", ""), "to_version": pr.get("to", ""),
-                "first_patched_version": fpv, "summary": summary[:200],
-            })
+            _fix_key = (alert_pkg, cve, num)
+            if _fix_key not in _seen_fixes:
+                _seen_fixes.add(_fix_key)
+                cve_fixes.append({
+                    "pr": int(num) if str(num).isdigit() else num,
+                    "package": alert_pkg, "cve_id": cve, "severity": sev,
+                    "from_version": pr.get("from", ""), "to_version": pr.get("to", ""),
+                    "first_patched_version": fpv, "summary": summary[:200],
+                })
             matched = True
     if not matched:
-        orphan_alerts.append({
-            "cve_id": cve, "package": alert_pkg, "severity": sev,
-            "first_patched_version": fpv or "unknown", "summary": summary[:200],
-        })
+        _orphan_key = (alert_pkg, cve)
+        if _orphan_key not in _seen_orphans:
+            _seen_orphans.add(_orphan_key)
+            orphan_alerts.append({
+                "cve_id": cve, "package": alert_pkg, "severity": sev,
+                "first_patched_version": fpv or "unknown", "summary": summary[:200],
+            })
 _SEV_ORDER = {"critical": 0, "high": 1, "medium": 2, "moderate": 2, "low": 3, "unknown": 4}
 cve_fixes.sort(key=lambda x: (_SEV_ORDER.get((x["severity"] or "").lower(), 4), x.get("pr", 9999)))
 orphan_alerts.sort(key=lambda x: _SEV_ORDER.get((x["severity"] or "").lower(), 4))
@@ -355,6 +363,18 @@ security_posture = {
 }
 
 data["security_posture"] = security_posture
+
+# V9.9 iter8: annotate each PR with CVEs it fixes (from Dependabot alert matching)
+# so the per-PR comment poster can show "this PR fixes CVE-XXXX (CRITICAL)"
+for fix in cve_fixes:
+    pr_num = str(fix["pr"])
+    if pr_num in prs:
+        if "fixes_cves" not in prs[pr_num]:
+            prs[pr_num]["fixes_cves"] = []
+        prs[pr_num]["fixes_cves"].append({
+            "cve_id": fix["cve_id"], "severity": fix["severity"],
+            "first_patched_version": fix["first_patched_version"],
+        })
 
 # ── govulncheck aggregates (V9.7b): main baseline + per-PR new findings ─────
 _govuln = {"main_baseline": {"status": "unknown", "findings": []},

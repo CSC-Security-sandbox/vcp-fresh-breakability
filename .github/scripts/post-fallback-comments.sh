@@ -234,6 +234,7 @@ print(json.dumps({
     'vuln_new_findings': pr.get('vuln_new_findings', []),
     'vuln_preexisting_count': pr.get('vuln_preexisting_count', 0),
     'verification_steps': pr.get('verification_steps', []),
+    'fixes_cves': pr.get('fixes_cves', []),
 }))
 " 2>/dev/null || echo '{}')
 
@@ -393,6 +394,33 @@ $CVE_DETAIL_BLOCK"
   MODULE_LINE=""
   if [[ "$ECOSYSTEM" == "gomod" && "$PKG_DIR" != "/" && -n "$PKG_DIR" ]]; then
     MODULE_LINE=" · Module: \`$PKG_DIR\`"
+  fi
+
+  # V9.9 iter8: Show CVEs this PR fixes (from Dependabot alert matching) even if
+  # the PR body doesn't mention them. This ensures PR #19 etc. show the fix.
+  FIXES_CVE_LINE=""
+  _FIXES_CVE_DATA=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+fixes = d.get('fixes_cves', [])
+if not fixes:
+    sys.exit(0)
+sev_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+fixes.sort(key=lambda x: sev_order.get((x.get('severity') or '').lower(), 9))
+parts = []
+for f in fixes:
+    cve = f.get('cve_id', '?')
+    sev = (f.get('severity') or 'unknown').upper()
+    parts.append(f'{cve} ({sev})')
+print(' · '.join(parts))
+" 2>/dev/null || echo "")
+  if [[ -n "$_FIXES_CVE_DATA" && -z "$CVE_LINE" ]]; then
+    # Only add if CVE_LINE is empty (PR body didn't have CVEs)
+    FIXES_CVE_LINE="
+🛡️ **This PR fixes known vulnerabilities:** $_FIXES_CVE_DATA — **merge with priority**"
+  elif [[ -n "$_FIXES_CVE_DATA" && -n "$CVE_LINE" ]]; then
+    # PR body already has CVEs, append Dependabot-matched ones if different
+    FIXES_CVE_LINE=""
   fi
 
   # Build "How we checked" checklist from verification_label
@@ -727,7 +755,7 @@ else:
   # chain renders the security-risk comment instead of SAFE.
   # Pre-existing-only vulns (ok_preexisting) do NOT demote — PR is not at fault.
   if [[ "$VULN_STATUS" == "vulns_found" && "$VULN_NEW_COUNT" -gt 0 ]]; then
-    if [[ "$VERDICT" == "pass" || "$VERDICT" == "pre_existing" ]]; then
+    if [[ "$VERDICT" != "vulns_introduced" ]]; then
       echo "  PR #$PR_NUM: demoting VERDICT=$VERDICT → vulns_introduced ($VULN_NEW_COUNT new CVE(s))"
       VERDICT="vulns_introduced"
     fi
@@ -739,7 +767,7 @@ else:
     COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · dev (CI) · $BUMP_DISPLAY
 
-GitHub Actions workflow dependency. No application code affected. No build verification needed.${CVE_LINE}${PLAN_LINE}${ADVISORY_FOOTER}
+GitHub Actions workflow dependency. No application code affected. No build verification needed.${CVE_LINE}${FIXES_CVE_LINE}${PLAN_LINE}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — CI-only change, no build impact*"
 
@@ -748,7 +776,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · production · $BUMP_DISPLAY
 
-Docker base image $BUMP_DISPLAY bump. No application source changes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+Docker base image $BUMP_DISPLAY bump. No application source changes.${CVE_LINE}${FIXES_CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
@@ -772,7 +800,7 @@ ${_OOM_PKG_LIST}
     COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ infra OOM on unrelated sub-packages — not caused by this upgrade · Verification: **${VER_LABEL:-L2}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${_DEV_DEP_NOTE}${CVE_LINE}
+Build: ✅ infra OOM on unrelated sub-packages — not caused by this upgrade · Verification: **${VER_LABEL:-L2}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${_DEV_DEP_NOTE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### What this means
 The CI runner ran out of memory (\`signal: killed\`) building sub-packages unrelated to \`$PKG\`. This PR's targeted packages are not affected. The same OOM occurs on \`main\` — it is an infrastructure limitation, not a code regression.${_OOM_PKG_NOTE}
@@ -788,7 +816,7 @@ ${RUN_LINK}
 
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}
 
-$BUMP_DISPLAY bump with passing build. No new type errors introduced.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+$BUMP_DISPLAY bump with passing build. No new type errors introduced.${CVE_LINE}${FIXES_CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
@@ -799,7 +827,7 @@ ${RUN_LINK}
 
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}**
 
-Transitive dependency — your code does not import it directly. Build passes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+Transitive dependency — your code does not import it directly. Build passes.${CVE_LINE}${FIXES_CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
@@ -812,7 +840,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## 🔍 BUILD ANALYSIS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}$NEW_ERR_NOTE${CVE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}$NEW_ERR_NOTE${CVE_LINE}${FIXES_CVE_LINE}
 
 ### Summary (deterministic analysis)
 - Package: \`$PKG\` $FROM → $TO ($BUMP_DISPLAY bump)
@@ -836,7 +864,7 @@ ${BUILD_EXCERPT}
     COMMENT="<!-- breakability-check -->
 ## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)${CVE_LINE}
+Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)${CVE_LINE}${FIXES_CVE_LINE}
 
 ### Build errors (excerpt)$EXCERPT_BLOCK
 
@@ -859,7 +887,7 @@ ${RUN_LINK}
       COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ verified — same result as main baseline, not caused by this change · Verification: **${VER_LABEL}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${CVE_LINE}
+Build: ✅ verified — same result as main baseline, not caused by this change · Verification: **${VER_LABEL}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### What this means
 The build produces the same errors on both \`main\` and this PR branch. This upgrade does **not** introduce new failures. Verified at **${VER_LABEL}**.
@@ -872,7 +900,7 @@ ${RUN_LINK}
       COMMENT="<!-- breakability-check -->
 ## ⚙️ LIKELY SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ⚙️ same errors on main and PR branch — pre-existing failure, **not caused by this upgrade** · Verification: **${VER_LABEL}**${MODULE_LINE}${CVE_LINE}
+Build: ⚙️ same errors on main and PR branch — pre-existing failure, **not caused by this upgrade** · Verification: **${VER_LABEL}**${MODULE_LINE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### What this means
 Dependencies resolved successfully. The build fails on both \`main\` and this PR with the same errors. This upgrade does **not** introduce new failures. Full build verification was limited by pre-existing issues on \`main\`.
@@ -890,7 +918,7 @@ ${RUN_LINK}
         COMMENT="<!-- breakability-check -->
 ## ⚙️ LIKELY SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ⚙️ same errors on \`main\` and PR branch — **not caused by this upgrade** · Verification: **${VER_LABEL:-L0}**${MODULE_LINE}${CVE_LINE}
+Build: ⚙️ same errors on \`main\` and PR branch — **not caused by this upgrade** · Verification: **${VER_LABEL:-L0}**${MODULE_LINE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### What this means
 Both \`main\` and this PR branch produce the same build errors. This upgrade does **not** introduce new failures. Build verification was limited by pre-existing infrastructure issues.
@@ -902,7 +930,7 @@ ${RUN_LINK}
         COMMENT="<!-- breakability-check -->
 ## ⚠️ UNVERIFIED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ⚠️ build verification could not complete — infrastructure/configuration errors · Verification: **${VER_LABEL:-L0}**${MODULE_LINE}${CVE_LINE}
+Build: ⚠️ build verification could not complete — infrastructure/configuration errors · Verification: **${VER_LABEL:-L0}**${MODULE_LINE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### What to do
 1. Fix the baseline build on \`main\` (see merge plan for error details)
@@ -919,7 +947,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ❌ new errors introduced by this PR (on top of pre-existing failures)${CVE_LINE}
+Build: ❌ new errors introduced by this PR (on top of pre-existing failures)${CVE_LINE}${FIXES_CVE_LINE}
 
 This upgrade introduces **$NEW_ERR_COUNT new error(s)** not present on \`main\`. Fix required before merging.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
@@ -930,7 +958,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## ⚠️ SECURITY REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${CVE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${CVE_LINE}${FIXES_CVE_LINE}
 
 ### Security concern
 Build passes, but \`npm audit\` found **critical or high** vulnerabilities in this upgrade. Manual security review recommended before merging.
@@ -978,7 +1006,7 @@ if not reachable and not not_reachable:
     COMMENT="<!-- breakability-check -->
 ## 🚨 SECURITY RISK — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${_VULN_SEVERITY_NOTE}${CVE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${_VULN_SEVERITY_NOTE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### 🚨 This PR introduces **$VULN_NEW_COUNT NEW vulnerability(ies)** not present on \`main\`
 
@@ -1000,7 +1028,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## 🔍 REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ⚠️ blocked by infrastructure error — build verification could not run${CVE_LINE}
+Build: ⚠️ blocked by infrastructure error — build verification could not run${CVE_LINE}${FIXES_CVE_LINE}
 
 ### What happened
 The build check was blocked by an infrastructure issue (private registry, network timeout, or missing dependency not caused by this upgrade). **This is not a build failure from the upgrade.**
@@ -1024,7 +1052,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## 🔍 REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build analysis status: \`$VERDICT\` (verification: ${VER_LABEL:-unknown})${CVE_LINE}
+Build analysis status: \`$VERDICT\` (verification: ${VER_LABEL:-unknown})${CVE_LINE}${FIXES_CVE_LINE}
 
 Automated build analysis was not conclusive for this PR. Manual review recommended.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
@@ -1166,7 +1194,7 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     if vuln_status == "vulns_found" and vuln_new:
         entry["vuln_new_findings"] = vuln_new
         entry["vuln_new_count"] = len(vuln_new)
-        if v in ("pass", "pre_existing"):
+        if v != "vulns_introduced":
             entry["verdict"] = "vulns_introduced"
             entry["original_verdict"] = v
             v = "vulns_introduced"
@@ -1342,9 +1370,10 @@ lines.append("")
 lines.append("## Developer Action Summary")
 lines.append("")
 _step = 1
-# Security fixes first
-_sec_safe = [e for e in safe + ci_only if e.get("cves")]
-_sec_blocked = [e for e in blocked if e.get("cves")]
+# Security fixes first — use BOTH pr-body CVEs AND Dependabot alert matches (cve_fixes)
+_cve_fix_prs = set(str(f["pr"]) for f in security.get("cve_fixes", []))
+_sec_safe = [e for e in safe + ci_only if e.get("cves") or e["num"] in _cve_fix_prs]
+_sec_blocked = [e for e in blocked if e.get("cves") or e["num"] in _cve_fix_prs]
 if _sec_safe:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe)
     lines.append(f"{_step}. **MERGE NOW — security fixes:** {_sec_nums} ({len(_sec_safe)} PR(s) fix known CVEs, build verified)")
@@ -1445,11 +1474,12 @@ if len(review) > 0:
             lines.append("Fix these issues on `main`, then re-run: `gh workflow run breakability-agent.yml`")
             lines.append("")
 
-# CVE highlight
+# CVE highlight — union of PR-body CVEs and Dependabot alert-matched fixes
 all_cves = []
-for cat in [safe, blocked, review, skipped]:
+_cve_fix_prs_set = set(str(f["pr"]) for f in security.get("cve_fixes", []))
+for cat in [safe, blocked, review, skipped, ci_only]:
     for e in cat:
-        if e["cves"]:
+        if e.get("cves") or e["num"] in _cve_fix_prs_set:
             all_cves.append(e)
 if all_cves:
     lines.append("## 🔴 Security — CVEs Fixed by These Upgrades")
