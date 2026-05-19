@@ -423,7 +423,22 @@ print(' · '.join(parts))
     FIXES_CVE_LINE=""
   fi
 
-  # Build "How we checked" checklist from verification_label
+  # V9.9 iter9: Changelog compare link for Go/npm packages
+  CHANGELOG_LINK=""
+  if [[ "$ECOSYSTEM" == "gomod" && -n "$PKG" && -n "$FROM" && -n "$TO" ]]; then
+    # Go module: github.com/org/repo → compare link
+    _GH_PATH=$(echo "$PKG" | grep -oE '^github\.com/[^/]+/[^/]+' || echo "")
+    if [[ -n "$_GH_PATH" ]]; then
+      CHANGELOG_LINK="
+📝 [Changelog](https://${_GH_PATH}/compare/v${FROM}...v${TO})"
+    fi
+  elif [[ "$ECOSYSTEM" == "npm" && -n "$PKG" && -n "$FROM" && -n "$TO" ]]; then
+    # npm: try npmjs changelog
+    CHANGELOG_LINK="
+📝 [Changelog](https://github.com/search?q=repo%3A${PKG}+path%3ACHANGELOG&type=code)"
+  fi
+
+    # Build "How we checked" checklist from verification_label
   # Build file-list detail block for evidence
   _FILES_DETAIL_BLOCK=""
   if [[ -n "$FILES_LIST" && "$FILES_LIST" != "" ]]; then
@@ -848,7 +863,7 @@ Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT f
 - Build passes on PR branch
 - New type errors: $NEW_ERR_COUNT
 
-**Recommendation:** Review changelog for $BUMP_DISPLAY bump breaking changes. Build passes — merge when ready.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+**Recommendation:** Review changelog for $BUMP_DISPLAY bump breaking changes. Build passes — merge when ready.${CHANGELOG_LINK}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
@@ -870,7 +885,7 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
 
 ### What to do
 1. Check the full build output in the Actions run for this PR
-2. Review the \`$PKG\` $FROM → $TO changelog for breaking changes
+2. Review the \`$PKG\` $FROM → $TO changelog for breaking changes${CHANGELOG_LINK}
 3. Fix type errors or update your code to match the new API
 4. Re-run the breakability analysis after your fix
 
@@ -973,30 +988,45 @@ ${RUN_LINK}
     _VULN_IDS_LIST="${VULN_NEW_LIST:-unknown}"
     # EU-7: Extract reachability info from vuln_output (govulncheck shows call stacks for reachable vulns)
     _VULN_REACHABILITY=$(echo "$PR_FIELDS" | python3 -c "
-import json, sys
+import json, sys, re
 d = json.load(sys.stdin)
 output = d.get('vuln_output', '') or ''
 new_ids = d.get('vuln_new_findings', [])
-# govulncheck text output: 'Vulnerability #N: GO-XXXX' followed by 'Called by:' or 'Not called'
 reachable = []
 not_reachable = []
+symbols = {}
 for vid in new_ids:
-    if vid in output:
-        # Check if marked as called/reachable
-        idx = output.find(vid)
-        snippet = output[idx:idx+500]
-        if 'Call' in snippet or 'called' in snippet.lower():
-            reachable.append(vid)
-        else:
-            not_reachable.append(vid)
+    if vid not in output:
+        reachable.append(vid)
+        continue
+    idx = output.find(vid)
+    next_vuln = output.find('Vulnerability #', idx + 10)
+    block = output[idx:next_vuln] if next_vuln > 0 else output[idx:]
+    is_reachable = bool(re.search(r'Call|called|traces found|Your code', block, re.IGNORECASE))
+    if is_reachable:
+        reachable.append(vid)
+        funcs = re.findall(r'^\s+#\d+:\s+(.+)$', block, re.MULTILINE)
+        if not funcs:
+            funcs = re.findall(r'^\s+(\w+\.\w+(?:\.\w+)*)$', block, re.MULTILINE)
+        if funcs:
+            symbols[vid] = funcs[:3]
     else:
-        reachable.append(vid)  # assume reachable if we can't parse
+        not_reachable.append(vid)
+lines = []
 if reachable:
-    print('⚠️ **Reachable from your code:** ' + ', '.join(reachable))
+    parts = []
+    for vid in reachable:
+        link = f'[{vid}](https://pkg.go.dev/vuln/{vid})'
+        if vid in symbols:
+            link += ' (via \`' + '\`, \`'.join(symbols[vid]) + '\`)'
+        parts.append(link)
+    lines.append('\u26a0\ufe0f **Reachable from your code:** ' + ', '.join(parts))
 if not_reachable:
-    print('ℹ️ Not called by your code (lower risk): ' + ', '.join(not_reachable))
+    parts = [f'[{vid}](https://pkg.go.dev/vuln/{vid})' for vid in not_reachable]
+    lines.append('\u2139\ufe0f Not called by your code (lower risk): ' + ', '.join(parts))
 if not reachable and not not_reachable:
-    print('⚠️ Reachability unknown — run \\`govulncheck ./...\\` locally to check')
+    lines.append('\u26a0\ufe0f Reachability unknown \u2014 run \`govulncheck ./...\` locally to check')
+print('\n'.join(lines))
 " 2>/dev/null || echo "⚠️ Reachability unknown — run \`govulncheck ./...\` locally to check")
     # EU-6: Get max severity for the new vulns
     _VULN_SEVERITY_NOTE=""
@@ -1199,7 +1229,11 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
             entry["original_verdict"] = v
             v = "vulns_introduced"
 
-    if v == "skipped":
+    # V9.9 iter9: govulncheck OOM/timeout → review (not safe) — user must verify manually
+    if vuln_status in ("failed_oom", "failed_timeout") and v == "pass":
+        entry["vuln_incomplete"] = True
+        review.append(entry)
+    elif v == "skipped":
         skipped.append(entry)
     elif v == "skip":
         skipped.append(entry)
@@ -1390,12 +1424,12 @@ if _l4_safe:
 # L2 safe PRs (build passes, tests fail or not run)
 _l2_safe = [e for e in safe if not e.get("ver", "").startswith("L4") and not e.get("cves")]
 if _l2_safe:
-    lines.append(f"{_step}. **Review then merge — {len(_l2_safe)} PRs** (build + type-check pass, tests not run — check changelog for major bumps)")
+    lines.append(f"{_step}. **Review then merge — {len(_l2_safe)} PRs** (build + type-check pass, tests not run — review changelog before merging)")
     _step += 1
 # Companion blocked
 if companion_blocked:
     _cb_nums = ", ".join(f"#{e['num']}" for e in companion_blocked)
-    lines.append(f"{_step}. **Fix companion PR first — {len(companion_blocked)} PR(s) blocked:** {_cb_nums} (build passes but must merge with companion)")
+    lines.append(f"{_step}. **Fix companion PR first — {len(companion_blocked)} PR(s) blocked:** {_cb_nums} (build passes but companion PR has issues — do NOT merge until companion is fixed)")
     _step += 1
 # CI-only PRs
 if ci_only:
@@ -1509,7 +1543,7 @@ if vulns_introduced:
     lines.append("|---|---|---|---|---|")
     for e in vulns_introduced:
         cves_new = e.get("vuln_new_findings", [])
-        cves_show = ", ".join(cves_new[:5]) + ("…" if len(cves_new) > 5 else "")
+        cves_show = ", ".join(cves_new[:5]) + (f" +{len(cves_new)-5} more" if len(cves_new) > 5 else "")
         pre = len([c for c in (e.get("cves") or [])])  # fallback
         lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e.get('vuln_new_count', len(cves_new))}: {cves_show} | see PR |")
     lines.append("")
@@ -1529,7 +1563,7 @@ if safe_l4:
     lines.append("")
 
 if safe_l2:
-    lines.append("## ✅ Safe to Merge — Build Passes, No New Errors (L2/L3 verified)")
+    lines.append("## ✅ Build Passes — Review Recommended (L2/L3 verified)")
     lines.append("")
     lines.append("> Build and type-check pass. Tests were not run or had pre-existing failures. Review changelog for major bumps.")
     lines.append("")
