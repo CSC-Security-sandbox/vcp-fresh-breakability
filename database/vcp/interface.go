@@ -350,6 +350,10 @@ type (
 		// ListVolumesForTelemetryMetrics retrieves volumes with only the fields required for telemetry metrics.
 		// This is an optimized query that avoids JOINs with Account and Pool tables.
 		ListVolumesForTelemetryMetrics(ctx context.Context) ([]*VolumeMetricsData, error)
+		// ListExpertModeVolumesForTelemetryMetrics retrieves expert mode volumes with the fields required
+		// for telemetry billing metrics. Account name and deployment name are resolved via JOINs.
+		// Pass a non-nil Pagination to iterate in pages; nil returns all records.
+		ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *dbutils.Pagination) ([]*ExpertModeVolumeMetricsData, error)
 		UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error
 		GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error)
 		GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error)

@@ -33,6 +33,12 @@ const (
 	ReplicationScheduleOntapMode = "ONTAP_MODE"
 	TransferTypeInitial          = "initialize"
 	TransferTypeUpdate           = "update"
+
+	// backupModeOntap and backupModeDefault are the /backups/mode label values forwarded to Google.
+	// They must stay in sync with the identical constants in telemetry/collector/backup_collector.go.
+	backupModeOntap       = "ONTAP"
+	backupModeDefault     = "DEFAULT"
+	backupModeMetadataKey = "backup_mode"
 )
 
 var (
@@ -364,6 +370,14 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 		volumeDataError = err
 	}
 
+	// Fetch expert mode volume resource data so that BackupEnabledVolumeAllocatedSize metrics
+	// emitted for expert mode volumes can be resolved during aggregation.
+	if p.config.EnableExpertModeBackupBilling {
+		if err := p.fetchExpertModeVolumeData(ctx, resourceCollection); err != nil {
+			logger.Errorf("Failed to fetch expert mode volume resource data: %v", err)
+		}
+	}
+
 	// Fetch pool labels
 	if err := p.fetchPoolData(ctx, aggregationStartTime, resourceCollection); err != nil {
 		logger.Errorf("Failed to fetch pool resource data: %v", err)
@@ -608,6 +622,71 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 	return nil
 }
 
+// fetchExpertModeVolumeData populates resourceCollection.VolumeData with entries for expert mode
+// volumes so that BackupEnabledVolumeAllocatedSize metrics emitted by the collector can be
+// resolved during aggregation. Without this, processMetricsWithJobDef finds no resource data and
+// silently drops every expert-mode backup billing metric.
+func (p *BillingProvider) fetchExpertModeVolumeData(ctx context.Context, resourceCollection *ResourceCollection) error {
+	logger := util.GetLogger(ctx)
+
+	offset := 0
+	limit := p.config.PoolVolumeLabelPageSize
+	totalProcessed := 0
+	batchCount := 0
+
+	for {
+		pagination := &dbutils.Pagination{
+			Offset: offset,
+			Limit:  limit,
+		}
+
+		volumes, err := p.vcpDataStore.ListExpertModeVolumesForTelemetryMetrics(ctx, pagination)
+		if err != nil {
+			return fmt.Errorf("failed to list expert mode volumes for resource data (offset %d): %w", offset, err)
+		}
+
+		if len(volumes) == 0 {
+			break
+		}
+
+		for _, volume := range volumes {
+			if volume.AccountName == "" {
+				logger.Warnf("Skipping expert mode volume %s due to missing account name", volume.UUID)
+				continue
+			}
+			if volume.DeploymentName == "" {
+				logger.Warnf("Skipping expert mode volume %s due to missing deployment name", volume.UUID)
+				continue
+			}
+
+			resourceType := metadata.Volume
+			if volume.PoolIsRegionalHA {
+				resourceType = metadata.VolumeRegionalHA
+			}
+
+			id := ResourceKey{
+				ResourceType:   resourceType,
+				ResourceName:   volume.Name,
+				DeploymentName: volume.DeploymentName,
+				ConsumerID:     volume.AccountName,
+			}
+			resourceCollection.VolumeData[id] = ResourceData{
+				UUID:      volume.UUID,
+				AccountID: volume.AccountID,
+			}
+		}
+
+		totalProcessed += len(volumes)
+		batchCount++
+		logger.Debugf("Processed %d expert mode volumes in batch %d (offset: %d, total: %d)", len(volumes), batchCount, offset, totalProcessed)
+
+		offset += limit
+	}
+
+	logger.Infof("Fetched resource data for %d expert mode volumes in %d batches", totalProcessed, batchCount)
+	return nil
+}
+
 // fetchBackupData fetches backup data and constructs ResourceData and ResourceKey
 func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
@@ -751,6 +830,15 @@ func (p *BillingProvider) fetchBackupHistoryMetrics(ctx context.Context, aggrega
 			continue
 		}
 
+		backupMode := backupModeDefault
+		if history.IsExpertModeBackup {
+			backupMode = backupModeOntap
+		}
+		modeMetadata, err := json.Marshal(map[string]string{backupModeMetadataKey: backupMode})
+		if err != nil {
+			modeMetadata = nil
+		}
+
 		deletedAt := deletedAtPtr(history.DeletedAt)
 		metrics = append(metrics, datamodel2.HydratedMetrics{
 			MetricTimestamp: history.CreatedAt,
@@ -762,6 +850,7 @@ func (p *BillingProvider) fetchBackupHistoryMetrics(ctx context.Context, aggrega
 			Quantity:        float64(history.Size),
 			DeploymentName:  history.DeploymentName,
 			DeletedAt:       deletedAt,
+			Metadata:        modeMetadata,
 		})
 	}
 
@@ -1308,6 +1397,9 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 							resMeta.SetTransferType(v)
 						}
 					}
+					if v, ok := extra["backup_mode"]; ok && v != "" {
+						resMeta.SetServiceLevel(v)
+					}
 				}
 			}
 			hydratedMetric := entity.HydratedMetric{
@@ -1542,6 +1634,12 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		aggregated.Zone = &resourceData.PrimaryZone
 	}
 
+	// Propagate backup mode (ONTAP / DEFAULT) from the hydrated metric into ServiceLevel so
+	// GoogleMetricsClient can emit it as the /backups/mode label.
+	if isBackupBillingMeasuredType(aggregated.MeasuredType) && metrics.Metadata.ServiceLevel != nil && *metrics.Metadata.ServiceLevel != "" {
+		aggregated.ServiceLevel = *metrics.Metadata.ServiceLevel
+	}
+
 	if aggregated.MeasuredType == metadata.BackupLogicalSize {
 		if resourceData.BackupRegionName != nil && *resourceData.BackupRegionName != "" {
 			aggregated.DestinationRegion = resourceData.BackupRegionName
@@ -1757,6 +1855,19 @@ func setServiceLevelForCRR(schedule string) string {
 		return "4"
 	default:
 		return ""
+	}
+}
+
+// isBackupBillingMeasuredType returns true for backup-related measured types that carry a
+// /backups/mode label (ONTAP vs DEFAULT).
+func isBackupBillingMeasuredType(t metadata.MeasuredType) bool {
+	switch t {
+	case metadata.BackupLogicalSize,
+		metadata.BackupEnabledVolumeAllocatedSize,
+		metadata.CbsCrossRegionVolumeBackupTransferBytes:
+		return true
+	default:
+		return false
 	}
 }
 

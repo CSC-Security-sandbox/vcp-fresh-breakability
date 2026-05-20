@@ -1380,7 +1380,7 @@ func Test_GetLabelKey(t *testing.T) {
 		googleMetric := *common.NewGoogleMetric(aggregated)
 
 		result := GetLabelKey(googleMetric)
-		expected := []string{"/resource_id", "/backups/location"}
+		expected := []string{"/resource_id", "/backups/location", "/backups/mode"}
 		assert.Equal(t, expected, result)
 	})
 	t.Run("when not billing record", func(t *testing.T) {
@@ -3593,7 +3593,7 @@ func Test_GetLabelKey_BackupCBSCrossRegion(t *testing.T) {
 	googleMetric := *common.NewGoogleMetric(aggregated)
 
 	result := GetLabelKey(googleMetric)
-	expected := []string{"/resource_id", "/backups/source_continent", "/backups/destination_continent"}
+	expected := []string{"/resource_id", "/backups/source_continent", "/backups/destination_continent", "/backups/mode"}
 	assert.Equal(t, expected, result)
 }
 
@@ -3605,7 +3605,7 @@ func Test_GetLabelKey_VolumeBackupEnabledAllocatedSize(t *testing.T) {
 		}
 		googleMetric := *common.NewGoogleMetric(aggregated)
 		result := GetLabelKey(googleMetric)
-		assert.Equal(t, []string{"/resource_id"}, result)
+		assert.Equal(t, []string{"/resource_id", "/backups/mode"}, result)
 	})
 
 	t.Run("VolumeRegionalHA with BackupEnabledVolumeAllocatedSize", func(t *testing.T) {
@@ -3615,7 +3615,7 @@ func Test_GetLabelKey_VolumeBackupEnabledAllocatedSize(t *testing.T) {
 		}
 		googleMetric := *common.NewGoogleMetric(aggregated)
 		result := GetLabelKey(googleMetric)
-		assert.Equal(t, []string{"/resource_id"}, result)
+		assert.Equal(t, []string{"/resource_id", "/backups/mode"}, result)
 	})
 }
 
@@ -3724,6 +3724,104 @@ func Test_GetLabelValue_VolumeRegionalHA_ResourceId(t *testing.T) {
 	val, err := GetLabelValue("/resource_id", googleMetric, logger)
 	assert.NoError(t, err)
 	assert.Equal(t, "regional-ha-uuid", val)
+}
+
+func Test_GetLabelValue_BackupsMode(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
+	type testCase struct {
+		name         string
+		resourceType metadata.ResourceType
+		measuredType metadata.MeasuredType
+		serviceLevel string
+		expected     string
+	}
+
+	tests := []testCase{
+		// metadata.Volume + BackupEnabledVolumeAllocatedSize
+		{
+			name:         "Volume/BackupEnabledVolumeAllocatedSize ServiceLevel=ONTAP emits ONTAP",
+			resourceType: metadata.Volume,
+			measuredType: metadata.BackupEnabledVolumeAllocatedSize,
+			serviceLevel: BackupModeOntap,
+			expected:     BackupModeOntap,
+		},
+		{
+			name:         "Volume/BackupEnabledVolumeAllocatedSize empty ServiceLevel emits DEFAULT",
+			resourceType: metadata.Volume,
+			measuredType: metadata.BackupEnabledVolumeAllocatedSize,
+			serviceLevel: "",
+			expected:     BackupModeDefault,
+		},
+		{
+			name:         "Volume/BackupEnabledVolumeAllocatedSize non-ONTAP ServiceLevel emits DEFAULT",
+			resourceType: metadata.Volume,
+			measuredType: metadata.BackupEnabledVolumeAllocatedSize,
+			serviceLevel: "standard",
+			expected:     BackupModeDefault,
+		},
+		// metadata.VolumeRegionalHA + BackupEnabledVolumeAllocatedSize
+		{
+			name:         "VolumeRegionalHA/BackupEnabledVolumeAllocatedSize ServiceLevel=ONTAP emits ONTAP",
+			resourceType: metadata.VolumeRegionalHA,
+			measuredType: metadata.BackupEnabledVolumeAllocatedSize,
+			serviceLevel: BackupModeOntap,
+			expected:     BackupModeOntap,
+		},
+		{
+			name:         "VolumeRegionalHA/BackupEnabledVolumeAllocatedSize empty ServiceLevel emits DEFAULT",
+			resourceType: metadata.VolumeRegionalHA,
+			measuredType: metadata.BackupEnabledVolumeAllocatedSize,
+			serviceLevel: "",
+			expected:     BackupModeDefault,
+		},
+		// metadata.Backup + BackupLogicalSize
+		{
+			name:         "Backup/BackupLogicalSize ServiceLevel=ONTAP emits ONTAP",
+			resourceType: metadata.Backup,
+			measuredType: metadata.BackupLogicalSize,
+			serviceLevel: BackupModeOntap,
+			expected:     BackupModeOntap,
+		},
+		{
+			name:         "Backup/BackupLogicalSize empty ServiceLevel emits DEFAULT",
+			resourceType: metadata.Backup,
+			measuredType: metadata.BackupLogicalSize,
+			serviceLevel: "",
+			expected:     BackupModeDefault,
+		},
+		// metadata.Backup + CbsCrossRegionVolumeBackupTransferBytes
+		{
+			name:         "Backup/CbsCrossRegionVolumeBackupTransferBytes ServiceLevel=ONTAP emits ONTAP",
+			resourceType: metadata.Backup,
+			measuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
+			serviceLevel: BackupModeOntap,
+			expected:     BackupModeOntap,
+		},
+		{
+			name:         "Backup/CbsCrossRegionVolumeBackupTransferBytes empty ServiceLevel emits DEFAULT",
+			resourceType: metadata.Backup,
+			measuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
+			serviceLevel: "",
+			expected:     BackupModeDefault,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			aggregated := &datamodel.AggregatedUsage{
+				ResourceType: tt.resourceType,
+				MeasuredType: tt.measuredType,
+				ServiceLevel: tt.serviceLevel,
+			}
+			googleMetric := *common.NewGoogleMetric(aggregated)
+
+			val, err := GetLabelValue("/backups/mode", googleMetric, logger)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, val)
+		})
+	}
 }
 
 func Test_getContinent_ZoneFormat(t *testing.T) {

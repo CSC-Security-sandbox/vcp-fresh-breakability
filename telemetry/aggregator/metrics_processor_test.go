@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"strings"
 	"testing"
@@ -7428,4 +7429,271 @@ func TestFetchOntapModePoolData_Success(t *testing.T) {
 
 	mockVcpDB.AssertExpectations(t)
 	mockMetricsDB.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// fetchExpertModeVolumeData tests (lines 630, 632-634, 637-640, 642-644,
+// 647-649, 652, 658, 665-666)
+// ---------------------------------------------------------------------------
+
+func TestFetchExpertModeVolumeData_DBError(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	provider := &BillingProvider{
+		vcpDataStore: mockVCPDB,
+		config:       &common.TelemetryConfig{},
+	}
+	rc := &ResourceCollection{VolumeData: make(map[ResourceKey]ResourceData)}
+
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).
+		Return(([]*database2.ExpertModeVolumeMetricsData)(nil), errors.New("db error"))
+
+	err := provider.fetchExpertModeVolumeData(ctx, rc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
+	assert.Empty(t, rc.VolumeData)
+}
+
+func TestFetchExpertModeVolumeData_SkipsVolumeWithEmptyAccountName(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	provider := &BillingProvider{
+		vcpDataStore: mockVCPDB,
+		config:       &common.TelemetryConfig{},
+	}
+	rc := &ResourceCollection{VolumeData: make(map[ResourceKey]ResourceData)}
+
+	volumes := []*database2.ExpertModeVolumeMetricsData{
+		{UUID: "vol-1", Name: "vol1", AccountName: "", DeploymentName: "dep1"},
+	}
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(volumes, nil).Once()
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database2.ExpertModeVolumeMetricsData{}, nil)
+
+	err := provider.fetchExpertModeVolumeData(ctx, rc)
+	require.NoError(t, err)
+	assert.Empty(t, rc.VolumeData)
+}
+
+func TestFetchExpertModeVolumeData_SkipsVolumeWithEmptyDeploymentName(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	provider := &BillingProvider{
+		vcpDataStore: mockVCPDB,
+		config:       &common.TelemetryConfig{},
+	}
+	rc := &ResourceCollection{VolumeData: make(map[ResourceKey]ResourceData)}
+
+	volumes := []*database2.ExpertModeVolumeMetricsData{
+		{UUID: "vol-1", Name: "vol1", AccountName: "account1", DeploymentName: ""},
+	}
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(volumes, nil).Once()
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database2.ExpertModeVolumeMetricsData{}, nil)
+
+	err := provider.fetchExpertModeVolumeData(ctx, rc)
+	require.NoError(t, err)
+	assert.Empty(t, rc.VolumeData)
+}
+
+func TestFetchExpertModeVolumeData_PopulatesStandardVolume(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	provider := &BillingProvider{
+		vcpDataStore: mockVCPDB,
+		config:       &common.TelemetryConfig{},
+	}
+	rc := &ResourceCollection{VolumeData: make(map[ResourceKey]ResourceData)}
+
+	volumes := []*database2.ExpertModeVolumeMetricsData{
+		{
+			UUID:            "vol-uuid-1",
+			Name:            "vol1",
+			AccountID:       42,
+			AccountName:     "account1",
+			DeploymentName:  "dep1",
+			PoolIsRegionalHA: false,
+		},
+	}
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(volumes, nil).Once()
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database2.ExpertModeVolumeMetricsData{}, nil)
+
+	err := provider.fetchExpertModeVolumeData(ctx, rc)
+	require.NoError(t, err)
+	require.Len(t, rc.VolumeData, 1)
+
+	key := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "vol1",
+		DeploymentName: "dep1",
+		ConsumerID:     "account1",
+	}
+	data, ok := rc.VolumeData[key]
+	require.True(t, ok)
+	assert.Equal(t, "vol-uuid-1", data.UUID)
+	assert.Equal(t, int64(42), data.AccountID)
+}
+
+func TestFetchExpertModeVolumeData_PopulatesRegionalHAVolume(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	provider := &BillingProvider{
+		vcpDataStore: mockVCPDB,
+		config:       &common.TelemetryConfig{},
+	}
+	rc := &ResourceCollection{VolumeData: make(map[ResourceKey]ResourceData)}
+
+	volumes := []*database2.ExpertModeVolumeMetricsData{
+		{
+			UUID:            "vol-ha-uuid",
+			Name:            "vol-ha",
+			AccountID:       7,
+			AccountName:     "account1",
+			DeploymentName:  "dep1",
+			PoolIsRegionalHA: true,
+		},
+	}
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(volumes, nil).Once()
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database2.ExpertModeVolumeMetricsData{}, nil)
+
+	err := provider.fetchExpertModeVolumeData(ctx, rc)
+	require.NoError(t, err)
+	require.Len(t, rc.VolumeData, 1)
+
+	key := ResourceKey{
+		ResourceType:   metadata.VolumeRegionalHA,
+		ResourceName:   "vol-ha",
+		DeploymentName: "dep1",
+		ConsumerID:     "account1",
+	}
+	data, ok := rc.VolumeData[key]
+	require.True(t, ok)
+	assert.Equal(t, "vol-ha-uuid", data.UUID)
+	assert.Equal(t, int64(7), data.AccountID)
+}
+
+func TestFetchExpertModeVolumeData_MixedVolumes(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	provider := &BillingProvider{
+		vcpDataStore: mockVCPDB,
+		config:       &common.TelemetryConfig{},
+	}
+	rc := &ResourceCollection{VolumeData: make(map[ResourceKey]ResourceData)}
+
+	volumes := []*database2.ExpertModeVolumeMetricsData{
+		// valid standard volume
+		{UUID: "vol-std", Name: "std", AccountName: "acct", DeploymentName: "dep", PoolIsRegionalHA: false},
+		// valid HA volume
+		{UUID: "vol-ha", Name: "ha", AccountName: "acct", DeploymentName: "dep", PoolIsRegionalHA: true},
+		// skipped: empty account
+		{UUID: "vol-noacct", Name: "noacct", AccountName: "", DeploymentName: "dep"},
+		// skipped: empty deployment
+		{UUID: "vol-nodep", Name: "nodep", AccountName: "acct", DeploymentName: ""},
+	}
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(volumes, nil).Once()
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database2.ExpertModeVolumeMetricsData{}, nil)
+
+	err := provider.fetchExpertModeVolumeData(ctx, rc)
+	require.NoError(t, err)
+	assert.Len(t, rc.VolumeData, 2)
+	_, hasStd := rc.VolumeData[ResourceKey{ResourceType: metadata.Volume, ResourceName: "std", DeploymentName: "dep", ConsumerID: "acct"}]
+	_, hasHA := rc.VolumeData[ResourceKey{ResourceType: metadata.VolumeRegionalHA, ResourceName: "ha", DeploymentName: "dep", ConsumerID: "acct"}]
+	assert.True(t, hasStd)
+	assert.True(t, hasHA)
+}
+
+// ---------------------------------------------------------------------------
+// fetchResourceData — expert mode error is logged, not propagated (lines 376-377)
+// ---------------------------------------------------------------------------
+
+func TestFetchResourceData_ExpertModeBackupBilling_ErrorIsLogged(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	mockMetricsDB := database.NewMockStorage(t)
+
+	config := &common.TelemetryConfig{
+		EnableExpertModeBackupBilling: true,
+		PoolVolumeLabelPageSize:       10,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, nil)
+
+	// Regular volume and pool fetches succeed with empty results.
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return([]*database2.VolumeResourceData{}, nil)
+	// Expert mode volumes fetch returns an error — must be logged, not returned.
+	mockVCPDB.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).
+		Return(([]*database2.ExpertModeVolumeMetricsData)(nil), errors.New("expert mode db error"))
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return([]*database2.PoolResourceData{}, nil)
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-time.Hour))
+	require.NoError(t, err, "fetchResourceData must not propagate the expert-mode error")
+	assert.NotNil(t, resourceCollection)
+	assert.Empty(t, resourceCollection.VolumeData)
+
+	mockVCPDB.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// fetchBackupHistoryMetrics — IsExpertModeBackup=true sets backupModeOntap (line 814)
+// ---------------------------------------------------------------------------
+
+func TestFetchBackupHistoryMetrics_ExpertModeBackupSetsOntapMode(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 0, 0, 0, time.UTC)
+
+	histories := []*datamodel.BackupChainHistory{
+		{
+			BaseModel:          datamodel.BaseModel{CreatedAt: now},
+			ResourceUUID:       "expert-resource-uuid",
+			ConsumerID:         "consumer-1",
+			DeploymentName:     "dep-1",
+			Size:               100,
+			IsExpertModeBackup: true,
+		},
+		{
+			BaseModel:          datamodel.BaseModel{CreatedAt: now.Add(time.Minute)},
+			ResourceUUID:       "default-resource-uuid",
+			ConsumerID:         "consumer-2",
+			DeploymentName:     "dep-2",
+			Size:               200,
+			IsExpertModeBackup: false,
+		},
+	}
+
+	vcpDB := &database2.MockStorage{}
+	// Two histories fit in one page (2 < limit=100), so only one call is made.
+	vcpDB.On("ListBackupChainHistoriesWithPagination", mock.Anything, mock.Anything, mock.Anything).
+		Return(histories, nil).Once()
+
+	provider := &BillingProvider{
+		vcpDataStore: vcpDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 100,
+			RegionName:              "us-central1",
+		},
+	}
+
+	metrics, err := provider.fetchBackupHistoryMetrics(ctx, now.Add(-time.Hour), now.Add(time.Hour), 0, &ResourceCollection{})
+	require.NoError(t, err)
+	require.Len(t, metrics, 2)
+
+	byResource := make(map[string]datamodel2.HydratedMetrics, 2)
+	for _, m := range metrics {
+		byResource[m.ResourceName] = m
+	}
+
+	expertMetric := byResource["expert-resource-uuid"]
+	require.NotNil(t, expertMetric.Metadata, "expert mode metric must carry backup_mode metadata")
+	var expertMeta map[string]string
+	require.NoError(t, json.Unmarshal(expertMetric.Metadata, &expertMeta))
+	assert.Equal(t, backupModeOntap, expertMeta[backupModeMetadataKey], "expert mode backup must emit ONTAP mode")
+
+	defaultMetric := byResource["default-resource-uuid"]
+	require.NotNil(t, defaultMetric.Metadata)
+	var defaultMeta map[string]string
+	require.NoError(t, json.Unmarshal(defaultMetric.Metadata, &defaultMeta))
+	assert.Equal(t, backupModeDefault, defaultMeta[backupModeMetadataKey], "non-expert backup must emit DEFAULT mode")
+
+	vcpDB.AssertExpectations(t)
 }

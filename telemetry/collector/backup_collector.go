@@ -151,10 +151,17 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		if backup.Attributes != nil {
 			accountName = backup.Attributes.AccountIdentifier
 		}
+		// Determine backup mode: ONTAP for expert mode backups, DEFAULT for standard backups.
+		backupMode := BackupModeDefault
+		if backup.Attributes != nil && backup.Attributes.IsExpertModeBackup {
+			backupMode = BackupModeOntap
+		}
+
 		// Execute only if SAN protocol or files backup billing enabled and billing is not skipped.
 		isSANProtocol := utils.IsSanProtocols(backup.Attributes.Protocols)
 		if !skipBilling && (config.EnableFilesBackupBilling || isSANProtocol) {
 			if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)); hydratedMetric != nil {
+				setBackupModeMetadata(hydratedMetric, backupMode)
 				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
 			}
 			// cross region backup network transfer billing metric
@@ -172,6 +179,7 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 					totalTransferBytes,
 				); hm != nil {
 					setCrossRegionRegionMetadata(logger, hm, backupMetadata)
+					setBackupModeMetadata(hm, backupMode)
 					hydratedMetrics = append(hydratedMetrics, *hm)
 				}
 			}
@@ -208,21 +216,52 @@ func assembleBackupMetadata(backup *datamodel.Backup, config *common.TelemetryCo
 	return met
 }
 
+const (
+	// BackupModeOntap is the mode value sent to Google for expert mode (ONTAP) backups.
+	BackupModeOntap = "ONTAP"
+	// BackupModeDefault is the mode value sent to Google for standard backups.
+	BackupModeDefault = "DEFAULT"
+
+	metadataKeyBackupMode       = "backup_mode"
+	metadataKeyBackupRegionName = "backup_region_name"
+)
+
 // setCrossRegionRegionMetadata stores BackupRegionName into the
 // HydratedMetrics.Metadata JSONB column so the aggregator can set the
 // destination region on the AggregatedUsage record.
+// Any fields already in hm.Metadata are preserved (merge, not overwrite).
 func setCrossRegionRegionMetadata(logger log.Logger, hm *datamodel2.HydratedMetrics, rm metadata.ResourceMetadata) {
-	if hm == nil || (rm.BackupRegionName == nil) {
+	if hm == nil || rm.BackupRegionName == nil {
 		return
 	}
-	extra := make(map[string]string)
-	if rm.BackupRegionName != nil {
-		extra["backup_region_name"] = *rm.BackupRegionName
-	}
-	b, err := json.Marshal(extra)
-	if err != nil {
+	extra := mergeMetadata(hm)
+	extra[metadataKeyBackupRegionName] = *rm.BackupRegionName
+	if b, err := json.Marshal(extra); err == nil {
+		hm.Metadata = b
+	} else {
 		logger.Warnf("Failed to marshal cross-region metadata: %v", err)
+	}
+}
+
+// setBackupModeMetadata stores the backup mode (ONTAP or DEFAULT) into the
+// HydratedMetrics.Metadata JSONB column so the aggregator can forward it as the
+// /backups/mode label to Google. Any existing metadata fields are preserved.
+func setBackupModeMetadata(hm *datamodel2.HydratedMetrics, mode string) {
+	if hm == nil {
 		return
 	}
-	hm.Metadata = b
+	extra := mergeMetadata(hm)
+	extra[metadataKeyBackupMode] = mode
+	if b, err := json.Marshal(extra); err == nil {
+		hm.Metadata = b
+	}
+}
+
+// mergeMetadata returns a map pre-populated with any existing JSONB entries in hm.Metadata.
+func mergeMetadata(hm *datamodel2.HydratedMetrics) map[string]string {
+	extra := make(map[string]string)
+	if len(hm.Metadata) > 0 {
+		_ = json.Unmarshal(hm.Metadata, &extra)
+	}
+	return extra
 }

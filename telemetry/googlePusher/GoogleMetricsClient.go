@@ -37,6 +37,8 @@ const (
 	VolumeReplicationScheduleDaily      = "Daily"
 	ReplicationModeOntap                = "ONTAP"
 	ReplicationTypeDataMigration        = "DATA_MIGRATION"
+	BackupModeOntap                     = "ONTAP"
+	BackupModeDefault                   = "DEFAULT"
 )
 
 var (
@@ -60,6 +62,7 @@ var (
 		"/replication/destination_region",
 		"/replication/frequency",
 		"/replication/mode",
+		"/backups/mode",
 	}
 )
 
@@ -837,21 +840,21 @@ func GetLabelKey(metric common.GoogleMetric) []string {
 	case metadata.Volume:
 		switch metricMeasuredType {
 		case metadata.BackupEnabledVolumeAllocatedSize:
-			return []string{"/resource_id"}
+			return []string{"/resource_id", "/backups/mode"}
 		case metadata.CbsCrossRegionVolumeRestoreTransferBytes:
 			return []string{"/resource_id", "/backups/source_continent", "/backups/destination_continent"}
 		}
 	case metadata.VolumeRegionalHA:
 		switch metricMeasuredType {
 		case metadata.BackupEnabledVolumeAllocatedSize:
-			return []string{"/resource_id"}
+			return []string{"/resource_id", "/backups/mode"}
 		}
 	case metadata.Backup:
 		switch metricMeasuredType {
 		case metadata.BackupLogicalSize:
-			return []string{"/resource_id", "/backups/location"}
+			return []string{"/resource_id", "/backups/location", "/backups/mode"}
 		case metadata.CbsCrossRegionVolumeBackupTransferBytes:
-			return []string{"/resource_id", "/backups/source_continent", "/backups/destination_continent"}
+			return []string{"/resource_id", "/backups/source_continent", "/backups/destination_continent", "/backups/mode"}
 		}
 	case metadata.VolumePool, metadata.VolumePoolRegionalHA:
 		switch metricMeasuredType {
@@ -890,6 +893,8 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		case "/backups/destination_continent":
 			destinationRegion, err := getDestinationRegion(metric)
 			return getContinent(destinationRegion), err
+		case "/backups/mode":
+			return getBackupMode(metric), nil
 		}
 	case metadata.Volume:
 		switch key {
@@ -901,11 +906,15 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		case "/backups/destination_continent":
 			destinationRegion, err := getDestinationRegion(metric)
 			return getContinent(destinationRegion), err
+		case "/backups/mode":
+			return getBackupMode(metric), nil
 		}
 	case metadata.VolumeRegionalHA:
 		switch key {
 		case "/resource_id":
 			return metric.GetResourceUUID()
+		case "/backups/mode":
+			return getBackupMode(metric), nil
 		}
 	case metadata.VolumeReplicationRelationship:
 		repType, err := getReplicationType(metric)
@@ -1034,6 +1043,16 @@ func _getDestinationRegion(metric common.GoogleMetric) (string, error) {
 
 func _getServiceLevel(metric common.GoogleMetric) (string, error) {
 	return metric.GetServiceLevel()
+}
+
+// getBackupMode returns BackupModeOntap when the metric's ServiceLevel is set to
+// BackupModeOntap, and BackupModeDefault in all other cases.
+func getBackupMode(metric common.GoogleMetric) string {
+	serviceLevel, err := getServiceLevel(metric)
+	if err == nil && serviceLevel == BackupModeOntap {
+		return BackupModeOntap
+	}
+	return BackupModeDefault
 }
 
 func _getFrequency(serviceLevel string) string {

@@ -4427,6 +4427,22 @@ func (re *retryEngine) ListVolumesForTelemetryMetrics(ctx context.Context) ([]*V
 	return var0, err
 }
 
+func (re *retryEngine) ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *dbutils.Pagination) ([]*ExpertModeVolumeMetricsData, error) {
+	var var0 []*ExpertModeVolumeMetricsData
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListExpertModeVolumesForTelemetryMetrics(ctx, pagination)
+		if err != nil {
+			re.logError("ListExpertModeVolumesForTelemetryMetrics", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

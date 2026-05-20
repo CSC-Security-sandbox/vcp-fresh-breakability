@@ -6284,3 +6284,47 @@ func TestGetVolumeCountByVolumePerformanceGroupID(t *testing.T) {
 		assert.Equal(tt, int64(0), count, "Expected 0 volumes for VPG with no volumes")
 	})
 }
+
+// Tests for ExpertModeVolumeMetricsData.GetProtocols
+func TestExpertModeVolumeMetricsData_GetProtocols(t *testing.T) {
+	t.Run("WhenVolumeAttributesIsNil_ReturnsNil", func(tt *testing.T) {
+		v := &ExpertModeVolumeMetricsData{VolumeAttributes: nil}
+		assert.Nil(tt, v.GetProtocols())
+	})
+
+	t.Run("WhenVolumeAttributesHasProtocols_ReturnsProtocols", func(tt *testing.T) {
+		v := &ExpertModeVolumeMetricsData{
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+				Protocols: []string{"NFS", "SMB"},
+			},
+		}
+		assert.Equal(tt, []string{"NFS", "SMB"}, v.GetProtocols())
+	})
+
+	t.Run("WhenVolumeAttributesHasEmptyProtocols_ReturnsEmptySlice", func(tt *testing.T) {
+		v := &ExpertModeVolumeMetricsData{
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+				Protocols: []string{},
+			},
+		}
+		assert.Empty(tt, v.GetProtocols())
+	})
+}
+
+// Tests for ListExpertModeVolumesForTelemetryMetrics.
+// Note: the query uses the PostgreSQL-specific ::boolean cast
+// (COALESCE((p.pool_attributes->>'is_regional_ha')::boolean, false)) which
+// SQLite does not support. The SQLite-based test therefore exercises the
+// error path (lines 1146-1147) and the function setup (lines 1124, 1126, 1128).
+// Line 1150 (success return) is only reachable against a real PostgreSQL instance.
+func TestListExpertModeVolumesForTelemetryMetrics_SQLiteErrorPath(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	_, err := store.ListExpertModeVolumesForTelemetryMetrics(ctx, nil)
+	require.Error(t, err, "expected a DB error due to PostgreSQL-specific ::boolean cast in SQLite")
+
+	// The function wraps the raw DB error in a VCPError.
+	var vcpErr *vsaerrors.CustomError
+	assert.True(t, errors.As(err, &vcpErr), "expected error to be a VCPError")
+}

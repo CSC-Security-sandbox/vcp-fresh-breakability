@@ -17277,6 +17277,65 @@ func (_c *MockDataStore_ListVolumesForTelemetryMetrics_Call) RunAndReturn(run fu
 	return _c
 }
 
+// ListExpertModeVolumesForTelemetryMetrics provides a mock function with given fields: ctx, pagination
+func (_m *MockDataStore) ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error) {
+	ret := _m.Called(ctx, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListExpertModeVolumesForTelemetryMetrics")
+	}
+
+	var r0 []*ExpertModeVolumeMetricsData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error)); ok {
+		return rf(ctx, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Pagination) []*ExpertModeVolumeMetricsData); ok {
+		r0 = rf(ctx, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*ExpertModeVolumeMetricsData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Pagination) error); ok {
+		r1 = rf(ctx, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListExpertModeVolumesForTelemetryMetrics'
+type MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call struct {
+	*mock.Call
+}
+
+// ListExpertModeVolumesForTelemetryMetrics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListExpertModeVolumesForTelemetryMetrics(ctx interface{}, pagination interface{}) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
+	return &MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call{Call: _e.mock.On("ListExpertModeVolumesForTelemetryMetrics", ctx, pagination)}
+}
+
+func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) Run(run func(ctx context.Context, pagination *utils.Pagination)) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) Return(_a0 []*ExpertModeVolumeMetricsData, _a1 error) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) RunAndReturn(run func(context.Context, *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error)) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListVolumesWithAccounts provides a mock function with given fields: ctx
 func (_m *MockDataStore) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx)

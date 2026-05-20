@@ -1091,6 +1091,77 @@ func (v *VolumeMetricsData) IsRegionalHA() bool {
 	return false
 }
 
+// ExpertModeVolumeMetricsData contains the fields required for telemetry billing metrics collection
+// for expert mode volumes. Account name, account ID, and deployment name are resolved via JOINs
+// with accounts and pools tables; protocols are extracted from the volume_attributes JSONB column.
+// PoolIsRegionalHA reflects the pool's is_regional_ha attribute and is used by the billing
+// aggregator to select the correct resource type (Volume vs VolumeRegionalHA).
+type ExpertModeVolumeMetricsData struct {
+	UUID             string
+	Name             string
+	SizeInBytes      int64
+	PoolID           int64
+	AccountID        int64
+	AccountName      string
+	DeploymentName   string
+	PoolIsRegionalHA bool
+	BackupConfig     *datamodel.DataProtection
+	VolumeAttributes *datamodel.ExpertModeVolumeAttributes
+}
+
+// GetProtocols returns the protocols from volume_attributes for expert mode volumes.
+func (v *ExpertModeVolumeMetricsData) GetProtocols() []string {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.Protocols
+	}
+	return nil
+}
+
+// ListExpertModeVolumesForTelemetryMetrics retrieves expert mode volumes with only the fields
+// required for telemetry billing metrics collection. Account name and deployment name are
+// resolved via JOINs with accounts and pools tables. When pagination is nil all records are
+// returned (existing behaviour); callers that process large datasets should pass a non-nil
+// Pagination to iterate in pages.
+func (d *DataStoreRepository) ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *dbutils.Pagination) ([]*ExpertModeVolumeMetricsData, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var results []*ExpertModeVolumeMetricsData
+
+	query := db.Table("expert_mode_volumes").
+		Joins("LEFT JOIN accounts a ON a.id = expert_mode_volumes.account_id").
+		Joins("LEFT JOIN pools p ON p.id = expert_mode_volumes.pool_id").
+		Select(`
+			expert_mode_volumes.uuid,
+			expert_mode_volumes.name,
+			expert_mode_volumes.size_in_bytes,
+			expert_mode_volumes.pool_id,
+			COALESCE(a.id, 0) AS account_id,
+			COALESCE(a.name, '') AS account_name,
+			COALESCE(p.deployment_name, '') AS deployment_name,
+			COALESCE((p.pool_attributes->>'is_regional_ha')::boolean, false) AS pool_is_regional_ha,
+			expert_mode_volumes.data_protection AS backup_config,
+			expert_mode_volumes.volume_attributes
+		`).
+		Where("expert_mode_volumes.deleted_at IS NULL")
+
+	if pagination != nil {
+		if pagination.Limit > 0 {
+			query = query.Limit(pagination.Limit)
+		}
+		if pagination.Offset > 0 {
+			query = query.Offset(pagination.Offset)
+		}
+	}
+
+	err := query.Find(&results).Error
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return results, nil
+}
+
 // ListVolumesForTelemetryMetrics retrieves volumes with only the fields required for telemetry metrics collection.
 // This is an optimized query that avoids JOINs with Account and Pool tables.
 // Account name, deployment name, and protocols are extracted from volume_attributes JSONB.

@@ -33,12 +33,13 @@ const (
 
 // backupChainHistoryParams holds parameters for creating/updating backup chain history
 type backupChainHistoryParams struct {
-	ResourceName   string
-	VolumeUUID     string
-	Size           int64
-	ConsumerID     string
-	DeploymentName string
-	Timestamp      time.Time
+	ResourceName       string
+	VolumeUUID         string
+	Size               int64
+	ConsumerID         string
+	DeploymentName     string
+	Timestamp          time.Time
+	IsExpertModeBackup bool
 }
 
 type BackupMetricsData struct {
@@ -61,11 +62,12 @@ func createBackupChainHistoryEntry(tx *gorm.DB, params backupChainHistoryParams)
 			UpdatedAt: params.Timestamp,
 			DeletedAt: nil,
 		},
-		ResourceName:   params.ResourceName,
-		ResourceUUID:   params.VolumeUUID,
-		Size:           params.Size,
-		ConsumerID:     params.ConsumerID,
-		DeploymentName: params.DeploymentName,
+		ResourceName:       params.ResourceName,
+		ResourceUUID:       params.VolumeUUID,
+		Size:               params.Size,
+		ConsumerID:         params.ConsumerID,
+		DeploymentName:     params.DeploymentName,
+		IsExpertModeBackup: params.IsExpertModeBackup,
 	}
 	return tx.Create(history).Error
 }
@@ -97,14 +99,15 @@ func supersedePreviousBackupChainHistory(ctx context.Context, tx *gorm.DB, volum
 		return err
 	}
 
-	// Create new entry with updated size
+	// Create new entry with updated size, preserving IsExpertModeBackup from the existing entry.
 	err = createBackupChainHistoryEntry(tx, backupChainHistoryParams{
-		ResourceName:   currentHistory.ResourceName,
-		VolumeUUID:     volumeUUID,
-		Size:           newSize,
-		ConsumerID:     currentHistory.ConsumerID,
-		DeploymentName: currentHistory.DeploymentName,
-		Timestamp:      now,
+		ResourceName:       currentHistory.ResourceName,
+		VolumeUUID:         volumeUUID,
+		Size:               newSize,
+		ConsumerID:         currentHistory.ConsumerID,
+		DeploymentName:     currentHistory.DeploymentName,
+		Timestamp:          now,
+		IsExpertModeBackup: currentHistory.IsExpertModeBackup,
 	})
 	if err != nil {
 		return err
@@ -176,13 +179,15 @@ func (d *DataStoreRepository) CreateBackup(ctx context.Context, backup *datamode
 			consumerID = dbBackup.Attributes.AccountIdentifier
 		}
 
+		isExpertModeBackup := dbBackup.Attributes != nil && dbBackup.Attributes.IsExpertModeBackup
 		err = createBackupChainHistoryEntry(tx, backupChainHistoryParams{
-			ResourceName:   volumeName,
-			VolumeUUID:     dbBackup.VolumeUUID,
-			Size:           0, // Will be updated later when backup completes
-			ConsumerID:     consumerID,
-			DeploymentName: deploymentName,
-			Timestamp:      dbBackup.CreatedAt,
+			ResourceName:       volumeName,
+			VolumeUUID:         dbBackup.VolumeUUID,
+			Size:               0, // Will be updated later when backup completes
+			ConsumerID:         consumerID,
+			DeploymentName:     deploymentName,
+			Timestamp:          dbBackup.CreatedAt,
+			IsExpertModeBackup: isExpertModeBackup,
 		})
 		if err != nil {
 			util.GetLogger(ctx).Warnf("Failed to create backup chain history for backup %s: %v", backup.UUID, err)

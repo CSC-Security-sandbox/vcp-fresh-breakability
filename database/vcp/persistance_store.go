@@ -1509,6 +1509,10 @@ func (s *PersistenceStore) ListVolumesForTelemetryMetrics(ctx context.Context) (
 	return s.dataStore.ListVolumesForTelemetryMetrics(ctx)
 }
 
+func (s *PersistenceStore) ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *dbutils.Pagination) ([]*ExpertModeVolumeMetricsData, error) {
+	return s.dataStore.ListExpertModeVolumesForTelemetryMetrics(ctx, pagination)
+}
+
 func (s *PersistenceStore) UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error {
 	return s.dataStore.UpdateBackupFields(ctx, backupUUID, updates)
 }

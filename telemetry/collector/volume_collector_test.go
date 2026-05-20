@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -39,6 +40,14 @@ func (m *mockVolumeStorage) ListVolumesForTelemetryMetrics(ctx context.Context) 
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*database.VolumeMetricsData), args.Error(1)
+}
+
+func (m *mockVolumeStorage) ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *utils.Pagination) ([]*database.ExpertModeVolumeMetricsData, error) {
+	args := m.Called(ctx, pagination)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*database.ExpertModeVolumeMetricsData), args.Error(1)
 }
 
 func (m *mockVolumeStorage) GetBackupVault(ctx context.Context, backupVaultID string) (*datamodel.BackupVault, error) {
@@ -1736,6 +1745,7 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 			backupVault: &datamodel.BackupVault{
 				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-2"},
 				Name:             "BackupVault2",
+				BackupVaultType:  activities.CrossRegionBackupType,
 				SourceRegionName: stringPtr("us-east-1"),
 				BackupRegionName: stringPtr("eu-west-1"), // Different region
 			},
@@ -2456,6 +2466,672 @@ func Test_GetVolumeMetrics_AccountFetchFailure(t *testing.T) {
 
 	m.AssertExpectations(t)
 }
+
+// --- Expert mode volume backup management fee billing tests ---
+
+// Test_GetVolumeMetrics_ExpertModeVolumesBillingIncluded verifies that expert mode volumes
+// with active backup chains emit BackupEnabledVolumeAllocatedSize when EnableExpertModeBackupBilling=true.
+func Test_GetVolumeMetrics_ExpertModeVolumesBillingIncluded(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                  "us-east-1",
+		EnableBackupBillingMetrics:  true,
+		EnableFilesBackupBilling:    true,
+		EnableExpertModeBackupBilling: true,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{
+		1: {ResourceType: metadata.Volume},
+	}
+
+	backupChainBytes := int64(2048)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:           "emv-uuid-1",
+			Name:           "ExpertVolume1",
+			SizeInBytes:    4096,
+			PoolID:         1,
+			AccountName:    "Account1",
+			DeploymentName: "test-deployment",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+				Protocols: []string{"NFS"},
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.Len(t, result.HydratedMetricsDataModel, 1)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
+	assert.Equal(t, metadata.Volume, result.HydratedMetricsDataModel[0].ResourceType)
+	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, "ExpertVolume1", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[0].Quantity)
+
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumesBillingDisabled verifies that when
+// EnableExpertModeBackupBilling=false and there are no regular volumes, the function
+// exits early and expert mode volumes are not processed.
+func Test_GetVolumeMetrics_ExpertModeVolumesBillingDisabled(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                    "us-east-1",
+		EnableBackupBillingMetrics:    true,
+		EnableFilesBackupBilling:      true,
+		EnableExpertModeBackupBilling: false,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	// No regular volumes + expert mode disabled → early return; only ListVolumesForTelemetryMetrics is called.
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumesNoBackupChain verifies that expert mode volumes
+// without a backup chain are skipped.
+func Test_GetVolumeMetrics_ExpertModeVolumesNoBackupChain(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                    "us-east-1",
+		EnableBackupBillingMetrics:    true,
+		EnableFilesBackupBilling:      true,
+		EnableExpertModeBackupBilling: true,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:         "emv-uuid-no-backup",
+			Name:         "ExpertVolumeNoBackup",
+			SizeInBytes:  4096,
+			AccountName:  "Account1",
+			BackupConfig: nil,
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumesRegionalHA verifies that expert mode volumes in
+// regional HA pools emit the correct resource type.
+func Test_GetVolumeMetrics_ExpertModeVolumesRegionalHA(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                    "us-east-1",
+		EnableBackupBillingMetrics:    true,
+		EnableFilesBackupBilling:      true,
+		EnableExpertModeBackupBilling: true,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{
+		10: {ResourceType: metadata.VolumePoolRegionalHA},
+	}
+
+	backupChainBytes := int64(512)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-rha-1",
+			Name:        "ExpertVolumeRHA",
+			SizeInBytes: 8192,
+			PoolID:      10,
+			AccountName: "AccountRHA",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	require.Len(t, result.HydratedMetricsDataModel, 1)
+	assert.Equal(t, metadata.VolumeRegionalHA, result.HydratedMetricsDataModel[0].ResourceType)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumesSkipCrossRegion verifies that expert mode volumes
+// with cross-region backup vaults are skipped when CRB billing is disabled.
+func Test_GetVolumeMetrics_ExpertModeVolumesSkipCrossRegion(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	src := "us-east-1"
+	dst := "us-west-1"
+	config := &common.TelemetryConfig{
+		RegionName:                           "us-east-1",
+		EnableBackupBillingMetrics:           true,
+		EnableFilesBackupBilling:             true,
+		EnableExpertModeBackupBilling:        true,
+		EnableCrossRegionBackupBillingMetrics: false,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(1024)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-crb-1",
+			Name:        "ExpertVolumeCRB",
+			SizeInBytes: 2048,
+			AccountName: "Account1",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+				BackupVaultID:    "vault-crb-uuid",
+			},
+		},
+	}
+
+	crbVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "vault-crb-uuid"},
+		SourceRegionName: &src,
+		BackupRegionName: &dst,
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{crbVault}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumesMissingAccountSkipped verifies that expert mode
+// volumes with no account name are skipped.
+func Test_GetVolumeMetrics_ExpertModeVolumesMissingAccountSkipped(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                    "us-east-1",
+		EnableBackupBillingMetrics:    true,
+		EnableFilesBackupBilling:      true,
+		EnableExpertModeBackupBilling: true,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(512)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-no-account",
+			Name:        "ExpertVolumeNoAccount",
+			SizeInBytes: 1024,
+			AccountName: "",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumeDBError verifies that a DB error from
+// ListExpertModeVolumesForTelemetryMetrics is logged but does not fail the overall call.
+func Test_GetVolumeMetrics_ExpertModeVolumeDBError(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                    "us-east-1",
+		EnableBackupBillingMetrics:    true,
+		EnableFilesBackupBilling:      true,
+		EnableExpertModeBackupBilling: true,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// DB error is logged and expert mode metrics are skipped; the rest of the result is intact.
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumes_HyperscalerDisabledSkipped verifies that expert mode
+// volumes whose account is in HYPERSCALERDISABLED state are skipped (lines 286-287).
+func Test_GetVolumeMetrics_ExpertModeVolumes_HyperscalerDisabledSkipped(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                    "us-east-1",
+		EnableBackupBillingMetrics:    true,
+		EnableFilesBackupBilling:      true,
+		EnableExpertModeBackupBilling: true,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(1024)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-disabled-acct",
+			Name:        "ExpertVolumeDisabledAcct",
+			SizeInBytes: 2048,
+			AccountName: "DisabledAccount",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	accounts := []*database.AccountTelemetryData{
+		{
+			ID:    1,
+			Name:  "DisabledAccount",
+			State: models.AccountStateHyperscalerDisabled,
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return(accounts, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumes_FilesBackupBillingDisabledNonSanSkipped verifies that
+// expert mode volumes with a non-SAN protocol are skipped when EnableFilesBackupBilling=false (line 296).
+func Test_GetVolumeMetrics_ExpertModeVolumes_FilesBackupBillingDisabledNonSanSkipped(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                    "us-east-1",
+		EnableBackupBillingMetrics:    true,
+		EnableFilesBackupBilling:      false,
+		EnableExpertModeBackupBilling: true,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(512)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-nfs-no-files-billing",
+			Name:        "ExpertVolumeNFS",
+			SizeInBytes: 1024,
+			AccountName: "Account1",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+				Protocols: []string{"NFS"},
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumes_CRBDisabledVaultNotInMapSkipped verifies that when
+// CRB billing is disabled and the backup vault is not found in the map, the volume is skipped
+// with an error log (lines 317-318).
+func Test_GetVolumeMetrics_ExpertModeVolumes_CRBDisabledVaultNotInMapSkipped(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                           "us-east-1",
+		EnableBackupBillingMetrics:           true,
+		EnableFilesBackupBilling:             true,
+		EnableExpertModeBackupBilling:        true,
+		EnableCrossRegionBackupBillingMetrics: false,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(1024)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-crb-notinmap",
+			Name:        "ExpertVolumeCRBMissing",
+			SizeInBytes: 2048,
+			AccountName: "Account1",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+				BackupVaultID:    "vault-missing-uuid",
+			},
+		},
+	}
+
+	// Vault is not returned, so backupVaultMap does not contain "vault-missing-uuid".
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumes_CMEKDisabledVaultFoundWithCmekSkipped verifies that when
+// CMEK billing is disabled and the vault has CMEK attributes, the volume is skipped (lines 324-327).
+func Test_GetVolumeMetrics_ExpertModeVolumes_CMEKDisabledVaultFoundWithCmekSkipped(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	kmsPath := "projects/p/locations/us/keyRings/kr/cryptoKeys/key"
+	config := &common.TelemetryConfig{
+		RegionName:                           "us-east-1",
+		EnableBackupBillingMetrics:           true,
+		EnableFilesBackupBilling:             true,
+		EnableExpertModeBackupBilling:        true,
+		EnableCrossRegionBackupBillingMetrics: true, // CRB check skipped
+		EnableCmekBackupBilling:              false,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(1024)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-cmek-skip",
+			Name:        "ExpertVolumeCMEK",
+			SizeInBytes: 2048,
+			AccountName: "Account1",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+				BackupVaultID:    "vault-cmek-uuid",
+			},
+		},
+	}
+
+	cmekVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-cmek-uuid"},
+		CmekAttributes: &datamodel.CmekAttributes{
+			KmsConfigResourcePath: &kmsPath,
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{cmekVault}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumes_CMEKDisabledVaultNotInMapSkipped verifies that when
+// CMEK billing is disabled and the vault is not in the map, the volume is skipped with an error
+// log (lines 330-331).
+func Test_GetVolumeMetrics_ExpertModeVolumes_CMEKDisabledVaultNotInMapSkipped(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                           "us-east-1",
+		EnableBackupBillingMetrics:           true,
+		EnableFilesBackupBilling:             true,
+		EnableExpertModeBackupBilling:        true,
+		EnableCrossRegionBackupBillingMetrics: true, // CRB check skipped
+		EnableCmekBackupBilling:              false,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(1024)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-cmek-notinmap",
+			Name:        "ExpertVolumeCMEKMissing",
+			SizeInBytes: 2048,
+			AccountName: "Account1",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+				BackupVaultID:    "vault-cmek-missing-uuid",
+			},
+		},
+	}
+
+	// Vault is not returned, so backupVaultMap does not contain "vault-cmek-missing-uuid".
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumes_GCBDRDisabledCrossProjectVaultSkipped verifies that when
+// GCBDR billing is disabled and the vault has ServiceType=CrossProject, the volume is skipped
+// (lines 337-340).
+func Test_GetVolumeMetrics_ExpertModeVolumes_GCBDRDisabledCrossProjectVaultSkipped(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                           "us-east-1",
+		EnableBackupBillingMetrics:           true,
+		EnableFilesBackupBilling:             true,
+		EnableExpertModeBackupBilling:        true,
+		EnableCrossRegionBackupBillingMetrics: true, // CRB check skipped
+		EnableCmekBackupBilling:              true,  // CMEK check skipped
+		EnableGcbdrBackupBilling:             false,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(1024)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-gcbdr-skip",
+			Name:        "ExpertVolumeGCBDR",
+			SizeInBytes: 2048,
+			AccountName: "Account1",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+				BackupVaultID:    "vault-gcbdr-uuid",
+			},
+		},
+	}
+
+	gcbdrVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-gcbdr-uuid"},
+		ServiceType: models.ServiceTypeCrossProject,
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{gcbdrVault}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumes_GCBDRDisabledVaultNotInMapSkipped verifies that when
+// GCBDR billing is disabled and the vault is not in the map, the volume is skipped with an error
+// log (lines 343-344).
+func Test_GetVolumeMetrics_ExpertModeVolumes_GCBDRDisabledVaultNotInMapSkipped(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                           "us-east-1",
+		EnableBackupBillingMetrics:           true,
+		EnableFilesBackupBilling:             true,
+		EnableExpertModeBackupBilling:        true,
+		EnableCrossRegionBackupBillingMetrics: true, // CRB check skipped
+		EnableCmekBackupBilling:              true,  // CMEK check skipped
+		EnableGcbdrBackupBilling:             false,
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(1024)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-gcbdr-notinmap",
+			Name:        "ExpertVolumeGCBDRMissing",
+			SizeInBytes: 2048,
+			AccountName: "Account1",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+				BackupVaultID:    "vault-gcbdr-missing-uuid",
+			},
+		},
+	}
+
+	// Vault is not returned, so backupVaultMap does not contain "vault-gcbdr-missing-uuid".
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	assert.Empty(t, result.HydratedMetricsDataModel)
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_ExpertModeVolumes_CRBVaultSetsCrossRegionMetadata verifies that when a
+// qualifying expert mode volume references a CrossRegion backup vault with a BackupRegionName, the
+// cross-region metadata is set on the emitted metric (lines 362, 365-366).
+func Test_GetVolumeMetrics_ExpertModeVolumes_CRBVaultSetsCrossRegionMetadata(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	backupRegion := "us-west-1"
+	config := &common.TelemetryConfig{
+		RegionName:                           "us-east-1",
+		EnableBackupBillingMetrics:           true,
+		EnableFilesBackupBilling:             true,
+		EnableExpertModeBackupBilling:        true,
+		EnableCrossRegionBackupBillingMetrics: true, // CRB billing check skipped; vault map still populated via GCBDR=false
+		EnableCmekBackupBilling:              true,  // CMEK check skipped
+		EnableGcbdrBackupBilling:             false, // ensures vaults are fetched and GCBDR check runs (vault is not CrossProject, so not skipped)
+	}
+
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
+
+	backupChainBytes := int64(4096)
+	expertVolumes := []*database.ExpertModeVolumeMetricsData{
+		{
+			UUID:        "emv-crb-region",
+			Name:        "ExpertVolumeCRBRegion",
+			SizeInBytes: 8192,
+			AccountName: "Account1",
+			BackupConfig: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+				BackupVaultID:    "vault-crb-region-uuid",
+			},
+		},
+	}
+
+	crbVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "vault-crb-region-uuid"},
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: &backupRegion,
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{crbVault}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return(expertVolumes, nil).Once()
+	m.On("ListExpertModeVolumesForTelemetryMetrics", mock.Anything, mock.Anything).Return([]*database.ExpertModeVolumeMetricsData{}, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+
+	require.Len(t, result.HydratedMetricsDataModel, 1)
+	hm := result.HydratedMetricsDataModel[0]
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, hm.MeasuredType)
+	assert.Equal(t, "Account1", hm.ConsumerID)
+	assert.Equal(t, float64(8192), hm.Quantity)
+	m.AssertExpectations(t)
+}
+
+// --- End expert mode volume billing tests ---
 
 // Test_GetVolumeMetrics_AccountNotInMap tests that volumes with accounts not in the map are still processed
 func Test_GetVolumeMetrics_AccountNotInMap(t *testing.T) {
