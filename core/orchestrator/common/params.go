@@ -398,6 +398,7 @@ type UpdatePoolParams struct {
 	AccountName               string
 	Region                    string
 	PoolId                    string
+	PoolExternalIdentifier    string
 	Description               string
 	VendorID                  string
 	QosType                   string
@@ -422,6 +423,19 @@ type UpdatePoolParams struct {
 	LargeCapacity             *bool
 	AutoResizeTriggeredUpdate bool
 	IfADExistsInVCP           bool
+	OciAdminPassword          *OciAdminPassword
+	NodeCapacities            []NodeCapacity
+	KmsKeyId                  string
+	NsgIds                    []string
+	SecurityAttributes        map[string]string
+	HAPairs                   uint64
+}
+
+// NodeCapacity describes per-node capacity parameters for OCI pool updates.
+type NodeCapacity struct {
+	Name      string
+	NodeUUID  string
+	SizeInGiB int64
 }
 
 // VolumeCountRange defines the volume count range for auto pool scaling

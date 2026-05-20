@@ -53,6 +53,13 @@ type Handler interface {
 	//
 	// GET /v1beta/workRequests/{workRequestId}
 	GetWorkflow(ctx context.Context, params GetWorkflowParams) (GetWorkflowRes, error)
+	// UpdatePool implements updatePool operation.
+	//
+	// Updates an existing storage pool's capacity and/or throughput. The operation
+	// is asynchronous. Use the returned workflowId to poll for completion.
+	//
+	// PUT /v1beta/pools/{poolOCID}
+	UpdatePool(ctx context.Context, req *UpdatePoolRequest, params UpdatePoolParams) (UpdatePoolRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

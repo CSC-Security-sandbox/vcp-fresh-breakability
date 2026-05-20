@@ -82,6 +82,12 @@ spec:
               value: "Netapp1!"
             - name: OCI_ONTAP_ADMIN_USERNAME
               value: "admin"
+            # Per-node data-disk size bounds for UpdatePool (validateUpdatePoolNodeCapacities).
+            # Configured in TiB; the API field is sizeInGiB, so values are compared as bound*1024 GiB.
+            - name: OCI_NODE_CAPACITY_MIN_TIB
+              value: "2"
+            - name: OCI_NODE_CAPACITY_MAX_TIB
+              value: "425"
           resources:
             limits:
               cpu: 500m

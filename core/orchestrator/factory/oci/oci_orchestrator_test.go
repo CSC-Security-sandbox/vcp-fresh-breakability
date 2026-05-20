@@ -29,7 +29,7 @@ func TestNewOCIOrchestrator(t *testing.T) {
 }
 
 func TestOCIOrchestrator_UpdatePool(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+	t.Run("ReturnsBadRequestWhenPoolExternalIdentifierMissing", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
 		params := &common.UpdatePoolParams{}
@@ -37,7 +37,7 @@ func TestOCIOrchestrator_UpdatePool(t *testing.T) {
 		result, jobID, err := orch.UpdatePool(ctx, params)
 
 		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.True(tt, errors.IsBadRequestErr(err))
 		assert.Nil(tt, result)
 		assert.Empty(tt, jobID)
 	})

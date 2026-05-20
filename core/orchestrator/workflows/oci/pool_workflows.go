@@ -602,3 +602,9 @@ func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 
 	return nil, nil
 }
+
+// OCIUpdatePoolWorkflow processes pool update requests for OCI.
+// TODO(VSCP-5929): Full implementation in the workflow-layer PR.
+func OCIUpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+	return fmt.Errorf("OCIUpdatePoolWorkflow not yet implemented")
+}

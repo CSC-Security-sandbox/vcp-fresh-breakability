@@ -24,3 +24,7 @@ type GetHealthRes interface {
 type GetWorkflowRes interface {
 	getWorkflowRes()
 }
+
+type UpdatePoolRes interface {
+	updatePoolRes()
+}

@@ -1178,6 +1178,46 @@ func (s *Health) SetStatus(val OptString) {
 
 func (*Health) getHealthRes() {}
 
+// Ref: #/components/schemas/NodeCapacity
+type NodeCapacity struct {
+	// Node name.
+	Name OptString `json:"name"`
+	// UUID of the corresponding node.
+	NodeUUID OptString `json:"nodeUUID"`
+	// Capacity for this node in GiB.
+	SizeInGiB int64 `json:"sizeInGiB"`
+}
+
+// GetName returns the value of Name.
+func (s *NodeCapacity) GetName() OptString {
+	return s.Name
+}
+
+// GetNodeUUID returns the value of NodeUUID.
+func (s *NodeCapacity) GetNodeUUID() OptString {
+	return s.NodeUUID
+}
+
+// GetSizeInGiB returns the value of SizeInGiB.
+func (s *NodeCapacity) GetSizeInGiB() int64 {
+	return s.SizeInGiB
+}
+
+// SetName sets the value of Name.
+func (s *NodeCapacity) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetNodeUUID sets the value of NodeUUID.
+func (s *NodeCapacity) SetNodeUUID(val OptString) {
+	s.NodeUUID = val
+}
+
+// SetSizeInGiB sets the value of SizeInGiB.
+func (s *NodeCapacity) SetSizeInGiB(val int64) {
+	s.SizeInGiB = val
+}
+
 // Ref: #/components/schemas/OCICreatePoolWorkflowCredentials
 type OCICreatePoolWorkflowCredentials struct {
 	Secret      OCIOCIDVersionRef `json:"secret"`
@@ -1523,6 +1563,98 @@ func (o OptDeleteSvmReq) Or(d DeleteSvmReq) DeleteSvmReq {
 	return d
 }
 
+// NewOptFloat64 returns new OptFloat64 with value set to v.
+func NewOptFloat64(v float64) OptFloat64 {
+	return OptFloat64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFloat64 is optional float64.
+type OptFloat64 struct {
+	Value float64
+	Set   bool
+}
+
+// IsSet returns true if OptFloat64 was set.
+func (o OptFloat64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFloat64) Reset() {
+	var v float64
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFloat64) SetTo(v float64) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFloat64) Get() (v float64, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFloat64) Or(d float64) float64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInt64 returns new OptInt64 with value set to v.
+func NewOptInt64(v int64) OptInt64 {
+	return OptInt64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt64 is optional int64.
+type OptInt64 struct {
+	Value int64
+	Set   bool
+}
+
+// IsSet returns true if OptInt64 was set.
+func (o OptInt64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt64) Reset() {
+	var v int64
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt64) SetTo(v int64) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt64) Get() (v int64, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptOCICreatePoolWorkflowMetadata returns new OptOCICreatePoolWorkflowMetadata with value set to v.
 func NewOptOCICreatePoolWorkflowMetadata(v OCICreatePoolWorkflowMetadata) OptOCICreatePoolWorkflowMetadata {
 	return OptOCICreatePoolWorkflowMetadata{
@@ -1615,6 +1747,52 @@ func (o OptOCICreateSVMWorkflowMetadata) Or(d OCICreateSVMWorkflowMetadata) OCIC
 	return d
 }
 
+// NewOptOCIOCIDVersionRef returns new OptOCIOCIDVersionRef with value set to v.
+func NewOptOCIOCIDVersionRef(v OCIOCIDVersionRef) OptOCIOCIDVersionRef {
+	return OptOCIOCIDVersionRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOCIOCIDVersionRef is optional OCIOCIDVersionRef.
+type OptOCIOCIDVersionRef struct {
+	Value OCIOCIDVersionRef
+	Set   bool
+}
+
+// IsSet returns true if OptOCIOCIDVersionRef was set.
+func (o OptOCIOCIDVersionRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOCIOCIDVersionRef) Reset() {
+	var v OCIOCIDVersionRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOCIOCIDVersionRef) SetTo(v OCIOCIDVersionRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOCIOCIDVersionRef) Get() (v OCIOCIDVersionRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOCIOCIDVersionRef) Or(d OCIOCIDVersionRef) OCIOCIDVersionRef {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -1701,6 +1879,52 @@ func (o OptTieringConfig) Get() (v TieringConfig, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptTieringConfig) Or(d TieringConfig) TieringConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptUpdatePoolRequestSecurityAttributes returns new OptUpdatePoolRequestSecurityAttributes with value set to v.
+func NewOptUpdatePoolRequestSecurityAttributes(v UpdatePoolRequestSecurityAttributes) OptUpdatePoolRequestSecurityAttributes {
+	return OptUpdatePoolRequestSecurityAttributes{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptUpdatePoolRequestSecurityAttributes is optional UpdatePoolRequestSecurityAttributes.
+type OptUpdatePoolRequestSecurityAttributes struct {
+	Value UpdatePoolRequestSecurityAttributes
+	Set   bool
+}
+
+// IsSet returns true if OptUpdatePoolRequestSecurityAttributes was set.
+func (o OptUpdatePoolRequestSecurityAttributes) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptUpdatePoolRequestSecurityAttributes) Reset() {
+	var v UpdatePoolRequestSecurityAttributes
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptUpdatePoolRequestSecurityAttributes) SetTo(v UpdatePoolRequestSecurityAttributes) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptUpdatePoolRequestSecurityAttributes) Get() (v UpdatePoolRequestSecurityAttributes, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptUpdatePoolRequestSecurityAttributes) Or(d UpdatePoolRequestSecurityAttributes) UpdatePoolRequestSecurityAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2218,6 +2442,253 @@ func (s *TieringConfig) SetBucketName(val string) {
 func (s *TieringConfig) SetServerName(val string) {
 	s.ServerName = val
 }
+
+// Ref: #/components/schemas/UpdatePoolAcceptedResponse
+type UpdatePoolAcceptedResponse struct {
+	// Current workflow status for the update operation.
+	Status string `json:"status"`
+	// Workflow identifier used to poll operation status.
+	WorkflowId string `json:"workflowId"`
+	// OCID of the pool being updated.
+	PoolOCID string `json:"poolOCID"`
+}
+
+// GetStatus returns the value of Status.
+func (s *UpdatePoolAcceptedResponse) GetStatus() string {
+	return s.Status
+}
+
+// GetWorkflowId returns the value of WorkflowId.
+func (s *UpdatePoolAcceptedResponse) GetWorkflowId() string {
+	return s.WorkflowId
+}
+
+// GetPoolOCID returns the value of PoolOCID.
+func (s *UpdatePoolAcceptedResponse) GetPoolOCID() string {
+	return s.PoolOCID
+}
+
+// SetStatus sets the value of Status.
+func (s *UpdatePoolAcceptedResponse) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetWorkflowId sets the value of WorkflowId.
+func (s *UpdatePoolAcceptedResponse) SetWorkflowId(val string) {
+	s.WorkflowId = val
+}
+
+// SetPoolOCID sets the value of PoolOCID.
+func (s *UpdatePoolAcceptedResponse) SetPoolOCID(val string) {
+	s.PoolOCID = val
+}
+
+// UpdatePoolAcceptedResponseHeaders wraps UpdatePoolAcceptedResponse with response headers.
+type UpdatePoolAcceptedResponseHeaders struct {
+	OpcRequestID string
+	Response     UpdatePoolAcceptedResponse
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *UpdatePoolAcceptedResponseHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *UpdatePoolAcceptedResponseHeaders) GetResponse() UpdatePoolAcceptedResponse {
+	return s.Response
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *UpdatePoolAcceptedResponseHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *UpdatePoolAcceptedResponseHeaders) SetResponse(val UpdatePoolAcceptedResponse) {
+	s.Response = val
+}
+
+func (*UpdatePoolAcceptedResponseHeaders) updatePoolRes() {}
+
+type UpdatePoolBadRequest PoolOperationErrorResponseHeaders
+
+func (*UpdatePoolBadRequest) updatePoolRes() {}
+
+type UpdatePoolConflict PoolOperationErrorResponseHeaders
+
+func (*UpdatePoolConflict) updatePoolRes() {}
+
+// UpdatePoolDefaultErrorStatusCodeWithHeaders wraps PoolOperationErrorResponse with status code and response headers.
+type UpdatePoolDefaultErrorStatusCodeWithHeaders struct {
+	StatusCode   int
+	OpcRequestID string
+	Response     PoolOperationErrorResponse
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *UpdatePoolDefaultErrorStatusCodeWithHeaders) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *UpdatePoolDefaultErrorStatusCodeWithHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *UpdatePoolDefaultErrorStatusCodeWithHeaders) GetResponse() PoolOperationErrorResponse {
+	return s.Response
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *UpdatePoolDefaultErrorStatusCodeWithHeaders) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *UpdatePoolDefaultErrorStatusCodeWithHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *UpdatePoolDefaultErrorStatusCodeWithHeaders) SetResponse(val PoolOperationErrorResponse) {
+	s.Response = val
+}
+
+func (*UpdatePoolDefaultErrorStatusCodeWithHeaders) updatePoolRes() {}
+
+type UpdatePoolForbidden PoolOperationErrorResponseHeaders
+
+func (*UpdatePoolForbidden) updatePoolRes() {}
+
+type UpdatePoolInternalServerError PoolOperationErrorResponseHeaders
+
+func (*UpdatePoolInternalServerError) updatePoolRes() {}
+
+type UpdatePoolNotFound PoolOperationErrorResponseHeaders
+
+func (*UpdatePoolNotFound) updatePoolRes() {}
+
+// Update pool request body. Exactly one of nodeCapacities or dataEndpointCount
+// must be provided. All other fields are optional.
+// Ref: #/components/schemas/UpdatePoolRequest
+type UpdatePoolRequest struct {
+	// Total target throughput for the pool in GBps. Must be > 0.
+	ThroughputGBps OptFloat64 `json:"throughputGBps"`
+	// Total pool capacity in GiB. Must be >= 1. Typically a multiple of 1 TiB.
+	SizeInGiB OptInt64 `json:"sizeInGiB"`
+	// Absolute number of endpoints that should exist in the cluster. Must be >= 2 and even.
+	// Mutually exclusive with nodeCapacities. Allowed only for Single AD clusters.
+	DataEndpointCount OptInt64 `json:"dataEndpointCount"`
+	// Per-endpoint capacity configuration. Mutually exclusive with dataEndpointCount.
+	// When provided, throughputGBps is applied to each endpoint and sizeInGiB is derived.
+	NodeCapacities []NodeCapacity `json:"nodeCapacities"`
+	// OCI secret reference for admin password.
+	OciAdminPassword OptOCIOCIDVersionRef `json:"ociAdminPassword"`
+	// Updated KMS key OCID for data encryption.
+	KmsKeyId OptString `json:"kmsKeyId"`
+	// Updated list of Network Security Group OCIDs.
+	NsgIds []string `json:"nsgIds"`
+	// Updated security attributes as key-value pairs.
+	SecurityAttributes OptUpdatePoolRequestSecurityAttributes `json:"securityAttributes"`
+}
+
+// GetThroughputGBps returns the value of ThroughputGBps.
+func (s *UpdatePoolRequest) GetThroughputGBps() OptFloat64 {
+	return s.ThroughputGBps
+}
+
+// GetSizeInGiB returns the value of SizeInGiB.
+func (s *UpdatePoolRequest) GetSizeInGiB() OptInt64 {
+	return s.SizeInGiB
+}
+
+// GetDataEndpointCount returns the value of DataEndpointCount.
+func (s *UpdatePoolRequest) GetDataEndpointCount() OptInt64 {
+	return s.DataEndpointCount
+}
+
+// GetNodeCapacities returns the value of NodeCapacities.
+func (s *UpdatePoolRequest) GetNodeCapacities() []NodeCapacity {
+	return s.NodeCapacities
+}
+
+// GetOciAdminPassword returns the value of OciAdminPassword.
+func (s *UpdatePoolRequest) GetOciAdminPassword() OptOCIOCIDVersionRef {
+	return s.OciAdminPassword
+}
+
+// GetKmsKeyId returns the value of KmsKeyId.
+func (s *UpdatePoolRequest) GetKmsKeyId() OptString {
+	return s.KmsKeyId
+}
+
+// GetNsgIds returns the value of NsgIds.
+func (s *UpdatePoolRequest) GetNsgIds() []string {
+	return s.NsgIds
+}
+
+// GetSecurityAttributes returns the value of SecurityAttributes.
+func (s *UpdatePoolRequest) GetSecurityAttributes() OptUpdatePoolRequestSecurityAttributes {
+	return s.SecurityAttributes
+}
+
+// SetThroughputGBps sets the value of ThroughputGBps.
+func (s *UpdatePoolRequest) SetThroughputGBps(val OptFloat64) {
+	s.ThroughputGBps = val
+}
+
+// SetSizeInGiB sets the value of SizeInGiB.
+func (s *UpdatePoolRequest) SetSizeInGiB(val OptInt64) {
+	s.SizeInGiB = val
+}
+
+// SetDataEndpointCount sets the value of DataEndpointCount.
+func (s *UpdatePoolRequest) SetDataEndpointCount(val OptInt64) {
+	s.DataEndpointCount = val
+}
+
+// SetNodeCapacities sets the value of NodeCapacities.
+func (s *UpdatePoolRequest) SetNodeCapacities(val []NodeCapacity) {
+	s.NodeCapacities = val
+}
+
+// SetOciAdminPassword sets the value of OciAdminPassword.
+func (s *UpdatePoolRequest) SetOciAdminPassword(val OptOCIOCIDVersionRef) {
+	s.OciAdminPassword = val
+}
+
+// SetKmsKeyId sets the value of KmsKeyId.
+func (s *UpdatePoolRequest) SetKmsKeyId(val OptString) {
+	s.KmsKeyId = val
+}
+
+// SetNsgIds sets the value of NsgIds.
+func (s *UpdatePoolRequest) SetNsgIds(val []string) {
+	s.NsgIds = val
+}
+
+// SetSecurityAttributes sets the value of SecurityAttributes.
+func (s *UpdatePoolRequest) SetSecurityAttributes(val OptUpdatePoolRequestSecurityAttributes) {
+	s.SecurityAttributes = val
+}
+
+// Updated security attributes as key-value pairs.
+type UpdatePoolRequestSecurityAttributes map[string]string
+
+func (s *UpdatePoolRequestSecurityAttributes) init() UpdatePoolRequestSecurityAttributes {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+type UpdatePoolUnauthorized PoolOperationErrorResponseHeaders
+
+func (*UpdatePoolUnauthorized) updatePoolRes() {}
 
 // Present when the workflow failed or timed out.
 // Ref: #/components/schemas/WorkflowStatusError

@@ -455,8 +455,70 @@ func TestGetCompletedWorkflowMetadata_WrongParentOrChildSkipped(t *testing.T) {
 	}
 	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
 	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
-	require.Nil(t, poolMeta, "no metadata keys when parent is not OCICreatePoolWorkflow and child branch is skipped")
+	require.Nil(t, poolMeta, "no metadata when parent is not a pool workflow")
 	require.Nil(t, svmMeta)
+}
+
+func TestGetWorkflowInputMetadata_OCIUpdatePoolChildResult(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	childJSON := map[string]interface{}{
+		"vlm_config": map[string]interface{}{
+			"cloud": map[string]interface{}{
+				"ha_pair": []interface{}{
+					map[string]interface{}{
+						"vm1": map[string]interface{}{
+							"name":              "FsnIdocnv-vm-01",
+							"serial_number":     "9876501",
+							"vsa_management_ip": "10.0.0.1",
+							"lifs": map[string]interface{}{
+								"intercluster":     map[string]interface{}{"ip": "10.38.25.200"},
+								"nodemgmtinternal": map[string]interface{}{"ip": "10.38.0.10"},
+							},
+						},
+					},
+				},
+			},
+			"deployment": map[string]interface{}{
+				"labels": map[string]interface{}{
+					"pool_uuid": "update-pool-uuid-123",
+				},
+			},
+		},
+		"update_status": map[string]interface{}{},
+	}
+	raw, err := json.Marshal(childJSON)
+	require.NoError(t, err)
+	events := []*historypb.HistoryEvent{
+		{
+			EventType: enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
+				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "OCIUpdatePoolWorkflow"},
+				},
+			},
+		},
+		{
+			EventType: enums.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED,
+			Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionCompletedEventAttributes{
+				ChildWorkflowExecutionCompletedEventAttributes: &historypb.ChildWorkflowExecutionCompletedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "vlm.UpdateVSAClusterDeploymentWorkflow"},
+					Result: &commonpb.Payloads{
+						Payloads: []*commonpb.Payload{{Data: raw}},
+					},
+				},
+			},
+		},
+	}
+	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.NotNil(t, poolMeta)
+	require.Nil(t, svmMeta)
+	require.Equal(t, "update-pool-uuid-123", poolMeta.PoolUUID)
+	require.NotEmpty(t, poolMeta.Vms)
+	require.Equal(t, "FsnIdocnv-vm-01", poolMeta.Vms[0].Name)
+	require.Equal(t, "9876501", poolMeta.Vms[0].SerialNumber)
+	require.Equal(t, "10.0.0.1", poolMeta.Vms[0].VSAManagementIP)
 }
 
 func TestSvmResultFromPayloads(t *testing.T) {

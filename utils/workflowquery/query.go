@@ -173,8 +173,10 @@ func normalizedStatus(s enums.WorkflowExecutionStatus) WorkflowStatus {
 // Activity / child-workflow type names whose results we extract into metadata.
 const (
 	ociCreatePoolWorkflowName                = "OCICreatePoolWorkflow"
+	ociUpdatePoolWorkflowName                = "OCIUpdatePoolWorkflow"
 	ociCreateSVMWorkflowName                 = "OCICreateSVMWorkflow"
 	createVSAClusterDeploymentWorkflowName   = "vlm.CreateVSAClusterDeploymentWorkflow"
+	updateVSAClusterDeploymentWorkflowName   = "vlm.UpdateVSAClusterDeploymentWorkflow"
 	createOnTapCredentialsForOCIActivityName = "CreateOnTapCredentialsForOCI"
 )
 
@@ -242,14 +244,18 @@ func getCompletedWorkflowMetadata(ctx context.Context, svc historyFetcher, names
 			}
 
 		case enums.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED:
-			if parentWorkflowType != ociCreatePoolWorkflowName {
+			// Pool metadata can be extracted from both Create and Update flows: each runs
+			// a vlm.{Create,Update}VSAClusterDeploymentWorkflow child whose result payload
+			// carries the same VM/PoolUUID shape.
+			if parentWorkflowType != ociCreatePoolWorkflowName && parentWorkflowType != ociUpdatePoolWorkflowName {
 				continue
 			}
 			a := ev.GetChildWorkflowExecutionCompletedEventAttributes()
 			if a == nil || a.GetWorkflowType() == nil {
 				continue
 			}
-			if a.GetWorkflowType().GetName() != createVSAClusterDeploymentWorkflowName {
+			childName := a.GetWorkflowType().GetName()
+			if childName != createVSAClusterDeploymentWorkflowName && childName != updateVSAClusterDeploymentWorkflowName {
 				continue
 			}
 			if a.GetResult() == nil || len(a.GetResult().GetPayloads()) == 0 {

@@ -2,6 +2,10 @@
 
 package ociserver
 
+import (
+	"fmt"
+)
+
 // SetFake set fake values.
 func (s *CreatePoolAcceptedResponse) SetFake() {
 	{
@@ -302,6 +306,25 @@ func (s *Health) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *NodeCapacity) SetFake() {
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.NodeUUID.SetFake()
+		}
+	}
+	{
+		{
+			s.SizeInGiB = int64(0)
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *OCICreatePoolWorkflowCredentials) SetFake() {
 	{
 		{
@@ -449,6 +472,24 @@ func (s *OptDeleteSvmReq) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptFloat64) SetFake() {
+	var elem float64
+	{
+		elem = float64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInt64) SetFake() {
+	var elem int64
+	{
+		elem = int64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptOCICreatePoolWorkflowMetadata) SetFake() {
 	var elem OCICreatePoolWorkflowMetadata
 	{
@@ -467,6 +508,15 @@ func (s *OptOCICreateSVMWorkflowMetadata) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptOCIOCIDVersionRef) SetFake() {
+	var elem OCIOCIDVersionRef
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptString) SetFake() {
 	var elem string
 	{
@@ -478,6 +528,15 @@ func (s *OptString) SetFake() {
 // SetFake set fake values.
 func (s *OptTieringConfig) SetFake() {
 	var elem TieringConfig
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptUpdatePoolRequestSecurityAttributes) SetFake() {
+	var elem UpdatePoolRequestSecurityAttributes
 	{
 		elem.SetFake()
 	}
@@ -588,6 +647,94 @@ func (s *TieringConfig) SetFake() {
 		{
 			s.ServerName = "string"
 		}
+	}
+}
+
+// SetFake set fake values.
+func (s *UpdatePoolAcceptedResponse) SetFake() {
+	{
+		{
+			s.Status = "string"
+		}
+	}
+	{
+		{
+			s.WorkflowId = "string"
+		}
+	}
+	{
+		{
+			s.PoolOCID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *UpdatePoolRequest) SetFake() {
+	{
+		{
+			s.ThroughputGBps.SetFake()
+		}
+	}
+	{
+		{
+			s.SizeInGiB.SetFake()
+		}
+	}
+	{
+		{
+			s.DataEndpointCount.SetFake()
+		}
+	}
+	{
+		{
+			s.NodeCapacities = nil
+			for i := 0; i < 0; i++ {
+				var elem NodeCapacity
+				{
+					elem.SetFake()
+				}
+				s.NodeCapacities = append(s.NodeCapacities, elem)
+			}
+		}
+	}
+	{
+		{
+			s.OciAdminPassword.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsKeyId.SetFake()
+		}
+	}
+	{
+		{
+			s.NsgIds = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.NsgIds = append(s.NsgIds, elem)
+			}
+		}
+	}
+	{
+		{
+			s.SecurityAttributes.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *UpdatePoolRequestSecurityAttributes) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
 	}
 }
 

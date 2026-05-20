@@ -135,8 +135,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								s.handleDeletePoolRequest([1]string{
 									args[0],
 								}, elemIsEscaped, w, r)
+							case "PUT":
+								s.handleUpdatePoolRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
 							default:
-								s.notAllowed(w, r, "DELETE")
+								s.notAllowed(w, r, "DELETE,PUT")
 							}
 
 							return
@@ -410,6 +414,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								r.name = DeletePoolOperation
 								r.summary = "Delete pool"
 								r.operationID = "deletePool"
+								r.pathPattern = "/v1beta/pools/{poolOCID}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "PUT":
+								r.name = UpdatePoolOperation
+								r.summary = "Update pool"
+								r.operationID = "updatePool"
 								r.pathPattern = "/v1beta/pools/{poolOCID}"
 								r.args = args
 								r.count = 1

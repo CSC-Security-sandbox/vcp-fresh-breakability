@@ -58,7 +58,7 @@ func (o *OCIOrchestrator) GetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs
 }
 
 func (o *OCIOrchestrator) UpdatePool(ctx context.Context, params *commonparams.UpdatePoolParams) (*models.Pool, string, error) {
-	return nil, "", utilserrors.NewNotImplementedYetErr()
+	return o.updatePool(ctx, params)
 }
 
 func (o *OCIOrchestrator) DescribePool(ctx context.Context, poolId string, accountName string) (*models.Pool, error) {

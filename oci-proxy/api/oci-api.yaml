@@ -186,6 +186,95 @@ paths:
           $ref: '#/components/responses/CreatePoolDefaultError'
       x-codegen-request-body-name: body
   /v1beta/pools/{poolOCID}:
+    put:
+      tags:
+        - pools
+      summary: Update pool
+      description: |
+        Updates an existing storage pool's capacity and/or throughput. The operation
+        is asynchronous. Use the returned workflowId to poll for completion.
+      operationId: updatePool
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/tenancyOCIDHeader'
+        - $ref: '#/components/parameters/poolOCIDPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePoolRequest'
+      responses:
+        "202":
+          description: Accepted. Pool update in progress.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatePoolAcceptedResponse'
+              example:
+                status: "in_progress"
+                workflowId: "ad134355-08ad-cfd1-a728-b62c3cf754a5"
+                poolOCID: "ocid1.pool.oc1.ashburn-1.testing-pool1"
+        "400":
+          description: Bad request
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "401":
+          description: Unauthorized
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "403":
+          description: Forbidden
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "404":
+          description: Not found
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "409":
+          description: Conflict
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        default:
+          $ref: '#/components/responses/UpdatePoolDefaultError'
+      x-codegen-request-body-name: body
     delete:
       tags:
         - pools
@@ -666,6 +755,89 @@ components:
         type: string
 
   schemas:
+    UpdatePoolRequest:
+      type: object
+      description: |
+        Update pool request body. Exactly one of nodeCapacities or dataEndpointCount
+        must be provided. All other fields are optional.
+      properties:
+        throughputGBps:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          description: Total target throughput for the pool in GBps. Must be > 0.
+        sizeInGiB:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Total pool capacity in GiB. Must be >= 1. Typically a multiple of 1 TiB.
+        dataEndpointCount:
+          type: integer
+          format: int64
+          minimum: 2
+          multipleOf: 2
+          description: |
+            Absolute number of endpoints that should exist in the cluster. Must be >= 2 and even.
+            Mutually exclusive with nodeCapacities. Allowed only for Single AD clusters.
+        nodeCapacities:
+          type: array
+          description: |
+            Per-endpoint capacity configuration. Mutually exclusive with dataEndpointCount.
+            When provided, throughputGBps is applied to each endpoint and sizeInGiB is derived.
+          items:
+            $ref: '#/components/schemas/NodeCapacity'
+        ociAdminPassword:
+          $ref: '#/components/schemas/OCIOCIDVersionRef'
+          description: OCI secret reference for admin password.
+        kmsKeyId:
+          type: string
+          description: Updated KMS key OCID for data encryption.
+        nsgIds:
+          type: array
+          items:
+            type: string
+          description: Updated list of Network Security Group OCIDs.
+        securityAttributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Updated security attributes as key-value pairs.
+
+    NodeCapacity:
+      type: object
+      required:
+        - sizeInGiB
+      properties:
+        name:
+          type: string
+          description: Node name.
+        nodeUUID:
+          type: string
+          description: UUID of the corresponding node.
+        sizeInGiB:
+          type: integer
+          format: int64
+          description: Capacity for this node in GiB.
+
+    UpdatePoolAcceptedResponse:
+      type: object
+      required:
+        - status
+        - workflowId
+        - poolOCID
+      properties:
+        status:
+          type: string
+          description: Current workflow status for the update operation.
+          example: in_progress
+        workflowId:
+          type: string
+          description: Workflow identifier used to poll operation status.
+        poolOCID:
+          type: string
+          description: OCID of the pool being updated.
+
     DeletePoolAcceptedResponse:
       type: object
       required:
@@ -1230,6 +1402,15 @@ components:
 
   responses:
     CreatePoolDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolOperationErrorResponse'
+    UpdatePoolDefaultError:
       description: Internal server error
       headers:
         Opc-Request-Id:

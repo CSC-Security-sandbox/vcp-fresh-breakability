@@ -75,3 +75,13 @@ func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ er
 func (UnimplementedHandler) GetWorkflow(ctx context.Context, params GetWorkflowParams) (r GetWorkflowRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
+
+// UpdatePool implements updatePool operation.
+//
+// Updates an existing storage pool's capacity and/or throughput. The operation
+// is asynchronous. Use the returned workflowId to poll for completion.
+//
+// PUT /v1beta/pools/{poolOCID}
+func (UnimplementedHandler) UpdatePool(ctx context.Context, req *UpdatePoolRequest, params UpdatePoolParams) (r UpdatePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}

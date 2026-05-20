@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -26,6 +27,14 @@ const (
 	errMsgInvalidAdminPasswordVersion     = "ociAdminPassword.version must be a valid integer"
 	errMsgAdminPasswordVersionLessThanOne = "ociAdminPassword.version must be greater than or equal to 1"
 	errMsgOddDataEndpointCount            = "dataEndpointCount must be a multiple of 2"
+	errMsgBothNodeCapacitiesAndDEC        = "nodeCapacities and dataEndpointCount are mutually exclusive; provide only one"
+	errMsgNeitherNodeCapacitiesNorDEC     = "one of nodeCapacities or dataEndpointCount must be provided"
+	errMsgThroughputGBpsNotPositive       = "throughputGBps must be greater than 0"
+	errMsgThroughputGBpsNotFinite         = "throughputGBps must be a finite number"
+	errMsgNodeCapacitySizeNotPositive     = "nodeCapacities[%d].sizeInGiB must be greater than 0"
+	errMsgNodeCapacityNameRequired        = "nodeCapacities[%d].name is required"
+	errMsgNodeCapacityNodeUUIDRequired    = "nodeCapacities[%d].nodeUUID is required"
+	errMsgNodeCapacityNodeUUIDDuplicate   = "nodeCapacities[%d].nodeUUID %q is duplicated; node_uuid must be unique within the request"
 	errMsgInvalidPoolOCID                 = "poolOCID must be a valid OCID"
 	errMsgInvalidCompartmentOCID          = "compartmentOCID must be a valid OCID"
 	errMsgInvalidSubnetID                 = "subnetId must be a valid OCID"
@@ -609,6 +618,225 @@ func (h *Handler) DeletePool(ctx context.Context, params ociserver.DeletePoolPar
 
 	logger.Info("Pool deleted successfully", "poolOCID", deletePoolParams.PoolOCID)
 	return &ociserver.DeletePoolNoContent{OpcRequestID: opcRequestID}, nil
+}
+
+func newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, errMsg string) *ociserver.UpdatePoolBadRequest {
+	return (*ociserver.UpdatePoolBadRequest)(&ociserver.PoolOperationErrorResponseHeaders{
+		OpcRequestID: opcRequestID,
+		Response: ociserver.PoolOperationErrorResponse{
+			Status:       string(workflowquery.WorkflowStatusFailed),
+			PoolOCID:     poolExternalIdentifier,
+			ErrorMessage: errMsg,
+		},
+	})
+}
+
+// validateUpdatePoolUnitConversionInputs guards values that feed into the GBps→MiBps unit
+// conversion and the per-node GiB→bytes math downstream. Non-positive or non-finite inputs
+// would either wrap (uint64(neg)) or produce a negative MiBps that bypasses downstream shrink
+// checks, so reject them before mapping to params. The pool-level `sizeInGiB` has been removed
+// from the request (capacity is expressed only via `nodeCapacities[].sizeInGiB`), so it is no
+// longer validated here.
+// Returns an empty string when the request is valid, otherwise a single error message suitable
+// for the bad-request response body.
+func validateUpdatePoolUnitConversionInputs(req *ociserver.UpdatePoolRequest) string {
+	if req.ThroughputGBps.Set {
+		v := req.ThroughputGBps.Value
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return errMsgThroughputGBpsNotFinite
+		}
+		if v <= 0 {
+			return errMsgThroughputGBpsNotPositive
+		}
+	}
+	for i, nc := range req.NodeCapacities {
+		if nc.SizeInGiB <= 0 {
+			return fmt.Sprintf(errMsgNodeCapacitySizeNotPositive, i)
+		}
+	}
+	return ""
+}
+
+// validateUpdatePoolNodeCapacityRequiredFields enforces that when the caller supplies a
+// nodeCapacities array, every entry has the three identifying keys populated: name, nodeUUID,
+// and sizeInGiB. The OAS schema only marks sizeInGiB as required; name and nodeUUID arrive as
+// optional strings, so this validator closes that gap. sizeInGiB > 0 is covered by
+// validateUpdatePoolUnitConversionInputs and is intentionally not duplicated here.
+// Returns an empty string when valid, or an error message identifying the offending index/field.
+func validateUpdatePoolNodeCapacityRequiredFields(req *ociserver.UpdatePoolRequest) string {
+	for i, nc := range req.NodeCapacities {
+		if !nc.Name.Set || strings.TrimSpace(nc.Name.Value) == "" {
+			return fmt.Sprintf(errMsgNodeCapacityNameRequired, i)
+		}
+		if !nc.NodeUUID.Set || strings.TrimSpace(nc.NodeUUID.Value) == "" {
+			return fmt.Sprintf(errMsgNodeCapacityNodeUUIDRequired, i)
+		}
+	}
+	return ""
+}
+
+// validateUpdatePoolRequest runs the request-level UpdatePool validators in order and returns
+// the first violation it finds. errMsg is the message to surface to the caller in the bad-request
+// response body; logMsg is a short server-side log line describing which validator tripped.
+// Both are empty when the request is valid. Centralizing these checks keeps the UpdatePool
+// handler free of repeated "log + return newUpdatePoolBadRequest(...)" branches.
+func validateUpdatePoolRequest(req *ociserver.UpdatePoolRequest, hasNodeCapacities, hasDataEndpointCount bool) (errMsg, logMsg string) {
+	switch {
+	case hasNodeCapacities && hasDataEndpointCount:
+		return errMsgBothNodeCapacitiesAndDEC, "both nodeCapacities and dataEndpointCount provided on UpdatePool"
+	case !hasNodeCapacities && !hasDataEndpointCount:
+		return errMsgNeitherNodeCapacitiesNorDEC, "neither nodeCapacities nor dataEndpointCount provided on UpdatePool"
+	}
+	if msg := validateUpdatePoolUnitConversionInputs(req); msg != "" {
+		return msg, "invalid unit-conversion input on UpdatePool"
+	}
+	if msg := validateUpdatePoolNodeCapacityRequiredFields(req); msg != "" {
+		return msg, "missing required nodeCapacity field on UpdatePool"
+	}
+	if msg := validateUpdatePoolNodeCapacityUniqueness(req); msg != "" {
+		return msg, "duplicate node_uuid in nodeCapacities on UpdatePool"
+	}
+	return "", ""
+}
+
+// validateUpdatePoolNodeCapacityUniqueness rejects requests in which the same node_uuid appears
+// more than once in nodeCapacities. The caller's intent for a duplicate UUID is ambiguous
+// (two different sizes for the same node would silently override one another), so the safe
+// behavior is to reject the whole payload. Assumes node_uuid presence has already been verified
+// by validateUpdatePoolNodeCapacityRequiredFields; entries without a UUID are skipped here so
+// the missing-field error from the prior validator wins.
+// Returns an empty string when all UUIDs are unique, or an error message naming the first
+// duplicate index.
+func validateUpdatePoolNodeCapacityUniqueness(req *ociserver.UpdatePoolRequest) string {
+	if len(req.NodeCapacities) < 2 {
+		return ""
+	}
+	seen := make(map[string]struct{}, len(req.NodeCapacities))
+	for i, nc := range req.NodeCapacities {
+		if !nc.NodeUUID.Set {
+			continue
+		}
+		u := strings.TrimSpace(nc.NodeUUID.Value)
+		if u == "" {
+			continue
+		}
+		if _, ok := seen[u]; ok {
+			return fmt.Sprintf(errMsgNodeCapacityNodeUUIDDuplicate, i, u)
+		}
+		seen[u] = struct{}{}
+	}
+	return ""
+}
+
+func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolRequest, params ociserver.UpdatePoolParams) (ociserver.UpdatePoolRes, error) {
+	logger := util.GetLogger(ctx)
+	poolExternalIdentifier := params.PoolOCID
+
+	opcRequestID, err := opcRequestIDFromContext(ctx)
+	if err != nil {
+		logger.Error("missing opc-request-id in context", "error", err)
+		return newUpdatePoolBadRequest(uuid.NewString(), poolExternalIdentifier, invalidOPCRequestID), nil
+	}
+
+	hasNodeCapacities := len(req.NodeCapacities) > 0
+	hasDataEndpointCount := req.DataEndpointCount.Set
+
+	if errMsg, logMsg := validateUpdatePoolRequest(req, hasNodeCapacities, hasDataEndpointCount); errMsg != "" {
+		logger.Error(logMsg, "error", errMsg)
+		return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, errMsg), nil
+	}
+
+	updateParams := &commonparams.UpdatePoolParams{
+		AccountName:            params.TenancyOcid,
+		PoolExternalIdentifier: poolExternalIdentifier,
+	}
+
+	if req.ThroughputGBps.Set {
+		updateParams.TotalThroughputMibps = int64(req.ThroughputGBps.Value * workflowquery.MiBpsPerGBps)
+		updateParams.CustomPerformanceEnabled = true
+	}
+	if hasNodeCapacities {
+		updateParams.NodeCapacities = make([]commonparams.NodeCapacity, 0, len(req.NodeCapacities))
+		for _, nc := range req.NodeCapacities {
+			updateParams.NodeCapacities = append(updateParams.NodeCapacities, commonparams.NodeCapacity{
+				Name:      nc.Name.Value,
+				NodeUUID:  nc.NodeUUID.Value,
+				SizeInGiB: nc.SizeInGiB,
+			})
+		}
+	}
+	if req.OciAdminPassword.Set {
+		version, parseErr := strconv.ParseInt(req.OciAdminPassword.Value.Version, 10, 64)
+		if parseErr != nil {
+			logger.Error("invalid ociAdminPassword version", "error", parseErr)
+			return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, errMsgInvalidAdminPasswordVersion), nil
+		}
+		if version < 1 {
+			logger.Error("invalid ociAdminPassword version", "version", version)
+			return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, errMsgAdminPasswordVersionLessThanOne), nil
+		}
+		updateParams.OciAdminPassword = &commonparams.OciAdminPassword{
+			Ocid:    req.OciAdminPassword.Value.Ocid,
+			Version: version,
+		}
+	}
+	if req.KmsKeyId.Set {
+		updateParams.KmsKeyId = req.KmsKeyId.Value
+	}
+	if len(req.NsgIds) > 0 {
+		updateParams.NsgIds = append([]string(nil), req.NsgIds...)
+	}
+	if req.SecurityAttributes.Set {
+		updateParams.SecurityAttributes = make(map[string]string, len(req.SecurityAttributes.Value))
+		for k, v := range req.SecurityAttributes.Value {
+			updateParams.SecurityAttributes[k] = v
+		}
+	}
+
+	_, workflowID, err := h.Orchestrator.UpdatePool(ctx, updateParams)
+	if err != nil {
+		if utilserrors.IsUserInputValidationErr(err) || utilserrors.IsBadRequestErr(err) {
+			return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, err.Error()), nil
+		}
+		if utilserrors.IsNotFoundErr(err) {
+			return (*ociserver.UpdatePoolNotFound)(&ociserver.PoolOperationErrorResponseHeaders{
+				OpcRequestID: opcRequestID,
+				Response: ociserver.PoolOperationErrorResponse{
+					Status:       string(workflowquery.WorkflowStatusFailed),
+					PoolOCID:     poolExternalIdentifier,
+					ErrorMessage: err.Error(),
+				},
+			}), nil
+		}
+		if utilserrors.IsConflictErr(err) {
+			return (*ociserver.UpdatePoolConflict)(&ociserver.PoolOperationErrorResponseHeaders{
+				OpcRequestID: opcRequestID,
+				Response: ociserver.PoolOperationErrorResponse{
+					Status:       string(workflowquery.WorkflowStatusFailed),
+					PoolOCID:     poolExternalIdentifier,
+					ErrorMessage: "Error updating pool - Pool is already transitioning between states",
+				},
+			}), nil
+		}
+		logger.Error("UpdatePool orchestrator error", "error", err)
+		return (*ociserver.UpdatePoolInternalServerError)(&ociserver.PoolOperationErrorResponseHeaders{
+			OpcRequestID: opcRequestID,
+			Response: ociserver.PoolOperationErrorResponse{
+				Status:       string(workflowquery.WorkflowStatusFailed),
+				PoolOCID:     poolExternalIdentifier,
+				ErrorMessage: "Internal server error",
+			},
+		}), nil
+	}
+
+	return &ociserver.UpdatePoolAcceptedResponseHeaders{
+		OpcRequestID: opcRequestID,
+		Response: ociserver.UpdatePoolAcceptedResponse{
+			Status:     string(workflowquery.WorkflowStatusInProgress),
+			WorkflowId: workflowID,
+			PoolOCID:   poolExternalIdentifier,
+		},
+	}, nil
 }
 
 // NewError maps handler errors to HTTP status and returns *ErrorStatusCode. Defaults to 500 when status cannot be determined.
