@@ -1487,12 +1487,16 @@ func TestMatchDiagRule_AllCommands(t *testing.T) {
 		name  string
 		input string
 	}{
+		{"WhenVolumeShow_ShouldBeInDiagAllowlist", "volume show -vserver vs1"},
+		{"WhenVolShow_ShouldBeInDiagAllowlist", "vol show -vserver vs1"},
 		{"WhenDebugDmVserverXc_ShouldBeInDiagAllowlist", "debug dm vserver xc"},
 		{"WhenDebugLocksPersistenceShow_ShouldBeInDiagAllowlist", "debug locks persistence show"},
 		{"WhenDebugLocksReconstructionShow_ShouldBeInDiagAllowlist", "debug locks persistence reconstruction show"},
 		{"WhenDebugLocksReconstructionShowVolume_ShouldBeInDiagAllowlist", "debug locks persistence reconstruction show-volume"},
 		{"WhenDebugNetworkTcpdump_ShouldBeInDiagAllowlist", "debug network tcpdump"},
 		{"WhenDebugSanLun_ShouldBeInDiagAllowlist", "debug san lun"},
+		{"WhenVolumeSnapshotShow_ShouldBeInDiagAllowlist", "volume snapshot show -vserver vs1 -volume vol1"},
+		{"WhenVolSnapshotShow_ShouldBeInDiagAllowlist", "vol snapshot show -vserver vs1 -volume vol1"},
 		{"WhenVserverNfsClient_ShouldBeInDiagAllowlist", "vserver nfs client"},
 	}
 	for _, tt := range allowed {
@@ -1512,7 +1516,6 @@ func TestMatchDiagRule_AllCommands(t *testing.T) {
 		name  string
 		input string
 	}{
-		{"WhenVolumeShow_ShouldNotBeInDiagAllowlist", "volume show -vserver vs1"},
 		{"WhenVolumeCreate_ShouldNotBeInDiagAllowlist", "volume create -vserver vs1 -volume vol1 -size 100g"},
 		{"WhenStatisticsShow_ShouldNotBeInDiagAllowlist", "statistics show"},
 		{"WhenSecurityCertDelete_ShouldNotBeInDiagAllowlist", "security certificate delete -vserver vs1"},
@@ -1562,6 +1565,28 @@ func TestMatchAdvancedRule_VolumeCheckMetadataNotAllowed(t *testing.T) {
 }
 
 func TestMatchAdvancedRule_VolumeShow(t *testing.T) {
+	expectedRemoveFields := []string{
+		"Used Size",
+		"Used Percentage",
+		"Physical Used",
+		"Physical Used Percent",
+		"Footprint",
+		"Total Metadata",
+		"Space Guarantee",
+		"Space SLO",
+		"Storage Efficiency",
+		"Deduplication",
+		"Compression",
+		"Sis Space Saved",
+		"Dedupe Space Saved",
+		"Dedupe Space Shared",
+		"Compression Space Saved",
+		"Efficiency",
+		"Performance Tier Inactive User Data",
+		"Volume Size Used by Snapshot Copies",
+		"Over Provisioned Size",
+	}
+
 	t.Run("WhenVolumeShow_ShouldBeInAdvancedAllowlist", func(t *testing.T) {
 		cmd, err := ParseCLICommand("volume show -vserver vs1")
 		if err != nil {
@@ -1573,9 +1598,6 @@ func TestMatchAdvancedRule_VolumeShow(t *testing.T) {
 		}
 		if !rule.Allow {
 			t.Error("volume show should be allowed")
-		}
-		if len(rule.RemoveFields) == 0 {
-			t.Error("volume show should have RemoveFields to strip physical properties")
 		}
 	})
 
@@ -1591,6 +1613,193 @@ func TestMatchAdvancedRule_VolumeShow(t *testing.T) {
 		if !rule.Allow {
 			t.Error("vol show should be allowed")
 		}
+	})
+
+	t.Run("WhenVolumeShow_ShouldHaveRemoveFields", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("volume show should be in advanced allowlist")
+		}
+		if len(rule.RemoveFields) == 0 {
+			t.Error("volume show should have RemoveFields to strip physical and efficiency properties")
+		}
+	})
+
+	t.Run("WhenVolShow_ShouldHaveRemoveFields", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("vol show should be in advanced allowlist")
+		}
+		if len(rule.RemoveFields) == 0 {
+			t.Error("vol show should have RemoveFields to strip physical and efficiency properties")
+		}
+	})
+
+	t.Run("WhenVolumeShow_RemoveFieldsShouldMatchVolumeShowRemoveFields", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("volume show should be in advanced allowlist")
+		}
+		if len(rule.RemoveFields) != len(expectedRemoveFields) {
+			t.Errorf("volume show RemoveFields length = %d, want %d", len(rule.RemoveFields), len(expectedRemoveFields))
+		}
+		for i, want := range expectedRemoveFields {
+			if i >= len(rule.RemoveFields) {
+				break
+			}
+			if rule.RemoveFields[i] != want {
+				t.Errorf("volume show RemoveFields[%d] = %q, want %q", i, rule.RemoveFields[i], want)
+			}
+		}
+	})
+
+	t.Run("WhenVolShow_RemoveFieldsShouldMatchVolumeShowRemoveFields", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("vol show should be in advanced allowlist")
+		}
+		if len(rule.RemoveFields) != len(expectedRemoveFields) {
+			t.Errorf("vol show RemoveFields length = %d, want %d", len(rule.RemoveFields), len(expectedRemoveFields))
+		}
+		for i, want := range expectedRemoveFields {
+			if i >= len(rule.RemoveFields) {
+				break
+			}
+			if rule.RemoveFields[i] != want {
+				t.Errorf("vol show RemoveFields[%d] = %q, want %q", i, rule.RemoveFields[i], want)
+			}
+		}
+	})
+
+	t.Run("WhenVolumeShowAndVolShow_ShouldHaveIdenticalRemoveFields", func(t *testing.T) {
+		volCmd, err := ParseCLICommand("volume show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand(volume show): %v", err)
+		}
+		shortCmd, err := ParseCLICommand("vol show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand(vol show): %v", err)
+		}
+
+		volRule, found := MatchPrivilegedRule(volCmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("volume show should be in advanced allowlist")
+		}
+		shortRule, found := MatchPrivilegedRule(shortCmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("vol show should be in advanced allowlist")
+		}
+
+		if len(volRule.RemoveFields) != len(shortRule.RemoveFields) {
+			t.Errorf("RemoveFields length mismatch: volume show=%d, vol show=%d", len(volRule.RemoveFields), len(shortRule.RemoveFields))
+		}
+		for i := range volRule.RemoveFields {
+			if i >= len(shortRule.RemoveFields) {
+				break
+			}
+			if volRule.RemoveFields[i] != shortRule.RemoveFields[i] {
+				t.Errorf("RemoveFields[%d] mismatch: volume show=%q, vol show=%q", i, volRule.RemoveFields[i], shortRule.RemoveFields[i])
+			}
+		}
+	})
+
+	t.Run("WhenVolumeCreate_ShouldNotBeInAdvancedAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume create -vserver vs1 -volume vol1 -size 100g")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		_, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if found {
+			t.Error("volume create should NOT be in advanced allowlist")
+		}
+	})
+
+	t.Run("WhenVolCreate_ShouldNotBeInAdvancedAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol create -vserver vs1 -volume vol1 -size 100g")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		_, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if found {
+			t.Error("vol create should NOT be in advanced allowlist")
+		}
+	})
+
+	t.Run("WhenVolumeShowHasNoCondition_ShouldNotRequireArguments", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("volume show should be in advanced allowlist")
+		}
+		if rule.Condition != nil {
+			t.Error("volume show advanced rule should have no Condition (no argument constraints)")
+		}
+	})
+
+	t.Run("WhenVolShowHasNoCondition_ShouldNotRequireArguments", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("vol show should be in advanced allowlist")
+		}
+		if rule.Condition != nil {
+			t.Error("vol show advanced rule should have no Condition (no argument constraints)")
+		}
+	})
+}
+
+func TestMatchDiagRule_VolumeShow(t *testing.T) {
+	t.Run("WhenVolumeShow_ShouldBeInDiagAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume show -vserver vs1")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+		if !found {
+			t.Fatal("volume show should be in diag allowlist")
+		}
+		if !rule.Allow {
+			t.Error("volume show should be allowed")
+		}
+		if len(rule.RemoveFields) == 0 {
+			t.Error("volume show should have RemoveFields to strip physical properties")
+		}
+	})
+
+	t.Run("WhenVolShow_ShouldBeInDiagAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol show -vserver vs1")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+		if !found {
+			t.Fatal("vol show should be in diag allowlist")
+		}
+		if !rule.Allow {
+			t.Error("vol show should be allowed")
+		}
 		if len(rule.RemoveFields) == 0 {
 			t.Error("vol show should have RemoveFields to strip physical properties")
 		}
@@ -1601,9 +1810,9 @@ func TestMatchAdvancedRule_VolumeShow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ParseCLICommand: %v", err)
 		}
-		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
 		if !found {
-			t.Fatal("volume show should be in advanced allowlist")
+			t.Fatal("volume show should be in diag allowlist")
 		}
 		physicalFields := map[string]bool{
 			"Physical Used":         false,
@@ -1618,6 +1827,89 @@ func TestMatchAdvancedRule_VolumeShow(t *testing.T) {
 			if !found {
 				t.Errorf("RemoveFields should include %q", field)
 			}
+		}
+	})
+}
+
+func TestMatchDiagRule_VolumeSnapshotShow(t *testing.T) {
+	t.Run("WhenVolumeSnapshotShow_ShouldBeInDiagAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume snapshot show -vserver vs1 -volume vol1")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+		if !found {
+			t.Fatal("volume snapshot show should be in diag allowlist")
+		}
+		if !rule.Allow {
+			t.Error("volume snapshot show should be allowed")
+		}
+	})
+
+	t.Run("WhenVolSnapshotShow_ShouldBeInDiagAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol snapshot show -vserver vs1 -volume vol1")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+		if !found {
+			t.Fatal("vol snapshot show should be in diag allowlist")
+		}
+		if !rule.Allow {
+			t.Error("vol snapshot show should be allowed")
+		}
+	})
+
+	t.Run("WhenVolumeSnapshotShow_ShouldHaveNoCondition", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume snapshot show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+		if !found {
+			t.Fatal("volume snapshot show should be in diag allowlist")
+		}
+		if rule.Condition != nil {
+			t.Error("volume snapshot show diag rule should have no Condition")
+		}
+	})
+
+	t.Run("WhenVolSnapshotShow_ShouldHaveNoCondition", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol snapshot show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+		if !found {
+			t.Fatal("vol snapshot show should be in diag allowlist")
+		}
+		if rule.Condition != nil {
+			t.Error("vol snapshot show diag rule should have no Condition")
+		}
+	})
+
+	t.Run("WhenVolumeSnapshotShow_ShouldHaveNoRemoveFields", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume snapshot show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+		if !found {
+			t.Fatal("volume snapshot show should be in diag allowlist")
+		}
+		if len(rule.RemoveFields) != 0 {
+			t.Errorf("volume snapshot show should have no RemoveFields, got %d", len(rule.RemoveFields))
+		}
+	})
+
+	t.Run("WhenVolSnapshotShow_ShouldNotBeInAdvancedAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol snapshot show -vserver vs1 -volume vol1")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		_, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if found {
+			t.Error("vol snapshot show should NOT be in advanced allowlist")
 		}
 	})
 }

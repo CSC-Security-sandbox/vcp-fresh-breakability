@@ -1004,17 +1004,17 @@ func TestMatchAdvancedRule(t *testing.T) {
 		}
 	})
 
-	t.Run("WhenVolumeShow_ShouldBeInAdvancedAllowlist", func(t *testing.T) {
+	t.Run("WhenVolumeShow_ShouldBeInDiagAllowlist", func(t *testing.T) {
 		cmd, err := ParseCLICommand("volume show -vserver vs1 -instance")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		rule, matched := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		rule, matched := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
 		if !matched {
-			t.Error("expected volume show to be in advanced allowlist")
+			t.Error("expected volume show to be in diag allowlist")
 		}
 		if !rule.Allow {
-			t.Error("volume show should be allowed in advanced mode")
+			t.Error("volume show should be allowed in diag mode")
 		}
 	})
 

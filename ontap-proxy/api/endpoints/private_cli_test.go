@@ -226,7 +226,26 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		}
 	})
 
-	t.Run("diag + volume show not in allowlist rejected", func(t *testing.T) {
+	t.Run("diag + volume snapshot show allowlisted passes validation", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set diag; volume snapshot show -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+		if isBadReq {
+			require.False(t, isBadReq,
+				"volume snapshot show should pass diag allowlist validation, got BadRequest: %s", badReq.Message)
+		}
+	})
+
+	t.Run("diag + volume show in allowlist allowed", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set diag; volume show -vserver vs1",
 		}
@@ -238,11 +257,11 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 
 		res, err := h.V1PrivateCli(ctx, req, params)
 		require.NoError(t, err)
-
-		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
-		require.True(t, ok, "Expected bad request for volume show in diag mode, got %T", res)
-		assert.Equal(t, 400, badReq.Code)
-		assert.Contains(t, badReq.Message, "not allowed in diagnostic mode")
+		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+		if isBadReq {
+			require.False(t, isBadReq,
+				"volume show should pass diag allowlist validation, got BadRequest: %s", badReq.Message)
+		}
 	})
 
 	t.Run("diag + command not in allowlist rejected", func(t *testing.T) {
@@ -363,7 +382,7 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
 		if isBadReq {
 			require.False(t, isBadReq,
-				"volume show should pass allowlist validation, got BadRequest: %s", badReq.Message)
+				"volume show should pass advanced allowlist validation, got BadRequest: %s", badReq.Message)
 		}
 	})
 

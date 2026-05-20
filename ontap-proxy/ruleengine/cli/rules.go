@@ -93,6 +93,17 @@ var advancedAllowedRules = []CLIRule{
 
 // diagAllowedRules is the allowlist of commands permitted in diagnostic mode.
 var diagAllowedRules = []CLIRule{
+	// volumes
+	{
+		Pattern:      "volume show",
+		Allow:        true,
+		RemoveFields: volumeShowRemoveFields,
+	},
+	{
+		Pattern:      "vol show",
+		Allow:        true,
+		RemoveFields: volumeShowRemoveFields,
+	},
 	// Debug
 	{
 		Pattern: "debug dm vserver xc",
@@ -116,6 +127,17 @@ var diagAllowedRules = []CLIRule{
 	},
 	{
 		Pattern: "debug san lun",
+		Allow:   true,
+	},
+
+	// Volume
+	{
+		Pattern: "volume snapshot show",
+		Allow:   true,
+	},
+
+	{
+		Pattern: "vol snapshot show",
 		Allow:   true,
 	},
 

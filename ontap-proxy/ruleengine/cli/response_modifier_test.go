@@ -419,7 +419,7 @@ func TestIsTabularOutput_EdgeCases(t *testing.T) {
 }
 
 func TestRemoveFieldsFromKeyValue_EdgeCases(t *testing.T) {
-	t.Run("WhenNestedFieldsWithIndentation_ShouldRemoveNestedToo", func(t *testing.T) {
+	t.Run("WhenNestedFieldsWithIndentation_ShouldRemoveMatchedLine", func(t *testing.T) {
 		input := `Volume Name: vol1
 Space:
     Total: 100GB
@@ -432,12 +432,9 @@ State: online`
 
 		result := RemoveFieldsFromCLIOutput(input, fieldsToRemove)
 
-		// Physical Used and its nested Sub Field should be removed
+		// Physical Used line should be removed; sub-fields are independent lines and kept
 		if strings.Contains(result, "Physical Used") {
 			t.Error("Expected 'Physical Used' to be removed")
-		}
-		if strings.Contains(result, "Sub Field") {
-			t.Error("Expected nested 'Sub Field' to be removed")
 		}
 		if !strings.Contains(result, "Total") {
 			t.Error("Expected 'Total' to remain")

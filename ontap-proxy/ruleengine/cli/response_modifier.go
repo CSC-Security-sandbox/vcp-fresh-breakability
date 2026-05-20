@@ -128,20 +128,8 @@ func removeFieldsFromKeyValue(lines []string, fieldsToRemove []string) string {
 	// The field name can contain letters, numbers, spaces, dots, dashes, and underscores
 	kvPattern := regexp.MustCompile(`^\s*([\w\s\.\-_]+?)\s*[:=]\s*(.*)$`)
 
-	skipNextIndented := false
-	lastIndent := 0
-
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-
-		// Calculate current indentation
-		currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-		// If we're skipping indented lines (nested under a removed field)
-		if skipNextIndented && currentIndent > lastIndent && trimmed != "" {
-			continue
-		}
-		skipNextIndented = false
 
 		// Empty lines pass through
 		if trimmed == "" {
@@ -154,9 +142,6 @@ func removeFieldsFromKeyValue(lines []string, fieldsToRemove []string) string {
 		if matches != nil {
 			fieldName := matches[1]
 			if fieldMatches(fieldName, fieldsToRemove) {
-				// Skip this line and potentially nested lines
-				skipNextIndented = true
-				lastIndent = currentIndent
 				continue
 			}
 		}
