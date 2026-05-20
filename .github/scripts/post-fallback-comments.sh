@@ -428,6 +428,14 @@ print(' · '.join(parts))
   if [[ "$ECOSYSTEM" == "gomod" && -n "$PKG" && -n "$FROM" && -n "$TO" ]]; then
     # Go module: github.com/org/repo → compare link
     _GH_PATH=$(echo "$PKG" | grep -oE '^github\.com/[^/]+/[^/]+' || echo "")
+    if [[ -z "$_GH_PATH" ]]; then
+      # golang.org/x/foo → github.com/golang/foo
+      _GH_PATH=$(echo "$PKG" | sed -n 's|^golang.org/x/\([^/]*\)|github.com/golang/\1|p')
+    fi
+    if [[ -z "$_GH_PATH" ]]; then
+      # google.golang.org/grpc → github.com/grpc/grpc-go (common case)
+      _GH_PATH=$(echo "$PKG" | sed -n 's|^go.opentelemetry.io/\(.*\)|github.com/open-telemetry/opentelemetry-go|p' | head -1)
+    fi
     if [[ -n "$_GH_PATH" ]]; then
       CHANGELOG_LINK="
 📝 [Changelog](https://${_GH_PATH}/compare/v${FROM}...v${TO})"
@@ -1380,7 +1388,7 @@ likely_safe_count = sum(1 for e in review if e.get("verdict") == "pre_existing" 
 unverified_count = sum(1 for e in review if e.get("verdict") == "pre_existing" and e.get("new_error_count", 0) > 0)
 needs_review_count = len(review) - likely_safe_count - unverified_count
 lines.append(f"| ✅ Safe to merge — tests pass (L4) | {sum(1 for e in safe if e['ver'].startswith('L4') or e['ver'].startswith('L5'))} |")
-lines.append(f"| ✅ Safe to merge — build passes (L2/L3) | {sum(1 for e in safe if not (e['ver'].startswith('L4') or e['ver'].startswith('L5')))} |")
+lines.append(f"| ✅ Build passes — review recommended (L2/L3) | {sum(1 for e in safe if not (e['ver'].startswith('L4') or e['ver'].startswith('L5')))} |")
 if companion_blocked:
     lines.append(f"| 🔗 Blocked (safe but companion PR needs fix) | {len(companion_blocked)} |")
 if ci_only:
@@ -1578,7 +1586,7 @@ if safe_l2:
 if companion_blocked:
     lines.append("## 🔗 Blocked — Safe but Companion PR Needs Fix First")
     lines.append("")
-    lines.append("These PRs pass build verification but **must be merged together** with a companion PR that currently has build failures.")
+    lines.append("These PRs pass build verification but are **blocked** because a companion PR (coordinated upgrade) currently has build failures or security issues.")
     lines.append("Fix the companion PR first, then merge both together.")
     lines.append("")
     lines.append("| PR | Package | Version | Bump | Verification | Blocked By |")
