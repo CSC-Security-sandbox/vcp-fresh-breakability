@@ -44,6 +44,63 @@ func resolveDefaultIPSpace() string {
 	return gcpDefaultIPSpace
 }
 
+// GetSvmAdminOntapPasswordSecretForOCI returns the ONTAP cluster admin credentials that VLM uses to
+// authenticate against the cluster when creating an SVM. The credential is resolved from the pool the
+// SVM belongs to, mirroring the pool-creation contract in CreateOnTapCredentialsForOCI:
+//   - USERNAME_PWD_SEC_MGR : fetch the secret named ociOntapAdminSecretName(pool) from OCI Vault.
+//   - default              : fall back to pool.PoolCredentials.Password (plain).
+//   - USER_CERTIFICATE     : not yet supported — returns a non-retryable validation error.
+func (s *SvmActivity) GetSvmAdminOntapPasswordSecretForOCI(ctx context.Context, svm *datamodel.Svm, pool *datamodel.Pool) (vlm.OntapCredentials, error) {
+	if svm == nil {
+		return vlm.OntapCredentials{}, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("svm must not be nil")))
+	}
+	if pool == nil {
+		return vlm.OntapCredentials{}, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool must not be nil")))
+	}
+	if pool.PoolCredentials == nil {
+		return vlm.OntapCredentials{}, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool.PoolCredentials must not be nil")))
+	}
+
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting GetSvmAdminOntapPasswordSecretForOCI - pool: %s, deployment: %s", pool.Name, pool.DeploymentName))
+
+	var creds vlm.OntapCredentials
+	switch pool.PoolCredentials.AuthType {
+	case env.USERNAME_PWD_SEC_MGR:
+		ociService, err := hyperscaler2.GetOCIService(ctx)
+		if err != nil {
+			return vlm.OntapCredentials{}, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err))
+		}
+		secretName := ociOntapAdminSecretName(pool)
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching ONTAP admin password from OCI Vault — pool: %s, secret: %s", pool.Name, secretName))
+		secret, err := ociService.GetSecretByName(secretName, env.OCIVaultOCID)
+		if err != nil {
+			return vlm.OntapCredentials{}, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrOCIResourceFetchError, err))
+		}
+		if secret == nil {
+			return vlm.OntapCredentials{}, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError,
+					fmt.Errorf("ONTAP admin password secret %q not found in OCI Vault for pool %s", secretName, pool.Name)))
+		}
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("ONTAP admin password fetched from OCI Vault for pool %s", pool.Name))
+		creds = vlm.OntapCredentials{AdminPassword: secret.Value}
+	case env.USER_CERTIFICATE:
+		// TODO: Implement in future prs
+		return vlm.OntapCredentials{}, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError,
+				fmt.Errorf("USER_CERTIFICATE auth type is not supported for OCI SVM ONTAP admin credentials")))
+	default:
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Using default password for SVM ONTAP admin credentials - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+		creds = vlm.OntapCredentials{AdminPassword: pool.PoolCredentials.Password}
+	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished GetSvmAdminOntapPasswordSecretForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+	return creds, nil
+}
+
 // GetSvmAdminPasswordSecretForOCI fetches the SVM admin password secret from OCI Vault for an SVM.
 func (s *SvmActivity) GetSvmAdminPasswordSecretForOCI(ctx context.Context, svm *datamodel.Svm, svmAdminPassword *commonparams.OciAdminPassword) (*vlm.OntapCredentials, error) {
 	if svm == nil {

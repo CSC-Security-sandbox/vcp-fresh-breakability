@@ -22,6 +22,7 @@ import (
 	"unsafe"
 
 	ocicommon "github.com/oracle/oci-go-sdk/v65/common"
+	ocisecrets "github.com/oracle/oci-go-sdk/v65/secrets"
 	ocivault "github.com/oracle/oci-go-sdk/v65/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15294,11 +15295,16 @@ func newMockOCIServiceForTest(t *testing.T, vaultDoFunc func(*http.Request) (*ht
 	vaultCl, err := ocivault.NewVaultsClientWithConfigurationProvider(configProvider)
 	require.NoError(t, err)
 	vaultCl.HTTPClient = &ociTestHTTPDispatcher{doFunc: vaultDoFunc}
+	secretsCl, err := ocisecrets.NewSecretsClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+	secretsCl.HTTPClient = &ociTestHTTPDispatcher{doFunc: vaultDoFunc}
 
 	adminService := &oci.AdminOCIService{}
 	rv := reflect.ValueOf(adminService).Elem()
 	vaultField := rv.FieldByName("vaultClient")
 	reflect.NewAt(vaultField.Type(), unsafe.Pointer(vaultField.UnsafeAddr())).Elem().Set(reflect.ValueOf(vaultCl))
+	secretsField := rv.FieldByName("secretsClient")
+	reflect.NewAt(secretsField.Type(), unsafe.Pointer(secretsField.UnsafeAddr())).Elem().Set(reflect.ValueOf(secretsCl))
 
 	return &oci.OciServices{
 		Ctx:             ctx,

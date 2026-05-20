@@ -125,9 +125,10 @@ func TestOCICreateSVMWorkflow_ParseVlmConfigFails(t *testing.T) {
 		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		VLMConfig: "{}",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
@@ -158,9 +159,10 @@ func TestOCICreateSVMWorkflow_CreateVSASVMFails_RollbackMarksError(t *testing.T)
 		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		VLMConfig: "{}",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
@@ -198,9 +200,10 @@ func TestOCICreateSVMWorkflow_SaveSVMAndLifDataFails(t *testing.T) {
 		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		VLMConfig: "{}",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
@@ -242,7 +245,7 @@ func TestOCICreateSVMWorkflow_PoolCredentialsFallback(t *testing.T) {
 	pool := &datamodel.Pool{
 		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
 		VLMConfig:       "{}",
-		PoolCredentials: nil,
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
 		Account:         &datamodel.Account{Name: "test-account"},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
@@ -502,34 +505,26 @@ func TestOCIDeleteSVMWorkflow_RequestShape_UsesPoolCredentialsPassword(t *testin
 	env.AssertExpectations(t)
 }
 
-// When pool.PoolCredentials is nil the workflow must fall back to the
-// ociOntapAdminPassword env var.
-func TestOCIDeleteSVMWorkflow_RequestShape_FallsBackToEnvPassword(t *testing.T) {
-	origAdminPassword := ociOntapAdminPassword
-	ociOntapAdminPassword = "env-admin-pw"
-	t.Cleanup(func() { ociOntapAdminPassword = origAdminPassword })
-
+func TestOCIDeleteSVMWorkflow_NilPoolCredentialsFailsBeforeVlmDelete(t *testing.T) {
 	env, _ := newSVMTestEnv(t)
 	params, svm, pool, vlmCfg := deleteSVMTestFixtures()
 	pool.PoolCredentials = nil
 
 	mockVlm := installMockVlmForDelete(t)
-	var captured *vlm.DeleteSVMRequest
-	mockVlm.On("DeleteVSASVM", mock.Anything, mock.MatchedBy(func(req *vlm.DeleteSVMRequest) bool {
-		captured = req
-		return true
-	})).Return(&vlm.DeleteSVMResponse{VLMConfig: vlmCfg}, nil)
+	mockVlm.On("DeleteVSASVM", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { t.Fatalf("DeleteVSASVM should not run when pool credentials are missing") }).
+		Return(&vlm.DeleteSVMResponse{VLMConfig: vlmCfg}, nil).Maybe()
 
 	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
-	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("SoftDeleteSvm", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { t.Fatalf("SoftDeleteSvm should not run when credential resolution failed") }).
+		Return(nil).Maybe()
+	env.OnActivity("MarkSvmAsErroredForDeletion", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(OCIDeleteSVMWorkflow, params, svm, pool)
 
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
-	if assert.NotNil(t, captured) {
-		assert.Equal(t, "env-admin-pw", captured.OntapCredentials.AdminPassword)
-	}
+	assert.Error(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
 
@@ -687,9 +682,10 @@ func TestOCICreateSVMWorkflow_NilVLMConfigFromActivity(t *testing.T) {
 		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		VLMConfig: "{}",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
@@ -714,9 +710,10 @@ func TestOCICreateSVMWorkflow_NilAdminCredsFromActivity(t *testing.T) {
 		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		VLMConfig: "{}",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
@@ -743,9 +740,10 @@ func TestOCICreateSVMWorkflow_NilCreateVSASVMResponse(t *testing.T) {
 		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-		VLMConfig: "{}",
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
 	}
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 

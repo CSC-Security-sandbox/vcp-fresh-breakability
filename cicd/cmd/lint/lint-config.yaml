@@ -89,7 +89,7 @@ linters:
 #       custom-order: true
 
 run:
-  timeout: 5m
+  timeout: 10m
   skip-patterns:
     - .*_mock\.go
   skip-dirs:

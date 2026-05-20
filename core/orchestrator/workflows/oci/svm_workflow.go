@@ -38,14 +38,6 @@ var lifTypeToProtocols = map[vlm.VSALIFType][]string{
 	vlm.LIFTypeNas: {"nfs", "cifs", "s3"},
 }
 
-// resolveOntapAdminPassword returns the ONTAP cluster admin password
-func resolveOntapAdminPassword(pool *datamodel.Pool) string {
-	if pool != nil && pool.PoolCredentials != nil && pool.PoolCredentials.Password != "" {
-		return pool.PoolCredentials.Password
-	}
-	return ociOntapAdminPassword
-}
-
 type ociCreateSVMWorkflow struct {
 	workflows.BaseWorkflow
 }
@@ -163,10 +155,16 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("ParseVlmConfig returned nil VLM config"))
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	credConfig := vlm.OntapCredentials{}
 
-	credConfig := vlm.OntapCredentials{
-		AdminPassword: resolveOntapAdminPassword(pool),
-		Certificate:   vlm.OntapCertificate{},
+	err = workflow.ExecuteActivity(ctx, svmActivity.GetSvmAdminOntapPasswordSecretForOCI, svm, pool).Get(ctx, &credConfig)
+	if err != nil {
+		logger.Errorf("Failed to get ONTAP admin credentials for OCI SVM create: %v", err)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	if credConfig.AdminPassword == "" {
+		return nil, workflows.ConvertToVSAError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminOntapPasswordSecretForOCI returned empty password")))
 	}
 
 	var svmAdminCreds *vlm.OntapCredentials
@@ -365,9 +363,15 @@ func (wf *ociDeleteSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Step 2: remove the SVM from the ONTAP cluster via VLM.
-	credConfig := vlm.OntapCredentials{
-		AdminPassword: resolveOntapAdminPassword(pool),
-		Certificate:   vlm.OntapCertificate{},
+	credConfig := vlm.OntapCredentials{}
+	err = workflow.ExecuteActivity(ctx, svmActivity.GetSvmAdminOntapPasswordSecretForOCI, svm, pool).Get(ctx, &credConfig)
+	if err != nil {
+		logger.Errorf("Failed to get ONTAP admin credentials for OCI SVM delete: %v", err)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	if credConfig.AdminPassword == "" {
+		return nil, workflows.ConvertToVSAError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminOntapPasswordSecretForOCI returned empty password")))
 	}
 
 	deleteSVMRequest := &vlm.DeleteSVMRequest{
