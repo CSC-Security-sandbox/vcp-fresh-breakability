@@ -83,6 +83,7 @@ manifests:
         namespace: default
         valuesFiles:
           - ./tools/temporal-deployment/local/values.yaml
+        skipTests: true
 portForward:
   - resourceType: service
     resourceName: google-proxy-service
