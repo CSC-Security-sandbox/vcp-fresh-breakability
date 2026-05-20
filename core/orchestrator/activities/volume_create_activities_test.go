@@ -10883,8 +10883,9 @@ func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("Error_GetAccountFails_ForBackupPathProject", func(t *testing.T) {
-		// Arrange: GetAccount fails for the project in the backup path
+	t.Run("Success_GetAccountNotFound_FallsBackToRemoteVCP", func(t *testing.T) {
+		// Arrange: GetAccount returns NotFound for the backup path project (cross-project BV)
+		// The function should skip local DB lookup and fall through to remote VCP
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
 
@@ -10897,8 +10898,77 @@ func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
 			AccountID: 1,
 		}
 
-		// Mock GetAccount to fail
+		// Mock GetAccount to return NotFound (cross-project backup vault)
 		mockStorage.On("GetAccount", ctx, "unknown-project").Return(nil, utilErrors.NewNotFoundErr("account", nil))
+
+		// Mock remote VCP fallback
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-central1.example.com", "mock-jwt-token", nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		backupVaultID := "remote-bv-uuid"
+		mockResponse := &googleproxyclient.V1betaListBackupVaultsOK{
+			BackupVaults: []googleproxyclient.BackupVaultV1beta{
+				{
+					ResourceId:    "my-vault",
+					BackupVaultId: googleproxyclient.NewOptString(backupVaultID),
+					BackupVaultType: googleproxyclient.NewOptBackupVaultV1betaBackupVaultType(
+						googleproxyclient.BackupVaultV1betaBackupVaultTypeINREGION,
+					),
+					BackupRegion: googleproxyclient.NewOptString("us-central1"),
+					State: googleproxyclient.NewOptBackupVaultV1betaState(
+						googleproxyclient.BackupVaultV1betaStateREADY,
+					),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "my-vault", result.Name)
+		assert.Equal(t, backupVaultID, result.UUID)
+		mockStorage.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Error_GetAccountFails_NonNotFoundError", func(t *testing.T) {
+		// Arrange: GetAccount fails with a non-NotFound error (e.g. DB connection issue)
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/unknown-project/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+		region := "us-central1"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		// Mock GetAccount to fail with a transient DB error
+		mockStorage.On("GetAccount", ctx, "unknown-project").Return(nil, fmt.Errorf("database connection refused"))
 
 		// Act
 		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
@@ -10906,7 +10976,7 @@ func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "account not found for project 'unknown-project' in backup path")
+		assert.Contains(t, err.Error(), "failed to look up account for project 'unknown-project' in backup path")
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -13621,6 +13691,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         projectNumber,
 		}
 
 		volume := &datamodel.Volume{
@@ -13711,6 +13782,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         "123456",
 		}
 
 		volume := &datamodel.Volume{
@@ -13759,6 +13831,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         "123456",
 		}
 
 		volume := &datamodel.Volume{
@@ -13811,6 +13884,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         "123456",
 		}
 
 		volume := &datamodel.Volume{
@@ -13863,6 +13937,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         "123456",
 		}
 
 		volume := &datamodel.Volume{
@@ -13919,6 +13994,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         "123456",
 		}
 
 		volume := &datamodel.Volume{
@@ -13980,6 +14056,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         projectNumber,
 		}
 
 		volume := &datamodel.Volume{
@@ -14055,6 +14132,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         "123456",
 		}
 
 		volume := &datamodel.Volume{
@@ -14113,6 +14191,7 @@ func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
 			VaultName:           vaultName,
 			BackupName:          "",
 			BackupVaultFullPath: "",
+			ProjectName:         projectNumber,
 		}
 
 		volume := &datamodel.Volume{
@@ -16264,32 +16343,11 @@ func TestCreateRestoreWorkflow_InvalidBackupPath(t *testing.T) {
 	assert.Contains(t, err.Error(), "Backup path is not in correct format")
 }
 
-func TestCreateRestoreWorkflow_GetAccountFails(t *testing.T) {
+func TestCreateRestoreWorkflow_CreateJobFails(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	act := activities.VolumeCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
-	mockStorage.On("GetAccount", mock.Anything, "my-project").
-		Return(nil, errors.New("account not found"))
-
-	err := act.CreateRestoreWorkflow(ctx,
-		&common.CreateVolumeParams{BackupPath: "projects/my-project/locations/us-central1/backupVaults/vault1/backups/bk1"},
-		&datamodel.Volume{Name: "vol"},
-		nil, nil, &datamodel.Backup{Name: "bk1"}, nil,
-	)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "account not found for backup vault project")
-	mockStorage.AssertExpectations(t)
-}
-
-func TestCreateRestoreWorkflow_GetAccountSuccess_CreateJobFails(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	act := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	mockStorage.On("GetAccount", mock.Anything, "my-project").
-		Return(&datamodel.Account{Name: "vault-account"}, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).
 		Return(nil, errors.New("db error"))
 

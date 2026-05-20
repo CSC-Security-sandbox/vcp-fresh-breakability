@@ -2136,11 +2136,17 @@ func fetchBackupVaultOrFallbackToRemoteVCP(ctx context.Context, se database.Stor
 
 	backupPathAccount, err := se.GetAccount(ctx, pathInfo.ProjectName)
 	if err != nil {
-		logger.Errorf("Failed to find account for backup path project '%s': %v", pathInfo.ProjectName, err)
-		return nil, fmt.Errorf("account not found for project '%s' in backup path: %w", pathInfo.ProjectName, err)
+		if !errors.IsNotFoundErr(err) {
+			logger.Errorf("Failed to find account for backup path project '%s': %v", pathInfo.ProjectName, err)
+			return nil, fmt.Errorf("failed to look up account for project '%s' in backup path: %w", pathInfo.ProjectName, err)
+		}
+		// Cross-project backup vault: the BV's project has no account in this VCP region's DB.
+		// Skip local DB lookup and fall through to remote VCP.
+		logger.Infof("Account for backup path project '%s' not found locally (cross-project backup vault), will fetch from remote VCP", pathInfo.ProjectName)
 	}
-	// Try to get from VCP database first
-	if pathInfo.Region == volumeRegion {
+
+	// Try to get from VCP database first (only possible when the account exists locally)
+	if backupPathAccount != nil && pathInfo.Region == volumeRegion {
 		logger.Debugf("Checking for backup vault in VCP DB using vault name: %s, account: %d (project: %s)", pathInfo.VaultName, backupPathAccount.ID, pathInfo.ProjectName)
 		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, pathInfo.VaultName, fmt.Sprintf("%d", backupPathAccount.ID))
 		if err != nil && !errors.IsNotFoundErr(err) {
@@ -2339,9 +2345,10 @@ func _fetchBackupVaultFromRemoteVCP(ctx context.Context, pathInfo *BackupPathInf
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 
-	// Call V1betaListBackupVaults API endpoint
+	// Use the project from the backup path for the query; the BV may belong
+	// to a different project than the volume (cross-project restore).
 	params := googleproxyclient.V1betaListBackupVaultsParams{
-		ProjectNumber:  volume.Account.Name,
+		ProjectNumber:  pathInfo.ProjectName,
 		LocationId:     backupRegion,
 		XCorrelationID: googleproxyclient.NewOptString(correlationID),
 	}
@@ -2701,12 +2708,7 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 		logger.Errorf("Failed to parse backup path for vault account resolution: %v", err)
 		return err
 	}
-	backupPathAccount, err := se.GetAccount(ctx, pathInfo.ProjectName)
-	if err != nil {
-		logger.Errorf("Failed to resolve account for backup vault project '%s': %v", pathInfo.ProjectName, err)
-		return fmt.Errorf("account not found for backup vault project '%s': %w", pathInfo.ProjectName, err)
-	}
-	backupVaultAccountName := backupPathAccount.Name
+	backupVaultAccountName := pathInfo.ProjectName
 
 	jobType := models.JobTypeRestoreBackup
 	job := &datamodel.Job{
