@@ -32,9 +32,33 @@ func (a *VolumeBackupSyncActivity) GetVolumeLatestBackupMapActivity(ctx context.
 	return volumeBackupMap, nil
 }
 
-// getObjectStoreEndpointInfo gets object store endpoint info using the provided node and UUIDs
+// volumeBackupName returns a display name for logging, regardless of whether the entry is
+// a regular volume or an expert mode volume.
+func volumeBackupName(volumeBackup *datamodel.VolumeLatestBackup) string {
+	if volumeBackup.Volume != nil {
+		return volumeBackup.Volume.Name
+	}
+	if volumeBackup.ExpertModeVolume != nil {
+		return volumeBackup.ExpertModeVolume.Name
+	}
+	return "unknown"
+}
+
+// getObjectStoreEndpointInfo gets object store endpoint info using the provided node and UUIDs.
+// It supports both regular volumes (volumeBackup.Volume) and expert mode volumes
+// (volumeBackup.ExpertModeVolume).
 func (a *VolumeBackupSyncActivity) getObjectStoreEndpointInfo(ctx context.Context, objectStoreUUID, endpointUUID string, volumeBackup *datamodel.VolumeLatestBackup) (*vsa.SmObjectStoreEndpointt, error) {
-	dbNodes, err := a.SE.GetNodesByPoolID(ctx, volumeBackup.Volume.PoolID)
+	var poolID int64
+	var pool *datamodel.Pool
+	if volumeBackup.ExpertModeVolume != nil {
+		poolID = volumeBackup.ExpertModeVolume.PoolID
+		pool = volumeBackup.ExpertModeVolume.Pool
+	} else {
+		poolID = volumeBackup.Volume.PoolID
+		pool = volumeBackup.Volume.Pool
+	}
+
+	dbNodes, err := a.SE.GetNodesByPoolID(ctx, poolID)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -43,13 +67,16 @@ func (a *VolumeBackupSyncActivity) getObjectStoreEndpointInfo(ctx context.Contex
 	}
 
 	// Prepare node provider input
-	if volumeBackup.Volume.Pool.PoolCredentials == nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %d", volumeBackup.Volume.PoolID)))
+	if pool == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool not found for pool %d", poolID)))
+	}
+	if pool.PoolCredentials == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %d", poolID)))
 	}
 	nodeProviderInput := hyperscaler.NodeProviderInput{
 		Nodes:            dbNodes,
-		DeploymentName:   volumeBackup.Volume.Pool.DeploymentName,
-		OntapCredentials: volumeBackup.Volume.Pool.PoolCredentials,
+		DeploymentName:   pool.DeploymentName,
+		OntapCredentials: pool.PoolCredentials,
 	}
 
 	node := hyperscaler.CreateNodeForProvider(nodeProviderInput)
@@ -73,7 +100,7 @@ func (a *VolumeBackupSyncActivity) GetObjectStoreEndpointInfoActivity(ctx contex
 	logger := util.GetLogger(ctx)
 
 	if volumeBackup.LatestBackup == nil {
-		logger.Infof("No latest backup found for volume %s, skipping", volumeBackup.Volume.Name)
+		logger.Infof("No latest backup found for volume %s, skipping", volumeBackupName(volumeBackup))
 		return nil, nil
 	}
 
@@ -102,7 +129,7 @@ func (a *VolumeBackupSyncActivity) UpdateBackupAndVolumeActivity(ctx context.Con
 	logger := util.GetLogger(ctx)
 
 	if volumeBackup.LatestBackup == nil {
-		logger.Infof("No latest backup found for volume %s, skipping update", volumeBackup.Volume.Name)
+		logger.Infof("No latest backup found for volume %s, skipping update", volumeBackupName(volumeBackup))
 		return nil
 	}
 
@@ -116,26 +143,62 @@ func (a *VolumeBackupSyncActivity) UpdateBackupAndVolumeActivity(ctx context.Con
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// Update volume's latest logical backup size
+	// Update volume's latest logical backup size.
+	// LatestLogicalBackupSize (backup model) is equivalent to BackupChainBytes (volume model).
+	// Branch on which volume pointer is populated rather than on the backup attribute flag so
+	// that a missing or inconsistent pointer produces a clear error instead of a nil panic.
 	volumeUpdates := make(map[string]interface{})
-	// LatestLogicalBackupSize(backup datamodel) is equivalent to BackupChainBytes(volume datamodel) and chainStorageBytes
-	volumeBackup.Volume.DataProtection.BackupChainBytes = &logicalSize
-	volumeUpdates["data_protection"] = volumeBackup.Volume.DataProtection
-	err = a.SE.UpdateVolumeFields(ctx, volumeBackup.Volume.UUID, volumeUpdates)
-	if err != nil {
-		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeBackup.Volume.Name, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+	switch {
+	case volumeBackup.ExpertModeVolume != nil:
+		if volumeBackup.ExpertModeVolume.BackupConfig == nil {
+			volumeBackup.ExpertModeVolume.BackupConfig = &datamodel.DataProtection{}
+		}
+		volumeBackup.ExpertModeVolume.BackupConfig.BackupChainBytes = &logicalSize
+		volumeUpdates["data_protection"] = volumeBackup.ExpertModeVolume.BackupConfig
+		// UpdateExpertModeVolumeFields looks up expert mode volumes by ExternalUUID.
+		err = a.SE.UpdateExpertModeVolumeFields(ctx, volumeBackup.ExpertModeVolume.ExternalUUID, volumeUpdates)
+		if err != nil {
+			logger.Errorf("Failed to update expert mode volume %s with latest logical backup size: %v", volumeBackupName(volumeBackup), err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	case volumeBackup.Volume != nil:
+		if volumeBackup.Volume.DataProtection == nil {
+			volumeBackup.Volume.DataProtection = &datamodel.DataProtection{}
+		}
+		volumeBackup.Volume.DataProtection.BackupChainBytes = &logicalSize
+		volumeUpdates["data_protection"] = volumeBackup.Volume.DataProtection
+		err = a.SE.UpdateVolumeFields(ctx, volumeBackup.Volume.UUID, volumeUpdates)
+		if err != nil {
+			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeBackup.Volume.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	default:
+		return vsaerrors.WrapAsTemporalApplicationError(
+			fmt.Errorf("volume backup entry (backup %s) has neither Volume nor ExpertModeVolume populated", volumeBackup.LatestBackup.Name),
+		)
 	}
 
-	// Update backup chain history (method checks if size actually changed)
-	err = a.SE.UpdateBackupChainHistory(ctx, volumeBackup.Volume.UUID, logicalSize)
+	// Update backup chain history (method checks if size actually changed).
+	// Derive the UUID from the volume pointer directly rather than from backup.VolumeUUID:
+	// backup.VolumeUUID carries the same value by design, but it has no JSON tag and may
+	// not survive Temporal's JSON serialization round-trip when the activity input is decoded.
+	// - Regular volumes:    volume.UUID           == backup.VolumeUUID
+	// - Expert mode volumes: expertModeVolume.ExternalUUID == backup.VolumeUUID
+	//                        (= resource_uuid stored in backup_chain_histories)
+	var chainHistoryUUID string
+	if volumeBackup.ExpertModeVolume != nil {
+		chainHistoryUUID = volumeBackup.ExpertModeVolume.ExternalUUID
+	} else {
+		chainHistoryUUID = volumeBackup.Volume.UUID
+	}
+	err = a.SE.UpdateBackupChainHistory(ctx, chainHistoryUUID, logicalSize)
 	if err != nil {
-		logger.Warnf("Failed to update backup chain history for volume %s: %v", volumeBackup.Volume.Name, err)
+		logger.Warnf("Failed to update backup chain history for volume %s: %v", volumeBackupName(volumeBackup), err)
 		// Don't fail the entire operation if history update fails
 	}
 
 	logger.Infof("Successfully updated logical size %d for volume %s and backup %s",
-		logicalSize, volumeBackup.Volume.Name, volumeBackup.LatestBackup.Name)
+		logicalSize, volumeBackupName(volumeBackup), volumeBackup.LatestBackup.Name)
 
 	return nil
 }

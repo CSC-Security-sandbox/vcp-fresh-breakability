@@ -1417,10 +1417,13 @@ type ImageVersion struct {
 	IsActive     bool   `gorm:"column:is_active;default:true" json:"isActive"`
 }
 
-// VolumeLatestBackup represents a volume with its latest backup
+// VolumeLatestBackup represents a volume with its latest backup.
+// For regular backups Volume is set and ExpertModeVolume is nil.
+// For expert mode backups ExpertModeVolume is set and Volume is nil.
 type VolumeLatestBackup struct {
-	Volume       *Volume
-	LatestBackup *Backup
+	Volume           *Volume
+	ExpertModeVolume *ExpertModeVolumes
+	LatestBackup     *Backup
 }
 
 // VolumeFieldUpdate represents a targeted update for specific volume fields

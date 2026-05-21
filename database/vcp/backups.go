@@ -1132,39 +1132,78 @@ func (d *DataStoreRepository) GetVolumeLatestBackupMap(ctx context.Context) (map
 		return make(map[int64]*datamodel.VolumeLatestBackup), nil
 	}
 
-	// Extract volume UUIDs from latest backups
-	volumeUUIDs := make([]string, 0, len(latestBackups))
-	backupMap := make(map[string]*datamodel.Backup)
+	// Partition latest backups into regular and expert mode sets.
+	regularBackupMap := make(map[string]*datamodel.Backup)
+	expertModeBackupMap := make(map[string]*datamodel.Backup)
 	for i := range latestBackups {
-		volumeUUIDs = append(volumeUUIDs, latestBackups[i].VolumeUUID)
-		backupMap[latestBackups[i].VolumeUUID] = &latestBackups[i]
-	}
-	logger.Infof("Extracted %d volume UUIDs from latest backups", len(volumeUUIDs))
-
-	// Step 2: Get volumes with pool preloaded using the volume UUIDs
-	conditions := [][]interface{}{{"uuid in ?", volumeUUIDs}}
-	conditions = append(conditions, []interface{}{"state = ?", models.LifeCycleStateREADY})
-	logger.Info("Fetching volumes with pool preloaded for extracted volume UUIDs")
-	volumes, err2 := d.GetMultipleVolumes(ctx, conditions)
-	if err2 != nil {
-		logger.Errorf("Failed to get volumes: %v", err2)
-		return nil, err2
-	}
-	logger.Infof("Retrieved %d volumes", len(volumes))
-
-	// Step 3: Create map of volume_uuid -> {volume, latestBackup}
-	resultMap := make(map[int64]*datamodel.VolumeLatestBackup)
-	for i := range volumes {
-		volumeUUID := volumes[i].UUID
-		volumeID := volumes[i].ID
-		if backup, exists := backupMap[volumeUUID]; exists {
-			resultMap[volumeID] = &datamodel.VolumeLatestBackup{
-				Volume:       volumes[i],
-				LatestBackup: backup,
-			}
-			logger.Infof("Mapped volume %s (ID: %d) with its latest backup %s", volumeUUID, volumeID, backup.UUID)
+		if latestBackups[i].Attributes != nil && latestBackups[i].Attributes.IsExpertModeBackup {
+			expertModeBackupMap[latestBackups[i].VolumeUUID] = &latestBackups[i]
+		} else {
+			regularBackupMap[latestBackups[i].VolumeUUID] = &latestBackups[i]
 		}
 	}
+	logger.Infof("Partitioned backups: %d regular, %d expert mode", len(regularBackupMap), len(expertModeBackupMap))
+
+	resultMap := make(map[int64]*datamodel.VolumeLatestBackup)
+
+	// Step 2a: Fetch regular volumes by uuid.
+	if len(regularBackupMap) > 0 {
+		regularVolumeUUIDs := make([]string, 0, len(regularBackupMap))
+		for uuid := range regularBackupMap {
+			regularVolumeUUIDs = append(regularVolumeUUIDs, uuid)
+		}
+		regularConditions := [][]interface{}{
+			{"uuid in ?", regularVolumeUUIDs},
+			{"state = ?", models.LifeCycleStateREADY},
+		}
+		logger.Info("Fetching regular volumes with pool preloaded")
+		volumes, err2 := d.GetMultipleVolumes(ctx, regularConditions)
+		if err2 != nil {
+			logger.Errorf("Failed to get regular volumes: %v", err2)
+			return nil, err2
+		}
+		logger.Infof("Retrieved %d regular volumes", len(volumes))
+		for i := range volumes {
+			volumeUUID := volumes[i].UUID
+			if backup, exists := regularBackupMap[volumeUUID]; exists {
+				resultMap[volumes[i].ID] = &datamodel.VolumeLatestBackup{
+					Volume:       volumes[i],
+					LatestBackup: backup,
+				}
+				logger.Infof("Mapped regular volume %s (ID: %d) with its latest backup %s", volumeUUID, volumes[i].ID, backup.UUID)
+			}
+		}
+	}
+
+	// Step 2b: Fetch expert mode volumes by external_uuid (= backup.VolumeUUID for expert mode backups).
+	if len(expertModeBackupMap) > 0 {
+		expertModeUUIDs := make([]string, 0, len(expertModeBackupMap))
+		for uuid := range expertModeBackupMap {
+			expertModeUUIDs = append(expertModeUUIDs, uuid)
+		}
+		expertModeConditions := [][]interface{}{
+			{"external_uuid in ?", expertModeUUIDs},
+			{"state = ?", models.LifeCycleStateREADY},
+		}
+		logger.Info("Fetching expert mode volumes with pool preloaded")
+		expertModeVolumes, err3 := d.GetMultipleVolumesWithExpertMode(ctx, expertModeConditions)
+		if err3 != nil {
+			logger.Errorf("Failed to get expert mode volumes: %v", err3)
+			return nil, err3
+		}
+		logger.Infof("Retrieved %d expert mode volumes", len(expertModeVolumes))
+		for i := range expertModeVolumes {
+			externalUUID := expertModeVolumes[i].ExternalUUID
+			if backup, exists := expertModeBackupMap[externalUUID]; exists {
+				resultMap[-expertModeVolumes[i].ID] = &datamodel.VolumeLatestBackup{
+					ExpertModeVolume: expertModeVolumes[i],
+					LatestBackup:     backup,
+				}
+				logger.Infof("Mapped expert mode volume %s (ID: %d) with its latest backup %s", externalUUID, expertModeVolumes[i].ID, backup.UUID)
+			}
+		}
+	}
+
 	logger.Infof("Created result map with %d volume-backup pairs", len(resultMap))
 
 	return resultMap, nil

@@ -4401,6 +4401,297 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 				assert.Equal(t, models.LifeCycleStateREADY, volumeMapping.Volume.State)
 			},
 		},
+		{
+			name: "Success - Expert mode backup maps to expert mode volume",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "em-account-uuid"},
+					Name:      "em-account",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "em-pool-uuid"},
+					Name:           "em-pool",
+					AccountID:      account.ID,
+					DeploymentName: "em-deployment",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password:      "em-password",
+						SecretID:      "em-secret-id",
+						CertificateID: "em-cert-id",
+					},
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "em-bv-uuid"},
+					Name:      "em-backup-vault",
+				}
+				err = store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				expertVol := &datamodel.ExpertModeVolumes{
+					BaseModel:    datamodel.BaseModel{UUID: "em-vol-uuid"},
+					Name:         "em-volume",
+					ExternalUUID: "em-external-uuid",
+					State:        models.LifeCycleStateREADY,
+					PoolID:       pool.ID,
+					AccountID:    account.ID,
+				}
+				err = store.db.Create(expertVol).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backup := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "em-backup-uuid"},
+					Name:          "em-backup",
+					VolumeUUID:    expertVol.ExternalUUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+					Attributes:    &datamodel.BackupAttributes{IsExpertModeBackup: true},
+				}
+				err = store.db.Create(backup).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Volume{}, []*datamodel.Backup{backup}
+			},
+			expectedCount: 1,
+			expectedError: false,
+			verifyResults: func(t *testing.T, results map[int64]*datamodel.VolumeLatestBackup, _ []*datamodel.Volume, backups []*datamodel.Backup) {
+				assert.Len(t, results, 1)
+
+				var entry *datamodel.VolumeLatestBackup
+				for _, v := range results {
+					if v.LatestBackup.UUID == backups[0].UUID {
+						entry = v
+						break
+					}
+				}
+				require.NotNil(t, entry, "expected result entry for expert mode backup not found")
+				assert.Nil(t, entry.Volume, "Volume should be nil for expert mode entry")
+				assert.NotNil(t, entry.ExpertModeVolume)
+				assert.Equal(t, "em-external-uuid", entry.ExpertModeVolume.ExternalUUID)
+				assert.NotNil(t, entry.ExpertModeVolume.Pool)
+				assert.Equal(t, "em-deployment", entry.ExpertModeVolume.Pool.DeploymentName)
+				assert.True(t, entry.LatestBackup.Attributes.IsExpertModeBackup)
+			},
+		},
+		{
+			name: "Success - Mixed regular and expert mode volumes are both returned",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "mix-account-uuid"},
+					Name:      "mix-account",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "mix-pool-uuid"},
+					Name:           "mix-pool",
+					AccountID:      account.ID,
+					DeploymentName: "mix-deployment",
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "mix-bv-uuid"},
+					Name:      "mix-bv",
+				}
+				err = store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Regular volume + backup
+				vol := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "mix-vol-uuid"},
+					Name:      "mix-volume",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				err = store.db.Create(vol).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				regBackup := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "mix-reg-backup-uuid"},
+					Name:          "mix-reg-backup",
+					VolumeUUID:    vol.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				err = store.db.Create(regBackup).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Expert mode volume + backup
+				expertVol := &datamodel.ExpertModeVolumes{
+					BaseModel:    datamodel.BaseModel{UUID: "mix-em-vol-uuid"},
+					Name:         "mix-em-volume",
+					ExternalUUID: "mix-em-external-uuid",
+					State:        models.LifeCycleStateREADY,
+					PoolID:       pool.ID,
+					AccountID:    account.ID,
+				}
+				err = store.db.Create(expertVol).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				emBackup := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "mix-em-backup-uuid"},
+					Name:          "mix-em-backup",
+					VolumeUUID:    expertVol.ExternalUUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+					Attributes:    &datamodel.BackupAttributes{IsExpertModeBackup: true},
+				}
+				err = store.db.Create(emBackup).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Volume{vol}, []*datamodel.Backup{regBackup, emBackup}
+			},
+			expectedCount: 2,
+			expectedError: false,
+			verifyResults: func(t *testing.T, results map[int64]*datamodel.VolumeLatestBackup, vols []*datamodel.Volume, backups []*datamodel.Backup) {
+				assert.Len(t, results, 2)
+
+				var regularEntry, expertEntry *datamodel.VolumeLatestBackup
+				for _, v := range results {
+					if v.Volume != nil {
+						regularEntry = v
+					} else if v.ExpertModeVolume != nil {
+						expertEntry = v
+					}
+				}
+
+				require.NotNil(t, regularEntry, "regular volume entry not found in result map")
+				assert.Equal(t, vols[0].UUID, regularEntry.Volume.UUID)
+				assert.Equal(t, backups[0].UUID, regularEntry.LatestBackup.UUID)
+				assert.Nil(t, regularEntry.ExpertModeVolume)
+
+				require.NotNil(t, expertEntry, "expert mode volume entry not found in result map")
+				assert.Equal(t, "mix-em-external-uuid", expertEntry.ExpertModeVolume.ExternalUUID)
+				assert.Equal(t, backups[1].UUID, expertEntry.LatestBackup.UUID)
+				assert.Nil(t, expertEntry.Volume)
+				assert.True(t, expertEntry.LatestBackup.Attributes.IsExpertModeBackup)
+			},
+		},
+		{
+			name: "Success - Expert mode volume not in READY state is excluded",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "em-state-account-uuid"},
+					Name:      "em-state-account",
+				}
+				err := store.db.Create(account).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "em-state-pool-uuid"},
+					Name:      "em-state-pool",
+					AccountID: account.ID,
+				}
+				err = store.db.Create(pool).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "em-state-bv-uuid"},
+					Name:      "em-state-bv",
+				}
+				err = store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				expertVol := &datamodel.ExpertModeVolumes{
+					BaseModel:    datamodel.BaseModel{UUID: "em-state-vol-uuid"},
+					Name:         "em-state-volume",
+					ExternalUUID: "em-state-external-uuid",
+					State:        models.LifeCycleStateCreating, // not READY
+					PoolID:       pool.ID,
+					AccountID:    account.ID,
+				}
+				err = store.db.Create(expertVol).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				backup := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "em-state-backup-uuid"},
+					Name:          "em-state-backup",
+					VolumeUUID:    expertVol.ExternalUUID,
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+					Attributes:    &datamodel.BackupAttributes{IsExpertModeBackup: true},
+				}
+				err = store.db.Create(backup).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Volume{}, []*datamodel.Backup{backup}
+			},
+			expectedCount: 0,
+			expectedError: false,
+		},
+		{
+			name: "Success - Expert mode backup with no matching volume is excluded",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
+				backupVault := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "em-missing-bv-uuid"},
+					Name:      "em-missing-bv",
+				}
+				err := store.db.Create(backupVault).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				// Backup references an external UUID that has no matching ExpertModeVolume row
+				backup := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "em-missing-backup-uuid"},
+					Name:          "em-missing-backup",
+					VolumeUUID:    "non-existent-external-uuid",
+					BackupVaultID: backupVault.ID,
+					State:         models.LifeCycleStateAvailable,
+					Attributes:    &datamodel.BackupAttributes{IsExpertModeBackup: true},
+				}
+				err = store.db.Create(backup).Error()
+				if err != nil {
+					panic(err)
+				}
+
+				return []*datamodel.Volume{}, []*datamodel.Backup{backup}
+			},
+			expectedCount: 0,
+			expectedError: false,
+		},
 	}
 
 	for _, tt := range tests {

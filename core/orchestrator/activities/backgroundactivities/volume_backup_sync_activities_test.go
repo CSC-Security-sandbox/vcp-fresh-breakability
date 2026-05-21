@@ -515,8 +515,9 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					},
 				},
 				LatestBackup: &datamodel.Backup{
-					BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-					Name:      "test-backup",
+					BaseModel:  datamodel.BaseModel{UUID: "backup-uuid"},
+					Name:       "test-backup",
+					VolumeUUID: "volume-uuid",
 				},
 			},
 			logicalSize: int64(1024 * 1024 * 1024), // 1GB
@@ -607,8 +608,9 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					},
 				},
 				LatestBackup: &datamodel.Backup{
-					BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-					Name:      "test-backup",
+					BaseModel:  datamodel.BaseModel{UUID: "backup-uuid"},
+					Name:       "test-backup",
+					VolumeUUID: "volume-uuid",
 				},
 			},
 			logicalSize: int64(0),
@@ -638,8 +640,9 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					},
 				},
 				LatestBackup: &datamodel.Backup{
-					BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-					Name:      "test-backup",
+					BaseModel:  datamodel.BaseModel{UUID: "backup-uuid"},
+					Name:       "test-backup",
+					VolumeUUID: "volume-uuid",
 				},
 			},
 			logicalSize: int64(2 * 1024 * 1024 * 1024 * 1024), // 2TB
@@ -653,8 +656,66 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(2*1024*1024*1024*1024)
 				})).Return(nil)
 
-				// Mock backup chain history update
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(2*1024*1024*1024*1024)).Return(nil)
+			// Mock backup chain history update
+			s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(2*1024*1024*1024*1024)).Return(nil)
+			},
+			expectedError: false,
+		},
+		{
+			name: "Success - Expert mode backup updates expert mode volume",
+			volumeBackup: &datamodel.VolumeLatestBackup{
+				ExpertModeVolume: &datamodel.ExpertModeVolumes{
+					BaseModel:    datamodel.BaseModel{ID: 10},
+					Name:         "expert-volume",
+					ExternalUUID: "external-volume-uuid",
+					BackupConfig: &datamodel.DataProtection{
+						BackupChainBytes: nillable.ToPointer(int64(256 * 1024 * 1024)),
+					},
+				},
+				LatestBackup: &datamodel.Backup{
+					BaseModel:  datamodel.BaseModel{UUID: "expert-backup-uuid"},
+					Name:       "expert-backup",
+					VolumeUUID: "external-volume-uuid",
+					Attributes: &datamodel.BackupAttributes{IsExpertModeBackup: true},
+				},
+			},
+			logicalSize: int64(1024 * 1024 * 1024),
+			setupMock: func() {
+				s.mockStorage.On("UpdateBackupFields", s.ctx, "expert-backup-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+					return updates["latest_logical_backup_size"] == int64(1024*1024*1024)
+				})).Return(nil)
+				s.mockStorage.On("UpdateExpertModeVolumeFields", s.ctx, "external-volume-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+					dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+					return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == int64(1024*1024*1024)
+				})).Return(nil)
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "external-volume-uuid", int64(1024*1024*1024)).Return(nil)
+			},
+			expectedError: false,
+		},
+		{
+			name: "Success - Expert mode backup with nil BackupConfig initialises it",
+			volumeBackup: &datamodel.VolumeLatestBackup{
+				ExpertModeVolume: &datamodel.ExpertModeVolumes{
+					BaseModel:    datamodel.BaseModel{ID: 11},
+					Name:         "expert-volume-2",
+					ExternalUUID: "external-uuid-2",
+					BackupConfig: nil,
+				},
+				LatestBackup: &datamodel.Backup{
+					BaseModel:  datamodel.BaseModel{UUID: "expert-backup-uuid-2"},
+					Name:       "expert-backup-2",
+					VolumeUUID: "external-uuid-2",
+					Attributes: &datamodel.BackupAttributes{IsExpertModeBackup: true},
+				},
+			},
+			logicalSize: int64(512 * 1024 * 1024),
+			setupMock: func() {
+				s.mockStorage.On("UpdateBackupFields", s.ctx, "expert-backup-uuid-2", mock.Anything).Return(nil)
+				s.mockStorage.On("UpdateExpertModeVolumeFields", s.ctx, "external-uuid-2", mock.MatchedBy(func(updates map[string]interface{}) bool {
+					dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+					return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == int64(512*1024*1024)
+				})).Return(nil)
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "external-uuid-2", int64(512*1024*1024)).Return(nil)
 			},
 			expectedError: false,
 		},
