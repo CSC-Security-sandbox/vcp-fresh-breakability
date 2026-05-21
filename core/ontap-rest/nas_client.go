@@ -51,6 +51,7 @@ type NASClient interface { // generate:mock
 	KerberosRealmCreate(params *KerberosRealmCreateParams) error
 	KerberosInterfaceCollectionGet(params *KerberosInterfaceCollectionGetParams) ([]*KerberosInterface, error)
 	KerberosInterfaceModify(params *KerberosInterfaceModifyParams) error
+	NfsClientsGet(params *NfsClientsGetParams) ([]*NfsClients, error)
 }
 
 var (
@@ -611,4 +612,23 @@ func (nc *nasClient) KerberosInterfaceCollectionGet(params *KerberosInterfaceCol
 func (nc *nasClient) KerberosInterfaceModify(params *KerberosInterfaceModifyParams) error {
 	_, err := nc.api.KerberosInterfaceModify(kerberosInterfaceModifyParamsToONTAP(params), nil)
 	return err
+}
+
+// NfsClientsGet invokes clients/ontap-rest/client/n_a_s/Client.NfsClientsGet to get connected NFS clients
+func (nc *nasClient) NfsClientsGet(params *NfsClientsGetParams) ([]*NfsClients, error) {
+	otParams := nfsClientsGetParamsToONTAP(params)
+	response, err := nc.api.NfsClientsGet(otParams, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Payload == nil || len(response.Payload.NfsClientsResponseInlineRecords) == 0 {
+		return nil, nil
+	}
+
+	clients := make([]*NfsClients, len(response.Payload.NfsClientsResponseInlineRecords))
+	for i, c := range response.Payload.NfsClientsResponseInlineRecords {
+		clients[i] = &NfsClients{NfsClients: *c}
+	}
+	return clients, nil
 }

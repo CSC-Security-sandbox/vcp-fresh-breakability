@@ -72,6 +72,7 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 		if err != nil {
 			return nil, err
 		}
+
 		return volume, nil
 	} else if volErr != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, volErr)

@@ -427,6 +427,10 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 		volume.VolumeAttributes.Labels = params.Labels
 	}
 
+	if params.RestrictedActions != nil {
+		volume.VolumeAttributes.RestrictedActions = *params.RestrictedActions
+	}
+
 	if params.SnapshotPolicy != nil {
 		updates["snapshot_policy"] = volume.SnapshotPolicy
 	}
@@ -513,14 +517,14 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 		updates["auto_tiering_policy"] = autoTieringPolicy
 	}
 
-	updates[VolumeAttributesProperty] = volume.VolumeAttributes
 	if params.SnapReserve != nil {
 		if volume.VolumeAttributes == nil {
 			volume.VolumeAttributes = &datamodel.VolumeAttributes{}
 		}
 		volume.VolumeAttributes.SnapReserve = *params.SnapReserve
-		updates[VolumeAttributesProperty] = volume.VolumeAttributes
 	}
+
+	updates[VolumeAttributesProperty] = volume.VolumeAttributes
 
 	// Update SMB share settings if provided
 	if len(params.SMBShareSettings) > 0 {

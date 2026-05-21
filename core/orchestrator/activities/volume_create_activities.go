@@ -675,9 +675,29 @@ func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamode
 	return nil
 }
 
+// mergeRestrictedActionsFromExisting copies restricted_actions from existing when attrs would clear them.
+func mergeRestrictedActionsFromExisting(attrs, existing *datamodel.VolumeAttributes) {
+	if attrs == nil || existing == nil {
+		return
+	}
+	if len(attrs.RestrictedActions) == 0 && len(existing.RestrictedActions) > 0 {
+		attrs.RestrictedActions = existing.RestrictedActions
+	}
+}
+
 func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *datamodel.Volume, volCreateResponse *vsa.ProviderResponse) error {
 	se := a.SE
 	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeDetails activity")
+
+	if volume != nil && volume.UUID != "" && volume.VolumeAttributes != nil {
+		existing, err := se.GetVolume(ctx, volume.UUID)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if existing != nil {
+			mergeRestrictedActionsFromExisting(volume.VolumeAttributes, existing.VolumeAttributes)
+		}
+	}
 
 	volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
@@ -2789,6 +2809,16 @@ func (a VolumeCreateActivity) UpdateVolumeAttributesInDB(ctx context.Context, vo
 	activity.RecordHeartbeat(ctx, "Initializing volume attributes update")
 	se := a.SE
 	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeAttributesInDB activity")
+
+	if volumeAttributes != nil && volumeUUID != "" {
+		existing, err := se.GetVolume(ctx, volumeUUID)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if existing != nil {
+			mergeRestrictedActionsFromExisting(volumeAttributes, existing.VolumeAttributes)
+		}
+	}
 
 	activity.RecordHeartbeat(ctx, "Updating volume attributes in database")
 	err := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{

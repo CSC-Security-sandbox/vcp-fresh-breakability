@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	common2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
@@ -966,6 +967,29 @@ type NodeProviderInput struct {
 	DeploymentName string
 	// Required: OntapCredentials from database (contains Password, SecretID, CertificateID, AuthType, and CA fields with env var fallback)
 	OntapCredentials *datamodel.PoolCredentials
+}
+
+// GetOntapNode resolves an ONTAP provider node from pool DB nodes, matching workflow usage:
+// CommonActivities.GetNode (GetNodesByPoolID) then CreateNodeForProvider.
+func GetOntapNode(ctx context.Context, se database.Storage, volume *datamodel.Volume) (*models.Node, error) {
+	if volume == nil || volume.Pool == nil {
+		return nil, errors2.NewUserInputValidationErr("volume pool is required to resolve ONTAP node")
+	}
+	dbNodes, err := se.GetNodesByPoolID(ctx, volume.Pool.ID)
+	if err != nil {
+		return nil, err
+	}
+	if len(dbNodes) == 0 {
+		return nil, errors.NewVCPError(
+			errors.ErrUnexpectedNodeCountForPool,
+			fmt.Errorf("no nodes found for pool %s", volume.Pool.UUID),
+		)
+	}
+	return CreateNodeForProvider(NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   volume.Pool.DeploymentName,
+		OntapCredentials: volume.Pool.PoolCredentials,
+	}), nil
 }
 
 // PrepareOperationID constructs a GCP operation ID from the provided project number, location ID, and job ID.

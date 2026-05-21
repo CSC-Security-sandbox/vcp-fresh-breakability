@@ -2134,9 +2134,13 @@ func TestUpdateVolumeDetails_Success(t *testing.T) {
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	env.RegisterActivity(activity.UpdateVolumeDetails)
 
-	volume := &datamodel.Volume{VolumeAttributes: &datamodel.VolumeAttributes{}}
+	volume := &datamodel.Volume{
+		BaseModel:          datamodel.BaseModel{UUID: "vol-uuid-1"},
+		VolumeAttributes:   &datamodel.VolumeAttributes{},
+	}
 	volCreateResponse := &vsa.ProviderResponse{ExternalUUID: "uuid-123"}
 
+	mockStorage.On("GetVolume", mock.Anything, "vol-uuid-1").Return(volume, nil)
 	mockStorage.On("UpdateVolume", mock.Anything, mock.Anything).Return(nil)
 
 	// Act
@@ -2156,10 +2160,14 @@ func TestUpdateVolumeDetails_Failure(t *testing.T) {
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	env.RegisterActivity(activity.UpdateVolumeDetails)
 
-	volume := &datamodel.Volume{VolumeAttributes: &datamodel.VolumeAttributes{}}
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid-2"},
+		VolumeAttributes: &datamodel.VolumeAttributes{},
+	}
 	volCreateResponse := &vsa.ProviderResponse{ExternalUUID: "uuid-123"}
 	expectedError := errors.New("failed to update volume")
 
+	mockStorage.On("GetVolume", mock.Anything, "vol-uuid-2").Return(volume, nil)
 	mockStorage.On("UpdateVolume", mock.Anything, mock.Anything).Return(expectedError)
 
 	// Act
@@ -5669,6 +5677,9 @@ func TestUpdateVolumeAttributesInDB_Success(t *testing.T) {
 		SnapReserve:  10,
 	}
 
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(&datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{},
+	}, nil)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
 	}).Return(nil)
@@ -5676,6 +5687,74 @@ func TestUpdateVolumeAttributesInDB_Success(t *testing.T) {
 	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
 
 	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAttributesInDB_PreservesRestrictedActionsFromDB(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
+
+	volumeUUID := "vol-uuid-restricted"
+	incoming := &datamodel.VolumeAttributes{
+		ExternalUUID: "ext-uuid-new",
+		Protocols:    []string{"nfs"},
+	}
+	existing := &datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			RestrictedActions: []string{activities.RestrictedActionDelete},
+		},
+	}
+	expected := &datamodel.VolumeAttributes{
+		ExternalUUID:      "ext-uuid-new",
+		Protocols:         []string{"nfs"},
+		RestrictedActions: []string{activities.RestrictedActionDelete},
+	}
+
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(existing, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
+		"volume_attributes": expected,
+	}).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, incoming)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeDetails_PreservesRestrictedActionsFromDB(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeDetails)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-restricted"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"nfs"},
+		},
+	}
+	existing := &datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			RestrictedActions: []string{activities.RestrictedActionDelete},
+		},
+	}
+	volCreateResponse := &vsa.ProviderResponse{ExternalUUID: "ext-uuid-new"}
+
+	mockStorage.On("GetVolume", mock.Anything, "vol-uuid-restricted").Return(existing, nil)
+	mockStorage.On("UpdateVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+		return v.VolumeAttributes != nil &&
+			len(v.VolumeAttributes.RestrictedActions) == 1 &&
+			v.VolumeAttributes.RestrictedActions[0] == activities.RestrictedActionDelete &&
+			v.VolumeAttributes.ExternalUUID == "ext-uuid-new"
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeDetails, volume, volCreateResponse)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
@@ -5718,6 +5797,9 @@ func TestUpdateVolumeAttributesInDB_Error(t *testing.T) {
 	}
 	expectedErr := errors.New("database update failed")
 
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(&datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{},
+	}, nil)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
 	}).Return(expectedErr)

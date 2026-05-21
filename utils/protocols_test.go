@@ -345,6 +345,12 @@ func TestIsNFSProtocols(t *testing.T) {
 	})
 }
 
+func TestIsSMBOnlyProtocols(t *testing.T) {
+	assert.True(t, IsSMBOnlyProtocols([]string{ProtocolSMB}))
+	assert.False(t, IsSMBOnlyProtocols([]string{ProtocolNFSv3, ProtocolSMB}))
+	assert.False(t, IsSMBOnlyProtocols([]string{ProtocolNFSv3}))
+}
+
 func TestCreateJunctionPath(t *testing.T) {
 	tests := []struct {
 		token    string

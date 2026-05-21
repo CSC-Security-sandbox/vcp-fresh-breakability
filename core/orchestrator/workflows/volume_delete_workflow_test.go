@@ -62,6 +62,12 @@ func (s *VolumeDeleteTestSuite) SetupTest() {
 		s.env.OnActivity(deleteActivity.DeleteCifsShareIfSMB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	}
 
+	// Default allow EnforceDeleteProtection; SMB denial test registers the real activity.
+	if !strings.Contains(s.T().Name(), "EnforceDeleteProtectionSMBDenied") {
+		s.env.RegisterActivity(deleteActivity.EnforceDeleteProtection)
+		s.env.OnActivity(deleteActivity.EnforceDeleteProtection, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	}
+
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 		State:     string(models.JobsStateNEW),
@@ -1758,6 +1764,9 @@ func (s *SnapshotDeleteTestSuite) TestShouldUpdateVolumeStateToError() {
 	err := &vsaerrors.CustomError{TrackingID: vsaerrors.ErrDeleteVolumeWhenInSplitState}
 	assert.False(s.T(), shouldUpdateVolumeStateToError(err))
 
+	err = &vsaerrors.CustomError{TrackingID: vsaerrors.ErrDeleteVolumeRestrictedAction}
+	assert.False(s.T(), shouldUpdateVolumeStateToError(err))
+
 	// Returns true for other errors
 	err = &vsaerrors.CustomError{TrackingID: 999}
 	assert.True(s.T(), shouldUpdateVolumeStateToError(err))
@@ -1866,6 +1875,41 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBE
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_EnforceDeleteProtectionSMBDenied() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.EnforceDeleteProtection)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+		},
+		Account: &datamodel.Account{Name: "test_account"},
+		Name:    "smb-vol",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:         []string{utils.ProtocolSMB},
+			RestrictedActions: []string{activities.RestrictedActionDelete},
+			ExternalUUID:      "ext-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "SMB")
 }
 
 func (s *VolumeDeleteTestSuite) Test_SmbTeardownWorkflow_DetermineSmbTeardownContextError() {

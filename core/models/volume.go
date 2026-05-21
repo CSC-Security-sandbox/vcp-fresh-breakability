@@ -52,6 +52,7 @@ type Volume struct {
 	Iops                        *int64
 	VolumePerformanceGroupId    string
 	IsRegionalHA                bool
+	RestrictedActions           []string
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

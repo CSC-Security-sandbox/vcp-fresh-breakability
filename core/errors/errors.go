@@ -217,6 +217,7 @@ const (
 	ErrSnapshotInsufficientSpace          = 7014
 	ErrSnapshotMaximumLimitExceeded       = 7015
 	ErrHotTierCapacityExhausted           = 7016
+	ErrDeleteVolumeRestrictedAction       = 7017
 
 	// CMEK Error Codes
 	ErrDescribingSDEJob                            = 6057

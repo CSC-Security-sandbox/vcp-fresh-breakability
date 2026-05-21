@@ -140,6 +140,7 @@ workerConfig:
   createNasLifDuringPoolCreation: "true"
   enableSmb: "false"
   enableQuotaRule: "true"
+  volDelProtectionEnabled: "true"
   enableKerberos: "false"
   enableNfsOverTls: "false"
   nfsTlsConnMaxLimit: "100"

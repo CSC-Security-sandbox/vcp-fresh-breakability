@@ -1112,6 +1112,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	// Persisting ExternalUUID in the database to ensure it is available for ONTAP volume deletion during cleanup triggered by CCFE/VCP
 	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
+	common.ApplyRestrictedActionsToVolume(dbVolume, createVolumeParams.RestrictedActions)
 	err = workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeAttributesInDB, dbVolume.UUID, dbVolume.VolumeAttributes).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -1500,6 +1501,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
+	common.ApplyRestrictedActionsToVolume(dbVolume, createVolumeParams.RestrictedActions)
 	err = workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -4763,5 +4764,26 @@ func TestSnapmirrorRelationshipCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, otParams.Info)
 		assert.NotNil(tt, otParams.Info.Destination)
 		assert.Equal(tt, "/dest/path", *otParams.Info.Destination.Path)
+	})
+}
+
+func TestNfsClientsGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := nfsClientsGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		volumeUUID := "vol-uuid"
+		svmName := "svm-1"
+		params := &NfsClientsGetParams{
+			VolumeUUID: &volumeUUID,
+			SvmName:    &svmName,
+		}
+		otParams := nfsClientsGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		require.NotNil(tt, otParams.VolumeUUID)
+		require.NotNil(tt, otParams.SvmName)
+		assert.Equal(tt, volumeUUID, *otParams.VolumeUUID)
+		assert.Equal(tt, svmName, *otParams.SvmName)
 	})
 }

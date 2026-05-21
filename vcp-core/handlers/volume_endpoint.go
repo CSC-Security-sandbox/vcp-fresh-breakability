@@ -46,6 +46,7 @@ type volumeResponse struct {
 	Zone               string                `json:"zone,omitempty"`
 	LargeCapacity      bool                  `json:"largeCapacity"`
 	CloneDetails       *volumeCloneDetails   `json:"cloneDetails,omitempty"`
+	RestrictedActions  []string              `json:"restrictedActions,omitempty"`
 }
 
 type volumeSnapshotPolicy struct {
@@ -227,6 +228,7 @@ func convertModelToVolumeResponse(volume *coremodels.Volume) *volumeResponse {
 		EncryptionType:     volume.EncryptionType,
 		Description:        volume.Description,
 		LargeCapacity:      volume.LargeCapacity,
+		RestrictedActions:  volume.RestrictedActions,
 	}
 
 	if volume.SnapshotPolicy != nil {

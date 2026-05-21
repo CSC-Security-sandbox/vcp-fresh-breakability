@@ -1,12 +1,17 @@
 package hyperscaler
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
@@ -577,4 +582,65 @@ func TestCreateNodeForProvider_CAFieldsForNonCertificateAuth(t *testing.T) {
 	assert.Equal(t, "test-ca-pool-deployed-project-id/test-ca-pool-name/test-ca-name", result.CaURI)
 	assert.Equal(t, "password123", result.Password)
 	assert.Equal(t, env.USERNAME_PWD, result.AuthType)
+}
+
+func TestGetOntapNode_MissingPool(t *testing.T) {
+	_, err := GetOntapNode(context.Background(), database.NewMockStorage(t), &datamodel.Volume{Name: "vol"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "volume pool is required")
+}
+
+func TestGetOntapNode_NoNodesInPool(t *testing.T) {
+	ctx := context.Background()
+	se := database.NewMockStorage(t)
+	poolID := int64(7)
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: poolID, UUID: "pool-uuid"}},
+	}
+	se.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{}, nil)
+
+	_, err := GetOntapNode(ctx, se, volume)
+	require.Error(t, err)
+	var deny *vsaerrors.CustomError
+	require.True(t, errors.As(err, &deny))
+	assert.Equal(t, vsaerrors.ErrUnexpectedNodeCountForPool, deny.TrackingID)
+}
+
+func TestGetOntapNode_Success(t *testing.T) {
+	ctx := context.Background()
+	se := database.NewMockStorage(t)
+	poolID := int64(7)
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: poolID, UUID: "pool-uuid"},
+			DeploymentName: "deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pw",
+			},
+		},
+	}
+	se.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{{
+		EndpointAddress: "10.0.0.1",
+	}}, nil)
+
+	node, err := GetOntapNode(ctx, se, volume)
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.Equal(t, "deploy", node.DeploymentName)
+	assert.Equal(t, map[string]string{"10.0.0.1": "10.0.0.1"}, node.EndpointAddressesToHostNameMap)
+	se.AssertExpectations(t)
+}
+
+func TestGetOntapNode_GetNodesByPoolIDError(t *testing.T) {
+	ctx := context.Background()
+	se := database.NewMockStorage(t)
+	poolID := int64(7)
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: poolID, UUID: "pool-uuid"}},
+	}
+	se.On("GetNodesByPoolID", ctx, poolID).Return(nil, errors.New("db error"))
+
+	_, err := GetOntapNode(ctx, se, volume)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
@@ -539,6 +540,13 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			}
 		}
 		param.Protocols = append(param.Protocols, protocolName)
+	}
+
+	if req.Volume.RestrictedActions != nil {
+		err := setRestrictedActionsFromRequest(req.Volume.RestrictedActions, &param.RestrictedActions, param.Protocols)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(param.Protocols) == 1 && utils.IsSMBProtocols(param.Protocols) {
@@ -1477,6 +1485,15 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			UnixPermissions: unixPermissions,
 		}
 	}
+
+	if req.RestrictedActions != nil {
+		restrictedActions, err := parseRestrictedActionsFromRequest(req.RestrictedActions, dbVolume.ProtocolTypes)
+		if err != nil {
+			return nil, err
+		}
+		param.RestrictedActions = restrictedActions
+	}
+
 	return param, nil
 }
 
@@ -1662,6 +1679,15 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 				Message: err.Error(),
 			}, nil
 		}
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			if hasCode, httpCode := customErr.GetHttpCode(); hasCode && httpCode == http.StatusConflict {
+				return &gcpgenserver.V1betaDeleteVolumeConflict{
+					Code:    float64(httpCode),
+					Message: customErr.GetMessage(),
+				}, nil
+			}
+		}
 		logger.Error("Failed to delete volume", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 			Code:    500,
@@ -1768,6 +1794,13 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			return nil
 		}
 		res.Protocols = append(res.Protocols, protocolsV1beta)
+	}
+
+	if len(volume.RestrictedActions) > 0 {
+		res.RestrictedActions = make(gcpgenserver.RestrictedActionsV1beta, 0, len(volume.RestrictedActions))
+		for _, val := range volume.RestrictedActions {
+			res.RestrictedActions = append(res.RestrictedActions, gcpgenserver.RestrictedActionsV1betaItem(val))
+		}
 	}
 
 	if volume.Labels != nil {
@@ -2435,7 +2468,7 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		volume.ExportPolicy = gcpgenserver.NewOptExportPolicyV1beta(exportPolicyV1beta)
 	}
 
-	volume.RestrictedActions = make(gcpgenserver.RestrictedActionsV1beta, len(in.RestrictedActions))
+	volume.RestrictedActions = make(gcpgenserver.RestrictedActionsV1beta, 0, len(in.RestrictedActions))
 	for _, val := range in.RestrictedActions {
 		volume.RestrictedActions = append(volume.RestrictedActions, gcpgenserver.RestrictedActionsV1betaItem(val))
 	}
@@ -3521,6 +3554,48 @@ func _hasNfs4KerberosV1beta(policy gcpgenserver.OptExportPolicyV1beta) bool {
 
 func _getKerberosEnabledFlagFromRequest(kerberosEnableFlagFromRequest *bool) bool {
 	return nillable.GetBool(kerberosEnableFlagFromRequest, false)
+}
+
+func setRestrictedActionsFromRequest(restrictedActions []gcpgenserver.RestrictedActionsV1betaItem, newRestrictedActions *[]string, protocols []string) error {
+	parsed, err := parseRestrictedActionsFromRequest(restrictedActions, protocols)
+	if err != nil {
+		return err
+	}
+	if parsed != nil && len(*parsed) > 0 {
+		*newRestrictedActions = *parsed
+	}
+	return nil
+}
+
+// parseRestrictedActionsFromRequest normalizes restrictedActions from the request.
+// Call only when the field was present on the request. Returns a non-nil *[]string:
+// empty slice clears restrictions on update; non-empty replaces them. Create callers
+// should assign *parsed only when len(*parsed) > 0.
+func parseRestrictedActionsFromRequest(restrictedActions []gcpgenserver.RestrictedActionsV1betaItem, protocols []string) (*[]string, error) {
+	if len(restrictedActions) == 0 {
+		empty := []string{}
+		return &empty, nil
+	}
+
+	for _, action := range restrictedActions {
+		if action == gcpgenserver.RestrictedActionsV1betaItemDELETE && utils.IsSMBOnlyProtocols(protocols) {
+			return nil, errors.NewUserInputValidationErr("DELETE restriction cannot be applied for SMB volumes")
+		}
+	}
+
+	apiActions := make([]string, 0, len(restrictedActions))
+	for _, action := range restrictedActions {
+		if action == gcpgenserver.RestrictedActionsV1betaItemRESTRICTEDACTIONUNSPECIFIED {
+			continue
+		}
+		apiActions = append(apiActions, string(action))
+	}
+	if len(apiActions) == 0 {
+		empty := []string{}
+		return &empty, nil
+	}
+	value := append([]string(nil), apiActions...)
+	return &value, nil
 }
 
 func validateSmbVolumeParams(req *gcpgenserver.VolumeUpdateV1beta) error {

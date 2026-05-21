@@ -21893,6 +21893,27 @@ func TestConvertDatastoreVolumeToModel_IsRegionHA(t *testing.T) {
 	})
 }
 
+func TestConvertDatastoreVolumeToModel_RestrictedActions(t *testing.T) {
+	t.Run("returns restricted actions from DB unchanged", func(t *testing.T) {
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			Account:   &datamodel.Account{Name: "test_account"},
+			Pool: &datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-central1-a"},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				RestrictedActions: []string{"DELETE"},
+			},
+		}
+
+		result := _convertDatastoreVolumeToModel(volume, nil)
+
+		require.NotNil(t, result)
+		assert.Equal(t, []string{"DELETE"}, result.RestrictedActions)
+	})
+}
+
 func TestValidateAllowedClients(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -22075,6 +22096,73 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 				CloneParentInfo: &datamodel.CloneParentInfo{
 					ParentVolumeUUID: "parent-vol-uuid",
 					State:            models.CloneStateCloned,
+				},
+			},
+		}
+
+		var replicationCount int64
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, nil)
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.NoError(tt, err)
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSanVolumeHasHostGroupOnBlockProperties", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test-san-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:         []string{utils.ProtocolISCSI},
+				RestrictedActions: []string{activities.RestrictedActionDelete},
+				BlockProperties: &datamodel.BlockProperties{
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{HostGroupUUID: "hg-uuid-1"},
+					},
+				},
+			},
+		}
+
+		err := checkDeleteProtectionAtDeleteAPI(ctx, &database.MockStorage{}, volume)
+		require.Error(tt, err)
+		assert.True(tt, errors.IsConflictErr(err))
+		var conflict *errors.ConflictErr
+		require.True(tt, errors2.As(err, &conflict))
+		assert.Equal(tt, vsaerrors.ErrDeleteVolumeRestrictedAction, conflict.GetTrackingID())
+		assert.Contains(tt, err.Error(), "host group")
+	})
+
+	t.Run("WhenSanVolumeHasNoHostGroupAttached", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test-san-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolISCSI},
+				BlockProperties: &datamodel.BlockProperties{
+					HostGroupDetails: []datamodel.HostGroupDetail{},
+				},
+			},
+		}
+
+		err := checkDeleteProtectionAtDeleteAPI(ctx, &database.MockStorage{}, volume)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenNasVolumeHasHostGroupDetails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test-nfs-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFSv3},
+				BlockProperties: &datamodel.BlockProperties{
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{HostGroupUUID: "hg-uuid-1"},
+					},
 				},
 			},
 		}

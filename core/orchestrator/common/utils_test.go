@@ -1213,3 +1213,38 @@ func TestConvertDatastoreOperationToModel(t *testing.T) {
 		assert.Nil(t, got.DeletedAt)
 	})
 }
+
+func TestRestrictedActionsUpdateHelpers(t *testing.T) {
+	t.Run("RestrictedActionsClear", func(t *testing.T) {
+		got := RestrictedActionsClear()
+		assert.NotNil(t, got)
+		assert.Empty(t, *got)
+	})
+
+	t.Run("RestrictedActionsSet", func(t *testing.T) {
+		got := RestrictedActionsSet("DELETE")
+		assert.NotNil(t, got)
+		assert.Equal(t, []string{"DELETE"}, *got)
+	})
+}
+
+func TestApplyRestrictedActionsToVolume(t *testing.T) {
+	t.Run("sets on nil volume attributes", func(t *testing.T) {
+		volume := &datamodel.Volume{}
+		ApplyRestrictedActionsToVolume(volume, []string{"DELETE"})
+		assert.NotNil(t, volume.VolumeAttributes)
+		assert.Equal(t, []string{"DELETE"}, volume.VolumeAttributes.RestrictedActions)
+	})
+
+	t.Run("no-op when actions empty", func(t *testing.T) {
+		volume := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+		ApplyRestrictedActionsToVolume(volume, nil)
+		assert.Nil(t, volume.VolumeAttributes.RestrictedActions)
+	})
+
+	t.Run("no-op when volume nil", func(t *testing.T) {
+		ApplyRestrictedActionsToVolume(nil, []string{"DELETE"})
+	})
+}

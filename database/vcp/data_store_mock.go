@@ -5577,6 +5577,66 @@ func (_c *MockDataStore_GetActiveExpertModeVolumesCountByAccountID_Call) RunAndR
 	return _c
 }
 
+// GetActiveNodeNodeGroupMapByNodeID provides a mock function with given fields: ctx, nodeID, tx
+func (_m *MockDataStore) GetActiveNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64, tx utils.Transaction) (*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, nodeID, tx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActiveNodeNodeGroupMapByNodeID")
+	}
+
+	var r0 *datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, utils.Transaction) (*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, nodeID, tx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, utils.Transaction) *datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, nodeID, tx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, utils.Transaction) error); ok {
+		r1 = rf(ctx, nodeID, tx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveNodeNodeGroupMapByNodeID'
+type MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call struct {
+	*mock.Call
+}
+
+// GetActiveNodeNodeGroupMapByNodeID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeID int64
+//   - tx utils.Transaction
+func (_e *MockDataStore_Expecter) GetActiveNodeNodeGroupMapByNodeID(ctx interface{}, nodeID interface{}, tx interface{}) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
+	return &MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call{Call: _e.mock.On("GetActiveNodeNodeGroupMapByNodeID", ctx, nodeID, tx)}
+}
+
+func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) Run(run func(ctx context.Context, nodeID int64, tx utils.Transaction)) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(utils.Transaction))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) Return(_a0 *datamodel.NodeNodeGroupMap, _a1 error) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) RunAndReturn(run func(context.Context, int64, utils.Transaction) (*datamodel.NodeNodeGroupMap, error)) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetActivePrepopulateJobs provides a mock function with given fields: ctx
 func (_m *MockDataStore) GetActivePrepopulateJobs(ctx context.Context) ([]*datamodel.Job, error) {
 	ret := _m.Called(ctx)
@@ -8608,6 +8668,120 @@ func (_c *MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call) RunAndRetur
 	return _c
 }
 
+// GetHarvestHaSiblingNodeGroupID provides a mock function with given fields: ctx, nodeID
+func (_m *MockDataStore) GetHarvestHaSiblingNodeGroupID(ctx context.Context, nodeID int64) (int64, error) {
+	ret := _m.Called(ctx, nodeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetHarvestHaSiblingNodeGroupID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, nodeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, nodeID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, nodeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetHarvestHaSiblingNodeGroupID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHarvestHaSiblingNodeGroupID'
+type MockDataStore_GetHarvestHaSiblingNodeGroupID_Call struct {
+	*mock.Call
+}
+
+// GetHarvestHaSiblingNodeGroupID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeID int64
+func (_e *MockDataStore_Expecter) GetHarvestHaSiblingNodeGroupID(ctx interface{}, nodeID interface{}) *MockDataStore_GetHarvestHaSiblingNodeGroupID_Call {
+	return &MockDataStore_GetHarvestHaSiblingNodeGroupID_Call{Call: _e.mock.On("GetHarvestHaSiblingNodeGroupID", ctx, nodeID)}
+}
+
+func (_c *MockDataStore_GetHarvestHaSiblingNodeGroupID_Call) Run(run func(ctx context.Context, nodeID int64)) *MockDataStore_GetHarvestHaSiblingNodeGroupID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetHarvestHaSiblingNodeGroupID_Call) Return(_a0 int64, _a1 error) *MockDataStore_GetHarvestHaSiblingNodeGroupID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetHarvestHaSiblingNodeGroupID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_GetHarvestHaSiblingNodeGroupID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetHarvestHaSiblingNodeID provides a mock function with given fields: ctx, nodeID
+func (_m *MockDataStore) GetHarvestHaSiblingNodeID(ctx context.Context, nodeID int64) (int64, error) {
+	ret := _m.Called(ctx, nodeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetHarvestHaSiblingNodeID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, nodeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, nodeID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, nodeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetHarvestHaSiblingNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHarvestHaSiblingNodeID'
+type MockDataStore_GetHarvestHaSiblingNodeID_Call struct {
+	*mock.Call
+}
+
+// GetHarvestHaSiblingNodeID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeID int64
+func (_e *MockDataStore_Expecter) GetHarvestHaSiblingNodeID(ctx interface{}, nodeID interface{}) *MockDataStore_GetHarvestHaSiblingNodeID_Call {
+	return &MockDataStore_GetHarvestHaSiblingNodeID_Call{Call: _e.mock.On("GetHarvestHaSiblingNodeID", ctx, nodeID)}
+}
+
+func (_c *MockDataStore_GetHarvestHaSiblingNodeID_Call) Run(run func(ctx context.Context, nodeID int64)) *MockDataStore_GetHarvestHaSiblingNodeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetHarvestHaSiblingNodeID_Call) Return(_a0 int64, _a1 error) *MockDataStore_GetHarvestHaSiblingNodeID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetHarvestHaSiblingNodeID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_GetHarvestHaSiblingNodeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetHostGroup provides a mock function with given fields: ctx, id, accountID
 func (_m *MockDataStore) GetHostGroup(ctx context.Context, id string, accountID int64) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, id, accountID)
@@ -10436,70 +10610,6 @@ func (_c *MockDataStore_GetNodeNodeGroupMapByNodeID_Call) Return(_a0 *datamodel.
 }
 
 func (_c *MockDataStore_GetNodeNodeGroupMapByNodeID_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.NodeNodeGroupMap, error)) *MockDataStore_GetNodeNodeGroupMapByNodeID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetActiveNodeNodeGroupMapByNodeID provides a mock function with given fields: ctx, nodeID, tx
-func (_m *MockDataStore) GetActiveNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64, tx utils.Transaction) (*datamodel.NodeNodeGroupMap, error) {
-	ret := _m.Called(ctx, nodeID, tx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetActiveNodeNodeGroupMapByNodeID")
-	}
-
-	var r0 *datamodel.NodeNodeGroupMap
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64, utils.Transaction) (*datamodel.NodeNodeGroupMap, error)); ok {
-		return rf(ctx, nodeID, tx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, int64, utils.Transaction) *datamodel.NodeNodeGroupMap); ok {
-		r0 = rf(ctx, nodeID, tx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.NodeNodeGroupMap)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, int64, utils.Transaction) error); ok {
-		r1 = rf(ctx, nodeID, tx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveNodeNodeGroupMapByNodeID'
-type MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call struct {
-	*mock.Call
-}
-
-// GetActiveNodeNodeGroupMapByNodeID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - nodeID int64
-//   - tx utils.Transaction
-func (_e *MockDataStore_Expecter) GetActiveNodeNodeGroupMapByNodeID(ctx interface{}, nodeID interface{}, tx interface{}) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
-	return &MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call{Call: _e.mock.On("GetActiveNodeNodeGroupMapByNodeID", ctx, nodeID, tx)}
-}
-
-func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) Run(run func(ctx context.Context, nodeID int64, tx utils.Transaction)) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var txArg utils.Transaction
-		if len(args) > 2 && args[2] != nil {
-			txArg = args[2].(utils.Transaction)
-		}
-		run(args[0].(context.Context), args[1].(int64), txArg)
-	})
-	return _c
-}
-
-func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) Return(_a0 *datamodel.NodeNodeGroupMap, _a1 error) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call) RunAndReturn(run func(context.Context, int64, utils.Transaction) (*datamodel.NodeNodeGroupMap, error)) *MockDataStore_GetActiveNodeNodeGroupMapByNodeID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -12392,123 +12502,6 @@ func (_c *MockDataStore_GetSvmByExternalIdentifier_Call) Return(_a0 *datamodel.S
 }
 
 func (_c *MockDataStore_GetSvmByExternalIdentifier_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.Svm, error)) *MockDataStore_GetSvmByExternalIdentifier_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SvmExistsByExternalIdentifier provides a mock function with given fields: ctx, externalIdentifier, accountID
-func (_m *MockDataStore) SvmExistsByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (bool, error) {
-	ret := _m.Called(ctx, externalIdentifier, accountID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SvmExistsByExternalIdentifier")
-	}
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (bool, error)); ok {
-		return rf(ctx, externalIdentifier, accountID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64) bool); ok {
-		r0 = rf(ctx, externalIdentifier, accountID)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
-		r1 = rf(ctx, externalIdentifier, accountID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_SvmExistsByExternalIdentifier_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SvmExistsByExternalIdentifier'
-type MockDataStore_SvmExistsByExternalIdentifier_Call struct {
-	*mock.Call
-}
-
-// SvmExistsByExternalIdentifier is a helper method to define mock.On call
-//   - ctx context.Context
-//   - externalIdentifier string
-//   - accountID int64
-func (_e *MockDataStore_Expecter) SvmExistsByExternalIdentifier(ctx interface{}, externalIdentifier interface{}, accountID interface{}) *MockDataStore_SvmExistsByExternalIdentifier_Call {
-	return &MockDataStore_SvmExistsByExternalIdentifier_Call{Call: _e.mock.On("SvmExistsByExternalIdentifier", ctx, externalIdentifier, accountID)}
-}
-
-func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) Run(run func(ctx context.Context, externalIdentifier string, accountID int64)) *MockDataStore_SvmExistsByExternalIdentifier_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(int64))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) Return(_a0 bool, _a1 error) *MockDataStore_SvmExistsByExternalIdentifier_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) RunAndReturn(run func(context.Context, string, int64) (bool, error)) *MockDataStore_SvmExistsByExternalIdentifier_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// TransitionSvmToDeleting provides a mock function with given fields: ctx, svm
-func (_m *MockDataStore) TransitionSvmToDeleting(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
-	ret := _m.Called(ctx, svm)
-
-	if len(ret) == 0 {
-		panic("no return value specified for TransitionSvmToDeleting")
-	}
-
-	var r0 *datamodel.Svm
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)); ok {
-		return rf(ctx, svm)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) *datamodel.Svm); ok {
-		r0 = rf(ctx, svm)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.Svm)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Svm) error); ok {
-		r1 = rf(ctx, svm)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_TransitionSvmToDeleting_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransitionSvmToDeleting'
-type MockDataStore_TransitionSvmToDeleting_Call struct {
-	*mock.Call
-}
-
-// TransitionSvmToDeleting is a helper method to define mock.On call
-//   - ctx context.Context
-//   - svm *datamodel.Svm
-func (_e *MockDataStore_Expecter) TransitionSvmToDeleting(ctx interface{}, svm interface{}) *MockDataStore_TransitionSvmToDeleting_Call {
-	return &MockDataStore_TransitionSvmToDeleting_Call{Call: _e.mock.On("TransitionSvmToDeleting", ctx, svm)}
-}
-
-func (_c *MockDataStore_TransitionSvmToDeleting_Call) Run(run func(ctx context.Context, svm *datamodel.Svm)) *MockDataStore_TransitionSvmToDeleting_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Svm))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_TransitionSvmToDeleting_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockDataStore_TransitionSvmToDeleting_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_TransitionSvmToDeleting_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)) *MockDataStore_TransitionSvmToDeleting_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -15727,6 +15720,65 @@ func (_c *MockDataStore_ListExpertModeVolumesByPoolID_Call) RunAndReturn(run fun
 	return _c
 }
 
+// ListExpertModeVolumesForTelemetryMetrics provides a mock function with given fields: ctx, pagination
+func (_m *MockDataStore) ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error) {
+	ret := _m.Called(ctx, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListExpertModeVolumesForTelemetryMetrics")
+	}
+
+	var r0 []*ExpertModeVolumeMetricsData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error)); ok {
+		return rf(ctx, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Pagination) []*ExpertModeVolumeMetricsData); ok {
+		r0 = rf(ctx, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*ExpertModeVolumeMetricsData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Pagination) error); ok {
+		r1 = rf(ctx, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListExpertModeVolumesForTelemetryMetrics'
+type MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call struct {
+	*mock.Call
+}
+
+// ListExpertModeVolumesForTelemetryMetrics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListExpertModeVolumesForTelemetryMetrics(ctx interface{}, pagination interface{}) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
+	return &MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call{Call: _e.mock.On("ListExpertModeVolumesForTelemetryMetrics", ctx, pagination)}
+}
+
+func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) Run(run func(ctx context.Context, pagination *utils.Pagination)) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) Return(_a0 []*ExpertModeVolumeMetricsData, _a1 error) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) RunAndReturn(run func(context.Context, *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error)) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListExpertModeVolumesWithPagination provides a mock function with given fields: ctx, conditions, pagination
 func (_m *MockDataStore) ListExpertModeVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
 	ret := _m.Called(ctx, conditions, pagination)
@@ -16023,6 +16075,64 @@ func (_c *MockDataStore_ListKmsServiceAccounts_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// ListNodeGroupsWithPollerCounts provides a mock function with given fields: ctx
+func (_m *MockDataStore) ListNodeGroupsWithPollerCounts(ctx context.Context) ([]datamodel.NodeGroupPollerCount, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListNodeGroupsWithPollerCounts")
+	}
+
+	var r0 []datamodel.NodeGroupPollerCount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]datamodel.NodeGroupPollerCount, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []datamodel.NodeGroupPollerCount); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]datamodel.NodeGroupPollerCount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListNodeGroupsWithPollerCounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListNodeGroupsWithPollerCounts'
+type MockDataStore_ListNodeGroupsWithPollerCounts_Call struct {
+	*mock.Call
+}
+
+// ListNodeGroupsWithPollerCounts is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) ListNodeGroupsWithPollerCounts(ctx interface{}) *MockDataStore_ListNodeGroupsWithPollerCounts_Call {
+	return &MockDataStore_ListNodeGroupsWithPollerCounts_Call{Call: _e.mock.On("ListNodeGroupsWithPollerCounts", ctx)}
+}
+
+func (_c *MockDataStore_ListNodeGroupsWithPollerCounts_Call) Run(run func(ctx context.Context)) *MockDataStore_ListNodeGroupsWithPollerCounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListNodeGroupsWithPollerCounts_Call) Return(_a0 []datamodel.NodeGroupPollerCount, _a1 error) *MockDataStore_ListNodeGroupsWithPollerCounts_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListNodeGroupsWithPollerCounts_Call) RunAndReturn(run func(context.Context) ([]datamodel.NodeGroupPollerCount, error)) *MockDataStore_ListNodeGroupsWithPollerCounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListNodeNodeGroupMap provides a mock function with given fields: ctx, includeDeleted, pagination
 func (_m *MockDataStore) ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *utils.Pagination) ([]*datamodel.NodeNodeGroupMap, error) {
 	ret := _m.Called(ctx, includeDeleted, pagination)
@@ -16140,6 +16250,65 @@ func (_c *MockDataStore_ListNodeNodeGroupMapAfterID_Call) Return(_a0 []*datamode
 }
 
 func (_c *MockDataStore_ListNodeNodeGroupMapAfterID_Call) RunAndReturn(run func(context.Context, bool, int64, int) ([]*datamodel.NodeNodeGroupMap, error)) *MockDataStore_ListNodeNodeGroupMapAfterID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListNodeNodeGroupMapsByNodeGroupID provides a mock function with given fields: ctx, nodeGroupID
+func (_m *MockDataStore) ListNodeNodeGroupMapsByNodeGroupID(ctx context.Context, nodeGroupID int64) ([]*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, nodeGroupID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListNodeNodeGroupMapsByNodeGroupID")
+	}
+
+	var r0 []*datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, nodeGroupID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, nodeGroupID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, nodeGroupID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListNodeNodeGroupMapsByNodeGroupID'
+type MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call struct {
+	*mock.Call
+}
+
+// ListNodeNodeGroupMapsByNodeGroupID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeGroupID int64
+func (_e *MockDataStore_Expecter) ListNodeNodeGroupMapsByNodeGroupID(ctx interface{}, nodeGroupID interface{}) *MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call {
+	return &MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call{Call: _e.mock.On("ListNodeNodeGroupMapsByNodeGroupID", ctx, nodeGroupID)}
+}
+
+func (_c *MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call) Run(run func(ctx context.Context, nodeGroupID int64)) *MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call) Return(_a0 []*datamodel.NodeNodeGroupMap, _a1 error) *MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.NodeNodeGroupMap, error)) *MockDataStore_ListNodeNodeGroupMapsByNodeGroupID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -17277,65 +17446,6 @@ func (_c *MockDataStore_ListVolumesForTelemetryMetrics_Call) RunAndReturn(run fu
 	return _c
 }
 
-// ListExpertModeVolumesForTelemetryMetrics provides a mock function with given fields: ctx, pagination
-func (_m *MockDataStore) ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error) {
-	ret := _m.Called(ctx, pagination)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListExpertModeVolumesForTelemetryMetrics")
-	}
-
-	var r0 []*ExpertModeVolumeMetricsData
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error)); ok {
-		return rf(ctx, pagination)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *utils.Pagination) []*ExpertModeVolumeMetricsData); ok {
-		r0 = rf(ctx, pagination)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*ExpertModeVolumeMetricsData)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *utils.Pagination) error); ok {
-		r1 = rf(ctx, pagination)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListExpertModeVolumesForTelemetryMetrics'
-type MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call struct {
-	*mock.Call
-}
-
-// ListExpertModeVolumesForTelemetryMetrics is a helper method to define mock.On call
-//   - ctx context.Context
-//   - pagination *utils.Pagination
-func (_e *MockDataStore_Expecter) ListExpertModeVolumesForTelemetryMetrics(ctx interface{}, pagination interface{}) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
-	return &MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call{Call: _e.mock.On("ListExpertModeVolumesForTelemetryMetrics", ctx, pagination)}
-}
-
-func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) Run(run func(ctx context.Context, pagination *utils.Pagination)) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*utils.Pagination))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) Return(_a0 []*ExpertModeVolumeMetricsData, _a1 error) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call) RunAndReturn(run func(context.Context, *utils.Pagination) ([]*ExpertModeVolumeMetricsData, error)) *MockDataStore_ListExpertModeVolumesForTelemetryMetrics_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // ListVolumesWithAccounts provides a mock function with given fields: ctx
 func (_m *MockDataStore) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx)
@@ -17921,6 +18031,123 @@ func (_c *MockDataStore_SetPrimaryKeyForServiceAccount_Call) Return(_a0 error) *
 }
 
 func (_c *MockDataStore_SetPrimaryKeyForServiceAccount_Call) RunAndReturn(run func(context.Context, string, string) error) *MockDataStore_SetPrimaryKeyForServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SvmExistsByExternalIdentifier provides a mock function with given fields: ctx, externalIdentifier, accountID
+func (_m *MockDataStore) SvmExistsByExternalIdentifier(ctx context.Context, externalIdentifier string, accountID int64) (bool, error) {
+	ret := _m.Called(ctx, externalIdentifier, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SvmExistsByExternalIdentifier")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (bool, error)); ok {
+		return rf(ctx, externalIdentifier, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) bool); ok {
+		r0 = rf(ctx, externalIdentifier, accountID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, externalIdentifier, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_SvmExistsByExternalIdentifier_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SvmExistsByExternalIdentifier'
+type MockDataStore_SvmExistsByExternalIdentifier_Call struct {
+	*mock.Call
+}
+
+// SvmExistsByExternalIdentifier is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalIdentifier string
+//   - accountID int64
+func (_e *MockDataStore_Expecter) SvmExistsByExternalIdentifier(ctx interface{}, externalIdentifier interface{}, accountID interface{}) *MockDataStore_SvmExistsByExternalIdentifier_Call {
+	return &MockDataStore_SvmExistsByExternalIdentifier_Call{Call: _e.mock.On("SvmExistsByExternalIdentifier", ctx, externalIdentifier, accountID)}
+}
+
+func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) Run(run func(ctx context.Context, externalIdentifier string, accountID int64)) *MockDataStore_SvmExistsByExternalIdentifier_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) Return(_a0 bool, _a1 error) *MockDataStore_SvmExistsByExternalIdentifier_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_SvmExistsByExternalIdentifier_Call) RunAndReturn(run func(context.Context, string, int64) (bool, error)) *MockDataStore_SvmExistsByExternalIdentifier_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TransitionSvmToDeleting provides a mock function with given fields: ctx, svm
+func (_m *MockDataStore) TransitionSvmToDeleting(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, svm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TransitionSvmToDeleting")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)); ok {
+		return rf(ctx, svm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) *datamodel.Svm); ok {
+		r0 = rf(ctx, svm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Svm) error); ok {
+		r1 = rf(ctx, svm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_TransitionSvmToDeleting_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransitionSvmToDeleting'
+type MockDataStore_TransitionSvmToDeleting_Call struct {
+	*mock.Call
+}
+
+// TransitionSvmToDeleting is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svm *datamodel.Svm
+func (_e *MockDataStore_Expecter) TransitionSvmToDeleting(ctx interface{}, svm interface{}) *MockDataStore_TransitionSvmToDeleting_Call {
+	return &MockDataStore_TransitionSvmToDeleting_Call{Call: _e.mock.On("TransitionSvmToDeleting", ctx, svm)}
+}
+
+func (_c *MockDataStore_TransitionSvmToDeleting_Call) Run(run func(ctx context.Context, svm *datamodel.Svm)) *MockDataStore_TransitionSvmToDeleting_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Svm))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_TransitionSvmToDeleting_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockDataStore_TransitionSvmToDeleting_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_TransitionSvmToDeleting_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)) *MockDataStore_TransitionSvmToDeleting_Call {
 	_c.Call.Return(run)
 	return _c
 }

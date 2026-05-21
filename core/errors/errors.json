@@ -1259,6 +1259,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "7017": {
+    "description": "Volume Delete Protection",
+    "message": "Cannot delete a delete-protected volume while clients are connected. To delete a volume when this option is enabled, all the clients must first unmount the volume. After that, you must wait for more than 52 hours to delete the volume.",
+    "retriable": false,
+    "http_code": 409
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",

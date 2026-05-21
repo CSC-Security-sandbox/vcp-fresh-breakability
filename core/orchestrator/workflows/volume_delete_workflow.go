@@ -23,6 +23,7 @@ var (
 	volumeDeleteJobsRetryMaxAttempts = env.GetInt("REPLICATION_JOBS_RETRY_MAX_ATTEMPTS", 10)
 	enableSmb                        = env.GetBool("ENABLE_SMB", false)
 	enableQuotaRule                  = env.GetBool("ENABLE_QUOTA_RULE", true)
+	enableVolDeleteProtection        = env.GetBool("VOL_DEL_PROTECTION_ENABLED", true)
 )
 
 type volumeDeleteWorkflow struct {
@@ -100,7 +101,9 @@ func shouldUpdateVolumeStateToError(err error) bool {
 	var customError *vsaerrors.CustomError
 	if vsaerrors.As(convertedError, &customError) {
 		// ErrDeleteVolumeWhenInSplitState (7005) - volume has clones/replication
-		if customError.TrackingID == vsaerrors.ErrDeleteVolumeWhenInSplitState {
+		switch customError.TrackingID {
+			case vsaerrors.ErrDeleteVolumeWhenInSplitState,
+				vsaerrors.ErrDeleteVolumeRestrictedAction:
 			return false
 		}
 	}
@@ -258,6 +261,13 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		DeploymentName:   volume.Pool.DeploymentName,
 		OntapCredentials: volume.Pool.PoolCredentials,
 	})
+
+	if enableVolDeleteProtection {
+		err = workflow.ExecuteActivity(ctx, deleteActivity.EnforceDeleteProtection, volume, node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
 
 	// Only perform ONTAP operations if volume was at least partially created
 	if hasExternalUUID {

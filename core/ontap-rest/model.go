@@ -558,6 +558,18 @@ type NfsClients struct {
 	models.NfsClients
 }
 
+func nfsClientsGetParamsToONTAP(params *NfsClientsGetParams) *nas.NfsClientsGetParams {
+	otParams := nas.NewNfsClientsGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetVolumeUUID(params.VolumeUUID)
+	otParams.SetSvmName(params.SvmName)
+	otParams.SetFields(params.Fields)
+	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+	return otParams
+}
+
 // AuditCreateParams is the input param struct for nasClient.AuditCreate
 type AuditCreateParams struct {
 	BaseParams

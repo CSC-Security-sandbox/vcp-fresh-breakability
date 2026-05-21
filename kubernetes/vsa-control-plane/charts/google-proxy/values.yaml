@@ -42,6 +42,7 @@ crrEnabled: false
 cpcrrEnabled: false
 czcrrEnabled: false
 enableQuotaRule: true # Enable quota rule API (create/update/delete/get multiple)
+volDelProtectionEnabled: true # Enforce volume DELETE restrictedActions at delete API (HTTP 409 / 7017)
 refreshAdminJobSpecs: true
 flexCacheEnabled: false
 hybridReplicationEnabled: false

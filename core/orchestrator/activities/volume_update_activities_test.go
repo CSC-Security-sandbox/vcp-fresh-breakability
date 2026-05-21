@@ -4686,6 +4686,75 @@ func TestUpdateSMBShareSettings_UpdateCIFSServerError(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func TestGetUpdatedFieldsFromParams_WithRestrictedActions(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		RestrictedActions: common.RestrictedActionsSet("DELETE"),
+	}
+
+	updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	assert.NoError(t, err)
+	assert.Contains(t, updatedFields, VolumeAttributesProperty)
+	volumeAttrs, ok := updatedFields[VolumeAttributesProperty].(*datamodel.VolumeAttributes)
+	assert.True(t, ok)
+	assert.Equal(t, []string{RestrictedActionDelete}, volumeAttrs.RestrictedActions)
+}
+
+func TestGetUpdatedFieldsFromParams_WithRestrictedActions_Clear(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			RestrictedActions: []string{RestrictedActionDelete},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		RestrictedActions: common.RestrictedActionsClear(),
+	}
+
+	updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	assert.NoError(t, err)
+	volumeAttrs := updatedFields[VolumeAttributesProperty].(*datamodel.VolumeAttributes)
+	assert.Empty(t, volumeAttrs.RestrictedActions)
+}
+
+func TestGetUpdatedFieldsFromParams_WithRestrictedActions_NilParamsDoesNotClear(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			RestrictedActions: []string{RestrictedActionDelete},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		RestrictedActions: nil,
+	}
+
+	updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	assert.NoError(t, err)
+	volumeAttrs := updatedFields[VolumeAttributesProperty].(*datamodel.VolumeAttributes)
+	assert.Equal(t, []string{RestrictedActionDelete}, volumeAttrs.RestrictedActions)
+}
+
 func TestGetUpdatedFieldsFromParams_WithSMBSettings(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})

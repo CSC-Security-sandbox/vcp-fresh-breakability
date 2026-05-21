@@ -443,7 +443,8 @@ type VolumeAttributes struct {
 	// It is written before starting the Temporal poll workflow so the orphan-job
 	// processor can reconstruct the workflow arguments if Temporal was unavailable
 	// when the split API call was made.
-	SplitJobUUID string `json:"split_job_uuid,omitempty"`
+	SplitJobUUID      string   `json:"split_job_uuid,omitempty"`
+	RestrictedActions []string `json:"restricted_actions"`
 }
 
 type BlockProperties struct {

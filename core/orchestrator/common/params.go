@@ -175,6 +175,7 @@ type CreateVolumeParams struct {
 	// Note: Iops is not supported for create requests; it is derived from ThroughputMibps if enableInferredIops is true.
 	// IsExpertModeRestore is true when this restore was started from RestoreForOntapModeVolumeWorkflow (expert mode volume). When true, RestoreBackupWorkflow finalizes by updating expert_mode_volumes instead of volumes.
 	IsExpertModeRestore bool
+	RestrictedActions   []string
 }
 
 type SnapmirrorRelationshipParams struct {
@@ -241,6 +242,11 @@ type UpdateVolumeParams struct {
 	ThroughputMibps             *int64
 	Iops                        *int64
 	VolumePerformanceGroupId    *string
+	// RestrictedActions uses tri-state update semantics:
+	//   nil  — field omitted; do not change stored restrictions
+	//   non-nil pointer to empty slice — clear restrictions
+	//   non-nil pointer to non-empty slice — replace restrictions
+	RestrictedActions *[]string
 }
 
 type CreateLunMapParams struct {

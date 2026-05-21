@@ -861,7 +861,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInDB, volume, &params).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInDB, volume, params).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

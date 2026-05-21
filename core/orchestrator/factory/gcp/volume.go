@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -75,6 +76,7 @@ var (
 	autoPoolScalingLimits                      = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":0,\"max_volume_count\":495},\"c3-standard-22-lssd\":{\"min_volume_count\":0,\"max_volume_count\":995}}")
 	maxConstituentVolumesPerVolumePerAggregate = env.GetInt64("MAX_CONSTITUENT_VOLUMES_PER_VOLUME_PER_AGGREGATE", 200)
 	checkIsValidImmutableBackupPolicyWithRetry = _checkIsValidImmutableBackupPolicyWithRetry
+	enableVolDeleteProtection                  = env.GetBool("VOL_DEL_PROTECTION_ENABLED", true)
 	enableMqos                                 = env.GetBool("ENABLE_MQOS", true)
 	enableInferredIops                         = env.GetBool("ENABLE_INFERRED_IOPS", false)
 	enableVolumePerformanceGroupAssignment     = env.GetBool("ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT", false)
@@ -401,6 +403,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			AccountName:       getAccountName(account),
 			DeploymentName:    getPoolDeploymentName(dbPool),
 			IsRegionalHA:      getPoolIsRegionalHA(dbPool),
+			RestrictedActions: params.RestrictedActions,
 		},
 		ClonesSharedBytes: clonesSharedBytes,
 	}
@@ -1721,6 +1724,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		res.KerberosEnabled = attributes.KerberosEnabled
 		res.LdapEnabled = attributes.LdapEnabled
 		res.IsRegionalHA = attributes.IsRegionalHA
+		res.RestrictedActions = attributes.RestrictedActions
 	}
 	if volume.Pool != nil {
 		if volume.Pool.PoolAttributes != nil {
@@ -2102,6 +2106,16 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	err = validateDeleteVolumeParams(ctx, se, volume)
 	if err != nil {
 		return nil, "", err
+	}
+
+	if enableVolDeleteProtection {
+		if protectionErr := activities.CheckDeleteProtection(ctx, volume, nil, se); protectionErr != nil {
+			var deny *vsaerrors.CustomError
+			if errors.As(protectionErr, &deny) && deny.TrackingID == vsaerrors.ErrDeleteVolumeRestrictedAction {
+				return nil, "", customerrors.NewConflictErrWithTrackingID(deny.GetMessage(), deny.TrackingID)
+			}
+			return nil, "", protectionErr
+		}
 	}
 
 	previousState := volume.State

@@ -58,6 +58,7 @@ data:
   CPCRR_ENABLED: "{{ index .Values "cpcrrEnabled" }}"
   CZCRR_ENABLED: "{{ index .Values "czcrrEnabled" }}"
   ENABLE_QUOTA_RULE: "{{ index .Values "enableQuotaRule" }}"
+  VOL_DEL_PROTECTION_ENABLED: "{{ index .Values "volDelProtectionEnabled" }}"
   FLEXCACHE_ENABLED: "{{ index .Values "flexCacheEnabled" }}"
   HYBRID_REPLICATION_ENABLED: "{{ index .Values "hybridReplicationEnabled" }}"
   BIDI_REPLICATION_ENABLED: "{{ index .Values "bidiReplicationEnabled" }}"

@@ -260,3 +260,26 @@ func ConvertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
 	}
 	return modelJob
 }
+
+// ApplyRestrictedActionsToVolume copies non-empty restricted_actions onto volume_attributes.
+func ApplyRestrictedActionsToVolume(volume *datamodel.Volume, restrictedActions []string) {
+	if volume == nil || len(restrictedActions) == 0 {
+		return
+	}
+	if volume.VolumeAttributes == nil {
+		volume.VolumeAttributes = &datamodel.VolumeAttributes{}
+	}
+	volume.VolumeAttributes.RestrictedActions = restrictedActions
+}
+
+// RestrictedActionsClear returns a *[]string that clears restrictions on volume update.
+func RestrictedActionsClear() *[]string {
+	empty := []string{}
+	return &empty
+}
+
+// RestrictedActionsSet returns a *[]string that replaces restrictions on volume update.
+func RestrictedActionsSet(actions ...string) *[]string {
+	v := append([]string(nil), actions...)
+	return &v
+}

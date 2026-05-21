@@ -1540,6 +1540,64 @@ func (_c *MockNASClient_KerberosRealmGet_Call) RunAndReturn(run func(*KerberosRe
 	return _c
 }
 
+// NfsClientsGet provides a mock function with given fields: params
+func (_m *MockNASClient) NfsClientsGet(params *NfsClientsGetParams) ([]*NfsClients, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NfsClientsGet")
+	}
+
+	var r0 []*NfsClients
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*NfsClientsGetParams) ([]*NfsClients, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*NfsClientsGetParams) []*NfsClients); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*NfsClients)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*NfsClientsGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNASClient_NfsClientsGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NfsClientsGet'
+type MockNASClient_NfsClientsGet_Call struct {
+	*mock.Call
+}
+
+// NfsClientsGet is a helper method to define mock.On call
+//   - params *NfsClientsGetParams
+func (_e *MockNASClient_Expecter) NfsClientsGet(params interface{}) *MockNASClient_NfsClientsGet_Call {
+	return &MockNASClient_NfsClientsGet_Call{Call: _e.mock.On("NfsClientsGet", params)}
+}
+
+func (_c *MockNASClient_NfsClientsGet_Call) Run(run func(params *NfsClientsGetParams)) *MockNASClient_NfsClientsGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*NfsClientsGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_NfsClientsGet_Call) Return(_a0 []*NfsClients, _a1 error) *MockNASClient_NfsClientsGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNASClient_NfsClientsGet_Call) RunAndReturn(run func(*NfsClientsGetParams) ([]*NfsClients, error)) *MockNASClient_NfsClientsGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NfsModify provides a mock function with given fields: params
 func (_m *MockNASClient) NfsModify(params *NfsModifyParams) error {
 	ret := _m.Called(params)

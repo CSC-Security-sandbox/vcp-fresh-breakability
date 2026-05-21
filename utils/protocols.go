@@ -160,6 +160,11 @@ func IsSMBProtocol(protocol string) bool {
 	return protocol == ProtocolSMB
 }
 
+// IsSMBOnlyProtocols reports SMB-only volumes (SMB present, no NFS protocol).
+func IsSMBOnlyProtocols(protocols []string) bool {
+	return IsSMBProtocols(protocols) && !IsNFSProtocols(protocols)
+}
+
 // IsNFSProtocols checks if the provided protocols contain any NFS protocol
 func IsNFSProtocols(protocols []string) bool {
 	if len(protocols) == 0 {
