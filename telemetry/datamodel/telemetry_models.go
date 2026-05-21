@@ -34,6 +34,7 @@ type AggregatedUsage struct {
 	ResourceType           metadata.ResourceType `gorm:"column:resource_type;not null;index" json:"resource_type"`
 	AggregationType        string                `gorm:"column:aggregation_type;size:100;not null" json:"aggregation_type"`
 	LastCounterValue       *float64              `gorm:"column:last_counter_value" json:"last_counter_value"`
+	LastTransferType       *string               `gorm:"column:last_transfer_type;size:32" json:"last_transfer_type"`
 	RegionName             *string               `gorm:"column:region_name;size:255;index" json:"region_name"`
 	Zone                   *string               `gorm:"column:zone;size:255" json:"zone"`
 	SourceRegion           *string               `gorm:"column:source_region;size:255" json:"source_region"`

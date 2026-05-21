@@ -642,7 +642,7 @@ func TestProcessMetricsWithJobDef_UnsupportedAggregation(t *testing.T) {
 			},
 		},
 	}
-	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, now.Add(-1*time.Hour), now), jobDef, now.Add(-1*time.Hour), now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, now.Add(-1*time.Hour), now), jobDef, now.Add(-1*time.Hour), now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported job type")
 
@@ -774,7 +774,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			PoolData:   make(map[ResourceKey]ResourceData),
 			VolumeData: make(map[ResourceKey]ResourceData),
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries([]datamodel2.HydratedMetrics{}, startTime, now), common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries([]datamodel2.HydratedMetrics{}, startTime, now), common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		assert.NoError(t, err)
 		// No DB call should be made, but record should be collected for batch
 		assert.Len(t, aggregatedUsageForDB, 0) // No metrics means no aggregated records
@@ -796,7 +796,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			Labels:    Labels{"env": "test"},
 		}
 
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -818,7 +818,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected and has LastCounterValue set
 		assert.Len(t, aggregatedRecords, 1)
@@ -840,7 +840,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -861,7 +861,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -883,7 +883,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		assert.NoError(t, err) // No error in collection phase
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -936,7 +936,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			},
 		}
 
-		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, hydratedMetricsToTimeSeries(repMetrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, hydratedMetricsToTimeSeries(repMetrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected and has LastCounterValue set
 		assert.Len(t, aggregatedRecords, 1)
@@ -945,7 +945,10 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 		assert.Equal(t, 150.0, *aggregatedRecords[0].LastCounterValue)
 	})
 
-	t.Run("CounterAggregationReplicationMigrationUpdateSingleAggregatedRow", func(t *testing.T) {
+	t.Run("CounterAggregationReplicationMigrationUpdateSplitsBaselineAndBillableRows", func(t *testing.T) {
+		// Hybrid replication (MIGRATION) on a cache-miss window: the new code prepends a zero
+		// baseline and the split function partitions at the first positive `update` sample, so
+		// we expect a non-billable baseline row followed by a billable delta row.
 		var aggregatedRecords []datamodel2.AggregatedUsage
 		resourceCollection := &ResourceCollection{
 			PoolData:              make(map[ResourceKey]ResourceData),
@@ -979,59 +982,45 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 
 		tenMiB := float64(10 * 1024 * 1024)
 		sixteenMiB := float64(16 * 1024 * 1024)
-		repMetrics := []datamodel2.HydratedMetrics{
-			{
-				ResourceName:    "test-uuid",
-				ConsumerID:      customerID,
-				Location:        location,
-				Quantity:        0,
-				MetricTimestamp: startTime.Add(10 * time.Minute),
-				ResourceType:    metadata.VolumeReplicationRelationship,
-				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+		updateTT := strPtr(TransferTypeUpdate)
+		splitAt := startTime.Add(30 * time.Minute)
+
+		// Build the TimeSeries directly so per-point TransferType is populated to match what
+		// production sets via groupMetricsByResource → CounterMetricsFormatter for hybrid metrics.
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   now,
+			Metadata: metadata.ResourceMetadata{
+				ResourceType: metadata.VolumeReplicationRelationship,
 			},
-			{
-				ResourceName:    "test-uuid",
-				ConsumerID:      customerID,
-				Location:        location,
-				Quantity:        0,
-				MetricTimestamp: startTime.Add(20 * time.Minute),
-				ResourceType:    metadata.VolumeReplicationRelationship,
-				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
-			},
-			{
-				ResourceName:    "test-uuid",
-				ConsumerID:      customerID,
-				Location:        location,
-				Quantity:        tenMiB,
-				MetricTimestamp: startTime.Add(30 * time.Minute),
-				ResourceType:    metadata.VolumeReplicationRelationship,
-				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
-			},
-			{
-				ResourceName:    "test-uuid",
-				ConsumerID:      customerID,
-				Location:        location,
-				Quantity:        sixteenMiB,
-				MetricTimestamp: startTime.Add(40 * time.Minute),
-				ResourceType:    metadata.VolumeReplicationRelationship,
-				MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+			DataPoints: []common.DataPoint{
+				{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: startTime.Add(20 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: splitAt, Quantity: tenMiB, TransferType: updateTT},
+				{Timestamp: startTime.Add(40 * time.Minute), Quantity: sixteenMiB, TransferType: updateTT},
 			},
 		}
 
-		ts := hydratedMetricsToTimeSeries(repMetrics, startTime, now)
-		ts.Metadata.SetTransferType("update")
-
-		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		require.NoError(t, err)
-		require.Len(t, aggregatedRecords, 1)
+		require.Len(t, aggregatedRecords, 2, "non-billable baseline row + billable delta row")
 
-		rec := aggregatedRecords[0]
-		assert.True(t, rec.IsBillable)
-		assert.InDelta(t, 16.0, rec.Quantity, 0.01)
-		require.NotNil(t, rec.LastCounterValue)
-		assert.InDelta(t, sixteenMiB, *rec.LastCounterValue, 0.01)
-		assert.True(t, rec.AggregationStart.Equal(startTime))
-		assert.True(t, rec.AggregationEnd.Equal(now))
+		skipped := aggregatedRecords[0]
+		assert.False(t, skipped.IsBillable)
+		assert.InDelta(t, 10.0, skipped.Quantity, 0.01)
+		assert.True(t, skipped.AggregationStart.Equal(startTime))
+		assert.True(t, skipped.AggregationEnd.Equal(splitAt))
+		require.NotNil(t, skipped.LastCounterValue)
+		assert.InDelta(t, tenMiB, *skipped.LastCounterValue, 0.01)
+
+		billed := aggregatedRecords[1]
+		assert.True(t, billed.IsBillable)
+		assert.InDelta(t, 6.0, billed.Quantity, 0.01)
+		assert.True(t, billed.AggregationStart.Equal(splitAt))
+		assert.True(t, billed.AggregationEnd.Equal(now))
+		require.NotNil(t, billed.LastCounterValue)
+		assert.InDelta(t, sixteenMiB, *billed.LastCounterValue, 0.01)
 	})
 }
 
@@ -1102,7 +1091,7 @@ func TestProcessMetricsWithJobDef_ReplicationPrePositiveRows(t *testing.T) {
 		var aggregatedRecords []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{
 			AggregationType: common.CounterAggregation,
-		}, startTime, endTime, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		}, startTime, endTime, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		require.NoError(t, err)
 		require.Len(t, aggregatedRecords, 2, "non-billable pre-positive segment plus billable remainder")
 
@@ -1124,8 +1113,12 @@ func TestProcessMetricsWithJobDef_ReplicationPrePositiveRows(t *testing.T) {
 		assert.True(t, billed.AggregationEnd.Equal(endTime))
 	})
 
-	t.Run("migration_counter_first_positive_uses_initialize_transfer_type", func(t *testing.T) {
+	t.Run("migration_counter_initialize_samples_roll_into_skipped_prefix_when_update_follows", func(t *testing.T) {
+		// New semantics: positive samples with transfer_type=initialize are treated as part of
+		// the baseline (skipped) segment. The split only happens at the first positive sample
+		// whose transfer_type is exactly "update".
 		initTT := strPtr(TransferTypeInitial)
+		twelveMiB := float64(12 * 1024 * 1024)
 		ts := common.TimeSeries{
 			AggregationStart: startTime,
 			AggregationEnd:   endTime,
@@ -1135,23 +1128,38 @@ func TestProcessMetricsWithJobDef_ReplicationPrePositiveRows(t *testing.T) {
 			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
 			DataPoints: []common.DataPoint{
 				{Timestamp: startTime.Add(5 * time.Minute), Quantity: 0, TransferType: nil},
-				{Timestamp: splitAt, Quantity: tenMiB, TransferType: initTT},
-				{Timestamp: startTime.Add(45 * time.Minute), Quantity: sixteenMiB, TransferType: nil},
+				{Timestamp: startTime.Add(15 * time.Minute), Quantity: tenMiB, TransferType: initTT},
+				{Timestamp: splitAt, Quantity: twelveMiB, TransferType: updateTT},
+				{Timestamp: startTime.Add(45 * time.Minute), Quantity: sixteenMiB, TransferType: updateTT},
 			},
 		}
 
 		var aggregatedRecords []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{
 			AggregationType: common.CounterAggregation,
-		}, startTime, endTime, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		}, startTime, endTime, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		require.NoError(t, err)
-		require.Len(t, aggregatedRecords, 2)
-		assert.False(t, aggregatedRecords[0].IsBillable)
-		assert.InDelta(t, 10.0, aggregatedRecords[0].Quantity, 0.001)
-		assert.True(t, aggregatedRecords[0].AggregationEnd.Equal(splitAt))
-		assert.True(t, aggregatedRecords[1].AggregationStart.Equal(splitAt))
-		assert.True(t, aggregatedRecords[1].IsBillable)
-		assert.InDelta(t, 6.0, aggregatedRecords[1].Quantity, 0.001)
+		require.Len(t, aggregatedRecords, 2, "non-billable initialize-baseline segment plus billable update remainder")
+
+		skipped := aggregatedRecords[0]
+		billed := aggregatedRecords[1]
+
+		// Skipped prefix covers the leading zero plus the initialize sample plus the first update.
+		// Zero baseline prepended on cache miss → cumulative delta = 12 MiB.
+		assert.False(t, skipped.IsBillable)
+		assert.InDelta(t, 12.0, skipped.Quantity, 0.001)
+		assert.True(t, skipped.AggregationStart.Equal(startTime))
+		assert.True(t, skipped.AggregationEnd.Equal(splitAt))
+		require.NotNil(t, skipped.LastCounterValue)
+		assert.InDelta(t, twelveMiB, *skipped.LastCounterValue, 0.01)
+
+		// Billed suffix covers (first update sample, end] → delta = 16 - 12 = 4 MiB.
+		assert.True(t, billed.IsBillable)
+		assert.InDelta(t, 4.0, billed.Quantity, 0.001)
+		assert.True(t, billed.AggregationStart.Equal(splitAt))
+		assert.True(t, billed.AggregationEnd.Equal(endTime))
+		require.NotNil(t, billed.LastCounterValue)
+		assert.InDelta(t, sixteenMiB, *billed.LastCounterValue, 0.01)
 	})
 
 	t.Run("cross_region_replication_type_does_not_emit_skipped_row", func(t *testing.T) {
@@ -1191,7 +1199,7 @@ func TestProcessMetricsWithJobDef_ReplicationPrePositiveRows(t *testing.T) {
 		var aggregatedRecords []datamodel2.AggregatedUsage
 		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, ts, common.AggregationJobDefinition{
 			AggregationType: common.CounterAggregation,
-		}, startTime, endTime, crrCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+		}, startTime, endTime, crrCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 		require.NoError(t, err)
 		require.Len(t, aggregatedRecords, 1, "CRR should not use skip-until-first-positive path")
 		assert.True(t, aggregatedRecords[0].IsBillable)
@@ -2052,7 +2060,7 @@ func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 		AccountID: 123,
 		Labels:    Labels{"env": "test"},
 	}
-	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, now.Add(-1*time.Hour), now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), util.GetLogger(ctx))
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, now.Add(-1*time.Hour), now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), util.GetLogger(ctx))
 
 	assert.NoError(t, err)
 	// With batch approach, records are collected regardless of billability
@@ -5103,7 +5111,7 @@ func TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_CRR(t *testing.T
 	}
 
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 
 	assert.NoError(t, err)
 	assert.Len(t, aggregatedRecords, 0, "No record should be created for Large Volumes with CRR when EnableLargeVolumesBilling is false")
@@ -5155,7 +5163,7 @@ func TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_Backup(t *testin
 	}
 
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 
 	assert.NoError(t, err)
 	assert.Len(t, aggregatedRecords, 0, "No record should be created for Large Volumes with Backup when EnableLargeVolumesBilling is false")
@@ -5220,7 +5228,7 @@ func TestProcessMetricsWithJobDef_EnableBillingForLargeVolumes_WhenFlagEnabled(t
 	}
 
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 
 	assert.NoError(t, err)
 	assert.Len(t, aggregatedRecords, 1)
@@ -5454,7 +5462,7 @@ func TestProcessMetricsWithJobDef_RegularVolumes_BillingEnabled(t *testing.T) {
 	}
 
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 
 	assert.NoError(t, err)
 	assert.Len(t, aggregatedRecords, 1)
@@ -6003,7 +6011,7 @@ func TestProcessMetricsWithJobDef_BackupLogicalSize_SetsDestinationRegion(t *tes
 	}
 
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 	assert.NoError(t, err)
 	assert.Len(t, aggregatedRecords, 1)
 	assert.Equal(t, metadata.BackupLogicalSize, aggregatedRecords[0].MeasuredType)
@@ -6057,7 +6065,7 @@ func TestProcessMetricsWithJobDef_BackupLogicalSize_CrossRegion_SetsBackupRegion
 	}
 
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 	assert.NoError(t, err)
 	assert.Len(t, aggregatedRecords, 1)
 	assert.Equal(t, metadata.BackupLogicalSize, aggregatedRecords[0].MeasuredType)
@@ -6111,7 +6119,7 @@ func TestProcessMetricsWithJobDef_BackupEnabledVolumeAllocatedSize_CrossRegion_S
 	}
 
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 	assert.NoError(t, err)
 	assert.Len(t, aggregatedRecords, 1)
 	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, aggregatedRecords[0].MeasuredType)
@@ -6163,7 +6171,7 @@ func TestProcessMetricsWithJobDef_BackupEnabledVolumeAllocatedSize_InRegion_NoDe
 	}
 
 	var aggregatedRecords []datamodel2.AggregatedUsage
-	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
 	assert.NoError(t, err)
 	assert.Len(t, aggregatedRecords, 1)
 	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, aggregatedRecords[0].MeasuredType)
@@ -6356,53 +6364,621 @@ func TestGroupMetricsByResource_ParsesTransferTypeFromMetadata(t *testing.T) {
 	})
 }
 
-func TestReplicationCounterPointsFirstPositiveSplit(t *testing.T) {
+// TestProcessMetricsWithJobDef_HybridReplicationZeroBaselineOnCacheMiss verifies the new
+// behavior added in calculateCounterDeltaWithAggregatedHistory: when the counter cache has
+// no prior value for a hybrid replication resource, a synthetic zero baseline is prepended
+// so the full initial transfer bytes are captured (in the non-billable baseline segment)
+// instead of being silently dropped. Before the change only CBS cross-region backup got
+// this treatment.
+func TestProcessMetricsWithJobDef_HybridReplicationZeroBaselineOnCacheMiss(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	startTime := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+
+	processor := &BillingProvider{
+		metricsDB: &database.MockStorage{},
+		config:    &common.TelemetryConfig{},
+	}
+
+	resourceID := ResourceKey{
+		ResourceType: metadata.VolumeReplicationRelationship,
+		ResourceName: "hybrid-rep-1",
+		ConsumerID:   "cust-1",
+	}
+
+	repName := "hybrid-rep-1"
+	srcLoc := "us-west1"
+	dstLoc := "us-east1"
+	dstVolUUID := "dst-vol"
+	resourceCollection := &ResourceCollection{
+		PoolData:              make(map[ResourceKey]ResourceData),
+		VolumeData:            make(map[ResourceKey]ResourceData),
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.VolumeReplicationData[resourceID] = ResourceData{
+		UUID:      "rep-uuid-zb",
+		AccountID: 99,
+		VolumeReplicationInfo: &VolumeReplicationInfo{
+			ReplicationType:       string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION),
+			ReplicationSchedule:   "hourly",
+			ReplicationName:       &repName,
+			SourceLocation:        &srcLoc,
+			DestinationLocation:   &dstLoc,
+			DestinationVolumeUUID: &dstVolUUID,
+		},
+	}
+
+	fiveMiB := float64(5 * 1024 * 1024)
+	eightMiB := float64(8 * 1024 * 1024)
+	updateTT := strPtr(TransferTypeUpdate)
+	firstUpdateAt := startTime.Add(10 * time.Minute)
+
+	t.Run("cache miss prepends zero baseline so first update sample produces non-billable baseline row", func(t *testing.T) {
+		// Single positive update sample. Without the zero-baseline prepend (old behavior for
+		// non-CBS counters), CounterDelta over a single point would have returned 0 bytes
+		// billed and 0 skipped, dropping the first transfer entirely. With the new behavior,
+		// the prepended [0] baseline turns the data into [0, 5MiB, 8MiB], and the split logic
+		// then emits a 5 MiB non-billable baseline row plus a 3 MiB billable row.
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   endTime,
+			Metadata: metadata.ResourceMetadata{
+				ResourceType: metadata.VolumeReplicationRelationship,
+			},
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+			DataPoints: []common.DataPoint{
+				{Timestamp: firstUpdateAt, Quantity: fiveMiB, TransferType: updateTT},
+				{Timestamp: startTime.Add(40 * time.Minute), Quantity: eightMiB, TransferType: updateTT},
+			},
+		}
+
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		err := processor.processMetricsWithJobDef(ctx, resourceID, ts, common.AggregationJobDefinition{
+			AggregationType: common.CounterAggregation,
+		}, startTime, endTime, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 2, "expected baseline row + billable row")
+
+		skipped := aggregatedRecords[0]
+		billed := aggregatedRecords[1]
+
+		assert.False(t, skipped.IsBillable)
+		assert.InDelta(t, 5.0, skipped.Quantity, 0.001, "non-billable baseline captures the first 5 MiB")
+		assert.True(t, skipped.AggregationStart.Equal(startTime))
+		assert.True(t, skipped.AggregationEnd.Equal(firstUpdateAt))
+		require.NotNil(t, skipped.LastCounterValue)
+		assert.InDelta(t, fiveMiB, *skipped.LastCounterValue, 0.01)
+		// Skipped baseline row carries the split-point sample's transfer_type for the
+		// next-cycle cache hand-off.
+		require.NotNil(t, skipped.LastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *skipped.LastTransferType)
+
+		assert.True(t, billed.IsBillable)
+		assert.InDelta(t, 3.0, billed.Quantity, 0.001, "billable row covers the 3 MiB delta after the split")
+		assert.True(t, billed.AggregationStart.Equal(firstUpdateAt))
+		assert.True(t, billed.AggregationEnd.Equal(endTime))
+		require.NotNil(t, billed.LastCounterValue)
+		assert.InDelta(t, eightMiB, *billed.LastCounterValue, 0.01)
+		// Billable row carries the last sample's transfer_type.
+		require.NotNil(t, billed.LastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *billed.LastTransferType)
+	})
+
+	t.Run("cache hit with positive cached counter bypasses zero-baseline path", func(t *testing.T) {
+		// When there is a cached counter value, the cached value is prepended (not zero) and
+		// has TransferType=nil. That triggers the guard in replicationCounterPointsSplitTillFirstUpdate
+		// (`points[0].Quantity > 0 && TransferType == nil`), so the split is skipped and plain
+		// CounterDelta runs - only the incremental delta is billed.
+		cached := fiveMiB
+		counterCache := CounterAggregationCache{
+			{ResourceUUID: "rep-uuid-zb", MeasuredType: metadata.XregionReplicationTotalTransferBytes}: &CounterAggregationCacheValue{LastCounterValue: &cached},
+		}
+
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   endTime,
+			Metadata: metadata.ResourceMetadata{
+				ResourceType: metadata.VolumeReplicationRelationship,
+			},
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+			DataPoints: []common.DataPoint{
+				{Timestamp: firstUpdateAt, Quantity: fiveMiB, TransferType: updateTT},
+				{Timestamp: startTime.Add(40 * time.Minute), Quantity: eightMiB, TransferType: updateTT},
+			},
+		}
+
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		err := processor.processMetricsWithJobDef(ctx, resourceID, ts, common.AggregationJobDefinition{
+			AggregationType: common.CounterAggregation,
+		}, startTime, endTime, resourceCollection, &aggregatedRecords, counterCache, logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 1, "no baseline row when cached counter exists")
+
+		rec := aggregatedRecords[0]
+		assert.True(t, rec.IsBillable)
+		// Cached 5MiB prepended → plain CounterDelta over [5MiB, 5MiB, 8MiB] = 0 + 3MiB = 3MiB.
+		assert.InDelta(t, 3.0, rec.Quantity, 0.001)
+		assert.True(t, rec.AggregationStart.Equal(startTime))
+		assert.True(t, rec.AggregationEnd.Equal(endTime))
+		require.NotNil(t, rec.LastCounterValue)
+		assert.InDelta(t, eightMiB, *rec.LastCounterValue, 0.01)
+		// LastTransferType comes from the last data point in the window.
+		require.NotNil(t, rec.LastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *rec.LastTransferType)
+	})
+}
+
+// TestProcessMetricsWithJobDef_HybridReplicationCrossWindowBaseline simulates two consecutive
+// aggregation cycles for the same hybrid replication resource and asserts that LastTransferType
+// is correctly carried across them via the counter cache. Cycle 1 is mid-baseline; cycle 2
+// continues mid-baseline. Without the Commit-3 changes (LastTransferType plumbing in the cache +
+// synthetic point + inBaselineMode), cycle 2 would either panic (no positive update found) or
+// incorrectly bill the baseline bytes via plain CounterDelta.
+func TestProcessMetricsWithJobDef_HybridReplicationCrossWindowBaseline(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	cycle1Start := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	cycle1End := cycle1Start.Add(time.Hour)
+	cycle2Start := cycle1End
+	cycle2End := cycle2Start.Add(time.Hour)
+
+	processor := &BillingProvider{
+		metricsDB: &database.MockStorage{},
+		config:    &common.TelemetryConfig{},
+	}
+
+	resourceID := ResourceKey{
+		ResourceType: metadata.VolumeReplicationRelationship,
+		ResourceName: "rep-cross-window",
+		ConsumerID:   "cust-1",
+	}
+	repName := "rep-cross-window"
+	srcLoc := "us-west1"
+	dstLoc := "us-east1"
+	const resourceUUID = "rep-uuid-cw"
+	resourceCollection := &ResourceCollection{
+		PoolData:              make(map[ResourceKey]ResourceData),
+		VolumeData:            make(map[ResourceKey]ResourceData),
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.VolumeReplicationData[resourceID] = ResourceData{
+		UUID:      resourceUUID,
+		AccountID: 1,
+		VolumeReplicationInfo: &VolumeReplicationInfo{
+			ReplicationType:     string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION),
+			ReplicationSchedule: "hourly",
+			ReplicationName:     &repName,
+			SourceLocation:      &srcLoc,
+			DestinationLocation: &dstLoc,
+		},
+	}
+
+	initTT := strPtr(TransferTypeInitial)
+
+	// Cycle 1: empty cache, baseline bytes accumulate via initialize samples. With Commit 3 the
+	// cache-miss path treats this as baseline and emits a non-billable row carrying the
+	// initialize transfer_type forward.
+	cycle1Cache := make(CounterAggregationCache)
+	cycle1Series := common.TimeSeries{
+		AggregationStart: cycle1Start,
+		AggregationEnd:   cycle1End,
+		Metadata:         metadata.ResourceMetadata{ResourceType: metadata.VolumeReplicationRelationship},
+		MeasuredType:     metadata.XregionReplicationTotalTransferBytes,
+		DataPoints: []common.DataPoint{
+			{Timestamp: cycle1Start.Add(10 * time.Minute), Quantity: 100, TransferType: initTT},
+			{Timestamp: cycle1Start.Add(30 * time.Minute), Quantity: 300, TransferType: initTT},
+			{Timestamp: cycle1Start.Add(50 * time.Minute), Quantity: 500, TransferType: initTT},
+		},
+	}
+
+	var cycle1Records []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, cycle1Series, common.AggregationJobDefinition{
+		AggregationType: common.CounterAggregation,
+	}, cycle1Start, cycle1End, resourceCollection, &cycle1Records, cycle1Cache, logger)
+	require.NoError(t, err)
+	require.Len(t, cycle1Records, 1, "cycle 1 baseline produces a single non-billable record")
+	require.False(t, cycle1Records[0].IsBillable)
+	require.InDelta(t, BytesToMiB(500), cycle1Records[0].Quantity, 0.001, "non-billable row captures full delta from zero baseline through last sample")
+	require.NotNil(t, cycle1Records[0].LastCounterValue)
+	require.InDelta(t, 500.0, *cycle1Records[0].LastCounterValue, 0.01)
+	require.NotNil(t, cycle1Records[0].LastTransferType)
+	require.Equal(t, TransferTypeInitial, *cycle1Records[0].LastTransferType)
+
+	// Cycle 2: hand the cycle-1 record's tail state into the cache as if preloadCounterValues
+	// reloaded it from the DB. Then run a window that contains only initialize samples (no
+	// positive update yet). Without Commit 3's inBaselineMode branch this would either panic or
+	// plain-bill the bytes. With Commit 3 it continues baseline.
+	cycle2Cache := CounterAggregationCache{
+		{ResourceUUID: resourceUUID, MeasuredType: metadata.XregionReplicationTotalTransferBytes}: &CounterAggregationCacheValue{
+			LastCounterValue: cycle1Records[0].LastCounterValue,
+			LastTransferType: cycle1Records[0].LastTransferType,
+		},
+	}
+	cycle2Series := common.TimeSeries{
+		AggregationStart: cycle2Start,
+		AggregationEnd:   cycle2End,
+		Metadata:         metadata.ResourceMetadata{ResourceType: metadata.VolumeReplicationRelationship},
+		MeasuredType:     metadata.XregionReplicationTotalTransferBytes,
+		DataPoints: []common.DataPoint{
+			{Timestamp: cycle2Start.Add(10 * time.Minute), Quantity: 700, TransferType: initTT},
+			{Timestamp: cycle2Start.Add(30 * time.Minute), Quantity: 900, TransferType: initTT},
+		},
+	}
+
+	var cycle2Records []datamodel2.AggregatedUsage
+	err = processor.processMetricsWithJobDef(ctx, resourceID, cycle2Series, common.AggregationJobDefinition{
+		AggregationType: common.CounterAggregation,
+	}, cycle2Start, cycle2End, resourceCollection, &cycle2Records, cycle2Cache, logger)
+	require.NoError(t, err, "cycle 2 must not panic on baseline continuation")
+	require.Len(t, cycle2Records, 1, "cycle 2 still in baseline produces a single non-billable record")
+	require.False(t, cycle2Records[0].IsBillable)
+	require.InDelta(t, BytesToMiB(400), cycle2Records[0].Quantity, 0.001, "non-billable delta from cached 500 to 900")
+	require.NotNil(t, cycle2Records[0].LastCounterValue)
+	require.InDelta(t, 900.0, *cycle2Records[0].LastCounterValue, 0.01)
+	require.NotNil(t, cycle2Records[0].LastTransferType)
+	require.Equal(t, TransferTypeInitial, *cycle2Records[0].LastTransferType)
+}
+
+// TestProcessMetricsWithJobDef_HybridReplicationBaselineToUpdateCutoverAcrossWindows simulates two
+// consecutive cycles where cycle 1 is mid-baseline and cycle 2 contains the cutover from
+// initialize to update. Cycle 2 should produce a non-billable baseline row covering the bytes up
+// to the cutover, plus a billable row covering the post-cutover delta.
+func TestProcessMetricsWithJobDef_HybridReplicationBaselineToUpdateCutoverAcrossWindows(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	cycle2Start := time.Date(2026, 4, 30, 13, 0, 0, 0, time.UTC)
+	cycle2End := cycle2Start.Add(time.Hour)
+
+	processor := &BillingProvider{
+		metricsDB: &database.MockStorage{},
+		config:    &common.TelemetryConfig{},
+	}
+
+	const resourceUUID = "rep-uuid-cutover"
+	resourceID := ResourceKey{
+		ResourceType: metadata.VolumeReplicationRelationship,
+		ResourceName: "rep-cutover",
+		ConsumerID:   "cust-1",
+	}
+	repName := "rep-cutover"
+	srcLoc := "us-west1"
+	dstLoc := "us-east1"
+	resourceCollection := &ResourceCollection{
+		PoolData:              make(map[ResourceKey]ResourceData),
+		VolumeData:            make(map[ResourceKey]ResourceData),
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.VolumeReplicationData[resourceID] = ResourceData{
+		UUID:      resourceUUID,
+		AccountID: 1,
+		VolumeReplicationInfo: &VolumeReplicationInfo{
+			ReplicationType:     string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			ReplicationSchedule: "hourly",
+			ReplicationName:     &repName,
+			SourceLocation:      &srcLoc,
+			DestinationLocation: &dstLoc,
+		},
+	}
+
+	cachedCounter := float64(500)
+	cachedTT := TransferTypeInitial
+	cache := CounterAggregationCache{
+		{ResourceUUID: resourceUUID, MeasuredType: metadata.XregionReplicationTotalTransferBytes}: &CounterAggregationCacheValue{
+			LastCounterValue: &cachedCounter,
+			LastTransferType: &cachedTT,
+		},
+	}
+
+	initTT := strPtr(TransferTypeInitial)
+	updateTT := strPtr(TransferTypeUpdate)
+	cutoverAt := cycle2Start.Add(20 * time.Minute)
+	ts := common.TimeSeries{
+		AggregationStart: cycle2Start,
+		AggregationEnd:   cycle2End,
+		Metadata:         metadata.ResourceMetadata{ResourceType: metadata.VolumeReplicationRelationship},
+		MeasuredType:     metadata.XregionReplicationTotalTransferBytes,
+		DataPoints: []common.DataPoint{
+			{Timestamp: cycle2Start.Add(10 * time.Minute), Quantity: 700, TransferType: initTT},
+			{Timestamp: cutoverAt, Quantity: 900, TransferType: updateTT},
+			{Timestamp: cycle2Start.Add(40 * time.Minute), Quantity: 1100, TransferType: updateTT},
+		},
+	}
+
+	var records []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, ts, common.AggregationJobDefinition{
+		AggregationType: common.CounterAggregation,
+	}, cycle2Start, cycle2End, resourceCollection, &records, cache, logger)
+	require.NoError(t, err)
+	require.Len(t, records, 2, "non-billable baseline (cached 500 → 900 cutover) + billable update (900 → 1100)")
+
+	skipped := records[0]
+	billed := records[1]
+
+	assert.False(t, skipped.IsBillable)
+	assert.InDelta(t, BytesToMiB(400), skipped.Quantity, 0.001, "baseline covers cached 500 → cutover sample 900")
+	assert.True(t, skipped.AggregationStart.Equal(cycle2Start))
+	assert.True(t, skipped.AggregationEnd.Equal(cutoverAt))
+	require.NotNil(t, skipped.LastCounterValue)
+	assert.InDelta(t, 900.0, *skipped.LastCounterValue, 0.01)
+	require.NotNil(t, skipped.LastTransferType)
+	assert.Equal(t, TransferTypeUpdate, *skipped.LastTransferType, "split-point sample's transfer_type rides with the baseline row")
+
+	assert.True(t, billed.IsBillable)
+	assert.InDelta(t, BytesToMiB(200), billed.Quantity, 0.001, "billable covers cutover 900 → last 1100")
+	assert.True(t, billed.AggregationStart.Equal(cutoverAt))
+	assert.True(t, billed.AggregationEnd.Equal(cycle2End))
+	require.NotNil(t, billed.LastCounterValue)
+	assert.InDelta(t, 1100.0, *billed.LastCounterValue, 0.01)
+	require.NotNil(t, billed.LastTransferType)
+	assert.Equal(t, TransferTypeUpdate, *billed.LastTransferType)
+}
+
+// TestProcessMetricsWithJobDef_PersistsLastTransferType verifies that processMetricsWithJobDef
+// stamps AggregatedUsage.LastTransferType only on counter-aggregation records (which is what
+// fetchAndCacheCounterValues / preloadCounterValues feed back into the cache on the next cycle).
+// Non-counter aggregations must leave the field nil since transfer_type is meaningless for them.
+func TestProcessMetricsWithJobDef_PersistsLastTransferType(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	resourceID := ResourceKey{
+		ResourceType: metadata.Volume,
+		ResourceName: "vol-1",
+		ConsumerID:   "cust-1",
+	}
+
+	resourceCollection := &ResourceCollection{
+		PoolData:   make(map[ResourceKey]ResourceData),
+		VolumeData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.VolumeData[resourceID] = ResourceData{
+		UUID:      "vol-uuid-1",
+		AccountID: 7,
+	}
+
+	updateTT := strPtr(TransferTypeUpdate)
+	dataPoints := []common.DataPoint{
+		{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100, TransferType: updateTT},
+		{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200, TransferType: updateTT},
+	}
+
+	t.Run("counter aggregation persists LastTransferType from last data point", func(t *testing.T) {
+		processor := &BillingProvider{config: &common.TelemetryConfig{}}
+
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   now,
+			Metadata:         metadata.ResourceMetadata{ResourceType: metadata.Volume},
+			MeasuredType:     metadata.AllocatedSize,
+			DataPoints:       dataPoints,
+		}
+
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		err := processor.processMetricsWithJobDef(ctx, resourceID, ts, common.AggregationJobDefinition{
+			AggregationType: common.CounterAggregation,
+		}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 1)
+		require.NotNil(t, aggregatedRecords[0].LastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *aggregatedRecords[0].LastTransferType)
+	})
+
+	t.Run("sum aggregation leaves LastTransferType nil", func(t *testing.T) {
+		processor := &BillingProvider{config: &common.TelemetryConfig{}}
+
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   now,
+			Metadata:         metadata.ResourceMetadata{ResourceType: metadata.Volume},
+			MeasuredType:     metadata.AllocatedSize,
+			DataPoints:       dataPoints,
+		}
+
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		err := processor.processMetricsWithJobDef(ctx, resourceID, ts, common.AggregationJobDefinition{
+			AggregationType: common.SumAggregation,
+		}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 1)
+		assert.Nil(t, aggregatedRecords[0].LastTransferType, "transfer_type is only meaningful for counter aggregation")
+	})
+
+	t.Run("counter aggregation leaves LastTransferType nil when data points have none", func(t *testing.T) {
+		// Non-replication metric with no per-point transfer_type still produces a billable
+		// record; LastTransferType should round-trip as nil so the cache for that resource
+		// keeps reflecting reality.
+		processor := &BillingProvider{config: &common.TelemetryConfig{}}
+
+		ts := common.TimeSeries{
+			AggregationStart: startTime,
+			AggregationEnd:   now,
+			Metadata:         metadata.ResourceMetadata{ResourceType: metadata.Volume},
+			MeasuredType:     metadata.AllocatedSize,
+			DataPoints: []common.DataPoint{
+				{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100, TransferType: nil},
+				{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200, TransferType: nil},
+			},
+		}
+
+		var aggregatedRecords []datamodel2.AggregatedUsage
+		err := processor.processMetricsWithJobDef(ctx, resourceID, ts, common.AggregationJobDefinition{
+			AggregationType: common.CounterAggregation,
+		}, startTime, now, resourceCollection, &aggregatedRecords, make(CounterAggregationCache), logger)
+		require.NoError(t, err)
+		require.Len(t, aggregatedRecords, 1)
+		assert.Nil(t, aggregatedRecords[0].LastTransferType)
+	})
+}
+
+func TestShouldSkipBaselineBillingForHybridReplication(t *testing.T) {
+	// The function (renamed from shouldSkipBillingUntilFirstPositiveReplicationPoint)
+	// gates the baseline-skipping path in processMetricsWithJobDef + the zero-baseline
+	// prepend in calculateCounterDeltaWithAggregatedHistory.
+	tests := []struct {
+		name            string
+		resourceType    metadata.ResourceType
+		replicationType string
+		want            bool
+	}{
+		{
+			name:            "hybrid replication relationship with migration type returns true",
+			resourceType:    metadata.VolumeReplicationRelationship,
+			replicationType: string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			want:            true,
+		},
+		{
+			name:            "hybrid replication relationship with on-prem type returns true",
+			resourceType:    metadata.VolumeReplicationRelationship,
+			replicationType: string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION),
+			want:            true,
+		},
+		{
+			name:            "replication relationship with continuous (CRR) type returns false",
+			resourceType:    metadata.VolumeReplicationRelationship,
+			replicationType: string(clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION),
+			want:            false,
+		},
+		{
+			name:            "replication relationship with unknown type returns false",
+			resourceType:    metadata.VolumeReplicationRelationship,
+			replicationType: "SOME_UNKNOWN_TYPE",
+			want:            false,
+		},
+		{
+			name:            "replication relationship with empty type returns false",
+			resourceType:    metadata.VolumeReplicationRelationship,
+			replicationType: "",
+			want:            false,
+		},
+		{
+			name:            "non-replication resource type returns false even when replication type is hybrid",
+			resourceType:    metadata.Volume,
+			replicationType: string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			want:            false,
+		},
+		{
+			name:            "non-replication resource type with empty replication type returns false",
+			resourceType:    metadata.VolumePool,
+			replicationType: "",
+			want:            false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := common.TimeSeries{
+				Metadata: metadata.ResourceMetadata{ResourceType: tt.resourceType},
+			}
+			got := shouldSkipBaselineBillingForHybridReplication(ts, tt.replicationType)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestReplicationCounterPointsSplitTillFirstUpdate(t *testing.T) {
 	t0 := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
-	update := strPtr("update")
+	update := strPtr(TransferTypeUpdate)
 	init := strPtr(TransferTypeInitial)
 
-	t.Run("splits when prior transfer blank and first positive has update", func(t *testing.T) {
+	t.Run("splits at first positive update sample after a leading run of zero samples", func(t *testing.T) {
 		pts := []common.DataPoint{
 			{Timestamp: t0, Quantity: 0, TransferType: nil},
 			{Timestamp: t0.Add(time.Minute), Quantity: 0, TransferType: nil},
 			{Timestamp: t0.Add(2 * time.Minute), Quantity: 10, TransferType: update},
 		}
-		pre, suf, ok := replicationCounterPointsFirstPositiveSplit(pts)
+		pre, suf, ok := replicationCounterPointsSplitTillFirstUpdate(pts)
+		require.True(t, ok)
+		require.Len(t, pre, 3, "prefix is everything up to and including the first positive update sample")
+		require.Len(t, suf, 1, "suffix starts at the first positive update sample")
+		assert.Equal(t, 10.0, suf[0].Quantity)
+		assert.Equal(t, t0.Add(2*time.Minute), suf[0].Timestamp)
+	})
+
+	t.Run("splits at first positive update even when positive initialize samples precede it", func(t *testing.T) {
+		// New semantics: positive initialize samples are part of the baseline prefix; the split
+		// only happens at the first positive sample whose transfer_type is exactly "update".
+		pts := []common.DataPoint{
+			{Timestamp: t0, Quantity: 0, TransferType: nil},
+			{Timestamp: t0.Add(time.Minute), Quantity: 5, TransferType: init},
+			{Timestamp: t0.Add(2 * time.Minute), Quantity: 12, TransferType: init},
+			{Timestamp: t0.Add(3 * time.Minute), Quantity: 20, TransferType: update},
+			{Timestamp: t0.Add(4 * time.Minute), Quantity: 25, TransferType: update},
+		}
+		pre, suf, ok := replicationCounterPointsSplitTillFirstUpdate(pts)
+		require.True(t, ok)
+		require.Len(t, pre, 4, "prefix includes the leading zero, both initialize samples, and the first update sample")
+		require.Len(t, suf, 2, "suffix starts at the first positive update sample and continues")
+		assert.Equal(t, 20.0, suf[0].Quantity)
+		assert.Equal(t, *update, *suf[0].TransferType)
+	})
+
+	t.Run("splits at first positive update when previous samples have non-nil transfer types", func(t *testing.T) {
+		// Unlike the old behavior, the new function does not bail out when earlier samples
+		// already have a transfer_type set; the only thing it looks for is the first positive
+		// update sample.
+		pts := []common.DataPoint{
+			{Timestamp: t0, Quantity: 0, TransferType: nil},
+			{Timestamp: t0.Add(time.Minute), Quantity: 0, TransferType: update},
+			{Timestamp: t0.Add(2 * time.Minute), Quantity: 10, TransferType: update},
+		}
+		pre, suf, ok := replicationCounterPointsSplitTillFirstUpdate(pts)
 		require.True(t, ok)
 		require.Len(t, pre, 3)
 		require.Len(t, suf, 1)
 		assert.Equal(t, 10.0, suf[0].Quantity)
 	})
 
-	t.Run("splits when prior transfer blank and first positive has initialize", func(t *testing.T) {
+	t.Run("no split when first point is positive with nil transfer type", func(t *testing.T) {
+		// This guard exists because a positive synthetic baseline (e.g. cached counter value
+		// prepended in calculateCounterDeltaWithAggregatedHistory) carries no transfer_type and
+		// must not be interpreted as a baseline boundary.
 		pts := []common.DataPoint{
-			{Timestamp: t0, Quantity: 0, TransferType: nil},
-			{Timestamp: t0.Add(time.Minute), Quantity: 5, TransferType: init},
+			{Timestamp: t0, Quantity: 100, TransferType: nil},
+			{Timestamp: t0.Add(time.Minute), Quantity: 150, TransferType: update},
 		}
-		pre, suf, ok := replicationCounterPointsFirstPositiveSplit(pts)
-		require.True(t, ok)
-		require.Len(t, pre, 2)
-		require.Len(t, suf, 1)
+		pre, suf, ok := replicationCounterPointsSplitTillFirstUpdate(pts)
+		assert.False(t, ok)
+		assert.Nil(t, pre)
+		assert.Equal(t, pts, suf)
 	})
 
-	t.Run("no split when first positive lacks initialize_or_update transfer", func(t *testing.T) {
-		other := strPtr("continuous")
-		pts := []common.DataPoint{
-			{Timestamp: t0, Quantity: 0, TransferType: nil},
-			{Timestamp: t0.Add(time.Minute), Quantity: 10, TransferType: other},
-		}
-		_, _, ok := replicationCounterPointsFirstPositiveSplit(pts)
+	t.Run("no split and no panic when input is empty", func(t *testing.T) {
+		pre, suf, ok := replicationCounterPointsSplitTillFirstUpdate(nil)
 		assert.False(t, ok)
+		assert.Nil(t, pre)
+		assert.Nil(t, suf)
 	})
 
-	t.Run("no split when a prior sample already has transfer set", func(t *testing.T) {
+	t.Run("no split and no panic when no positive update sample exists", func(t *testing.T) {
+		// All-zero baseline window or initialize-only window: no update sample is present,
+		// so the function returns split=false instead of panicking on points[-1:].
 		pts := []common.DataPoint{
 			{Timestamp: t0, Quantity: 0, TransferType: nil},
-			{Timestamp: t0.Add(time.Minute), Quantity: 0, TransferType: update},
-			{Timestamp: t0.Add(2 * time.Minute), Quantity: 10, TransferType: update},
+			{Timestamp: t0.Add(time.Minute), Quantity: 100, TransferType: init},
+			{Timestamp: t0.Add(2 * time.Minute), Quantity: 200, TransferType: init},
 		}
-		_, _, ok := replicationCounterPointsFirstPositiveSplit(pts)
+		pre, suf, ok := replicationCounterPointsSplitTillFirstUpdate(pts)
 		assert.False(t, ok)
+		assert.Nil(t, pre)
+		assert.Equal(t, pts, suf)
+	})
+
+	t.Run("no split and no panic when a non-update positive sample has nil transfer type", func(t *testing.T) {
+		// Defensive: the function must not dereference TransferType when the sample has
+		// Quantity > 0 but no transfer_type (theoretically only the first sample is exposed to
+		// this in production, but if a later sample ever has it, the loop must stay safe).
+		pts := []common.DataPoint{
+			{Timestamp: t0, Quantity: 0, TransferType: nil},
+			{Timestamp: t0.Add(time.Minute), Quantity: 50, TransferType: nil},
+			{Timestamp: t0.Add(2 * time.Minute), Quantity: 80, TransferType: init},
+		}
+		pre, suf, ok := replicationCounterPointsSplitTillFirstUpdate(pts)
+		assert.False(t, ok)
+		assert.Nil(t, pre)
+		assert.Equal(t, pts, suf)
 	})
 }
 
@@ -6412,6 +6988,12 @@ func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationRepl
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
 
+	// These test cases model the "subsequent aggregation window" path: a prior counter value
+	// is already cached, so calculateCounterDeltaWithAggregatedHistory prepends the cached
+	// (positive, nil-TransferType) point. That trips guard 2 of
+	// replicationCounterPointsSplitTillFirstUpdate and the function falls back to plain
+	// CounterDelta, exercising the IsBillable branch in processMetricsWithJobDef that flips
+	// hybrid replication records to non-billable when both quantity and skippedQty are zero.
 	testCases := []struct {
 		name            string
 		replicationType string
@@ -6438,6 +7020,8 @@ func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationRepl
 		},
 	}
 
+	const resourceUUID = "rep-uuid-1"
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			processor := &BillingProvider{
@@ -6460,7 +7044,7 @@ func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationRepl
 				VolumeReplicationData: make(map[ResourceKey]ResourceData),
 			}
 			resourceCollection.VolumeReplicationData[resourceID] = ResourceData{
-				UUID:      "rep-uuid-1",
+				UUID:      resourceUUID,
 				AccountID: 123,
 				VolumeReplicationInfo: &VolumeReplicationInfo{
 					ReplicationName:     &repName,
@@ -6495,6 +7079,14 @@ func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationRepl
 				DataPoints:   dataPoints,
 			}
 
+			// Cached counter from the prior window. Its presence (positive value, nil
+			// TransferType) is what gives this test its "subsequent window" semantics and
+			// keeps the new split path off the critical path for all-zero data.
+			cached := float64(50)
+			counterCache := CounterAggregationCache{
+				{ResourceUUID: resourceUUID, MeasuredType: metadata.XregionReplicationTotalTransferBytes}: &CounterAggregationCacheValue{LastCounterValue: &cached},
+			}
+
 			var aggregatedRecords []datamodel2.AggregatedUsage
 			err := processor.processMetricsWithJobDef(
 				ctx,
@@ -6505,7 +7097,7 @@ func TestProcessMetricsWithJobDef_DisablesBillingForInitialOnpremOrMigrationRepl
 				now,
 				resourceCollection,
 				&aggregatedRecords,
-				make(map[CounterAggregationCacheResourceKey]*float64),
+				counterCache,
 				logger,
 			)
 			require.NoError(t, err)
@@ -6520,9 +7112,13 @@ func TestProcessMetricsWithJobDef_ReplicationBillingStartsAfterCounterMovesFromZ
 	logger := util.GetLogger(ctx)
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
+	updateTT := strPtr(TransferTypeUpdate)
 
-	// Zero counter + zero skipped bytes only clear IsBillable for hybrid migration / on-prem replication
-	// (see processMetricsWithJobDef volume replication branch). Continuous (CRR-style) stays billable.
+	// Continuous (CRR) replication is not hybrid, so the split path is never invoked and
+	// per-point TransferType isn't required. Hybrid migration / on-prem cases now go through
+	// the zero-baseline prepend + first-positive-update split, which produces either
+	// (baseline + billable) two rows or (baseline only) one row depending on whether the
+	// billable suffix has a delta to bill.
 	testCases := []struct {
 		name              string
 		transferType      *string
@@ -6551,20 +7147,35 @@ func TestProcessMetricsWithJobDef_ReplicationBillingStartsAfterCounterMovesFromZ
 			wantRecordCount:   1,
 		},
 		{
-			name:              "update with transition from zero to non-zero bills full counter delta single row",
-			transferType:      strPtr("update"),
-			replicationType:   string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
-			dataPoints:        []common.DataPoint{{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0}, {Timestamp: startTime.Add(20 * time.Minute), Quantity: 1200}, {Timestamp: startTime.Add(50 * time.Minute), Quantity: 2500}},
+			// Hybrid migration. Counter transitions 0 → 1200 → 2500 within the window with
+			// transfer_type=update on the positives. New code: zero baseline is prepended, the
+			// split lands on the first positive update (1200), prefix bills as a non-billable
+			// 1200 byte baseline, suffix bills the (2500-1200)=1300 byte delta as billable.
+			name:            "hybrid update with transition from zero to non-zero splits into baseline + billable rows",
+			transferType:    strPtr("update"),
+			replicationType: string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			dataPoints: []common.DataPoint{
+				{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: startTime.Add(20 * time.Minute), Quantity: 1200, TransferType: updateTT},
+				{Timestamp: startTime.Add(50 * time.Minute), Quantity: 2500, TransferType: updateTT},
+			},
 			wantBillable:      true,
-			wantPrimaryQtyMiB: BytesToMiB(2500),
-			wantRecordCount:   1,
+			wantPrimaryQtyMiB: BytesToMiB(1300),
+			wantRecordCount:   2,
 		},
 		{
-			name:              "initialize with first positive as last point bills full counter delta single row",
-			transferType:      strPtr(TransferTypeInitial),
-			replicationType:   string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
-			dataPoints:        []common.DataPoint{{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0}, {Timestamp: startTime.Add(50 * time.Minute), Quantity: 1200}},
-			wantBillable:      true,
+			// Hybrid migration with a single positive update at the last point. The suffix has
+			// only one sample so the billable delta is zero. processMetricsWithJobDef then
+			// suppresses the zero-quantity billable row for hybrid, leaving the non-billable
+			// 1200 byte baseline row alone.
+			name:            "hybrid update with first positive as last point produces only non-billable baseline row",
+			transferType:    strPtr("update"),
+			replicationType: string(clientmodel.VolumeReplicationCVPV1betaHybridReplicationTypeMIGRATION),
+			dataPoints: []common.DataPoint{
+				{Timestamp: startTime.Add(10 * time.Minute), Quantity: 0, TransferType: nil},
+				{Timestamp: startTime.Add(50 * time.Minute), Quantity: 1200, TransferType: updateTT},
+			},
+			wantBillable:      false,
 			wantPrimaryQtyMiB: BytesToMiB(1200),
 			wantRecordCount:   1,
 		},
@@ -6624,7 +7235,7 @@ func TestProcessMetricsWithJobDef_ReplicationBillingStartsAfterCounterMovesFromZ
 				now,
 				resourceCollection,
 				&aggregatedRecords,
-				make(map[CounterAggregationCacheResourceKey]*float64),
+				make(CounterAggregationCache),
 				logger,
 			)
 			require.NoError(t, err)

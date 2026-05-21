@@ -218,7 +218,7 @@ func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metad
 	}
 
 	// Now modify resourceType for regional HA after we've determined resourceName
-	if resp.Metric.Labels["is_regional_ha"] == "true" {
+	if resp.Metric.Labels["is_regional_ha"] == "true" && resourceType != metadata.VolumeReplicationRelationship {
 		if isPoolMetric {
 			resourceType = metadata.VolumePoolRegionalHA
 		} else {

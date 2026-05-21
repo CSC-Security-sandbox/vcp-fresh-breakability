@@ -1770,6 +1770,34 @@ func TestSetupHydratedMetrics_RegionalHAPool(t *testing.T) {
 		assert.Equal(t, metadata.VolumeRegionalHA, result.ResourceType, "Should be VolumeRegionalHA for regional HA volume")
 	})
 
+	t.Run("regional HA volume with resourceType replication", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/volume_space_logical_used",
+				Labels: map[string]string{
+					"relationship_id": "98c2cd6c-c9f9-64ef-4953-3fd6233dd7cc",
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+					"is_regional_ha":  "true",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 2048},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.LogicalSize, metadata.VolumeReplicationRelationship, projectID, resp, timestamp)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "98c2cd6c-c9f9-64ef-4953-3fd6233dd7cc", result.ResourceName, "Should use relationship_id label for replication relationship")
+		assert.Equal(t, metadata.VolumeReplicationRelationship, result.ResourceType, "Should be VolumeReplicationRelationship")
+	})
+
 	t.Run("non-regional HA pool should remain VolumePool", func(t *testing.T) {
 		resp := &monitoringpb.TimeSeries{
 			Metric: &metric.Metric{

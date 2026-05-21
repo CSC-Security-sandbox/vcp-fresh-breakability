@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
@@ -64,6 +65,7 @@ func TestAggregatedUsage(t *testing.T) {
 		errorMessage := ""
 		submission := "sub-123"
 		lastCounterValue := 100.5
+		lastTransferType := "update"
 
 		usage := AggregatedUsage{
 			ID:                     1,
@@ -76,6 +78,7 @@ func TestAggregatedUsage(t *testing.T) {
 			ResourceType:           metadata.ResourceType("VOLUME"),
 			AggregationType:        "HOURLY",
 			LastCounterValue:       &lastCounterValue,
+			LastTransferType:       &lastTransferType,
 			RegionName:             &regionName,
 			SourceRegion:           &sourceRegion,
 			DestinationRegion:      &destinationRegion,
@@ -102,6 +105,8 @@ func TestAggregatedUsage(t *testing.T) {
 		assert.Equal(t, metadata.ResourceType("VOLUME"), usage.ResourceType)
 		assert.Equal(t, "HOURLY", usage.AggregationType)
 		assert.Equal(t, 100.5, *usage.LastCounterValue)
+		require.NotNil(t, usage.LastTransferType)
+		assert.Equal(t, "update", *usage.LastTransferType)
 		assert.Equal(t, "us-west", *usage.RegionName)
 		assert.Equal(t, "us-east", *usage.SourceRegion)
 		assert.Equal(t, "eu-west", *usage.DestinationRegion)
@@ -144,6 +149,7 @@ func TestAggregatedUsage(t *testing.T) {
 		assert.Nil(t, usage.VendorCustomerID)
 		assert.Nil(t, usage.ResourceName)
 		assert.Nil(t, usage.LastCounterValue)
+		assert.Nil(t, usage.LastTransferType)
 		assert.Nil(t, usage.RegionName)
 		assert.Nil(t, usage.SourceRegion)
 		assert.Nil(t, usage.DestinationRegion)

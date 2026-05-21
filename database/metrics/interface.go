@@ -186,8 +186,8 @@ func (r *DataStoreRepository) GetAggregatedUsage(ctx context.Context, filter map
 // See migration: database/metrics/migrations/post/0002_add_indexes_for_latest_aggregated_usage.up.sql
 func (r *DataStoreRepository) GetLatestAggregatedUsageForAllResources(ctx context.Context, aggregationType string, limit, offset int) ([]datamodel.AggregatedUsage, error) {
 	var results []datamodel.AggregatedUsage
-	query := `SELECT resource_uuid, measured_type, last_counter_value FROM (
-		SELECT resource_uuid, measured_type, last_counter_value, ROW_NUMBER() OVER (
+	query := `SELECT resource_uuid, measured_type, last_counter_value, last_transfer_type FROM (
+		SELECT resource_uuid, measured_type, last_counter_value, last_transfer_type, ROW_NUMBER() OVER (
 			PARTITION BY resource_uuid, measured_type 
 			ORDER BY created_at DESC
 		) as rn

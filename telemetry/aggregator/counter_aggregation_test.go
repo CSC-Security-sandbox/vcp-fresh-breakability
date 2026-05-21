@@ -39,7 +39,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 		}
 
 		// Empty cache
-		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		counterCache := make(CounterAggregationCache)
 
 		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger, false)
 
@@ -60,8 +60,8 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			ResourceUUID: resourceUUID,
 			MeasuredType: metadata.AllocatedSize,
 		}
-		counterCache := map[CounterAggregationCacheResourceKey]*float64{
-			cacheKey: &lastCounterValue,
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &lastCounterValue},
 		}
 
 		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger, false)
@@ -73,7 +73,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 
 	t.Run("Empty data points", func(t *testing.T) {
 		dataPoints := []common.DataPoint{}
-		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		counterCache := make(CounterAggregationCache)
 
 		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger, false)
 
@@ -87,7 +87,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 387575},
 		}
 
-		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		counterCache := make(CounterAggregationCache)
 
 		backupResourceKey := ResourceKey{
 			ResourceName: "test-backup",
@@ -114,8 +114,8 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			ResourceUUID: resourceUUID,
 			MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
 		}
-		counterCache := map[CounterAggregationCacheResourceKey]*float64{
-			cacheKey: &lastCounterValue,
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &lastCounterValue},
 		}
 
 		backupResourceKey := ResourceKey{
@@ -137,7 +137,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 272043},
 		}
 
-		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		counterCache := make(CounterAggregationCache)
 
 		backupResourceKey := ResourceKey{
 			ResourceName: "test-backup",
@@ -160,7 +160,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 387575},
 		}
 
-		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		counterCache := make(CounterAggregationCache)
 
 		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.CoolTierDataReadSizeRaw, aggregationStartTime, counterCache, resourceUUID, logger, false)
 
@@ -182,8 +182,8 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			ResourceUUID: resourceUUID,
 			MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
 		}
-		counterCache := map[CounterAggregationCacheResourceKey]*float64{
-			cacheKey: &lastCounterValue,
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &lastCounterValue},
 		}
 
 		backupResourceKey := ResourceKey{
@@ -207,7 +207,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 0},
 		}
 
-		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		counterCache := make(CounterAggregationCache)
 
 		backupResourceKey := ResourceKey{
 			ResourceName: "test-backup",
@@ -234,8 +234,8 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			ResourceUUID: resourceUUID,
 			MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
 		}
-		counterCache := map[CounterAggregationCacheResourceKey]*float64{
-			cacheKey: &lastCounterValue,
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &lastCounterValue},
 		}
 
 		backupResourceKey := ResourceKey{
@@ -254,7 +254,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 
 	t.Run("CBS backup transfer cache miss empty data points", func(t *testing.T) {
 		dataPoints := []common.DataPoint{}
-		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		counterCache := make(CounterAggregationCache)
 
 		backupResourceKey := ResourceKey{
 			ResourceName: "test-backup",
@@ -282,8 +282,8 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			ResourceUUID: resourceUUID,
 			MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
 		}
-		counterCache := map[CounterAggregationCacheResourceKey]*float64{
-			cacheKey: &lastCounterValue,
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &lastCounterValue},
 		}
 
 		backupResourceKey := ResourceKey{
@@ -301,23 +301,293 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 		assert.Equal(t, 250000.0, *res.lastCounter)
 	})
 
-	t.Run("Replication initialize splits skipped vs billed before first positive", func(t *testing.T) {
+	t.Run("Hybrid replication splits at first positive update sample (initialize rolled into skipped prefix)", func(t *testing.T) {
+		// New behavior: split point is the first positive sample with transfer_type == "update".
+		// Positive initialize samples that precede the first update are now part of the skipped
+		// (baseline) prefix instead of triggering the split.
 		initTT := TransferTypeInitial
+		updateTT := TransferTypeUpdate
 		dataPoints := []common.DataPoint{
 			{Timestamp: aggregationStartTime.Add(5 * time.Minute), Quantity: 0, TransferType: nil},
-			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 0, TransferType: nil},
-			{Timestamp: aggregationStartTime.Add(25 * time.Minute), Quantity: 100, TransferType: &initTT},
-			{Timestamp: aggregationStartTime.Add(35 * time.Minute), Quantity: 160, TransferType: &initTT},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 100, TransferType: &initTT},
+			{Timestamp: aggregationStartTime.Add(25 * time.Minute), Quantity: 160, TransferType: &updateTT},
+			{Timestamp: aggregationStartTime.Add(35 * time.Minute), Quantity: 220, TransferType: &updateTT},
 		}
-		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
+		counterCache := make(CounterAggregationCache)
 		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
-		// Prefix [0,0,100]: delta 100; suffix [100,160]: delta 60
-		assert.InDelta(t, 100.0, res.skippedPrePositive, 0.001)
+		// Cache miss for hybrid replication now also prepends a zero baseline (same as CBS path).
+		// pointsForDelta becomes [0, 0, 100, 160, 220].
+		// Split at first positive update (Quantity=160) → prefix=[0,0,100,160], suffix=[160,220].
+		// Prefix delta = 0 + 0 + 100 + 60 = 160; suffix delta = 60.
+		assert.InDelta(t, 160.0, res.skippedQty, 0.001)
 		assert.InDelta(t, 60.0, res.billed, 0.001)
 		require.NotNil(t, res.skippedSegmentEndCounter)
-		assert.InDelta(t, 100.0, *res.skippedSegmentEndCounter, 0.001)
+		assert.InDelta(t, 160.0, *res.skippedSegmentEndCounter, 0.001)
 		require.NotNil(t, res.lastCounter)
-		assert.InDelta(t, 160.0, *res.lastCounter, 0.001)
+		assert.InDelta(t, 220.0, *res.lastCounter, 0.001)
+		require.NotNil(t, res.segmentSplitAt)
+		assert.True(t, res.segmentSplitAt.Equal(aggregationStartTime.Add(25*time.Minute)))
+		// Split-point sample (suffix[0]) carries transfer_type=update.
+		require.NotNil(t, res.skippedSegmentEndTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.skippedSegmentEndTransferType)
+		// Last sample in window carries transfer_type=update.
+		require.NotNil(t, res.lastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.lastTransferType)
+	})
+
+	t.Run("Hybrid replication cache miss prepends zero baseline so first window counts full transfer", func(t *testing.T) {
+		// Regression: cache miss for hybrid replication should now use a zero baseline so the
+		// initial transfer bytes are accounted for in the skipped (baseline) segment rather than
+		// being dropped. Before the change, only CBS cross-region backup got this treatment.
+		updateTT := TransferTypeUpdate
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(5 * time.Minute), Quantity: 500, TransferType: &updateTT},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 800, TransferType: &updateTT},
+		}
+		counterCache := make(CounterAggregationCache)
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+
+		// Zero baseline prepended → [0, 500, 800].
+		// Split at first positive update (index 1 of pointsForDelta) → prefix=[0,500], suffix=[500,800].
+		// Skipped delta = 500, billed delta = 300.
+		assert.InDelta(t, 500.0, res.skippedQty, 0.001)
+		assert.InDelta(t, 300.0, res.billed, 0.001)
+		require.NotNil(t, res.skippedSegmentEndCounter)
+		assert.InDelta(t, 500.0, *res.skippedSegmentEndCounter, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.InDelta(t, 800.0, *res.lastCounter, 0.001)
+		require.NotNil(t, res.skippedSegmentEndTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.skippedSegmentEndTransferType)
+		require.NotNil(t, res.lastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.lastTransferType)
+	})
+
+	t.Run("Hybrid replication cache hit with positive cached value bypasses split (plain CounterDelta over cached baseline)", func(t *testing.T) {
+		// When a prior counter value exists in the cache and is > 0, the synthetic prepended
+		// point has TransferType=nil, which triggers the second guard in
+		// replicationCounterPointsSplitTillFirstUpdate (`points[0].Quantity > 0 && TransferType == nil`),
+		// short-circuiting it. The function then falls back to plain CounterDelta over
+		// [cachedValue, ...dataPoints], i.e. baseline-skipping no longer applies after the very
+		// first window.
+		updateTT := TransferTypeUpdate
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(5 * time.Minute), Quantity: 1200, TransferType: &updateTT},
+			{Timestamp: aggregationStartTime.Add(15 * time.Minute), Quantity: 1500, TransferType: &updateTT},
+		}
+
+		lastCounterValue := float64(1000)
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+		}
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &lastCounterValue},
+		}
+
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+
+		// Cached 1000 prepended → [1000, 1200, 1500]. Split bypassed (guard 2 hits).
+		// Plain CounterDelta: (1200-1000) + (1500-1200) = 200 + 300 = 500.
+		assert.InDelta(t, 500.0, res.billed, 0.001)
+		assert.InDelta(t, 0.0, res.skippedQty, 0.001)
+		assert.Nil(t, res.skippedSegmentEndCounter)
+		assert.Nil(t, res.segmentSplitAt)
+		require.NotNil(t, res.lastCounter)
+		assert.InDelta(t, 1500.0, *res.lastCounter, 0.001)
+		// No split happened → skipped transfer type stays nil; billable last_transfer_type
+		// comes from the last data point in the window.
+		assert.Nil(t, res.skippedSegmentEndTransferType)
+		require.NotNil(t, res.lastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.lastTransferType)
+	})
+
+	t.Run("Hybrid replication with single positive update sample accounts the full transfer as baseline", func(t *testing.T) {
+		// Single data point case (still len>=2 after zero-baseline prepend): the only positive
+		// update sample becomes the split point. The full transfer is captured in the skipped
+		// (baseline) segment and the billable suffix has no delta to bill.
+		updateTT := TransferTypeUpdate
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(5 * time.Minute), Quantity: 750, TransferType: &updateTT},
+		}
+		counterCache := make(CounterAggregationCache)
+
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+
+		// Zero baseline prepended → [0, 750]. Split at index 1 → prefix=[0,750], suffix=[750].
+		// Skipped delta = 750, billed delta = 0 (suffix has a single point).
+		assert.InDelta(t, 750.0, res.skippedQty, 0.001)
+		assert.InDelta(t, 0.0, res.billed, 0.001)
+		require.NotNil(t, res.skippedSegmentEndCounter)
+		assert.InDelta(t, 750.0, *res.skippedSegmentEndCounter, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.InDelta(t, 750.0, *res.lastCounter, 0.001)
+		require.NotNil(t, res.segmentSplitAt)
+		assert.True(t, res.segmentSplitAt.Equal(aggregationStartTime.Add(5*time.Minute)))
+		// Split point and last sample are both the single positive update sample.
+		require.NotNil(t, res.skippedSegmentEndTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.skippedSegmentEndTransferType)
+		require.NotNil(t, res.lastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.lastTransferType)
+	})
+
+	t.Run("Hybrid replication with empty data points returns zero without panic", func(t *testing.T) {
+		// len(dataPoints) == 0 short-circuits before the split logic, so the panic-prone
+		// replicationCounterPointsSplitTillFirstUpdate path is not hit at all.
+		counterCache := make(CounterAggregationCache)
+
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, []common.DataPoint{}, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+
+		assert.InDelta(t, 0.0, res.billed, 0.001)
+		assert.InDelta(t, 0.0, res.skippedQty, 0.001)
+		assert.Nil(t, res.lastCounter)
+		assert.Nil(t, res.skippedSegmentEndCounter)
+		assert.Nil(t, res.segmentSplitAt)
+	})
+
+	t.Run("Hybrid replication cache hit with cached initialize TransferType + no update in window treats whole window as baseline", func(t *testing.T) {
+		// Cross-window baseline continuation: prior cycle ended in baseline (LastTransferType=
+		// "initialize" cached), this cycle still has only initialize samples. The hardened split
+		// function returns split=false, and the caller's in-baseline branch treats the entire
+		// window as a non-billable baseline segment instead of falling through to plain
+		// CounterDelta (which would incorrectly bill the bytes).
+		initTT := TransferTypeInitial
+		cachedCounter := float64(200)
+		cachedTT := initTT
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+		}
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &cachedCounter, LastTransferType: &cachedTT},
+		}
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 300, TransferType: &initTT},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 400, TransferType: &initTT},
+		}
+
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+
+		// Synthetic [200, init] + [300, init, 400, init] → no update found.
+		// Caller treats the whole window as baseline: skippedQty = delta over all = 200; billed = 0.
+		assert.InDelta(t, 0.0, res.billed, 0.001)
+		assert.InDelta(t, 200.0, res.skippedQty, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.InDelta(t, 400.0, *res.lastCounter, 0.001)
+		require.NotNil(t, res.skippedSegmentEndCounter)
+		assert.InDelta(t, 400.0, *res.skippedSegmentEndCounter, 0.001)
+		// Both transfer types track the last data point (still "initialize") so the cache hands
+		// off baseline state to the next cycle.
+		require.NotNil(t, res.lastTransferType)
+		assert.Equal(t, TransferTypeInitial, *res.lastTransferType)
+		require.NotNil(t, res.skippedSegmentEndTransferType)
+		assert.Equal(t, TransferTypeInitial, *res.skippedSegmentEndTransferType)
+		// No within-window split, so segmentSplitAt stays nil → append helper keeps [start, end].
+		assert.Nil(t, res.segmentSplitAt)
+	})
+
+	t.Run("Hybrid replication cache hit with cached initialize TransferType + update appears mid-window splits at the update sample", func(t *testing.T) {
+		// Cross-window cutover: prior cycle was baseline, current cycle contains the cutover.
+		// Split lands on the first positive "update" sample; the prefix (synthetic + initialize
+		// samples + cutover sample) becomes the non-billable baseline; the suffix bills.
+		initTT := TransferTypeInitial
+		updateTT := TransferTypeUpdate
+		cachedCounter := float64(200)
+		cachedTT := initTT
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+		}
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &cachedCounter, LastTransferType: &cachedTT},
+		}
+		cutoverAt := aggregationStartTime.Add(20 * time.Minute)
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 300, TransferType: &initTT},
+			{Timestamp: cutoverAt, Quantity: 400, TransferType: &updateTT},
+			{Timestamp: aggregationStartTime.Add(30 * time.Minute), Quantity: 550, TransferType: &updateTT},
+		}
+
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+
+		// Synthetic [200, init] + [300:init, 400:update, 550:update].
+		// Split at index 2 (first positive update) → prefix=[200,300,400], suffix=[400,550].
+		// Skipped delta = 200; billed delta = 150.
+		assert.InDelta(t, 200.0, res.skippedQty, 0.001)
+		assert.InDelta(t, 150.0, res.billed, 0.001)
+		require.NotNil(t, res.skippedSegmentEndCounter)
+		assert.InDelta(t, 400.0, *res.skippedSegmentEndCounter, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.InDelta(t, 550.0, *res.lastCounter, 0.001)
+		require.NotNil(t, res.segmentSplitAt)
+		assert.True(t, res.segmentSplitAt.Equal(cutoverAt))
+		// Skipped baseline row carries the cutover sample's transfer_type (update);
+		// billable row carries the last sample's transfer_type (update).
+		require.NotNil(t, res.skippedSegmentEndTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.skippedSegmentEndTransferType)
+		require.NotNil(t, res.lastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.lastTransferType)
+	})
+
+	t.Run("Hybrid replication cache hit with cached update TransferType bills full delta with no baseline row", func(t *testing.T) {
+		// Past-baseline path: cached LastTransferType="update" → synthetic point carries TT=update
+		// → split function finds the synthetic point itself as splitIndex=0 → prefix=[synthetic]
+		// (zero delta), suffix bills the full window's delta. No non-billable baseline row.
+		updateTT := TransferTypeUpdate
+		cachedCounter := float64(200)
+		cachedTT := updateTT
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+		}
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &cachedCounter, LastTransferType: &cachedTT},
+		}
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 300, TransferType: &updateTT},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 400, TransferType: &updateTT},
+		}
+
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+
+		// Synthetic [200, update] + [300:update, 400:update]. splitIndex=0.
+		// prefix=[200] (delta 0), suffix=[200,300,400] (delta 200).
+		assert.InDelta(t, 0.0, res.skippedQty, 0.001)
+		assert.InDelta(t, 200.0, res.billed, 0.001)
+		require.NotNil(t, res.lastCounter)
+		assert.InDelta(t, 400.0, *res.lastCounter, 0.001)
+		require.NotNil(t, res.lastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *res.lastTransferType)
+	})
+
+	t.Run("Hybrid replication cache hit with legacy nil TransferType falls back to plain CounterDelta", func(t *testing.T) {
+		// Legacy row from before LastTransferType existed: cached value has TT=nil. The
+		// synthetic prepended point trips guard 2 of the split function (Quantity>0 &&
+		// TransferType==nil), so split=false. Because the cached TT is nil, the caller's
+		// inBaselineMode returns false and the code falls through to plain CounterDelta,
+		// preserving pre-Commit-3 behavior.
+		updateTT := TransferTypeUpdate
+		cachedCounter := float64(200)
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: resourceUUID,
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+		}
+		counterCache := CounterAggregationCache{
+			cacheKey: &CounterAggregationCacheValue{LastCounterValue: &cachedCounter, LastTransferType: nil},
+		}
+		dataPoints := []common.DataPoint{
+			{Timestamp: aggregationStartTime.Add(10 * time.Minute), Quantity: 300, TransferType: &updateTT},
+			{Timestamp: aggregationStartTime.Add(20 * time.Minute), Quantity: 400, TransferType: &updateTT},
+		}
+
+		res := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.XregionReplicationTotalTransferBytes, aggregationStartTime, counterCache, resourceUUID, logger, true)
+
+		// Plain CounterDelta over [200, 300, 400] = 200.
+		assert.InDelta(t, 200.0, res.billed, 0.001)
+		assert.InDelta(t, 0.0, res.skippedQty, 0.001)
+		assert.Nil(t, res.skippedSegmentEndCounter)
+		assert.Nil(t, res.segmentSplitAt)
+		require.NotNil(t, res.lastCounter)
+		assert.InDelta(t, 400.0, *res.lastCounter, 0.001)
 	})
 }
 
@@ -380,7 +650,10 @@ func TestPreloadCounterValues(t *testing.T) {
 			MeasuredType: metadata.AllocatedSize,
 		}
 		assert.Contains(t, result, cacheKey1)
-		assert.Equal(t, counterValue1, *result[cacheKey1])
+		require.NotNil(t, result[cacheKey1])
+		require.NotNil(t, result[cacheKey1].LastCounterValue)
+		assert.Equal(t, counterValue1, *result[cacheKey1].LastCounterValue)
+		assert.Nil(t, result[cacheKey1].LastTransferType, "DB record has no last_transfer_type set")
 
 		// Check second record - use CounterAggregationCacheResourceKey as key
 		cacheKey2 := CounterAggregationCacheResourceKey{
@@ -388,7 +661,10 @@ func TestPreloadCounterValues(t *testing.T) {
 			MeasuredType: metadata.LogicalSize,
 		}
 		assert.Contains(t, result, cacheKey2)
-		assert.Equal(t, counterValue2, *result[cacheKey2])
+		require.NotNil(t, result[cacheKey2])
+		require.NotNil(t, result[cacheKey2].LastCounterValue)
+		assert.Equal(t, counterValue2, *result[cacheKey2].LastCounterValue)
+		assert.Nil(t, result[cacheKey2].LastTransferType, "DB record has no last_transfer_type set")
 
 		mockDB.AssertExpectations(t)
 	})
@@ -409,5 +685,52 @@ func TestPreloadCounterValues(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		mockDB2.AssertExpectations(t)
+	})
+
+	t.Run("Propagates last_transfer_type from DB record into cache entry", func(t *testing.T) {
+		mockDB3 := database.NewMockStorage(t)
+		processor3 := &BillingProvider{
+			metricsDB: mockDB3,
+			config: &common.TelemetryConfig{
+				PoolVolumeLabelPageSize: 5000,
+			},
+		}
+
+		counterValue := float64(512)
+		transferType := TransferTypeUpdate
+		usageRecords := []datamodel2.AggregatedUsage{
+			{
+				ResourceUUID:     "replication-1",
+				ResourceName:     &[]string{"replication-1"}[0],
+				VendorCustomerID: &[]string{"customer-1"}[0],
+				ResourceType:     metadata.VolumeReplicationRelationship,
+				MeasuredType:     metadata.XregionReplicationTotalTransferBytes,
+				AggregationType:  "CounterAggregation",
+				LastCounterValue: &counterValue,
+				LastTransferType: &transferType,
+				AggregationEnd:   now.Add(-1 * time.Hour),
+			},
+		}
+
+		mockDB3.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(usageRecords, nil).Once()
+		mockDB3.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return([]datamodel2.AggregatedUsage{}, nil).Maybe()
+
+		result, err := processor3.preloadCounterValues(ctx, aggregationStartTime, aggregationEndTime, logger)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		cacheKey := CounterAggregationCacheResourceKey{
+			ResourceUUID: "replication-1",
+			MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+		}
+		require.Contains(t, result, cacheKey)
+		entry := result[cacheKey]
+		require.NotNil(t, entry)
+		require.NotNil(t, entry.LastCounterValue)
+		assert.Equal(t, counterValue, *entry.LastCounterValue)
+		require.NotNil(t, entry.LastTransferType)
+		assert.Equal(t, TransferTypeUpdate, *entry.LastTransferType)
+
+		mockDB3.AssertExpectations(t)
 	})
 }
