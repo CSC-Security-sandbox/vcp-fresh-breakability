@@ -606,6 +606,7 @@ func TestProcessMetricsWithJobDef_UnsupportedAggregation(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	processor := &BillingProvider{
 		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{},
 	}
 	logger := util.GetLogger(context.Background())
 	ctx := context.Background()
@@ -728,7 +729,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	processor := &BillingProvider{
 		metricsDB: mockDB,
-		config:    &common.TelemetryConfig{},
+		config:    &common.TelemetryConfig{SkipHybridReplicationBaselineBilling: true},
 	}
 	ctx := context.Background()
 	logger := util.GetLogger(ctx)
@@ -1036,7 +1037,7 @@ func TestProcessMetricsWithJobDef_ReplicationPrePositiveRows(t *testing.T) {
 
 	processor := &BillingProvider{
 		metricsDB: &database.MockStorage{},
-		config:    &common.TelemetryConfig{},
+		config:    &common.TelemetryConfig{SkipHybridReplicationBaselineBilling: true},
 	}
 
 	resourceIDRep := ResourceKey{
@@ -6378,7 +6379,7 @@ func TestProcessMetricsWithJobDef_HybridReplicationZeroBaselineOnCacheMiss(t *te
 
 	processor := &BillingProvider{
 		metricsDB: &database.MockStorage{},
-		config:    &common.TelemetryConfig{},
+		config:    &common.TelemetryConfig{SkipHybridReplicationBaselineBilling: true},
 	}
 
 	resourceID := ResourceKey{
@@ -6525,7 +6526,7 @@ func TestProcessMetricsWithJobDef_HybridReplicationCrossWindowBaseline(t *testin
 
 	processor := &BillingProvider{
 		metricsDB: &database.MockStorage{},
-		config:    &common.TelemetryConfig{},
+		config:    &common.TelemetryConfig{SkipHybridReplicationBaselineBilling: true},
 	}
 
 	resourceID := ResourceKey{
@@ -6632,7 +6633,7 @@ func TestProcessMetricsWithJobDef_HybridReplicationBaselineToUpdateCutoverAcross
 
 	processor := &BillingProvider{
 		metricsDB: &database.MockStorage{},
-		config:    &common.TelemetryConfig{},
+		config:    &common.TelemetryConfig{SkipHybridReplicationBaselineBilling: true},
 	}
 
 	const resourceUUID = "rep-uuid-cutover"
@@ -6872,7 +6873,7 @@ func TestShouldSkipBaselineBillingForHybridReplication(t *testing.T) {
 			ts := common.TimeSeries{
 				Metadata: metadata.ResourceMetadata{ResourceType: tt.resourceType},
 			}
-			got := shouldSkipBaselineBillingForHybridReplication(ts, tt.replicationType)
+			got := shouldSkipBaselineBillingForHybridReplication(ts, tt.replicationType, true)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -7184,7 +7185,7 @@ func TestProcessMetricsWithJobDef_ReplicationBillingStartsAfterCounterMovesFromZ
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			processor := &BillingProvider{
-				config: &common.TelemetryConfig{},
+				config: &common.TelemetryConfig{SkipHybridReplicationBaselineBilling: true},
 			}
 
 			resourceID := ResourceKey{
@@ -8116,11 +8117,11 @@ func TestFetchExpertModeVolumeData_PopulatesStandardVolume(t *testing.T) {
 
 	volumes := []*database2.ExpertModeVolumeMetricsData{
 		{
-			UUID:            "vol-uuid-1",
-			Name:            "vol1",
-			AccountID:       42,
-			AccountName:     "account1",
-			DeploymentName:  "dep1",
+			UUID:             "vol-uuid-1",
+			Name:             "vol1",
+			AccountID:        42,
+			AccountName:      "account1",
+			DeploymentName:   "dep1",
 			PoolIsRegionalHA: false,
 		},
 	}
@@ -8154,11 +8155,11 @@ func TestFetchExpertModeVolumeData_PopulatesRegionalHAVolume(t *testing.T) {
 
 	volumes := []*database2.ExpertModeVolumeMetricsData{
 		{
-			UUID:            "vol-ha-uuid",
-			Name:            "vol-ha",
-			AccountID:       7,
-			AccountName:     "account1",
-			DeploymentName:  "dep1",
+			UUID:             "vol-ha-uuid",
+			Name:             "vol-ha",
+			AccountID:        7,
+			AccountName:      "account1",
+			DeploymentName:   "dep1",
 			PoolIsRegionalHA: true,
 		},
 	}

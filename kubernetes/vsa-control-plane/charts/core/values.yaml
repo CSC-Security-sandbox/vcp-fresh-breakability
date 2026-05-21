@@ -320,6 +320,7 @@ telemetryDeployer:
   enableSfrCrossRegionRestoreBilling: false
   enableReplicationBillingMetrics: false
   enableBidirectionalReplicationBillingMetrics: false
+  skipHybridReplicationBaselineBilling: true
   enableInRegionReplicationBillingMetrics: false
   enableOntapModeReplicationBilling: false
   enableAutoTieringBillingMetrics: false

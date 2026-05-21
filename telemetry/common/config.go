@@ -33,6 +33,7 @@ type TelemetryConfig struct {
 	EnableSFRCrossRegionRestoreBilling           bool
 	EnableReplicationBillingMetrics              bool
 	EnableBidirectionalReplicationBillingMetrics bool
+	SkipHybridReplicationBaselineBilling         bool
 	EnableInRegionReplicationBillingMetrics      bool
 	EnableOntapModeReplicationBilling            bool
 	EnableAutoTieringBillingMetrics              bool
@@ -94,6 +95,7 @@ func LoadConfig() *TelemetryConfig {
 	enableExpertModeBackupBilling := env.GetBool("ENABLE_EXPERT_MODE_BACKUP_BILLING", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
 	enableBidirectionalReplicationBillingMetrics := env.GetBool("ENABLE_BIDIRECTIONAL_REPLICATION_BILLING_METRICS", false)
+	skipHybridReplicationBaselineBilling := env.GetBool("SKIP_HYBRID_REPLICATION_BASELINE_BILLING", true)
 	enableInRegionReplicationBillingMetrics := env.GetBool("ENABLE_IN_REGION_REPLICATION_BILLING_METRICS", false)
 	enableOntapModeReplicationBilling := env.GetBool("ENABLE_ONTAP_MODE_REPLICATION_BILLING", false)
 	enableAutoTieringBillingMetrics := env.GetBool("ENABLE_AUTO_TIERING_BILLING_METRICS", false)
@@ -150,6 +152,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableSFRCrossRegionRestoreBilling:           enableSFRCrossRegionRestoreBilling,
 		EnableReplicationBillingMetrics:              enableReplicationBillingMetrics,
 		EnableBidirectionalReplicationBillingMetrics: enableBidirectionalReplicationBillingMetrics,
+		SkipHybridReplicationBaselineBilling:         skipHybridReplicationBaselineBilling,
 		EnableInRegionReplicationBillingMetrics:      enableInRegionReplicationBillingMetrics,
 		EnableOntapModeReplicationBilling:            enableOntapModeReplicationBilling,
 		EnableAutoTieringBillingMetrics:              enableAutoTieringBillingMetrics,

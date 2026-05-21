@@ -191,6 +191,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_BIDIRECTIONAL_REPLICATION_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableBidirectionalReplicationBillingMetrics | default "false" | quote }}
+            - name: SKIP_HYBRID_REPLICATION_BASELINE_BILLING
+              value: {{ .Values.telemetryDeployer.skipHybridReplicationBaselineBilling | default "false" | quote }}
             - name: ENABLE_IN_REGION_REPLICATION_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableInRegionReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_ONTAP_MODE_REPLICATION_BILLING

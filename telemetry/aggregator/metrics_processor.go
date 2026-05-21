@@ -1554,7 +1554,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	if resourceData.VolumeReplicationInfo != nil {
 		replicationTypeForSkip = resourceData.VolumeReplicationInfo.ReplicationType
 	}
-	skipBaselineBillingForHybridReplication := shouldSkipBaselineBillingForHybridReplication(metrics, replicationTypeForSkip)
+	skipBaselineBillingForHybridReplication := shouldSkipBaselineBillingForHybridReplication(metrics, replicationTypeForSkip, p.config.SkipHybridReplicationBaselineBilling)
 	switch jobDef.AggregationType {
 	case common.IntegralAggregation:
 		quantity = common.Integral(metrics.DataPoints)
@@ -1908,8 +1908,8 @@ func isHybridMigrationOrOnPremReplicationType(replicationType string) bool {
 	}
 }
 
-func shouldSkipBaselineBillingForHybridReplication(metrics common.TimeSeries, replicationType string) bool {
-	if metrics.Metadata.ResourceType == metadata.VolumeReplicationRelationship && isHybridMigrationOrOnPremReplicationType(replicationType) {
+func shouldSkipBaselineBillingForHybridReplication(metrics common.TimeSeries, replicationType string, skipHybridReplicationBaselineBilling bool) bool {
+	if metrics.Metadata.ResourceType == metadata.VolumeReplicationRelationship && isHybridMigrationOrOnPremReplicationType(replicationType) && skipHybridReplicationBaselineBilling {
 		return true
 	}
 	return false
