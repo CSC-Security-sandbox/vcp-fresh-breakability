@@ -354,6 +354,9 @@ func (rc *OntapRestProvider) GetVolumeForExpertMode(params GetVolumeParams) (*Vo
 	if err != nil {
 		return nil, err
 	}
+	if vol == nil || vol.Name == nil || vol.UUID == nil || vol.Size == nil || vol.State == nil {
+		return nil, fmt.Errorf("GetVolumeForExpertMode: incomplete ONTAP volume response: missing required fields (name/uuid/size/state)")
+	}
 	volStyle := ""
 	if vol.Style != nil {
 		volStyle = *vol.Style

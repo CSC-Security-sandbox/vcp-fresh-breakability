@@ -3899,204 +3899,103 @@ func TestGetVolumeForExpertMode(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
+}
 
-	t.Run("WhenVolumeGetReturnsNilVolume_ThenPanic", func(tt *testing.T) {
-		mockStorage := new(ontaprest.MockStorageClient)
-		mockClient := new(ontaprest.MockRESTClient)
-		mockClient.On("Storage").Return(mockStorage)
-		originalGetOntapClientFunc := getOntapClientFunc
-		defer func() {
-			getOntapClientFunc = originalGetOntapClientFunc
-		}()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		rc := &OntapRestProvider{}
+// TestGetVolumeForExpertMode_WhenIncompleteOntapResponse_ThenReturnError ensures missing
+// required ONTAP fields are not misreported as not-found (e.g. during in-progress delete).
+func TestGetVolumeForExpertMode_WhenIncompleteOntapResponse_ThenReturnError(t *testing.T) {
+	volumeName := "testVolume"
+	volumeUUID := "testUUID"
+	svmName := "testSVM"
+	volumeSize := int64(200000)
+	volumeState := models.VolumeStateOnline
 
-		mockStorage.On("VolumeGet", mock.Anything).Return(nil, nil)
-
-		params := GetVolumeParams{
-			UUID:       "testUUID",
-			VolumeName: "testVolume",
-			SvmName:    "testSVM",
-		}
-
-		// This should panic because vol is nil and we try to access vol.Style
-		require.Panics(tt, func() {
-			_, _ = rc.GetVolumeForExpertMode(params)
-		})
-
-		mockStorage.AssertExpectations(tt)
-		mockClient.AssertExpectations(tt)
-	})
-
-	t.Run("WhenVolumeGetReturnsVolumeWithNilName_ThenPanic", func(tt *testing.T) {
-		mockStorage := new(ontaprest.MockStorageClient)
-		mockClient := new(ontaprest.MockRESTClient)
-		mockClient.On("Storage").Return(mockStorage)
-		originalGetOntapClientFunc := getOntapClientFunc
-		defer func() {
-			getOntapClientFunc = originalGetOntapClientFunc
-		}()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		rc := &OntapRestProvider{}
-
-		volumeUUID := "testUUID"
-		volumeSize := int64(200000)
-		volumeState := models.VolumeStateOnline
-
-		mockVolume := &ontaprest.Volume{
-			Volume: models.Volume{
-				UUID:  nillable.ToPointer(volumeUUID),
-				Name:  nil, // Name is nil - will cause panic
-				Size:  &volumeSize,
-				State: nillable.ToPointer(volumeState),
+	tests := []struct {
+		name       string
+		mockVolume *ontaprest.Volume
+	}{
+		{
+			name:       "nil volume",
+			mockVolume: nil,
+		},
+		{
+			name: "nil name",
+			mockVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					UUID:  nillable.ToPointer(volumeUUID),
+					Name:  nil,
+					Size:  &volumeSize,
+					State: nillable.ToPointer(volumeState),
+				},
 			},
-		}
-		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
-
-		params := GetVolumeParams{
-			UUID:       volumeUUID,
-			VolumeName: "testVolume",
-			SvmName:    "testSVM",
-		}
-
-		// This should panic because Name is nil
-		require.Panics(tt, func() {
-			_, _ = rc.GetVolumeForExpertMode(params)
-		})
-
-		mockStorage.AssertExpectations(tt)
-		mockClient.AssertExpectations(tt)
-	})
-
-	t.Run("WhenVolumeGetReturnsVolumeWithNilUUID_ThenPanic", func(tt *testing.T) {
-		mockStorage := new(ontaprest.MockStorageClient)
-		mockClient := new(ontaprest.MockRESTClient)
-		mockClient.On("Storage").Return(mockStorage)
-		originalGetOntapClientFunc := getOntapClientFunc
-		defer func() {
-			getOntapClientFunc = originalGetOntapClientFunc
-		}()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		rc := &OntapRestProvider{}
-
-		volumeName := "testVolume"
-		volumeSize := int64(200000)
-		volumeState := models.VolumeStateOnline
-
-		mockVolume := &ontaprest.Volume{
-			Volume: models.Volume{
-				UUID:  nil, // UUID is nil - will cause panic
-				Name:  &volumeName,
-				Size:  &volumeSize,
-				State: nillable.ToPointer(volumeState),
+		},
+		{
+			name: "nil uuid",
+			mockVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					UUID:  nil,
+					Name:  &volumeName,
+					Size:  &volumeSize,
+					State: nillable.ToPointer(volumeState),
+				},
 			},
-		}
-		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
-
-		params := GetVolumeParams{
-			UUID:       "testUUID",
-			VolumeName: volumeName,
-			SvmName:    "testSVM",
-		}
-
-		// This should panic because UUID is nil
-		require.Panics(tt, func() {
-			_, _ = rc.GetVolumeForExpertMode(params)
-		})
-
-		mockStorage.AssertExpectations(tt)
-		mockClient.AssertExpectations(tt)
-	})
-
-	t.Run("WhenVolumeGetReturnsVolumeWithNilSize_ThenPanic", func(tt *testing.T) {
-		mockStorage := new(ontaprest.MockStorageClient)
-		mockClient := new(ontaprest.MockRESTClient)
-		mockClient.On("Storage").Return(mockStorage)
-		originalGetOntapClientFunc := getOntapClientFunc
-		defer func() {
-			getOntapClientFunc = originalGetOntapClientFunc
-		}()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		rc := &OntapRestProvider{}
-
-		volumeName := "testVolume"
-		volumeUUID := "testUUID"
-		volumeState := models.VolumeStateOnline
-
-		mockVolume := &ontaprest.Volume{
-			Volume: models.Volume{
-				UUID:  nillable.ToPointer(volumeUUID),
-				Name:  &volumeName,
-				Size:  nil, // Size is nil - will cause panic
-				State: nillable.ToPointer(volumeState),
+		},
+		{
+			name: "nil size",
+			mockVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					UUID:  nillable.ToPointer(volumeUUID),
+					Name:  &volumeName,
+					Size:  nil,
+					State: nillable.ToPointer(volumeState),
+				},
 			},
-		}
-		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
-
-		params := GetVolumeParams{
-			UUID:       volumeUUID,
-			VolumeName: volumeName,
-			SvmName:    "testSVM",
-		}
-
-		// This should panic because Size is nil
-		require.Panics(tt, func() {
-			_, _ = rc.GetVolumeForExpertMode(params)
-		})
-
-		mockStorage.AssertExpectations(tt)
-		mockClient.AssertExpectations(tt)
-	})
-
-	t.Run("WhenVolumeGetReturnsVolumeWithNilState_ThenPanic", func(tt *testing.T) {
-		mockStorage := new(ontaprest.MockStorageClient)
-		mockClient := new(ontaprest.MockRESTClient)
-		mockClient.On("Storage").Return(mockStorage)
-		originalGetOntapClientFunc := getOntapClientFunc
-		defer func() {
-			getOntapClientFunc = originalGetOntapClientFunc
-		}()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		rc := &OntapRestProvider{}
-
-		volumeName := "testVolume"
-		volumeUUID := "testUUID"
-		volumeSize := int64(200000)
-
-		mockVolume := &ontaprest.Volume{
-			Volume: models.Volume{
-				UUID:  nillable.ToPointer(volumeUUID),
-				Name:  &volumeName,
-				Size:  &volumeSize,
-				State: nil, // State is nil - will cause panic
+		},
+		{
+			name: "nil state",
+			mockVolume: &ontaprest.Volume{
+				Volume: models.Volume{
+					UUID:  nillable.ToPointer(volumeUUID),
+					Name:  &volumeName,
+					Size:  &volumeSize,
+					State: nil,
+				},
 			},
-		}
-		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+		},
+	}
 
-		params := GetVolumeParams{
-			UUID:       volumeUUID,
-			VolumeName: volumeName,
-			SvmName:    "testSVM",
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(tt *testing.T) {
+			mockStorage := new(ontaprest.MockStorageClient)
+			mockClient := new(ontaprest.MockRESTClient)
+			mockClient.On("Storage").Return(mockStorage)
+			originalGetOntapClientFunc := getOntapClientFunc
+			defer func() {
+				getOntapClientFunc = originalGetOntapClientFunc
+			}()
+			getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+				return mockClient, nil
+			}
+			rc := &OntapRestProvider{}
 
-		// This should panic because State is nil
-		require.Panics(tt, func() {
-			_, _ = rc.GetVolumeForExpertMode(params)
+			mockStorage.On("VolumeGet", mock.Anything).Return(tc.mockVolume, nil).Once()
+
+			params := GetVolumeParams{
+				UUID:       volumeUUID,
+				VolumeName: volumeName,
+				SvmName:    svmName,
+			}
+			resp, err := rc.GetVolumeForExpertMode(params)
+
+			assert.Nil(tt, resp)
+			assert.Error(tt, err)
+			assert.False(tt, errors.IsNotFoundErr(err), "incomplete response must not be not-found, got: %v", err)
+			assert.Contains(tt, err.Error(), "incomplete ONTAP volume response")
+
+			mockStorage.AssertExpectations(tt)
+			mockClient.AssertExpectations(tt)
 		})
-
-		mockStorage.AssertExpectations(tt)
-		mockClient.AssertExpectations(tt)
-	})
+	}
 }
 
 func TestGetCloneVolumeForExpertMode(t *testing.T) {
