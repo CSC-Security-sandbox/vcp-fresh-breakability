@@ -9639,27 +9639,62 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		assert.Contains(t, err.Error(), "MQOS is not enabled")
 	})
 
-	t.Run("WhenEnableMqosIsTrueAndEnableInferredIopsIsFalse_OnlyThroughputMibpsSet_ReturnsError", func(t *testing.T) {
+	t.Run("WhenEnableMqosIsTrueAndEnableInferredIopsIsFalse_OnlyThroughputMibpsSet_ReturnsParam", func(t *testing.T) {
 		enableMqos = true
 		enableInferredIops = false
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			ThroughputMibps: gcpgenserver.NewOptNilFloat64(100),
 		}
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "throughputMibps and iops must be set together")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int64(100), *result.ThroughputMibps)
+		assert.Nil(t, result.Iops)
+		assert.Nil(t, result.VolumePerformanceGroupId)
 	})
 
-	t.Run("WhenEnableMqosIsTrue_OnlyIopsSet_ReturnsError", func(t *testing.T) {
+	t.Run("WhenEnableMqosIsTrueAndEnableInferredIopsIsFalse_OnlyIopsSet_ReturnsParam", func(t *testing.T) {
 		enableMqos = true
+		enableInferredIops = false
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			Iops: gcpgenserver.NewOptNilInt64(1000),
 		}
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "throughputMibps and iops must be set together")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Nil(t, result.ThroughputMibps)
+		assert.Equal(t, int64(1000), *result.Iops)
+		assert.Nil(t, result.VolumePerformanceGroupId)
+	})
+
+	t.Run("WhenThroughputMibpsIsNull_TreatedAsOmitted", func(t *testing.T) {
+		enableMqos = true
+		enableInferredIops = false
+		var nullThroughput gcpgenserver.OptNilFloat64
+		nullThroughput.SetToNull()
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ThroughputMibps: nullThroughput,
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Nil(t, result.ThroughputMibps)
+		assert.Nil(t, result.Iops)
+	})
+
+	t.Run("WhenIopsIsNull_TreatedAsOmitted", func(t *testing.T) {
+		enableMqos = true
+		enableInferredIops = false
+		var nullIops gcpgenserver.OptNilInt64
+		nullIops.SetToNull()
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			Iops: nullIops,
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Nil(t, result.ThroughputMibps)
+		assert.Nil(t, result.Iops)
 	})
 
 	t.Run("WhenEnableMqosIsTrue_VolumePerformanceGroupIdAndThroughputMibpsSet_ReturnsError", func(t *testing.T) {
@@ -9769,7 +9804,7 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "throughputMibps and iops must be set together")
+		assert.Contains(t, err.Error(), "iops must not be set when IOPS inference is enabled. Only throughputMibps is needed.")
 	})
 
 	t.Run("WhenEnableMqosIsTrueAndEnableInferredIopsIsTrue_ThroughputMibpsAndIopsSet_ReturnsError", func(t *testing.T) {
@@ -9782,7 +9817,52 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "iops must not be set when enableInferredIops is true")
+		assert.Contains(t, err.Error(), "iops must not be set when IOPS inference is enabled. Only throughputMibps is needed.")
+	})
+
+	// VPG-revert cases: volume currently VPG-assigned, request sets individual QoS without volumePerformanceGroupId.
+	// Both throughputMibps and iops are required because there are no existing individual values to delta into.
+
+	t.Run("WhenVolumeIsVpgAssigned_OnlyThroughputMibpsSet_ReturnsError", func(t *testing.T) {
+		enableMqos = true
+		enableInferredIops = false
+		dbVol := &models.Volume{VolumePerformanceGroupId: "vpg-abc"}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(100),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVol)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "throughputMibps and iops must both be set when reverting a VPG volume to individual QoS")
+	})
+
+	t.Run("WhenVolumeIsVpgAssigned_OnlyIopsSet_ReturnsError", func(t *testing.T) {
+		enableMqos = true
+		enableInferredIops = false
+		dbVol := &models.Volume{VolumePerformanceGroupId: "vpg-abc"}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			Iops: gcpgenserver.NewOptNilInt64(1000),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVol)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "throughputMibps and iops must both be set when reverting a VPG volume to individual QoS")
+	})
+
+	t.Run("WhenVolumeIsVpgAssigned_BothThroughputAndIopsSet_ReturnsParam", func(t *testing.T) {
+		enableMqos = true
+		enableInferredIops = false
+		dbVol := &models.Volume{VolumePerformanceGroupId: "vpg-abc"}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(100),
+			Iops:            gcpgenserver.NewOptNilInt64(1000),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVol)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int64(100), *result.ThroughputMibps)
+		assert.Equal(t, int64(1000), *result.Iops)
+		assert.Nil(t, result.VolumePerformanceGroupId)
 	})
 }
 

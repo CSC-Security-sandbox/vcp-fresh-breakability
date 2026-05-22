@@ -1413,8 +1413,8 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 	}
 
-	hasThroughput := req.ThroughputMibps.IsSet()
-	hasIops := req.Iops.IsSet()
+	throughputMibps, hasThroughput := req.ThroughputMibps.Get()
+	iops, hasIops := req.Iops.Get()
 	hasVpg := req.VolumePerformanceGroupId.IsSet()
 
 	if hasThroughput || hasIops || hasVpg {
@@ -1431,19 +1431,23 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			}
 			param.VolumePerformanceGroupId = nillable.ToPointer(req.VolumePerformanceGroupId.Value)
 		} else {
-			// If volumePerformanceGroupId is not set, then throughputMibps must be set, and iops can only be null if enableInferredIops is true
-			if !hasThroughput || (!enableInferredIops && hasThroughput && !hasIops) {
-				return nil, errors.NewUserInputValidationErr("throughputMibps and iops must be set together")
+			// Manual QoS without VPG in the request.
+			// If the volume is currently VPG-assigned, this is a revert-to-individual operation and both
+			// throughputMibps and iops are required (they have no existing individual values to merge into).
+			// If the volume already carries individual QoS, partial deltas are fine — the orchestrator
+			// merges with the existing values. Null is treated as omitted (not a delta instruction).
+			currentlyVpg := dbVolume != nil && dbVolume.VolumePerformanceGroupId != ""
+			if currentlyVpg && (!hasThroughput || !hasIops) {
+				return nil, errors.NewUserInputValidationErr("throughputMibps and iops must both be set when reverting a VPG volume to individual QoS")
 			}
 			if hasThroughput {
-				throughputValue := int64(math.Floor(req.ThroughputMibps.Value))
-				param.ThroughputMibps = nillable.ToPointer(throughputValue)
+				param.ThroughputMibps = nillable.ToPointer(int64(math.Floor(throughputMibps)))
 			}
 			if hasIops {
 				if enableInferredIops {
-					return nil, errors.NewUserInputValidationErr("iops must not be set when enableInferredIops is true")
+					return nil, errors.NewUserInputValidationErr("iops must not be set when IOPS inference is enabled. Only throughputMibps is needed.")
 				}
-				param.Iops = nillable.ToPointer(req.Iops.Value)
+				param.Iops = nillable.ToPointer(iops)
 			}
 		}
 	}
