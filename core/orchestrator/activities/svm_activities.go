@@ -146,6 +146,22 @@ func (j *SvmActivity) SaveSVMAndLifDataWithOCID(ctx context.Context, pool *datam
 	return j.saveSVMAndLifData(ctx, pool, vlmConfig, svmName, strings.TrimSpace(svmOCID))
 }
 
+// GetNodeUUIDsByNameForPool returns a lookup map used to enrich SVM workflow metadata.
+func (j *SvmActivity) GetNodeUUIDsByNameForPool(ctx context.Context, poolID int64) (map[string]string, error) {
+	nodes, err := j.SE.GetNodesByPoolID(ctx, poolID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	nodeUUIDsByName := make(map[string]string, len(nodes))
+	for _, node := range nodes {
+		if node.Name == "" {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("node name is empty for node ID "+strconv.FormatInt(node.ID, 10)))
+		}
+		nodeUUIDsByName[node.Name] = node.UUID
+	}
+	return nodeUUIDsByName, nil
+}
+
 func (j *SvmActivity) saveSVMAndLifData(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, svmName string, svmExternalIdentifier string) (*datamodel.Svm, error) {
 	activity.RecordHeartbeat(ctx, "Starting SaveSVMAndLifData activity")
 	if pool == nil {
@@ -198,13 +214,18 @@ func (j *SvmActivity) saveSVMAndLifData(ctx context.Context, pool *datamodel.Poo
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
-	// create map of nodes with node name as key and node ID as value
-	nodeMap := make(map[string]int64)
+	type nodeLookup struct {
+		id int64
+	}
+	// create map of nodes with node name as key and node identity as value
+	nodeMap := make(map[string]nodeLookup)
 	for _, node := range nodes {
 		if node.Name == "" {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("node name is empty for node ID "+strconv.FormatInt(node.ID, 10)))
 		}
-		nodeMap[node.Name] = node.ID
+		nodeMap[node.Name] = nodeLookup{
+			id: node.ID,
+		}
 	}
 
 	createLifs := func(lifType vlm.VSALIFType, protocolType string) error {
@@ -215,7 +236,7 @@ func (j *SvmActivity) saveSVMAndLifData(ctx context.Context, pool *datamodel.Poo
 			}
 			ip := strings.Split(lif.IP, "/")[0]
 
-			nodeID, exists := nodeMap[lif.HomeNode]
+			node, exists := nodeMap[lif.HomeNode]
 			if !exists {
 				return vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, fmt.Errorf("LIF %s references non-existent home node %s", lif.Name, lif.HomeNode))
 			}
@@ -223,7 +244,7 @@ func (j *SvmActivity) saveSVMAndLifData(ctx context.Context, pool *datamodel.Poo
 			lifRec := &datamodel.Lif{
 				Name:      lif.Name,
 				AccountID: pool.AccountID,
-				NodeID:    nodeID,
+				NodeID:    node.id,
 				LifDetails: &datamodel.LifDetails{
 					ExternalUUID: lif.Uuid,
 					ProtocolType: protocolType,

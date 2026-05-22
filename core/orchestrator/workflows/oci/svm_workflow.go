@@ -28,6 +28,8 @@ type OCICreateSVMLifResult struct {
 	Name      string   `json:"name"`
 	IP        string   `json:"ipAddress"`
 	Node      string   `json:"node"`
+	NodeUUID  string   `json:"nodeUUID"`
+	HaPair    *string  `json:"haPair,omitempty"`
 	Protocols []string `json:"protocols"`
 }
 
@@ -214,11 +216,16 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	logger.Infof("SVM and LIF data saved: svmName=%s, svmUUID=%s", svm.Name, svm.SvmDetails.ExternalUUID)
 
-	result := buildCreateSVMResult(params, svm, &createSVMResponse.VLMConfig)
+	var nodeUUIDsByName map[string]string
+	if lookupErr := workflow.ExecuteActivity(dbHbCtx, svmActivity.GetNodeUUIDsByNameForPool, pool.ID).Get(dbHbCtx, &nodeUUIDsByName); lookupErr != nil {
+		logger.Warnf("Failed to enrich SVM response with node UUIDs from DB: %v", lookupErr)
+	}
+
+	result := buildCreateSVMResult(params, svm, &createSVMResponse.VLMConfig, nodeUUIDsByName)
 	return result, nil
 }
 
-func buildCreateSVMResult(params *common.CreateSvmParams, svm *datamodel.Svm, vlmCfg *vlm.VLMConfig) *OCICreateSVMResult {
+func buildCreateSVMResult(params *common.CreateSvmParams, svm *datamodel.Svm, vlmCfg *vlm.VLMConfig, nodeUUIDsByName map[string]string) *OCICreateSVMResult {
 	res := &OCICreateSVMResult{
 		Name:    svm.Name,
 		SvmOCID: params.SvmExternalIdentifier,
@@ -228,6 +235,7 @@ func buildCreateSVMResult(params *common.CreateSvmParams, svm *datamodel.Svm, vl
 	if !ok {
 		return res
 	}
+	haPairByNode := haPairByNodeName(vlmCfg.Cloud.HAPairs)
 	for lifType, lifs := range svmCfg.SVMLIFs {
 		protos, ok := lifTypeToProtocols[lifType]
 		if !ok {
@@ -235,15 +243,32 @@ func buildCreateSVMResult(params *common.CreateSvmParams, svm *datamodel.Svm, vl
 		}
 		for _, l := range lifs {
 			ip := strings.Split(l.IP, "/")[0]
+			nodeUUID := nodeUUIDsByName[l.HomeNode]
+			haPair := haPairByNode[l.HomeNode]
 			res.Lifs = append(res.Lifs, OCICreateSVMLifResult{
 				Name:      l.Name,
 				IP:        ip,
 				Node:      l.HomeNode,
+				NodeUUID:  nodeUUID,
+				HaPair:    haPair,
 				Protocols: protos,
 			})
 		}
 	}
 	return res
+}
+
+func haPairByNodeName(haPairs []vlm.HAPair) map[string]*string {
+	haPairByNode := make(map[string]*string)
+	for i, haPair := range haPairs {
+		haPairLabel := fmt.Sprintf("ha_pair-%d", i+1)
+		for _, nodeName := range []string{haPair.VM1.Name, haPair.VM2.Name, haPair.Mediator.Name} {
+			if nodeName != "" {
+				haPairByNode[nodeName] = &haPairLabel
+			}
+		}
+	}
+	return haPairByNode
 }
 
 // ---------------------------------------------------------------------------

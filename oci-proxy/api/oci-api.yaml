@@ -1152,6 +1152,12 @@ components:
           type: string
         node:
           type: string
+        nodeUUID:
+          type: string
+          description: UUID of the corresponding node.
+        haPair:
+          type: string
+          description: HA pair label in cloud.ha_pair for the LIF home node, formatted as ha_pair-<index>.
         protocols:
           type: array
           items:

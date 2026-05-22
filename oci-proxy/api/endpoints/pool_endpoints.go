@@ -423,12 +423,19 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 			for _, p := range l.Protocols {
 				protocols = append(protocols, ociserver.SvmLifProtocolsItem(p))
 			}
-			lifs = append(lifs, ociserver.SvmLif{
+			lif := ociserver.SvmLif{
 				Name:      ociserver.NewOptString(l.Name),
 				IpAddress: ociserver.NewOptString(l.IP),
 				Node:      ociserver.NewOptString(l.Node),
 				Protocols: protocols,
-			})
+			}
+			if l.NodeUUID != "" {
+				lif.NodeUUID = ociserver.NewOptString(l.NodeUUID)
+			}
+			if l.HaPair != nil {
+				lif.HaPair = ociserver.NewOptString(*l.HaPair)
+			}
+			lifs = append(lifs, lif)
 		}
 		resp.SvmMetadata = ociserver.NewOptOCICreateSVMWorkflowMetadata(
 			ociserver.OCICreateSVMWorkflowMetadata{

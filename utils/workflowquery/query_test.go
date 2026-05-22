@@ -543,11 +543,12 @@ func TestSvmResultFromPayloads(t *testing.T) {
 	})
 	t.Run("valid metadata returns correct struct", func(t *testing.T) {
 		t.Parallel()
+		haPair := "ha_pair-1"
 		input := OCICreateSVMMetadata{
 			Name:    "svm1",
 			SvmOCID: "ocid1.svm",
 			Lifs: []OCICreateSVMLifMetadata{
-				{Name: "lif1", IP: "10.0.0.1", Node: "node1", Protocols: []string{"nfs", "cifs", "s3"}},
+				{Name: "lif1", IP: "10.0.0.1", Node: "node1", NodeUUID: "node-uuid-1", HaPair: &haPair, Protocols: []string{"nfs", "cifs", "s3"}},
 			},
 		}
 		raw, err := json.Marshal(input)
@@ -560,6 +561,9 @@ func TestSvmResultFromPayloads(t *testing.T) {
 		require.Equal(t, "lif1", got.Lifs[0].Name)
 		require.Equal(t, "10.0.0.1", got.Lifs[0].IP)
 		require.Equal(t, "node1", got.Lifs[0].Node)
+		require.Equal(t, "node-uuid-1", got.Lifs[0].NodeUUID)
+		require.NotNil(t, got.Lifs[0].HaPair)
+		require.Equal(t, "ha_pair-1", *got.Lifs[0].HaPair)
 		require.Equal(t, []string{"nfs", "cifs", "s3"}, got.Lifs[0].Protocols)
 	})
 }
@@ -567,11 +571,12 @@ func TestSvmResultFromPayloads(t *testing.T) {
 func TestGetCompletedWorkflowMetadata_SVMWorkflow(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
+	haPair := "ha_pair-1"
 	svmResult := OCICreateSVMMetadata{
 		Name:    "svm1",
 		SvmOCID: "ocid1.svm",
 		Lifs: []OCICreateSVMLifMetadata{
-			{Name: "lif1", IP: "10.0.0.1", Node: "node1", Protocols: []string{"nfs", "cifs", "s3"}},
+			{Name: "lif1", IP: "10.0.0.1", Node: "node1", NodeUUID: "node-uuid-1", HaPair: &haPair, Protocols: []string{"nfs", "cifs", "s3"}},
 		},
 	}
 	raw, err := json.Marshal(svmResult)
@@ -604,6 +609,9 @@ func TestGetCompletedWorkflowMetadata_SVMWorkflow(t *testing.T) {
 	require.Equal(t, "lif1", svmMeta.Lifs[0].Name)
 	require.Equal(t, "10.0.0.1", svmMeta.Lifs[0].IP)
 	require.Equal(t, "node1", svmMeta.Lifs[0].Node)
+	require.Equal(t, "node-uuid-1", svmMeta.Lifs[0].NodeUUID)
+	require.NotNil(t, svmMeta.Lifs[0].HaPair)
+	require.Equal(t, "ha_pair-1", *svmMeta.Lifs[0].HaPair)
 	require.Equal(t, []string{"nfs", "cifs", "s3"}, svmMeta.Lifs[0].Protocols)
 }
 

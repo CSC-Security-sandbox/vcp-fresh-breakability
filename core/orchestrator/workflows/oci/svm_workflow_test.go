@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -70,6 +71,11 @@ func TestOCICreateSVMWorkflow_Success(t *testing.T) {
 	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
 
 	vlmCfg := vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{
+			HAPairs: []vlm.HAPair{
+				{VM1: vlm.VMConfig{Name: "node1"}},
+			},
+		},
 		Svm: map[string]vlm.SvmConfig{
 			"test-svm": {
 				SVMLIFs: vlm.SvmLIFConfigs{
@@ -96,6 +102,7 @@ func TestOCICreateSVMWorkflow_Success(t *testing.T) {
 	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
 		Return(&vlm.OntapCredentials{AdminPassword: "svm-admin-pw"}, nil)
 	env.OnActivity("SaveSVMAndLifDataWithOCID", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(savedSvm, nil)
+	env.OnActivity("GetNodeUUIDsByNameForPool", mock.Anything, mock.Anything).Return(map[string]string{"node1": "node-uuid-1"}, nil)
 
 	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
 
@@ -108,6 +115,10 @@ func TestOCICreateSVMWorkflow_Success(t *testing.T) {
 	assert.Equal(t, "ocid1.svm..a", result.SvmOCID)
 	assert.Len(t, result.Lifs, 1)
 	assert.Equal(t, "10.0.0.1", result.Lifs[0].IP)
+	assert.Equal(t, "node-uuid-1", result.Lifs[0].NodeUUID)
+	if assert.NotNil(t, result.Lifs[0].HaPair) {
+		assert.Equal(t, "ha_pair-1", *result.Lifs[0].HaPair)
+	}
 	env.AssertExpectations(t)
 }
 
@@ -233,6 +244,76 @@ func TestOCICreateSVMWorkflow_SaveSVMAndLifDataFails(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+// GetNodeUUIDsByNameForPool is best-effort enrichment for the response. If the
+// DB lookup fails, the workflow MUST still complete successfully — the API
+// response just falls back to empty NodeUUID values rather than aborting an
+// otherwise-successful SVM creation.
+func TestOCICreateSVMWorkflow_NodeUUIDLookupFails_WorkflowStillSucceeds(t *testing.T) {
+	env, _ := newSVMTestEnv(t)
+
+	params := &common.CreateSvmParams{
+		Name:                  "test-svm",
+		AccountName:           "test-account",
+		SvmExternalIdentifier: "ocid1.svm..a",
+		SvmAdminPassword:      &common.OciAdminPassword{Ocid: "ocid1.vaultsecret..a", Version: 1},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:            "pool1",
+		VLMConfig:       "{}",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pool-pw"},
+		Account:         &datamodel.Account{Name: "test-account"},
+	}
+	preallocatedSvm := &datamodel.Svm{Name: "test-svm", SvmExternalIdentifier: "ocid1.svm..a"}
+
+	vlmCfg := vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{HAPairs: []vlm.HAPair{{VM1: vlm.VMConfig{Name: "node1"}}}},
+		Svm: map[string]vlm.SvmConfig{
+			"test-svm": {
+				SVMLIFs: vlm.SvmLIFConfigs{
+					vlm.LIFTypeSan: {
+						{Name: "lif1", IP: "10.0.0.1/24", HomeNode: "node1"},
+					},
+				},
+			},
+		},
+	}
+
+	mockVlm := vlm.NewMockVlmWorkflowClient(t)
+	mockVlm.On("CreateVSASVM", mock.Anything, mock.Anything).
+		Return(&vlm.CreateSVMResponse{VLMConfig: vlmCfg}, nil)
+	orig := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlm }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = orig }()
+
+	savedSvm := &datamodel.Svm{
+		Name:       "test-svm",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "ext-uuid"},
+	}
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlmCfg, nil)
+	env.OnActivity("GetSvmAdminPasswordSecretForOCI", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.OntapCredentials{AdminPassword: "svm-admin-pw"}, nil)
+	env.OnActivity("SaveSVMAndLifDataWithOCID", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(savedSvm, nil)
+	env.OnActivity("GetNodeUUIDsByNameForPool", mock.Anything, mock.Anything).
+		Return((map[string]string)(nil), assert.AnError)
+
+	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError(),
+		"workflow must succeed even when the node-UUID enrichment lookup fails")
+
+	var result OCICreateSVMResult
+	require.NoError(t, env.GetWorkflowResult(&result))
+	assert.Equal(t, "test-svm", result.Name)
+	assert.Equal(t, "ocid1.svm..a", result.SvmOCID)
+	require.Len(t, result.Lifs, 1)
+	assert.Empty(t, result.Lifs[0].NodeUUID,
+		"NodeUUID must be empty when the DB lookup failed; the result should not be enriched")
+	env.AssertExpectations(t)
+}
+
 func TestOCICreateSVMWorkflow_PoolCredentialsFallback(t *testing.T) {
 	env, _ := newSVMTestEnv(t)
 
@@ -266,6 +347,7 @@ func TestOCICreateSVMWorkflow_PoolCredentialsFallback(t *testing.T) {
 		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "ext-uuid"},
 	}
 	env.OnActivity("SaveSVMAndLifDataWithOCID", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(savedSvm, nil)
+	env.OnActivity("GetNodeUUIDsByNameForPool", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 
 	env.ExecuteWorkflow(OCICreateSVMWorkflow, params, pool, preallocatedSvm)
 
@@ -881,7 +963,7 @@ func TestBuildCreateSVMResult_SvmNotInVlmConfig(t *testing.T) {
 	svm := &datamodel.Svm{Name: "missing-svm"}
 	vlmCfg := &vlm.VLMConfig{Svm: map[string]vlm.SvmConfig{}}
 
-	result := buildCreateSVMResult(params, svm, vlmCfg)
+	result := buildCreateSVMResult(params, svm, vlmCfg, nil)
 
 	assert.Equal(t, "missing-svm", result.Name)
 	assert.Equal(t, "ocid1.svm..x", result.SvmOCID)
@@ -892,6 +974,12 @@ func TestBuildCreateSVMResult_MultipleLifTypes(t *testing.T) {
 	params := &common.CreateSvmParams{Name: "svm1", SvmExternalIdentifier: "ocid1.svm..a"}
 	svm := &datamodel.Svm{Name: "svm1"}
 	vlmCfg := &vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{
+			HAPairs: []vlm.HAPair{
+				{VM1: vlm.VMConfig{Name: "node1"}, VM2: vlm.VMConfig{Name: "node2"}},
+				{VM1: vlm.VMConfig{Name: "node3"}, VM2: vlm.VMConfig{Name: "node4"}},
+			},
+		},
 		Svm: map[string]vlm.SvmConfig{
 			"svm1": {
 				SVMLIFs: vlm.SvmLIFConfigs{
@@ -909,7 +997,10 @@ func TestBuildCreateSVMResult_MultipleLifTypes(t *testing.T) {
 		},
 	}
 
-	result := buildCreateSVMResult(params, svm, vlmCfg)
+	result := buildCreateSVMResult(params, svm, vlmCfg, map[string]string{
+		"node1": "db-node-uuid-1",
+		"node2": "db-node-uuid-2",
+	})
 
 	assert.Equal(t, "svm1", result.Name)
 	// Only SAN and NAS LIF types are externally exposed; ILB NAS is intentionally
@@ -923,9 +1014,17 @@ func TestBuildCreateSVMResult_MultipleLifTypes(t *testing.T) {
 		assert.NotEqual(t, "ilb-nas-lif1", lif.Name, "ILB NAS LIF must not be exposed in the result")
 		switch lif.Name {
 		case "nas-lif1":
+			assert.Equal(t, "db-node-uuid-2", lif.NodeUUID)
+			if assert.NotNil(t, lif.HaPair) {
+				assert.Equal(t, "ha_pair-1", *lif.HaPair)
+			}
 			assert.ElementsMatch(t, []string{"nfs", "cifs", "s3"}, lif.Protocols)
 			foundNas = true
 		case "iscsi-lif1":
+			assert.Equal(t, "db-node-uuid-1", lif.NodeUUID)
+			if assert.NotNil(t, lif.HaPair) {
+				assert.Equal(t, "ha_pair-1", *lif.HaPair)
+			}
 			assert.ElementsMatch(t, []string{"iscsi", "nvme"}, lif.Protocols)
 			foundSan = true
 		}

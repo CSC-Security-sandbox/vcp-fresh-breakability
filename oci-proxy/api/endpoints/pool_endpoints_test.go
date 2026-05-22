@@ -533,6 +533,7 @@ func TestGetWorkflow(t *testing.T) {
 
 	t.Run("GetWorkflow maps SVM metadata when query returns SVM result", func(tt *testing.T) {
 		orig := workflowQueryFn
+		haPair := "ha_pair-1"
 		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
 			return workflowquery.Result{
 				Status:       workflowquery.WorkflowStatusCompleted,
@@ -541,7 +542,7 @@ func TestGetWorkflow(t *testing.T) {
 					Name:    "svm-1",
 					SvmOCID: "ocid1.svm",
 					Lifs: []workflowquery.OCICreateSVMLifMetadata{
-						{Name: "lif1", IP: "10.0.0.1", Node: "node1", Protocols: []string{"nfs", "cifs", "s3"}},
+						{Name: "lif1", IP: "10.0.0.1", Node: "node1", NodeUUID: "node-uuid-1", HaPair: &haPair, Protocols: []string{"nfs", "cifs", "s3"}},
 					},
 				},
 			}, nil
@@ -561,7 +562,13 @@ func TestGetWorkflow(t *testing.T) {
 		assert.Equal(tt, "svm-1", name)
 		svmOCID, _ := svmMeta.SvmOCID.Get()
 		assert.Equal(tt, "ocid1.svm", svmOCID)
-		assert.Len(tt, svmMeta.Lifs, 1)
+		if assert.Len(tt, svmMeta.Lifs, 1) {
+			nodeUUID, _ := svmMeta.Lifs[0].NodeUUID.Get()
+			assert.Equal(tt, "node-uuid-1", nodeUUID)
+			haPair, ok := svmMeta.Lifs[0].HaPair.Get()
+			assert.True(tt, ok)
+			assert.Equal(tt, "ha_pair-1", haPair)
+		}
 	})
 
 	t.Run("mapGetWorkflowQueryError returns 404 for not found error", func(tt *testing.T) {

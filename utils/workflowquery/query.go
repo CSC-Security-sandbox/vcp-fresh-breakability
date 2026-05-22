@@ -82,6 +82,8 @@ type OCICreateSVMLifMetadata struct {
 	Name      string   `json:"name"`
 	IP        string   `json:"ipAddress"`
 	Node      string   `json:"node"`
+	NodeUUID  string   `json:"nodeUUID"`
+	HaPair    *string  `json:"haPair,omitempty"`
 	Protocols []string `json:"protocols"`
 }
 

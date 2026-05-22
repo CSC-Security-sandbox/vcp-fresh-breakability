@@ -3072,6 +3072,18 @@ func (s *SvmLif) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.NodeUUID.Set {
+			e.FieldStart("nodeUUID")
+			s.NodeUUID.Encode(e)
+		}
+	}
+	{
+		if s.HaPair.Set {
+			e.FieldStart("haPair")
+			s.HaPair.Encode(e)
+		}
+	}
+	{
 		if s.Protocols != nil {
 			e.FieldStart("protocols")
 			e.ArrStart()
@@ -3083,11 +3095,13 @@ func (s *SvmLif) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfSvmLif = [4]string{
+var jsonFieldsNameOfSvmLif = [6]string{
 	0: "name",
 	1: "ipAddress",
 	2: "node",
-	3: "protocols",
+	3: "nodeUUID",
+	4: "haPair",
+	5: "protocols",
 }
 
 // Decode decodes SvmLif from json.
@@ -3127,6 +3141,26 @@ func (s *SvmLif) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"node\"")
+			}
+		case "nodeUUID":
+			if err := func() error {
+				s.NodeUUID.Reset()
+				if err := s.NodeUUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"nodeUUID\"")
+			}
+		case "haPair":
+			if err := func() error {
+				s.HaPair.Reset()
+				if err := s.HaPair.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"haPair\"")
 			}
 		case "protocols":
 			if err := func() error {

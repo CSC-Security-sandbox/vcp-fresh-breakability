@@ -2213,9 +2213,13 @@ func (*StandardError500Headers) getHealthRes() {}
 
 // Ref: #/components/schemas/SvmLif
 type SvmLif struct {
-	Name      OptString             `json:"name"`
-	IpAddress OptString             `json:"ipAddress"`
-	Node      OptString             `json:"node"`
+	Name      OptString `json:"name"`
+	IpAddress OptString `json:"ipAddress"`
+	Node      OptString `json:"node"`
+	// UUID of the corresponding node.
+	NodeUUID OptString `json:"nodeUUID"`
+	// HA pair label in cloud.ha_pair for the LIF home node, formatted as ha_pair-<index>.
+	HaPair    OptString             `json:"haPair"`
 	Protocols []SvmLifProtocolsItem `json:"protocols"`
 }
 
@@ -2232,6 +2236,16 @@ func (s *SvmLif) GetIpAddress() OptString {
 // GetNode returns the value of Node.
 func (s *SvmLif) GetNode() OptString {
 	return s.Node
+}
+
+// GetNodeUUID returns the value of NodeUUID.
+func (s *SvmLif) GetNodeUUID() OptString {
+	return s.NodeUUID
+}
+
+// GetHaPair returns the value of HaPair.
+func (s *SvmLif) GetHaPair() OptString {
+	return s.HaPair
 }
 
 // GetProtocols returns the value of Protocols.
@@ -2252,6 +2266,16 @@ func (s *SvmLif) SetIpAddress(val OptString) {
 // SetNode sets the value of Node.
 func (s *SvmLif) SetNode(val OptString) {
 	s.Node = val
+}
+
+// SetNodeUUID sets the value of NodeUUID.
+func (s *SvmLif) SetNodeUUID(val OptString) {
+	s.NodeUUID = val
+}
+
+// SetHaPair sets the value of HaPair.
+func (s *SvmLif) SetHaPair(val OptString) {
+	s.HaPair = val
 }
 
 // SetProtocols sets the value of Protocols.

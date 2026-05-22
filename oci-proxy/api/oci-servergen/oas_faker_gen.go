@@ -590,6 +590,16 @@ func (s *SvmLif) SetFake() {
 	}
 	{
 		{
+			s.NodeUUID.SetFake()
+		}
+	}
+	{
+		{
+			s.HaPair.SetFake()
+		}
+	}
+	{
+		{
 			s.Protocols = nil
 			for i := 0; i < 0; i++ {
 				var elem SvmLifProtocolsItem

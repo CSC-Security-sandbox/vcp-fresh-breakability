@@ -198,9 +198,9 @@ func Test_SaveSVMAndLifData_CreatesIlbNasLifs(t *testing.T) {
 
 	mockStorage.On("CreateSVM", mock.Anything, mock.Anything).Return(&datamodel.Svm{}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-san"},
-		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node-nas"},
-		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node-ilb"},
+		{BaseModel: datamodel.BaseModel{ID: 1, UUID: "node-san-uuid"}, Name: "node-san"},
+		{BaseModel: datamodel.BaseModel{ID: 2, UUID: "node-nas-uuid"}, Name: "node-nas"},
+		{BaseModel: datamodel.BaseModel{ID: 3, UUID: "node-ilb-uuid"}, Name: "node-ilb"},
 	}, nil)
 
 	var capturedLifs []*datamodel.Lif
@@ -245,9 +245,11 @@ func Test_SaveSVMAndLifData_CreatesIlbNasLifs(t *testing.T) {
 
 	require.Contains(t, lifByName, "san-lif")
 	assert.Equal(t, string(vlm.LIFTypeSan), lifByName["san-lif"].LifDetails.ProtocolType)
+	assert.Equal(t, int64(1), lifByName["san-lif"].NodeID)
 
 	require.Contains(t, lifByName, "nas-lif")
 	assert.Equal(t, string(vlm.LIFTypeNas), lifByName["nas-lif"].LifDetails.ProtocolType)
+	assert.Equal(t, int64(2), lifByName["nas-lif"].NodeID)
 
 	mockStorage.AssertExpectations(t)
 }
@@ -2675,4 +2677,81 @@ func TestMarkSvmAsErroredForCreation_NilSvm(t *testing.T) {
 	_, err := testEnv.ExecuteActivity(act.MarkSvmAsErroredForCreation, (*datamodel.Svm)(nil), "msg")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "svm must not be nil")
+}
+
+// ---------------------------------------------------------------------------
+// GetNodeUUIDsByNameForPool
+// ---------------------------------------------------------------------------
+
+// Happy path: returns a name->UUID map covering every node fetched for the
+// pool. The OCI create-SVM workflow uses this map to enrich its response with
+// stable node UUIDs for the LIFs it just persisted.
+func TestGetNodeUUIDsByNameForPool_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := &activities.SvmActivity{SE: mockStorage}
+	testEnv.RegisterActivity(act.GetNodeUUIDsByNameForPool)
+
+	const poolID int64 = 42
+	mockStorage.On("GetNodesByPoolID", mock.Anything, poolID).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid-node-1"}, Name: "node1"},
+		{BaseModel: datamodel.BaseModel{ID: 2, UUID: "uuid-node-2"}, Name: "node2"},
+	}, nil)
+
+	encoded, err := testEnv.ExecuteActivity(act.GetNodeUUIDsByNameForPool, poolID)
+	assert.NoError(t, err)
+
+	var got map[string]string
+	require.NoError(t, encoded.Get(&got))
+	assert.Equal(t, map[string]string{
+		"node1": "uuid-node-1",
+		"node2": "uuid-node-2",
+	}, got)
+	mockStorage.AssertExpectations(t)
+}
+
+// DB lookup fails: the activity must surface the wrapped error so the
+// workflow can log it and continue with an empty enrichment map (the lookup
+// is best-effort and must not abort SVM creation).
+func TestGetNodeUUIDsByNameForPool_StorageError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := &activities.SvmActivity{SE: mockStorage}
+	testEnv.RegisterActivity(act.GetNodeUUIDsByNameForPool)
+
+	const poolID int64 = 7
+	mockStorage.On("GetNodesByPoolID", mock.Anything, poolID).
+		Return(nil, errors.New("db unavailable"))
+
+	_, err := testEnv.ExecuteActivity(act.GetNodeUUIDsByNameForPool, poolID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db unavailable")
+	mockStorage.AssertExpectations(t)
+}
+
+// A node row with an empty name indicates broken cluster bootstrap state — we
+// refuse to build a partial map because callers index LIFs by HomeNode and a
+// silent skip would yield missing UUIDs in the API response.
+func TestGetNodeUUIDsByNameForPool_EmptyNodeNameFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	testEnv := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := &activities.SvmActivity{SE: mockStorage}
+	testEnv.RegisterActivity(act.GetNodeUUIDsByNameForPool)
+
+	const poolID int64 = 99
+	mockStorage.On("GetNodesByPoolID", mock.Anything, poolID).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid-node-1"}, Name: "node1"},
+		{BaseModel: datamodel.BaseModel{ID: 2, UUID: "uuid-node-2"}, Name: ""},
+	}, nil)
+
+	_, err := testEnv.ExecuteActivity(act.GetNodeUUIDsByNameForPool, poolID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "node name is empty for node ID 2")
+	mockStorage.AssertExpectations(t)
 }
