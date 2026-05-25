@@ -2354,8 +2354,11 @@ func _fetchBackupVaultFromRemoteVCP(ctx context.Context, pathInfo *BackupPathInf
 	logger.Infof("Fetching backup vault '%s' from remote VCP in region '%s'",
 		pathInfo.VaultName, backupRegion)
 
-	// Get remote region configuration
-	basePath, jwtToken, err := common.GetRemoteRegionConfig(backupRegion, volume.Account.Name)
+	// Use the backup vault's project (from the backup path) for both the JWT and
+	// the API query. In cross-project restores the BV project differs from the
+	// volume's project, and the remote VCP validates that the JWT project_number
+	// matches the project in the request URL.
+	basePath, jwtToken, err := common.GetRemoteRegionConfig(backupRegion, pathInfo.ProjectName)
 	if err != nil {
 		logger.Errorf("Failed to get remote region configuration for region '%s': %v", backupRegion, err)
 		return nil, fmt.Errorf("failed to get remote region configuration: %w", err)
@@ -2365,8 +2368,6 @@ func _fetchBackupVaultFromRemoteVCP(ctx context.Context, pathInfo *BackupPathInf
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 
-	// Use the project from the backup path for the query; the BV may belong
-	// to a different project than the volume (cross-project restore).
 	params := googleproxyclient.V1betaListBackupVaultsParams{
 		ProjectNumber:  pathInfo.ProjectName,
 		LocationId:     backupRegion,
@@ -2458,8 +2459,11 @@ func _fetchBackupFromRemoteVCP(ctx context.Context, pathInfo *BackupPathInfo, ba
 
 	logger.Infof("Fetching backup '%s' from remote VCP in region '%s'", pathInfo.BackupName, backupRegion)
 
-	// Get remote region configuration
-	basePath, jwtToken, err := common.GetRemoteRegionConfig(backupRegion, volume.Account.Name)
+	// Use the backup vault's project (from the backup path) for both the JWT and
+	// the API query. In cross-project restores the BV project differs from the
+	// volume's project, and the remote VCP validates that the JWT project_number
+	// matches the project in the request URL.
+	basePath, jwtToken, err := common.GetRemoteRegionConfig(backupRegion, pathInfo.ProjectName)
 	if err != nil {
 		logger.Errorf("Failed to get remote region configuration for region '%s': %v", backupRegion, err)
 		return nil, fmt.Errorf("failed to get remote region configuration: %w", err)
@@ -2477,7 +2481,7 @@ func _fetchBackupFromRemoteVCP(ctx context.Context, pathInfo *BackupPathInfo, ba
 
 	// Call V1betaListBackups API endpoint with BackupName filter
 	params := googleproxyclient.V1betaListBackupsParams{
-		ProjectNumber:  volume.Account.Name,
+		ProjectNumber:  pathInfo.ProjectName,
 		LocationId:     backupRegion,
 		BackupVaultId:  backupVaultUUID,
 		BackupName:     googleproxyclient.NewOptString(pathInfo.BackupName),
@@ -2501,7 +2505,7 @@ func _fetchBackupFromRemoteVCP(ctx context.Context, pathInfo *BackupPathInfo, ba
 		logger.Errorf("Unexpected response type from V1betaListBackups: %T", res)
 		return nil, fmt.Errorf(
 			"unexpected response type %T from remote VCP API when listing backups (project=%s, region=%s, vaultID=%s, backupName=%s, correlationID=%s)",
-			res, volume.Account.Name, backupRegion, backupVaultUUID, pathInfo.BackupName, correlationID,
+			res, pathInfo.ProjectName, backupRegion, backupVaultUUID, pathInfo.BackupName, correlationID,
 		)
 	}
 
