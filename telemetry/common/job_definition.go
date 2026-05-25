@@ -151,7 +151,7 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 			BackfillLimit: 60 * time.Minute,
 		},
 	},
-	{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.BackupEnabledVolumeAllocatedSize}: {
+	{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.BackupEnabledVolumeAllocatedSize}: {
 		AggregationType: IntegralAggregation,
 		IsBillable:      true,
 		SKU:             BillingMetricNameVolumeBackupManagementUsage,

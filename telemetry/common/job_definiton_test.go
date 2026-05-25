@@ -128,6 +128,42 @@ func TestAutoTieringRegionalHAJobDefinitions(t *testing.T) {
 	}
 }
 
+func TestBackupEnabledVolumeAllocatedSizeRegionalHAJobDefinition(t *testing.T) {
+	volumeKey := metadata.CombinedKeyResourceTypeMeasuredType{
+		ResourceType: metadata.Volume,
+		MeasuredType: metadata.BackupEnabledVolumeAllocatedSize,
+	}
+	volumeJobDef, volumeExists := DefaultAggregationJobDefinitions[volumeKey]
+	assert.True(t, volumeExists, "Volume job definition should exist for BackupEnabledVolumeAllocatedSize")
+
+	haKey := metadata.CombinedKeyResourceTypeMeasuredType{
+		ResourceType: metadata.VolumeRegionalHA,
+		MeasuredType: metadata.BackupEnabledVolumeAllocatedSize,
+	}
+	haJobDef, haExists := DefaultAggregationJobDefinitions[haKey]
+	assert.True(t, haExists, "VolumeRegionalHA job definition should exist for BackupEnabledVolumeAllocatedSize")
+
+	assert.Equal(t, volumeJobDef.SKU, haJobDef.SKU, "RegionalHA SKU should match Volume")
+	assert.Equal(t, volumeJobDef.AggregationType, haJobDef.AggregationType, "RegionalHA aggregation should match Volume")
+	assert.Equal(t, volumeJobDef.IsBillable, haJobDef.IsBillable, "RegionalHA billable should match Volume")
+
+	volumeFormatter, volumeFormatterOk := volumeJobDef.TimeSeriesFormatter.(*SampledMetricsFormatter)
+	haFormatter, haFormatterOk := haJobDef.TimeSeriesFormatter.(*SampledMetricsFormatter)
+	assert.True(t, volumeFormatterOk, "Volume formatter should be SampledMetricsFormatter")
+	assert.True(t, haFormatterOk, "RegionalHA formatter should be SampledMetricsFormatter")
+	if volumeFormatterOk && haFormatterOk {
+		assert.Equal(t, volumeFormatter.Mode, haFormatter.Mode, "RegionalHA formatter mode should match Volume")
+		assert.Equal(t, volumeFormatter.BackfillLimit, haFormatter.BackfillLimit, "RegionalHA formatter backfill limit should match Volume")
+	}
+
+	poolHAKey := metadata.CombinedKeyResourceTypeMeasuredType{
+		ResourceType: metadata.VolumePoolRegionalHA,
+		MeasuredType: metadata.BackupEnabledVolumeAllocatedSize,
+	}
+	_, poolHAExists := DefaultAggregationJobDefinitions[poolHAKey]
+	assert.False(t, poolHAExists, "VolumePoolRegionalHA should NOT have BackupEnabledVolumeAllocatedSize (it is a volume metric, not a pool metric)")
+}
+
 func TestVolumeATRawJobDefinitions(t *testing.T) {
 	volumeATRawMetrics := []metadata.MeasuredType{
 		metadata.CoolTierDataReadSizeRaw,
