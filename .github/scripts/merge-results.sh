@@ -290,7 +290,7 @@ fixes_by_pr = {}
 for num, pr in prs.items():
     pkg = pr.get("package", "")
     matching_alerts = [a for a in open_alerts
-                       if a.get("dependency", {}).get("package", {}).get("name", "") == pkg]
+                       if a.get("dependency", {}).get("package", "") == pkg]
     if matching_alerts:
         fixes_by_pr[num] = {
             "package": pkg,
@@ -320,7 +320,7 @@ cve_fixes, orphan_alerts = [], []
 _seen_fixes = set()
 _seen_orphans = set()
 for a in open_alerts:
-    alert_pkg = a.get("dependency", {}).get("package", {}).get("name", "")
+    alert_pkg = a.get("dependency", {}).get("package", "")
     fpv = a.get("security_vulnerability", {}).get("first_patched_version")
     sev = a.get("security_advisory", {}).get("severity", "unknown")
     cve = a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "")
