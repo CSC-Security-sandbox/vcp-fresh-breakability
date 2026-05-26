@@ -482,9 +482,10 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 	}
 
 	// Set LatestLogicalBackupSize to 0 for all previous backups of the same volume in a single query
-	// This ensures that only the latest backup has the correct size
-	// Update only if the latest logical backup size is not zero for the current backup
-	if backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize != 0 {
+	// This ensures that only the latest backup has the correct size.
+	// Skip for CrossProject (GCBDR) vaults
+	isCrossProjectVault := backupActivitiesContext.BackupWorkflowInit.BackupVault != nil && backupActivitiesContext.BackupWorkflowInit.BackupVault.ServiceType == models.ServiceTypeCrossProject
+	if !isCrossProjectVault && backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize != 0 {
 		err = b.SE.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, backup.UUID)
 		if err != nil {
 			logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volumeUUID, err)

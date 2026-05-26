@@ -6593,6 +6593,96 @@ func TestUpdateBackupSizeActivity_ExpertMode_WithZeroLatestLogicalBackupSize(t *
 	mockStorage.AssertNotCalled(t, "UpdateVolumeFields")
 }
 
+func TestUpdateBackupSizeActivity_SkipsLatestLogicalBackupSizeUpdateForCrossProjectVault(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024, // Non-zero, but should still be skipped for CrossProject vaults
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(),
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		ServiceType: models.ServiceTypeCrossProject,
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup:      backup,
+			Volume:      volume,
+			BackupVault: backupVault,
+		},
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "UpdateBackupLatestLogicalBackupSizeByVolume")
+}
+
+func TestUpdateBackupSizeActivity_ExpertMode_SkipsLatestLogicalBackupSizeUpdateForCrossProjectVault(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024, // Non-zero, but should still be skipped for CrossProject vaults
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(),
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		ServiceType: models.ServiceTypeCrossProject,
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup:      backup,
+			Volume:      volume,
+			BackupVault: backupVault,
+		},
+		IsExpertMode: true,
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateExpertModeVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "UpdateBackupLatestLogicalBackupSizeByVolume")
+	mockStorage.AssertNotCalled(t, "UpdateVolumeFields")
+}
+
 // Test HydrateSnapshotToCCFEActivity
 func TestHydrateSnapshotToCCFEActivity_Success(t *testing.T) {
 	// Arrange
