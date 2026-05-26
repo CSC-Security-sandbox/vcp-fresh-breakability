@@ -251,6 +251,7 @@ try:
     )
     if result.returncode != 0:
         print("  Could not fetch Dependabot alerts (may need security permissions)")
+        alerts = []
         alerts_raw = None  # Distinguish auth failure from genuinely empty
     else:
         lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
