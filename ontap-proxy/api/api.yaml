@@ -1233,6 +1233,7 @@ components:
           example: "litigation-001"
         path:
           type: string
+          pattern: '^[a-zA-Z0-9/_.\- ]+$'
           description: Specifies the path on which legal-hold operation has to be applied (e.g. /dir1 or /)
           example: "/dir1"
         volume:
@@ -1388,6 +1389,7 @@ components:
           type: string
           description: Specifies the path on which legal-hold operation is applied
           minLength: 1
+          pattern: '^[a-zA-Z0-9/_.\- ]+$'
           example: "/dir1"
     SnaplockLegalHoldOperationResponse:
       type: object
@@ -1662,6 +1664,7 @@ components:
         path:
           type: string
           description: Path relative to volume root (e.g. "/" for all files)
+          pattern: '^[a-zA-Z0-9/_.\- ]+$'
           example: "/"
         policy:
           type: object

@@ -105,6 +105,25 @@ func (s *EBROperationCreate) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := (validate.String{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    0,
+			MaxLengthSet: false,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[a-zA-Z0-9/_.\\- ]+$"],
+		}).Validate(string(s.Path)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "path",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Policy.Validate(); err != nil {
 			return err
 		}
@@ -320,7 +339,7 @@ func (s *SnaplockLegalHoldOperationRequest) Validate() error {
 			MaxLengthSet: false,
 			Email:        false,
 			Hostname:     false,
-			Regex:        nil,
+			Regex:        regexMap["^[a-zA-Z0-9/_.\\- ]+$"],
 		}).Validate(string(s.Path)); err != nil {
 			return errors.Wrap(err, "string")
 		}
@@ -459,7 +478,7 @@ func (s *SnaplockLitigationBeginRequest) Validate() error {
 			MaxLengthSet: false,
 			Email:        false,
 			Hostname:     false,
-			Regex:        nil,
+			Regex:        regexMap["^[a-zA-Z0-9_.\\-]+$"],
 		}).Validate(string(s.LitigationName)); err != nil {
 			return errors.Wrap(err, "string")
 		}
@@ -467,6 +486,25 @@ func (s *SnaplockLitigationBeginRequest) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "litigation_name",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    0,
+			MaxLengthSet: false,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[a-zA-Z0-9/_.\\- ]+$"],
+		}).Validate(string(s.Path)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "path",
 			Error: err,
 		})
 	}
