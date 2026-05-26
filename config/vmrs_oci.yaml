@@ -1,146 +1,188 @@
-# ===============================================================================
-# VMRS (VM Right Sizing) Configuration for OCI
-# ===============================================================================
+# =============================================================================
+# OCI Block Volume Performance — VPU 90, 50, 40 only
+# =============================================================================
 #
-# PLACEHOLDER: This file is a structural copy of vmrs_gcp.yaml.
-# Update with OCI-qualified VM shapes, block volume limits, and perf-team
-# data before using in production OCI deployments.
+# Source: OCI perf-team reference table.
 #
-# This file describes VMRS (VM Right Sizing) module related configuration.
-# It merges facts provided by our perf team and hyperscaler documented limits into a single source of truth.
+# Layout
+# ------
+#   throughput:                       Keyed by headline throughput in decimal
+#     <GB/s integer>:                 GB/s. Selector does:
+#                                         bucket = ceil(req.throughput_gbs)
+#                                         tier   = throughput[bucket]
+#                                     for O(1) flex lookup.
 #
-# We nest all these details under a parent `vmrs` tag to avoid namespace clashes.
+#       instances:                    Map of qualified OCI VM shapes that
+#                                     deliver this throughput tier. The map
+#                                     key is the OCI shape name (passed
+#                                     verbatim to LaunchInstance.shape).
+#                                     Today only one shape is qualified;
+#                                     future shapes (E4.Flex, bare metal,
+#                                     etc.) are added as siblings.
+#         <shape>:
+#           ocpus:                    OCPUs for this shape at this tier.
+#                                     Passed to
+#                                     LaunchInstance.shapeConfig.ocpus.
+#           memory_gbs:               Memory (decimal GB) for this shape
+#                                     at this tier. Passed to
+#                                     LaunchInstance.shapeConfig.memoryInGBs.
+#                                     Stay within OCI's per-shape flex
+#                                     memory range (E5.Flex: 1–16 GB per
+#                                     OCPU). Carried per (tier, shape)
+#                                     rather than as a per-OCPU multiplier
+#                                     so the perf team can deviate from a
+#                                     flat ratio without code changes.
+#           vpu:                      Per-volume capacity/IOPS table for
+#                                     this specific shape (different shapes
+#                                     can have different per-volume caps).
+#             vpu_<NN>:
+#               capacity_throughput_tb  TB needed at this VPU to deliver
+#                                       (full tier throughput, listed iops).
+#               iops                    IOPS delivered at that capacity.
 #
-# STRATEGY SELECTION:
-# - Change 'selection_strategy' below to choose the decision-making algorithm
-# - Each strategy uses different subsets of the configuration sections
+# Sizing reference (instance-level caps; same numbers for every shape today):
 #
-# ===============================================================================
+#   1 GB/s →  8 OCPU,  160,000 IOPS cap
+#   2 GB/s → 16 OCPU,  320,000 IOPS cap
+#   3 GB/s → 24 OCPU,  480,000 IOPS cap
+#   4 GB/s → 32 OCPU,  640,000 IOPS cap        (E5 NIC hard cap @ 32 Gbps)
+#   5 GB/s → 40 OCPU,  800,000 IOPS            (exceeds E5 32-Gbps NIC)
+#   6 GB/s → 48 OCPU,  960,000 IOPS            (exceeds E5 32-Gbps NIC)
 #
-# The structure of this config is as follows:
+# Assumptions
+# -----------
+# 1) Throughput tiers advance in **integer 1 GB/s steps** (1, 2, 3, …).
+#    The selector uses `bucket = ceil(req.throughput_gbs)` as the YAML
+#    key, so any sub-1-GB/s granularity would round up and collapse onto
+#    the next integer tier. If finer tiers (e.g. 1.5, 2.5 GB/s) ever
+#    become real, both this file and the selector's bucketing logic must
+#    be updated together — don't introduce a fractional key alone.
+# 2) All shapes under one tier deliver the same headline throughput; the
+#    tier's instance-level cap is implicit in the tier key itself.
 #
-# vmrs: # top level namespace disambiguator
-#   max_num_ha_pairs: 12 # The max. number of HA pairs that we are allowed. This field constraints the max. performance/capacity that a single storage pool can be provisioned for.
-#   ontap_overheads: # This data is provided by the perf team. The data in this section should be hyperscaler agnostic.
-#     amplification_factors:
-#     # We expect a multiplication factor.
-#     # For example, if we want to allocate a 10% overhead, please input 1.1
-#       iops: 1.1 # Overhead to overprovision by to guarantee that customer observes the IOPs they requested.
-#       throughput: 1.1 # Overhead to overprovision by to guarantee that customer observes the throughput they requested.
-#       capacity: 1.1 # WAFL overhead.
-#     num_disks_per_zone: 8 # The number of disks that will be attached to each HA-pair (shared zonal mode), or VM (non-shared regional mode) to form an aggregate.
-#     workload_headroom: # If the headroom values are 0, do not include this field at all.
-#       - workload: backup # The name of the feature which is enabled.
-#         headroom: # Additional headroom to provision in case this feature is enabled.
-#           iops : 0.05
-#           throughput: 0.05
-#     hotspot_prevention_factors: # Additional overhead to provision to prevent hot-spotting.
-#     # We expect a multiplication factor.
-#     # For example, if we want to allocate a 10% overhead, please input 1.1
-#       iops: 1.1
-#       throughput: 1.1
-#   - disk_type: oci_block_volume # OCI block volume type
-#     qualified_vms:
-#     - vm_type: VM.DenseIO.E5.Flex # OCI shape
-#       ontap_perf:
-#         iops: I
-#         throughput_in_mibs: T
-#         capacity_in_gib: C
-#       disk_perf:
-#         iops: I
-#         throughput_in_mibs: T
-#         capacity_in_gib: C
-#       relative_cost: 1
-vmrs:
-  # ============================================================================
-  # STRATEGY SELECTION (Required)
-  # ============================================================================
-  selection_strategy: "least_cost_single_vm"
+# VPU order within each instance below: vpu_90 → vpu_50 → vpu_40. The
+# selector ignores this file-level order and walks each instance's vpu
+# map in ascending VPU number — vpu_40 → vpu_50 → vpu_90 — returning the
+# first whose `capacity_throughput_tb` floor fits the request. There is
+# no cost field; ascending-VPU walk reflects "try the lowest perf band
+# first because its capacity floor is highest, step up if it doesn't
+# fit", not any price optimization.
+#
+# Capacities are in decimal TB (10^12 bytes).
+# =============================================================================
 
-  # ============================================================================
-  # SHARED CONFIGURATION (Used by ALL strategies)
-  # ============================================================================
+throughput:
 
-  max_num_ha_pairs: 12
+  # ---------------------------------------------------------------------------
+  # 1 GB/s →  8 OCPU,  160,000 IOPS instance cap
+  # ---------------------------------------------------------------------------
+  1:
+    instances:
+      VM.DenseIO.E5.Flex:
+        ocpus: 8
+        memory_gbs: 96
+        vpu:
+          vpu_90:
+            capacity_throughput_tb: 0.73
+            iops: 131400
+          vpu_50:
+            capacity_throughput_tb: 1.34
+            iops: 160000
+          vpu_40:
+            capacity_throughput_tb: 1.52
+            iops: 160000
 
-  max_disk_overprovisioning_factors:
-    iops: 1.1
-    throughput: 1.1
+  # ---------------------------------------------------------------------------
+  # 2 GB/s → 16 OCPU,  320,000 IOPS instance cap
+  # ---------------------------------------------------------------------------
+  2:
+    instances:
+      VM.DenseIO.E5.Flex:
+        ocpus: 16
+        memory_gbs: 192
+        vpu:
+          vpu_90:
+            capacity_throughput_tb: 1.46
+            iops: 262800
+          vpu_50:
+            capacity_throughput_tb: 2.67
+            iops: 320000
+          vpu_40:
+            capacity_throughput_tb: 3.05
+            iops: 320000
 
-  # ============================================================================
-  # LARGE VOLUME CLUSTER STRATEGY CONFIGURATION
-  # ============================================================================
-  non_linear_scaling_active_passive:
-    base_factor: 1.0
-    max_scaling_factor: 10.0
+  # ---------------------------------------------------------------------------
+  # 3 GB/s → 24 OCPU,  480,000 IOPS instance cap
+  # ---------------------------------------------------------------------------
+  3:
+    instances:
+      VM.DenseIO.E5.Flex:
+        ocpus: 24
+        memory_gbs: 288
+        vpu:
+          vpu_90:
+            capacity_throughput_tb: 2.18
+            iops: 392400
+          vpu_50:
+            capacity_throughput_tb: 4.00
+            iops: 480000
+          vpu_40:
+            capacity_throughput_tb: 4.57
+            iops: 480000
 
-    iops_factors:
-      1: 1.0
-      2: 1.8
-      6: 4.8
-      12: 4.9
+  # ---------------------------------------------------------------------------
+  # 4 GB/s → 32 OCPU,  640,000 IOPS instance cap (E5 NIC hard cap @ 32 Gbps)
+  # ---------------------------------------------------------------------------
+  4:
+    instances:
+      VM.DenseIO.E5.Flex:
+        ocpus: 32
+        memory_gbs: 384
+        vpu:
+          vpu_90:
+            capacity_throughput_tb: 2.91
+            iops: 523800
+          vpu_50:
+            capacity_throughput_tb: 5.34
+            iops: 640000
+          vpu_40:
+            capacity_throughput_tb: 6.10
+            iops: 640000
 
-    throughput_factors:
-      1: 1.0
-      2: 1.8
-      6: 4.8
-      12: 5.8
+  # ---------------------------------------------------------------------------
+  # 5 GB/s → 40 OCPU,  800,000 IOPS — exceeds E5 32-Gbps NIC hard cap
+  # ---------------------------------------------------------------------------
+  5:
+    instances:
+      VM.DenseIO.E5.Flex:
+        ocpus: 40
+        memory_gbs: 480
+        vpu:
+          vpu_90:
+            capacity_throughput_tb: 3.64
+            iops: 655200
+          vpu_50:
+            capacity_throughput_tb: 6.67
+            iops: 800000
+          vpu_40:
+            capacity_throughput_tb: 7.62
+            iops: 800000
 
-  non_linear_scaling_active_active:
-    base_factor: 1.0
-    max_scaling_factor: 10.0
-
-    iops_factors:
-      1: 1.0
-      2: 1.8
-      6: 4.0
-      12: 4.9
-
-    throughput_factors:
-      1: 1.0
-      2: 1.8
-      6: 4.5
-      12: 5.8
-
-  # ============================================================================
-  # ONTAP Overheads (hyperscaler-agnostic)
-  # ============================================================================
-  ontap_overheads:
-    amplification_factors:
-      iops: 1.8
-      throughput: 2.15
-      capacity: 1.2
-    workload_headroom:
-      - workload: all
-        headroom:
-          iops: 0.3
-          throughput: 0.3
-    num_disks_per_zone: 8
-    hotspot_prevention_factors:
-      iops: 1.1
-      throughput: 1.1
-
-  # ============================================================================
-  # VM AND DISK PERFORMANCE LIMITS — OCI
-  # ============================================================================
-  #
-  # TODO: Replace with OCI-qualified shapes and block volume limits from perf team.
-  # Current values are GCP placeholders and will not produce correct sizing on OCI.
-  #
-  # OCI block volume docs:
-  #   https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/blockvolumeperformance.htm
-  #
-  disk_limits:
-    - disk_type: oci_block_volume
-      qualified_vms:
-
-      - vm_type: VM.DenseIO.E5.Flex
-        ontap_perf:
-          iops: 12085
-          throughput_in_mibs: 106
-          capacity_in_gib: 213000
-        disk_perf:
-          iops: 25000
-          throughput_in_mibs: 400
-          capacity_in_gib: 257000
-        relative_cost: 4
+  # ---------------------------------------------------------------------------
+  # 6 GB/s → 48 OCPU,  960,000 IOPS — exceeds E5 32-Gbps NIC hard cap
+  # ---------------------------------------------------------------------------
+  6:
+    instances:
+      VM.DenseIO.E5.Flex:
+        ocpus: 48
+        memory_gbs: 576
+        vpu:
+          vpu_90:
+            capacity_throughput_tb: 4.37
+            iops: 786600
+          vpu_50:
+            capacity_throughput_tb: 8.00
+            iops: 960000
+          vpu_40:
+            capacity_throughput_tb: 9.14
+            iops: 960000

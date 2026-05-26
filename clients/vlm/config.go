@@ -180,17 +180,21 @@ type GCPConfig struct {
 }
 
 type OCIConfig struct {
-	CompartmentID      string                            `json:"compartment_id"` // OCI Compartment ID
-	SubnetID           string                            `json:"subnet_id"`
-	DataNICSubnetID    string                            `json:"data_nic_subnet_id"`
-	AvailabilityDomain AvailabilityDomainInfo            `json:"availability_domain_info"`         // OCI Availability Domain Info
-	VSAInstanceShape   string                            `json:"vsa_instance_shape"`               // Instance shape for VSA
-	VSAFlexOcpus       float32                           `json:"vsa_flex_ocpus,omitempty"`         // OCPUs for VSA flex (non-mediator); 0 = default 4
-	VSAFlexMemoryInGBs float32                           `json:"vsa_flex_memory_in_gbs,omitempty"` // Memory in GB for VSA flex (non-mediator); 0 = default 32
-	Creator            string                            `json:"creator"`                          // Creator for OCI mandatory tags (netapp_tags); overridable by CLI --creator
-	FreeFormTags       map[string]string                 `json:"freeform_tags"`                    // Free form tags for OCI resources
-	DefinedTags        map[string]map[string]interface{} `json:"defined_tags"`                     // Defined tags for OCI resources
-	SubnetDomainName   string                            `json:"subnet_domain_name"`               // Domain name of subnet
+	CompartmentID              string                            `json:"compartment_id"` // OCI Compartment ID
+	SubnetID                   string                            `json:"subnet_id"`
+	DataNICSubnetID            string                            `json:"data_nic_subnet_id"`
+	DataDiskVpus               int64                             `json:"data_disk_vpus"`                   // Number of data disk VPUs to be created
+	AvailabilityDomain         AvailabilityDomainInfo            `json:"availability_domain_info"`         // OCI Availability Domain Info
+	VSAInstanceShape           string                            `json:"vsa_instance_shape"`               // Instance shape for VSA
+	VSAFlexOcpus               float32                           `json:"vsa_flex_ocpus,omitempty"`         // OCPUs for VSA flex (non-mediator); 0 = default 4
+	VSAFlexMemoryInGBs         float32                           `json:"vsa_flex_memory_in_gbs,omitempty"` // Memory in GB for VSA flex (non-mediator); 0 = default 32
+	Creator                    string                            `json:"creator"`                          // Creator for OCI mandatory tags (netapp_tags); overridable by CLI --creator
+	FreeFormTags               map[string]string                 `json:"freeform_tags"`                    // Free form tags for OCI resources
+	DefinedTags                map[string]map[string]interface{} `json:"defined_tags"`                     // Defined tags for OCI resources
+	SubnetDomainName           string                            `json:"subnet_domain_name"`
+	CmekOcid                   string                            `json:"cmek_ocid,omitempty"`          // OCID for CMEK to encrypt data block volumes
+	CustomerNSGs               []string                          `json:"customer_nsgs"`                // Customer NSGs to be attached to the customer vnic
+	CustomerSecurityAttributes map[string]map[string]interface{} `json:"customer_security_attributes"` // Customer security attributes to be attached to the customer vnic
 }
 
 type AzureConfig struct {

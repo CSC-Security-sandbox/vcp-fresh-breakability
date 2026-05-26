@@ -25,6 +25,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	vmrs_config "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/config"
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
+	vmrs_oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -78,21 +79,31 @@ var (
 	DeleteGCPBucket                          = _deleteGCPBucket
 	LoadVMRSConfig                           = vmrs_config.LoadConfig
 	CreateDecisionMaker                      = vmrs_decision.NewDecisionMaker
-	CreateLargeVolumeVMRSConfig              = _createLargeVolumeVMRSConfig
-	VlmConfigFilePath                        = env.GetString("VLM_CONFIG_FILE_PATH", "/common/vsa_config/vlm-config.json")
-	ValidateVlmConfigInputs                  = _validateVlmConfigInputs
-	GetCreateSubnetworkOperation             = _getCreateSubnetworkOperation
-	ReleaseSubnetOp                          = _releaseSubnetOp
-	CheckAndUpdateFirewall                   = _checkAndUpdateFirewall
-	LoadVlmConfigFromFile                    = loadVlmConfigFromFile
-	GetServiceNetOpStatus                    = _getServiceNetOpStatus
-	GetComputeOpStatus                       = _getComputeOpStatus
-	GetSubnetFromOperation                   = _getSubnetFromOperation
-	GetGatewayFromIpCidrRange                = _getGatewayFromIpCidrRange
-	ResolveZonesForCluster                   = _resolveZonesForCluster
-	GetInternalVSANetworkForFirewalls        = _getInternalVSANetworkForFirewalls
-	ListAddressesByDeployment                = _listAddressesByDeployment
-	GetBucketFile                            = _getBucketFile
+	LoadOCIVMRSConfig                        = vmrs_oci.LoadConfig
+	DecideOCIVM                              = vmrs_oci.Decide
+	// OCIVMRSConfigFilePath is the on-disk path of the OCI VMRS YAML
+	// catalogue (see config/vmrs_oci.yaml). It reuses the same env var
+	// the GCP workflow reads (VMRS_CONFIG_PATH); the OCI worker Helm
+	// chart already wires that env to /config/vmrs_oci.yaml — see
+	// kubernetes/OCI/vcp-worker-chart/templates/configMap.yaml. Each
+	// worker binary runs against exactly one hyperscaler, so the single
+	// env var carries the correct YAML for the running cloud.
+	OCIVMRSConfigFilePath             = env.GetString("VMRS_CONFIG_PATH", "/config/vmrs_oci.yaml")
+	CreateLargeVolumeVMRSConfig       = _createLargeVolumeVMRSConfig
+	VlmConfigFilePath                 = env.GetString("VLM_CONFIG_FILE_PATH", "/common/vsa_config/vlm-config.json")
+	ValidateVlmConfigInputs           = _validateVlmConfigInputs
+	GetCreateSubnetworkOperation      = _getCreateSubnetworkOperation
+	ReleaseSubnetOp                   = _releaseSubnetOp
+	CheckAndUpdateFirewall            = _checkAndUpdateFirewall
+	LoadVlmConfigFromFile             = loadVlmConfigFromFile
+	GetServiceNetOpStatus             = _getServiceNetOpStatus
+	GetComputeOpStatus                = _getComputeOpStatus
+	GetSubnetFromOperation            = _getSubnetFromOperation
+	GetGatewayFromIpCidrRange         = _getGatewayFromIpCidrRange
+	ResolveZonesForCluster            = _resolveZonesForCluster
+	GetInternalVSANetworkForFirewalls = _getInternalVSANetworkForFirewalls
+	ListAddressesByDeployment         = _listAddressesByDeployment
+	GetBucketFile                     = _getBucketFile
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
@@ -120,6 +131,14 @@ const (
 	checksumLabel1     = "checksum1"
 	checksumLabel2     = "checksum2"
 )
+
+type IdentifyOCIResourcesRequest struct {
+	PoolUUID string
+
+	PerDiskCapacityTB float64
+
+	PerVMThroughputGBs float64
+}
 
 // ValidateVSAZonesForMachineType validates that primary and secondary zones support the VSA instance type
 func ValidateVSAZonesForMachineType(gcpService hyperscaler2.GoogleServices, projectNumber, primaryZone, secondaryZone, instanceType string) error {
@@ -1753,6 +1772,60 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 
 	activity.RecordHeartbeat(ctx, "Finished IdentifyVMs activity")
 	return vlmConfig, nil
+}
+
+func (j *PoolActivity) IdentifyOCIResources(ctx context.Context, req IdentifyOCIResourcesRequest) (*vmrs_oci.Decision, error) {
+	activity.RecordHeartbeat(ctx, "Starting IdentifyOCIResources activity")
+	logger := util.GetLogger(ctx)
+
+	if req.PerDiskCapacityTB <= 0 {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrBadRequest,
+				fmt.Errorf("perDiskCapacityTB must be > 0 (got %.4f) for pool %q", req.PerDiskCapacityTB, req.PoolUUID)))
+	}
+	if req.PerVMThroughputGBs <= 0 {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrBadRequest,
+				fmt.Errorf("perVMThroughputGBs must be > 0 (got %.4f) for pool %q", req.PerVMThroughputGBs, req.PoolUUID)))
+	}
+
+	activity.RecordHeartbeat(ctx, "Loading OCI VMRS Config")
+	cfg, err := LoadOCIVMRSConfig(OCIVMRSConfigFilePath)
+	if err != nil {
+		logger.Error("Failed to load OCI VMRS config", "path", OCIVMRSConfigFilePath, "error", err)
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrVLMConfigParseError, err))
+	}
+
+	selectorReq := vmrs_oci.CustomerRequest{
+		DesiredCapacityTB:    req.PerDiskCapacityTB,
+		DesiredThroughputGBs: req.PerVMThroughputGBs,
+	}
+
+	activity.RecordHeartbeat(ctx, "Running OCI VMRS selector")
+	decision, err := DecideOCIVM(cfg, selectorReq)
+	if err != nil {
+		logger.Error("OCI VMRS selection failed",
+			"poolUUID", req.PoolUUID,
+			"perDiskCapacityTB", selectorReq.DesiredCapacityTB,
+			"perVMThroughputGBs", selectorReq.DesiredThroughputGBs,
+			"error", err)
+		// Selector errors (*NoFeasibleSelectionError, *InvalidConfigError) are
+		// deterministic and caller-side: the customer's (capacity, throughput)
+		// is outside the VMRS catalogue. Wrap as CustomError so the
+		// non-retryable Temporal contract is set correctly (otherwise the
+		// helper is a no-op and the activity returns a raw error that lacks
+		// Type=CustomError + NonRetryable + structured Details).
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, err))
+	}
+
+	logger.Infof("OCI VMRS selected shape=%s ocpus=%d vpu=%s iops=%d for pool %q (req: %.2f TB/disk, %.2f GB/s/VM)",
+		decision.VMShape, decision.OCPUs, decision.VPUName, decision.IOPS, req.PoolUUID,
+		selectorReq.DesiredCapacityTB, selectorReq.DesiredThroughputGBs)
+
+	activity.RecordHeartbeat(ctx, "Finished IdentifyOCIResources activity")
+	return decision, nil
 }
 
 func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType string, isRegionalHA bool) (string, string, error) {

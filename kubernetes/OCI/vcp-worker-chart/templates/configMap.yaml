@@ -95,6 +95,7 @@ data:
   OCI_CREATOR: {{ $.Values.workerConfig.ociCreator | quote }}
   OCI_VSA_FLEX_OCPUS: {{ $.Values.workerConfig.ociVsaFlexOcpus | quote }}
   OCI_VSA_FLEX_MEMORY_IN_GBS: {{ $.Values.workerConfig.ociVsaFlexMemoryInGBs | quote }}
+  OCI_VMRS_ENABLED: {{ $.Values.workerConfig.ociVmrsEnabled | default "false" | quote }}
   OCI_MEDIATOR_INSTANCE_TYPE: {{ $.Values.workerConfig.ociMediatorInstanceType | quote }}
   SECRET_URI: {{ $.Values.workerConfig.secretUri | quote }}
   OCI_RESOURCE_PRINCIPAL_REGION: {{ $.Values.workerConfig.ociResourcePrincipalRegion | quote }}

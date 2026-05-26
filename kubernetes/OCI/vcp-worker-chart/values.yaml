@@ -82,6 +82,7 @@ workerConfig:
   ociCreator: "vcp"
   ociVsaFlexOcpus: 8
   ociVsaFlexMemoryInGBs: 96
+  ociVmrsEnabled: false
   ociMediatorInstanceType: "VM.Standard3.Flex"
   vsaMediatorImageName: "ocid1.image.oc1.iad.aaaaaaaa7jahxa2up4364shyrd6x3tv3ijmip2umefrvoh754k3lorhmchva"
   vsaImageName: "ocid1.image.oc1.iad.aaaaaaaa7dxr6bmgmppzftu3jbdcgjcyfypbsirbjopvim6x5ooasfqwp4oa"

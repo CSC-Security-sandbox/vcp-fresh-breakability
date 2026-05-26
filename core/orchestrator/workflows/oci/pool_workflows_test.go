@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	vmrs_oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/oci"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -154,7 +155,7 @@ func TestPrepareVLMConfig_CustomPerformanceAndHardcodedSerialPrefix(t *testing.T
 		Name:           "pool1",
 		Account:        &datamodel.Account{Name: "acct"},
 	}
-	cfg, err := prepareVLMConfig(params, pool)
+	cfg, err := prepareVLMConfig(params, pool, nil)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	assert.Equal(t, int64(128), cfg.Deployment.SPConfig.Throughput)
@@ -188,7 +189,7 @@ func TestPrepareVLMConfig_DerivesIopsFromThroughputWhenNil(t *testing.T) {
 		Account:        &datamodel.Account{Name: "acct"},
 	}
 
-	cfg, err := prepareVLMConfig(params, pool)
+	cfg, err := prepareVLMConfig(params, pool, nil)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
@@ -222,7 +223,7 @@ func TestPrepareVLMConfig_ReturnsErrorWhenIopsValidationFails(t *testing.T) {
 		Account:        &datamodel.Account{Name: "acct"},
 	}
 
-	cfg, err := prepareVLMConfig(params, pool)
+	cfg, err := prepareVLMConfig(params, pool, nil)
 	assert.Error(t, err, "validator must reject IOPS below MinCustomIops")
 	assert.Nil(t, cfg)
 	assert.Contains(t, err.Error(), "derive iops from throughput")
@@ -252,13 +253,269 @@ func TestPrepareVLMConfig_RejectsZeroHAPairs(t *testing.T) {
 		Account:        &datamodel.Account{Name: "acct"},
 	}
 
-	cfg, err := prepareVLMConfig(params, pool)
+	cfg, err := prepareVLMConfig(params, pool, nil)
 	require.Error(t, err, "zero HAPairs must be rejected")
 	assert.Nil(t, cfg)
 	assert.True(t, utilserrors.IsUserInputValidationErr(err),
 		"error must be a UserInputValidationErr so it surfaces as a 4xx, not a 5xx")
 	assert.Contains(t, err.Error(), "haPairs",
 		"error message must mention the offending field")
+}
+
+// TestComputeOCIVMRSInput_RejectsMissingOrZeroThroughput is the
+// regression guard for the nil-deref panic that existed when
+// computeOCIVMRSInput read params.CustomPerformanceParams.ThroughputMibps
+// without a nil check. The headline case is the nil sub-test: previously
+// it crashed the workflow worker (Temporal would mark the activity as
+// non-deterministic and the workflow would get stuck); now it must
+// return a user-input validation error so the API surfaces a 4xx.
+// The zero-throughput sub-test is the sibling: a present-but-empty
+// CustomPerformanceParams would have sailed through here and tripped
+// Select's "DesiredThroughputGBs must be > 0" deeper in the stack with
+// a less-actionable error.
+func TestComputeOCIVMRSInput_RejectsMissingOrZeroThroughput(t *testing.T) {
+	// Pin dataDiskCount so this test doesn't depend on
+	// OCI_VSA_DATA_DISK_COUNT in the test runner's environment.
+	origDDC := dataDiskCount
+	dataDiskCount = 2
+	t.Cleanup(func() { dataDiskCount = origDDC })
+
+	base := func() *common.CreatePoolParams {
+		return &common.CreatePoolParams{
+			HAPairs:     2,
+			SizeInBytes: 4 * 1_000_000_000_000, // 4 decimal TB
+		}
+	}
+
+	cases := []struct {
+		name           string
+		mutate         func(*common.CreatePoolParams)
+		wantMsgInclude string
+	}{
+		{
+			name: "NilCustomPerformanceParams",
+			mutate: func(p *common.CreatePoolParams) {
+				p.CustomPerformanceParams = nil
+			},
+			wantMsgInclude: "customPerformanceParams is required",
+		},
+		{
+			name: "ZeroThroughputMibps",
+			mutate: func(p *common.CreatePoolParams) {
+				p.CustomPerformanceParams = &common.CustomPerformanceParams{ThroughputMibps: 0}
+			},
+			wantMsgInclude: "throughputMibps must be > 0",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			params := base()
+			tc.mutate(params)
+
+			perDisk, perVM, err := computeOCIVMRSInput(params)
+
+			require.Error(tt, err, "must reject before dereferencing throughput")
+			assert.Zero(tt, perDisk)
+			assert.Zero(tt, perVM)
+			assert.True(tt, utilserrors.IsUserInputValidationErr(err),
+				"error must be a UserInputValidationErr so it surfaces as a 4xx, not a panic")
+			assert.Contains(tt, err.Error(), tc.wantMsgInclude,
+				"error message must point at the offending field")
+		})
+	}
+}
+
+// TestComputeOCIVMRSInput_RejectsTopologyInputs covers the
+// shape/size/data-disk validators that fire BEFORE
+// CustomPerformanceParams is read. Each sub-test exercises exactly one
+// invalid input; the others stay valid so the failing field is the
+// only candidate, anchoring both the precondition order and the error
+// message that surfaces (so 4xx responses stay actionable).
+func TestComputeOCIVMRSInput_RejectsTopologyInputs(t *testing.T) {
+	origDDC := dataDiskCount
+	t.Cleanup(func() { dataDiskCount = origDDC })
+
+	validCPP := func() *common.CustomPerformanceParams {
+		return &common.CustomPerformanceParams{ThroughputMibps: 1024}
+	}
+
+	cases := []struct {
+		name           string
+		setup          func()
+		params         *common.CreatePoolParams
+		wantMsgInclude string
+	}{
+		{
+			name:  "ZeroHAPairs",
+			setup: func() { dataDiskCount = 2 },
+			params: &common.CreatePoolParams{
+				HAPairs:                 0, // <- offending field
+				SizeInBytes:             4 * 1_000_000_000_000,
+				CustomPerformanceParams: validCPP(),
+			},
+			wantMsgInclude: "haPairs must be > 0",
+		},
+		{
+			name:  "ZeroDataDiskCount",
+			setup: func() { dataDiskCount = 0 }, // <- offending field
+			params: &common.CreatePoolParams{
+				HAPairs:                 2,
+				SizeInBytes:             4 * 1_000_000_000_000,
+				CustomPerformanceParams: validCPP(),
+			},
+			wantMsgInclude: "OCI_VSA_DATA_DISK_COUNT must be > 0",
+		},
+		{
+			name:  "ZeroSizeInBytes",
+			setup: func() { dataDiskCount = 2 },
+			params: &common.CreatePoolParams{
+				HAPairs:                 2,
+				SizeInBytes:             0, // <- offending field
+				CustomPerformanceParams: validCPP(),
+			},
+			wantMsgInclude: "SizeInBytes must be > 0",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			tc.setup()
+			perDisk, perVM, err := computeOCIVMRSInput(tc.params)
+			require.Error(tt, err)
+			assert.Zero(tt, perDisk)
+			assert.Zero(tt, perVM)
+			assert.True(tt, utilserrors.IsUserInputValidationErr(err),
+				"all topology validators must surface as UserInputValidationErr (4xx)")
+			assert.Contains(tt, err.Error(), tc.wantMsgInclude)
+		})
+	}
+}
+
+// TestComputeOCIVMRSInput_ActivePassiveSplit anchors the AP-mode
+// branch: when IsRegionalHA=true (non-shared HA), only the primary VM
+// in each pair serves I/O, so totalActiveVMs = HAPairs (not 2 *
+// HAPairs) and per-VM throughput is exactly double the AA value for
+// the same total. This sub-test paired with the AA happy path
+// guarantees the two modes can't accidentally converge during a
+// refactor of the activeVMsPerPair branch.
+func TestComputeOCIVMRSInput_ActivePassiveSplit(t *testing.T) {
+	origDDC := dataDiskCount
+	dataDiskCount = 2
+	t.Cleanup(func() { dataDiskCount = origDDC })
+
+	params := &common.CreatePoolParams{
+		HAPairs:      2,
+		IsRegionalHA: true, // Active-Passive: only primary serves
+		SizeInBytes:  4 * 1_000_000_000_000,
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 1024, // ≈ 1.073741824 GB/s
+		},
+	}
+
+	perDisk, perVM, err := computeOCIVMRSInput(params)
+	require.NoError(t, err)
+	// Capacity slicing is mode-independent: 4.0 / (HAPairs * disks) = 1.0
+	assert.InDelta(t, 1.0, perDisk, 1e-9, "per-disk capacity is invariant to HA mode")
+	// AP → totalActiveVMs = HAPairs = 2 → perVM = total / 2 = 0.536870912
+	// (exactly 2x the AA case which divides by 4)
+	assert.InDelta(t, 0.536870912, perVM, 1e-9,
+		"AP per-VM throughput must be total / HAPairs (not / 2*HAPairs)")
+}
+
+// TestPrepareVLMConfig_AppliesDecisionFlipsAllFourOCIFields is the
+// regression guard for the `if decision != nil` block inside
+// prepareVLMConfig — the four-field VMRS override that gets activated
+// only when OCI_VMRS_ENABLED=true. Without this test the entire block
+// (VMRS catalogue → OCIConfig) is reachable only by an end-to-end
+// workflow test, and the existing prepareVLMConfig tests all pass nil
+// for the decision argument.
+func TestPrepareVLMConfig_AppliesDecisionFlipsAllFourOCIFields(t *testing.T) {
+	setTestOCIImageEnv(t)
+	// CustomPerformanceParams settings here only need to satisfy
+	// validators.ValidateIops — they're orthogonal to the VMRS
+	// decision-flip behavior we're asserting. Mirroring the values used
+	// in TestPrepareVLMConfig_RejectsZeroHAPairs keeps the IOPS floor
+	// happy without coupling this test to the validator's exact math.
+	iops := int64(5000)
+	params := &common.CreatePoolParams{
+		AccountName:     "acct",
+		SizeInBytes:     100 * 1024 * 1024 * 1024,
+		PrimaryZone:     "ad1",
+		SecondaryZone:   "ad2",
+		MediatorZone:    "ad3",
+		VendorSubNetID:  "subnet",
+		CompartmentOCID: "comp",
+		HAPairs:         2,
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 128,
+			Iops:            &iops,
+		},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "u1"},
+		DeploymentName: "dep1",
+		Name:           "pool1",
+		Account:        &datamodel.Account{Name: "acct"},
+	}
+	// Synthetic VMRS Decision that intentionally uses values DIFFERENT
+	// from the env defaults so a regression flipping a single field
+	// back to the env path can't pass this test.
+	decision := &vmrs_oci.Decision{
+		VMShape:   "VM.DenseIO.Custom.Flex",
+		OCPUs:     40,
+		MemoryGBs: 480,
+		VPU:       90,
+		IOPS:      786600,
+	}
+
+	cfg, err := prepareVLMConfig(params, pool, decision)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	oc := cfg.Deployment.OCIConfig
+	assert.Equal(t, "VM.DenseIO.Custom.Flex", oc.VSAInstanceShape,
+		"VMRS-chosen shape must land on OCIConfig.VSAInstanceShape")
+	assert.Equal(t, float32(40), oc.VSAFlexOcpus,
+		"VMRS-chosen OCPUs must land on OCIConfig.VSAFlexOcpus")
+	assert.Equal(t, float32(480), oc.VSAFlexMemoryInGBs,
+		"VMRS-chosen memory must land on OCIConfig.VSAFlexMemoryInGBs verbatim (no per-OCPU derivation)")
+	assert.Equal(t, int64(90), oc.DataDiskVpus,
+		"VMRS-chosen VPU must land on OCIConfig.DataDiskVpus")
+	// The deployment-level VSAInstanceType is wired off OCIConfig.VSAInstanceShape
+	// inside ociDeploymentConfig — if the decision shape doesn't flow
+	// there, the VM that actually gets launched will be wrong even
+	// though OCIConfig looks right.
+	assert.Equal(t, "VM.DenseIO.Custom.Flex", cfg.Deployment.VSAInstanceType,
+		"VMRS shape must also flow into Deployment.VSAInstanceType so the launched VM matches the Decision")
+}
+
+// TestComputeOCIVMRSInput_HappyPath asserts the topology math on a
+// well-formed Active-Active 2-HA-pair / 2-data-disk request. Anchors
+// the perVM throughput and per-disk capacity formulas so future
+// refactors of the AA/AP split or data-disk slicing can't quietly
+// change what the OCI VMRS activity sees.
+func TestComputeOCIVMRSInput_HappyPath(t *testing.T) {
+	origDDC := dataDiskCount
+	dataDiskCount = 2
+	t.Cleanup(func() { dataDiskCount = origDDC })
+
+	params := &common.CreatePoolParams{
+		HAPairs:      2,
+		IsRegionalHA: false, // Active-Active: both VMs in each pair serve
+		SizeInBytes:  4 * 1_000_000_000_000,
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 1024, // ≈ 1.073741824 GB/s
+		},
+	}
+
+	perDisk, perVM, err := computeOCIVMRSInput(params)
+	require.NoError(t, err)
+	// totalCapacityTB = 4.0; per-disk = 4.0 / (2 HA pairs * 2 disks) = 1.0 TB
+	assert.InDelta(t, 1.0, perDisk, 1e-9, "per-disk capacity slicing across HA pairs * disks")
+	// totalThroughputGBs = 1024 MiB/s * 1.048576 / 1000 = 1.073741824
+	// AA → 2 active VMs per pair → totalActiveVMs = 4 → perVM = 0.268435456
+	assert.InDelta(t, 0.268435456, perVM, 1e-9, "AA per-VM throughput = total / (2 * HAPairs)")
 }
 
 func TestOCIDeploymentConfig(t *testing.T) {
@@ -303,9 +560,10 @@ func TestOCIDeploymentConfig(t *testing.T) {
 				DeploymentName: "dep-deploy",
 			}
 			ociConfig := vlm.OCIConfig{
-				CompartmentID:   params.CompartmentOCID,
-				SubnetID:        params.VendorSubNetID,
-				DataNICSubnetID: params.DataNICSubnetID,
+				CompartmentID:    params.CompartmentOCID,
+				SubnetID:         params.VendorSubNetID,
+				DataNICSubnetID:  params.DataNICSubnetID,
+				VSAInstanceShape: ociVSAInstanceType,
 			}
 
 			got := ociDeploymentConfig(params, pool, "100Gi", 256, 8192, ociConfig)
@@ -404,7 +662,7 @@ func TestPrepareVLMConfig_DeploymentTypeReflectsIsRegionalHA(t *testing.T) {
 				Account:        &datamodel.Account{Name: "acct"},
 			}
 
-			cfg, err := prepareVLMConfig(params, pool)
+			cfg, err := prepareVLMConfig(params, pool, nil)
 			require.NoError(tt, err)
 			require.NotNil(tt, cfg)
 			assert.Equal(tt, tc.wantDeploymentTyp, cfg.Deployment.DeploymentType,
