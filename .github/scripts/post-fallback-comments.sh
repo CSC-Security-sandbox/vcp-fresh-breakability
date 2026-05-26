@@ -268,7 +268,7 @@ fields = {
     'VULN_STATUS': d.get('vuln_status', 'unknown'),
     'VULN_FINDING': d.get('vuln_finding', ''),
     'VULN_NEW_COUNT': str(len(d.get('vuln_new_findings', []))),
-    'VULN_NEW_LIST': ','.join(d.get('vuln_new_findings', [])[:5]),
+    'VULN_NEW_LIST': ','.join(d.get('vuln_new_findings', [])),
     'VULN_PREEXISTING_COUNT': str(d.get('vuln_preexisting_count', 0)),
     'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
     'TEST_FAIL_DETAIL': next((s.get('detail','') for s in d.get('verification_steps',[]) if s.get('step')=='test_suite' and s.get('status')=='pre_existing'), ''),
@@ -468,9 +468,6 @@ ${_SHOWN_FILES}${_MORE_NOTE}
   _TRANSITIVE_NOTE=""
   if [[ -n "$GOSUM_NEW_COUNT" && "$GOSUM_NEW_COUNT" -gt 0 ]]; then
     _GOSUM_CONTEXT=""
-    if [[ -n "$GOSUM_TOTAL_MAIN" && "$GOSUM_TOTAL_MAIN" -gt 0 ]]; then
-      _GOSUM_CONTEXT=" (go.sum: ${GOSUM_TOTAL_MAIN} → ${GOSUM_TOTAL_PR} lines)"
-    fi
     _GOSUM_NAMES_NOTE=""
     if [[ -n "$GOSUM_NEW_NAMES" ]]; then
       _GOSUM_NAMES_NOTE=": ${GOSUM_NEW_NAMES}"
@@ -631,6 +628,11 @@ ${_BUILD_STDOUT_SNIPPET}
       # V8 FIX (C3): L1 comments must include WHAT failed and WHERE, not just
       # "Build verification limited". Extract module and error excerpt from build output.
       _L1_MAIN_EXIT=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('main_exit',-1))" 2>/dev/null || echo "-1")
+      _L1_MAIN_CLASS=""
+      case "$_L1_MAIN_EXIT" in
+        124) _L1_MAIN_CLASS=" (timeout)" ;;
+        137) _L1_MAIN_CLASS=" (OOM/killed)" ;;
+      esac
       # V9.3: Enhanced excerpt + module attribution for OOM errors.
       # Identifies which sub-packages had errors and whether they're related to the PR's package.
       _L1_EXCERPT_AND_ATTR=$(echo "$PR_FIELDS" | _BC_PKG="$PKG" python3 -c "
@@ -696,7 +698,7 @@ ${_L1_EXCERPT}
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved successfully
-- ⚠️ Build fails on both \`main\` (exit=${_L1_MAIN_EXIT}) and PR branch — same errors${_L1_MODULE_NOTE}${_L1_OOM_NOTE}
+- ⚠️ Build fails on both \`main\` (exit=${_L1_MAIN_EXIT}${_L1_MAIN_CLASS}) and PR branch — same errors${_L1_MODULE_NOTE}${_L1_OOM_NOTE}
 - ✅ No NEW errors introduced by this upgrade
 
 **Pre-existing build errors:**${_L1_EXCERPT_BLOCK}
@@ -1277,21 +1279,30 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
 # move it from safe to a separate companion_blocked list with explanation.
 # This prevents showing "#30 Safe" when "#21 Fix Required — must merge together".
 blocked_nums = {e["num"] for e in blocked}
+blocked_map = {e["num"]: e for e in blocked}
 companion_blocked = []
 safe_after_coord = []
 for entry in safe:
     num = entry["num"]
     companion_blocked_by = []
+    companion_has_vulns = False
     for group in cross:
         pr_a = str(group.get("pr_a", ""))
         pr_b = str(group.get("pr_b", ""))
-        if num == pr_a and pr_b in blocked_nums:
+        if num == pr_a and pr_b in blocked_map:
             companion_blocked_by.append(pr_b)
-        elif num == pr_b and pr_a in blocked_nums:
+            if blocked_map[pr_b].get("verdict") == "vulns_introduced":
+                companion_has_vulns = True
+        elif num == pr_b and pr_a in blocked_map:
             companion_blocked_by.append(pr_a)
+            if blocked_map[pr_a].get("verdict") == "vulns_introduced":
+                companion_has_vulns = True
     if companion_blocked_by:
         entry = dict(entry)
         entry["companion_blocked_by"] = companion_blocked_by
+        if companion_has_vulns:
+            entry["verdict"] = "vulns_introduced"
+            entry["vuln_note"] = "same target version as companion PR which introduces CVEs"
         companion_blocked.append(entry)
     else:
         safe_after_coord.append(entry)
@@ -1414,11 +1425,17 @@ lines.append("")
 _step = 1
 # Security fixes first — use BOTH pr-body CVEs AND Dependabot alert matches (cve_fixes)
 _cve_fix_prs = set(str(f["pr"]) for f in security.get("cve_fixes", []))
-_sec_safe = [e for e in safe + ci_only if e.get("cves") or e["num"] in _cve_fix_prs]
+_sec_safe_l4 = [e for e in safe + ci_only if (e.get("cves") or e["num"] in _cve_fix_prs) and (e.get("ver", "").startswith("L4") or e.get("ver", "").startswith("L5"))]
+_sec_safe_l2 = [e for e in safe + ci_only if (e.get("cves") or e["num"] in _cve_fix_prs) and not (e.get("ver", "").startswith("L4") or e.get("ver", "").startswith("L5"))]
+_sec_safe = _sec_safe_l4 + _sec_safe_l2  # combined for later reference
 _sec_blocked = [e for e in blocked if e.get("cves") or e["num"] in _cve_fix_prs]
-if _sec_safe:
-    _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe)
-    lines.append(f"{_step}. **MERGE NOW — security fixes:** {_sec_nums} ({len(_sec_safe)} PR(s) fix known CVEs, build verified)")
+if _sec_safe_l4:
+    _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe_l4)
+    lines.append(f"{_step}. **MERGE NOW — security fixes:** {_sec_nums} ({len(_sec_safe_l4)} PR(s) fix known CVEs — tests verified L4)")
+    _step += 1
+if _sec_safe_l2:
+    _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe_l2)
+    lines.append(f"{_step}. **MERGE AFTER REVIEW — security fixes (tests not run):** {_sec_nums} ({len(_sec_safe_l2)} PR(s) fix known CVEs — build verified L2/L3 but tests were not run, verify manually before merging)")
     _step += 1
 if _sec_blocked:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_blocked)
@@ -1593,7 +1610,7 @@ if companion_blocked:
     lines.append("|----|---------|---------|------|-------------|------------|")
     for e in companion_blocked:
         companions = ", ".join(f"#{n}" for n in e.get("companion_blocked_by", []))
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']} ✅ | Fix #{companions} first |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']} ✅ | Fix {companions} first |")
     lines.append("")
 
 # Cross-PR deps

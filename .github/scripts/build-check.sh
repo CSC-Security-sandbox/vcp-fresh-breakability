@@ -2822,7 +2822,7 @@ $IMPORT_OUT"
         fi
         if [[ -f "$_GOSUM_PR" && -f "$_GOSUM_MAIN" ]]; then
           _GOSUM_NEW_LINES=$(comm -13 <(sort "$_GOSUM_MAIN") <(sort "$_GOSUM_PR") 2>/dev/null || true)
-          GOSUM_NEW_COUNT=$(echo "$_GOSUM_NEW_LINES" | grep -c . || echo "0")
+          GOSUM_NEW_COUNT=$(echo "$_GOSUM_NEW_LINES" | awk '{print $1}' | sort -u | grep -c . || echo "0")
           # Extract top-5 unique package names (first column of go.sum: module version hash)
           GOSUM_NEW_NAMES=$(echo "$_GOSUM_NEW_LINES" | awk '{print $1}' | sort -u | head -5 | tr '\n' ',' | sed 's/,$//' || echo "")
           GOSUM_TOTAL_PR=$(wc -l < "$_GOSUM_PR" | tr -d ' ' || echo "0")
