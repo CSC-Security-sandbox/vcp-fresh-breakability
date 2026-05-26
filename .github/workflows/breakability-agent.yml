@@ -121,7 +121,7 @@ jobs:
           echo "Matrix: $MATRIX_JSON"
           echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.BREAKABILITY_PAT }}
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 2: Deterministic analysis (parallel matrix)
