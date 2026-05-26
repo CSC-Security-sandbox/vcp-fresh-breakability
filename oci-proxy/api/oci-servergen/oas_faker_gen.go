@@ -342,6 +342,11 @@ func (s *OCICreatePoolWorkflowCredentials) SetFake() {
 func (s *OCICreatePoolWorkflowMetadata) SetFake() {
 	{
 		{
+			s.ClusterIP.SetFake()
+		}
+	}
+	{
+		{
 			s.Vms = nil
 			for i := 0; i < 0; i++ {
 				var elem OCICreatePoolWorkflowVM

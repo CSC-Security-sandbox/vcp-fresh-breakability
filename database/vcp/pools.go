@@ -664,12 +664,11 @@ func (d *DataStoreRepository) UpdatePoolTieringConfig(ctx context.Context, poolU
 	return nil
 }
 
-// GetNextSerialNumberInRegion retrieves the next number from a regional db counter and returns the serial number suffix with the given prefix.
-func (d *DataStoreRepository) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
+func (d *DataStoreRepository) GetNextSerialNumber(ctx context.Context) (int64, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
@@ -679,19 +678,12 @@ func (d *DataStoreRepository) GetNextSerialNumberInRegion(ctx context.Context, p
 	query := fmt.Sprintf("SELECT nextval('%s')", uniqueSerialSeqName)
 	err = tx.Raw(query).Scan(&nextClusterSerialNumber).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// If you get this error, it means the sequence does not exist.
-		// In local setup, please run the migration script to create the sequence.
-		return "", vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, err)
+		return 0, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, err)
 	} else if err != nil {
-		return "", vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		return 0, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 
-	// Example, in case seq returns 1: 93501000000000000001
-	// Example, in case seq returns 45555: 93501000000000045555
-	// 935: predefined prefix
-	// 01: region code, e.g., 01 for us-central1
-	// 000000000000001: nextClusterSerialNumber padded to 15 digits
-	return fmt.Sprintf("%s%015d", prefix, nextClusterSerialNumber), nil
+	return nextClusterSerialNumber, nil
 }
 
 func (d *DataStoreRepository) ListTpProjects(ctx context.Context) ([]string, error) {

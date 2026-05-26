@@ -24,8 +24,13 @@ import (
 )
 
 const (
-	defaultOCIVSAUserBootargs = "bootarg.use.cam.nda=true;bootarg.vm.vnvram_jswap_enable=false;bootarg.vm.nvramdevice=/dev/da2;bootarg.vm.cluster_ports=e0a.pv1;bootarg.vm.vnvram.ephemeral=true;bootarg.vm.nvme.lssd_size_for_ec=4294967296;"
-	password                  = "password"
+	defaultOCIVSAUserBootargs    = "bootarg.use.cam.nda=true;bootarg.vm.vnvram_jswap_enable=false;bootarg.vm.nvramdevice=/dev/da2;bootarg.vm.cluster_ports=e0a.pv1;bootarg.vm.vnvram.ephemeral=true;bootarg.vm.nvme.lssd_size_for_ec=4294967296;"
+	password                     = "password"
+	ociSerialNumberLeadingPrefix = "955"
+	ociSerialNumberPrefix        = "000000000000000"
+  ociSerialCounterMax          = int64(10_000_000_000_000)
+	ociSerialCounterWidth        = 13
+	ociSerialPrefixLen           = 7
 )
 
 var (
@@ -50,10 +55,36 @@ var (
 	ociExpertModeRbacHash         = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_CHECKSUM", "")
 	ociExpertModeUsername         = env.GetString("OCI_EXPERT_MODE_USERNAME", "ociadmin")
 	ociExpertModePassword         = env.GetString("OCI_EXPERT_MODE_PASSWORD", "")
-	ociSerialNumberLeadingPrefix  = "955"
-	ociSerialNumberPrefix         = "000000000000000"
+	ociCellNumber                 = env.GetString("LOCAL_CELL", "00")
+	ociVSASerialAllocationEnabled = env.GetBool("OCI_VSA_SERIAL_NUMBER_ALLOCATION_ENABLED", false)
 	ociVMRSEnabled                = env.GetBool("OCI_VMRS_ENABLED", false)
 )
+
+func buildOCISerialPrefix(regionCode, cellCode string) (string, error) {
+	if err := validateNumericCode("region", regionCode, 2); err != nil {
+		return "", err
+	}
+	if err := validateNumericCode("cell", cellCode, 2); err != nil {
+		return "", err
+	}
+	return ociSerialNumberLeadingPrefix + regionCode + cellCode, nil
+}
+
+func validateNumericCode(name, s string, want int) error {
+	if len(s) != want {
+		return utilserrors.NewUserInputValidationErr(
+			fmt.Sprintf("invalid %s code %q: expected %d digits, got %d", name, s, want, len(s)),
+		)
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return utilserrors.NewUserInputValidationErr(
+				fmt.Sprintf("invalid %s code %q: must contain only digits", name, s),
+			)
+		}
+	}
+	return nil
+}
 
 // ValidateOCIWorkerStartupEnv ensures OCI worker startup has all required environment variables.
 // This is called from worker/main.go when HYPERSCALER=oci to fail fast before polling workflows.
@@ -304,6 +335,13 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	createVSAClusterDeploymentRequest := &vlm.CreateVSAClusterDeploymentRequest{}
 	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, credConfig.OntapCredentials, pool)
 
+	if ociVSASerialAllocationEnabled {
+		if err = allocateOCIVMSerialNumbers(ctx, poolActivity, createVSAClusterDeploymentRequest); err != nil {
+			logger.Errorf("Failed to allocate OCI VM serial numbers: %v", err)
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
+
 	if !disableVsaCleanupOnVLMFailure {
 		req := &vlm.DeleteVSAClusterDeploymentRequest{}
 		prepareOCIDeleteVSAClusterDeploymentRequest(req, pool, params.AccountName)
@@ -402,6 +440,47 @@ func NewPoolBuildInfo(now time.Time, accountName string) *datamodel.PoolBuildInf
 		OntapVersion:       utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(accountName)),
 		BuildTimestamp:     now,
 	}
+}
+
+func allocateOCIVMSerialNumbers(ctx workflow.Context, poolActivity *activities.PoolActivity, req *vlm.CreateVSAClusterDeploymentRequest) error {
+	if activities.RegionNumber == "" {
+		return utilserrors.NewUserInputValidationErr(
+			"region number is not set; ensure LOCAL_REGION and REGION_NUMBER_MAP are configured on the OCI worker")
+	}
+	if ociCellNumber == "" {
+		return utilserrors.NewUserInputValidationErr(
+			"cell number is not set; ensure LOCAL_CELL is configured on the OCI worker as a 2-digit code")
+	}
+	numHAPair := req.VLMConfig.Deployment.NumHAPair
+	if numHAPair < 1 {
+		return utilserrors.NewUserInputValidationErr(
+			fmt.Sprintf("invalid VM count for serial allocation: NumHAPair=%d (must be >= 1)", numHAPair))
+	}
+
+	prefix, err := buildOCISerialPrefix(activities.RegionNumber, ociCellNumber)
+	if err != nil {
+		return err
+	}
+
+	numVMs := numHAPair * activities.VMsPerHAPair
+	serials := make([]string, 0, numVMs)
+	for range numVMs {
+		var counter int64
+		if err := workflow.ExecuteActivity(ctx, poolActivity.GetNextSerialNumber).Get(ctx, &counter); err != nil {
+			return err
+		}
+		if counter < 0 || counter >= ociSerialCounterMax {
+			return vsaerrors.NewVCPError(
+				vsaerrors.ErrGeneratingUniqueSerialNumber,
+				fmt.Errorf("OCI serial counter %d overflows %d-digit width (max %d)", counter, ociSerialCounterWidth, ociSerialCounterMax-1),
+			)
+		}
+		serials = append(serials, fmt.Sprintf("%s%0*d", prefix, ociSerialCounterWidth, counter))
+	}
+
+	req.VLMConfig.Deployment.SerialNumberPrefix = ""
+	req.VLMConfig.Deployment.VMSerialNumbers = serials
+	return nil
 }
 
 // ociDefinedTags returns the OCI defined tags map (netapp-tags with deployment_id).

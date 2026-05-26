@@ -73,6 +73,8 @@ workerConfig:
   # Comma-separated list of error patterns that trigger delete and retry operations
   vlmRetryErrorPatterns: ""
   ontapVersionDetails: "9.18.1"
+  localCell: "00"
+  ociVSASerialAllocationEnabled: true
 
   # ONTAP Image Version Match Configuration
   skipOntapImageVersionMatch: false

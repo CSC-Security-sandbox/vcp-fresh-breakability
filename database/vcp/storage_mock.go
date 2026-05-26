@@ -10404,27 +10404,27 @@ func (_c *MockStorage_GetNextSVMIndexByPoolID_Call) RunAndReturn(run func(contex
 	return _c
 }
 
-// GetNextSerialNumberInRegion provides a mock function with given fields: ctx, region
-func (_m *MockStorage) GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error) {
-	ret := _m.Called(ctx, region)
+// GetNextSerialNumber provides a mock function with given fields: ctx
+func (_m *MockStorage) GetNextSerialNumber(ctx context.Context) (int64, error) {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetNextSerialNumberInRegion")
+		panic("no return value specified for GetNextSerialNumber")
 	}
 
-	var r0 string
+	var r0 int64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
-		return rf(ctx, region)
+	if rf, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
+		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
-		r0 = rf(ctx, region)
+	if rf, ok := ret.Get(0).(func(context.Context) int64); ok {
+		r0 = rf(ctx)
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(int64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, region)
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -10432,31 +10432,30 @@ func (_m *MockStorage) GetNextSerialNumberInRegion(ctx context.Context, region s
 	return r0, r1
 }
 
-// MockStorage_GetNextSerialNumberInRegion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNextSerialNumberInRegion'
-type MockStorage_GetNextSerialNumberInRegion_Call struct {
+// MockStorage_GetNextSerialNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNextSerialNumber'
+type MockStorage_GetNextSerialNumber_Call struct {
 	*mock.Call
 }
 
-// GetNextSerialNumberInRegion is a helper method to define mock.On call
+// GetNextSerialNumber is a helper method to define mock.On call
 //   - ctx context.Context
-//   - region string
-func (_e *MockStorage_Expecter) GetNextSerialNumberInRegion(ctx interface{}, region interface{}) *MockStorage_GetNextSerialNumberInRegion_Call {
-	return &MockStorage_GetNextSerialNumberInRegion_Call{Call: _e.mock.On("GetNextSerialNumberInRegion", ctx, region)}
+func (_e *MockStorage_Expecter) GetNextSerialNumber(ctx interface{}) *MockStorage_GetNextSerialNumber_Call {
+	return &MockStorage_GetNextSerialNumber_Call{Call: _e.mock.On("GetNextSerialNumber", ctx)}
 }
 
-func (_c *MockStorage_GetNextSerialNumberInRegion_Call) Run(run func(ctx context.Context, region string)) *MockStorage_GetNextSerialNumberInRegion_Call {
+func (_c *MockStorage_GetNextSerialNumber_Call) Run(run func(ctx context.Context)) *MockStorage_GetNextSerialNumber_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context))
 	})
 	return _c
 }
 
-func (_c *MockStorage_GetNextSerialNumberInRegion_Call) Return(_a0 string, _a1 error) *MockStorage_GetNextSerialNumberInRegion_Call {
+func (_c *MockStorage_GetNextSerialNumber_Call) Return(_a0 int64, _a1 error) *MockStorage_GetNextSerialNumber_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorage_GetNextSerialNumberInRegion_Call) RunAndReturn(run func(context.Context, string) (string, error)) *MockStorage_GetNextSerialNumberInRegion_Call {
+func (_c *MockStorage_GetNextSerialNumber_Call) RunAndReturn(run func(context.Context) (int64, error)) *MockStorage_GetNextSerialNumber_Call {
 	_c.Call.Return(run)
 	return _c
 }

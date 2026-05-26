@@ -2113,6 +2113,16 @@ func (j *PoolActivity) AllocateClusterSerialNumber(ctx context.Context, cfg *vlm
 	return cfg, nil
 }
 
+func (j *PoolActivity) GetNextSerialNumber(ctx context.Context) (int64, error) {
+	activity.RecordHeartbeat(ctx, "Allocating next serial number")
+	n, err := j.SE.GetNextSerialNumber(ctx)
+	if err != nil {
+		util.GetLogger(ctx).Error("Failed to get next serial number", "error", err)
+		return 0, vsaerrors.NewVCPError(vsaerrors.ErrGeneratingUniqueSerialNumber, err)
+	}
+	return n, nil
+}
+
 // CreateCloudDNSRecords creates DNS records for the VSA cluster's nodes in the cloud DNS service
 func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm.VLMConfig, clusterName string, authType int) (*map[string]string, error) {
 	activity.RecordHeartbeat(ctx, "Initializing CreateCloudDNSRecords activity")
@@ -2637,14 +2647,15 @@ func assignUniqueSerialNumber(ctx context.Context, se database.Storage, cfg *vlm
 	}
 
 	// Generate serial number prefix for number of ha pairs * VMsPerHAPair (for each VM in the HA pair).
+	regionalPrefix := clusterSerialNumberPrefix + RegionNumber
 	var serials []string
 	for range cfg.VLMConfig.Deployment.NumHAPair * VMsPerHAPair {
-		serialNumber, err := se.GetNextSerialNumberInRegion(ctx, clusterSerialNumberPrefix+RegionNumber)
+		seq, err := se.GetNextSerialNumber(ctx)
 		if err != nil {
 			util.GetLogger(ctx).Error("Failed to get next regional cluster serial number", "error", err)
 			return err
 		}
-		serials = append(serials, serialNumber)
+		serials = append(serials, fmt.Sprintf("%s%015d", regionalPrefix, seq))
 	}
 
 	// Need to set the SerialNumberPrefix to empty otherwise VMSerialNumbers will be ignored by VLM.

@@ -1960,6 +1960,12 @@ func (s *OCICreatePoolWorkflowMetadata) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *OCICreatePoolWorkflowMetadata) encodeFields(e *jx.Encoder) {
 	{
+		if s.ClusterIP.Set {
+			e.FieldStart("clusterIP")
+			s.ClusterIP.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("vms")
 		e.ArrStart()
 		for _, elem := range s.Vms {
@@ -1973,9 +1979,10 @@ func (s *OCICreatePoolWorkflowMetadata) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfOCICreatePoolWorkflowMetadata = [2]string{
-	0: "vms",
-	1: "credentials",
+var jsonFieldsNameOfOCICreatePoolWorkflowMetadata = [3]string{
+	0: "clusterIP",
+	1: "vms",
+	2: "credentials",
 }
 
 // Decode decodes OCICreatePoolWorkflowMetadata from json.
@@ -1987,8 +1994,18 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "clusterIP":
+			if err := func() error {
+				s.ClusterIP.Reset()
+				if err := s.ClusterIP.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"clusterIP\"")
+			}
 		case "vms":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Vms = make([]OCICreatePoolWorkflowVM, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -2006,7 +2023,7 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"vms\"")
 			}
 		case "credentials":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Credentials.Decode(d); err != nil {
 					return err
@@ -2025,7 +2042,7 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

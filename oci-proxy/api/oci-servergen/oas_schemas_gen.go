@@ -1246,9 +1246,16 @@ func (s *OCICreatePoolWorkflowCredentials) SetCertificate(val OCIOCIDVersionRef)
 
 // Ref: #/components/schemas/OCICreatePoolWorkflowMetadata
 type OCICreatePoolWorkflowMetadata struct {
+	// RBAC LIF IP for the cluster.
+	ClusterIP OptString `json:"clusterIP"`
 	// VM metadata for OCI pool nodes.
 	Vms         []OCICreatePoolWorkflowVM        `json:"vms"`
 	Credentials OCICreatePoolWorkflowCredentials `json:"credentials"`
+}
+
+// GetClusterIP returns the value of ClusterIP.
+func (s *OCICreatePoolWorkflowMetadata) GetClusterIP() OptString {
+	return s.ClusterIP
 }
 
 // GetVms returns the value of Vms.
@@ -1259,6 +1266,11 @@ func (s *OCICreatePoolWorkflowMetadata) GetVms() []OCICreatePoolWorkflowVM {
 // GetCredentials returns the value of Credentials.
 func (s *OCICreatePoolWorkflowMetadata) GetCredentials() OCICreatePoolWorkflowCredentials {
 	return s.Credentials
+}
+
+// SetClusterIP sets the value of ClusterIP.
+func (s *OCICreatePoolWorkflowMetadata) SetClusterIP(val OptString) {
+	s.ClusterIP = val
 }
 
 // SetVms sets the value of Vms.

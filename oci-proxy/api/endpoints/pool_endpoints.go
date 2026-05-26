@@ -409,12 +409,18 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 				ThroughputGBps:  vm.ThroughputGBps,
 			})
 		}
-		resp.PoolMetadata = ociserver.NewOptOCICreatePoolWorkflowMetadata(
-			ociserver.OCICreatePoolWorkflowMetadata{
-				Vms:         vms,
-				Credentials: buildWorkflowCredentialsResponse(res.PoolMetadata.Credentials),
-			},
-		)
+		poolMeta := ociserver.OCICreatePoolWorkflowMetadata{
+			Vms:         vms,
+			Credentials: buildWorkflowCredentialsResponse(res.PoolMetadata.Credentials),
+		}
+		// Omit clusterIP entirely when VLM has not yet recorded the RBAC LIF
+		// IP, so the field reads as absent (not "") for in-progress / partial
+		// runs and matches the "Omitted while still being provisioned"
+		// contract documented on the schema.
+		if res.PoolMetadata.ClusterIP != "" {
+			poolMeta.ClusterIP = ociserver.NewOptString(res.PoolMetadata.ClusterIP)
+		}
+		resp.PoolMetadata = ociserver.NewOptOCICreatePoolWorkflowMetadata(poolMeta)
 	}
 	if res.SvmMetadata != nil {
 		lifs := make([]ociserver.SvmLif, 0, len(res.SvmMetadata.Lifs))

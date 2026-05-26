@@ -189,6 +189,46 @@ func TestPoolUUIDFromEmbed(t *testing.T) {
 	require.Empty(t, poolUUIDFromEmbed(&cfg2), "missing deployment.labels returns empty UUID")
 }
 
+// TestClusterIPFromEmbed verifies that the cluster-scoped RBAC LIF IP is
+// surfaced once at the pool level. The RBAC LIF lives on exactly one VM at a
+// time (VLM sets `lifs.rbac.ip` on the active VM and leaves it empty on the
+// rest), so per-VM rbac IPs would mostly be empty strings — the API contract
+// returns this single value in `OCICreatePoolMetadata.ClusterIP`.
+func TestClusterIPFromEmbed(t *testing.T) {
+	t.Parallel()
+
+	require.Empty(t, clusterIPFromEmbed(nil), "nil cfg returns empty so callers omit clusterIP from the response")
+
+	const noRbacAssigned = `{"cloud":{"ha_pair":[{
+		"vm1":{"lifs":{"rbac":{"ip":""}}},
+		"vm2":{"lifs":{"rbac":{"ip":""}}}
+	}]}}`
+	var cfgEmpty vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(noRbacAssigned), &cfgEmpty))
+	require.Empty(t, clusterIPFromEmbed(&cfgEmpty),
+		"every rbac.ip empty means the LIF has not been provisioned yet — omit the field rather than emit an empty string")
+
+	// Single-pair case: vm1 hosts the RBAC LIF, vm2 is empty (real-world
+	// shape from VLM config; rbac is cluster-scoped and lives on one VM).
+	const vm1Active = `{"cloud":{"ha_pair":[{
+		"vm1":{"lifs":{"rbac":{"ip":"10.38.23.99"}}},
+		"vm2":{"lifs":{"rbac":{"ip":""}}}
+	}]}}`
+	var cfg1 vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(vm1Active), &cfg1))
+	require.Equal(t, "10.38.23.99", clusterIPFromEmbed(&cfg1))
+
+	// Multi-pair case: across pairs only one VM holds the LIF; the helper
+	// must walk every pair until it finds it.
+	const lateLIF = `{"cloud":{"ha_pair":[
+		{"vm1":{"lifs":{"rbac":{"ip":""}}},"vm2":{"lifs":{"rbac":{"ip":""}}}},
+		{"vm1":{"lifs":{"rbac":{"ip":""}}},"vm2":{"lifs":{"rbac":{"ip":"10.0.0.5"}}}}
+	]}}`
+	var cfg2 vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(lateLIF), &cfg2))
+	require.Equal(t, "10.0.0.5", clusterIPFromEmbed(&cfg2))
+}
+
 // TestPoolVMMetadataFromEmbed_HAPairIndexing verifies that HAPair labels are
 // assigned by zero-based pair index (ha_pair-0, ha_pair-1, ...) and that both
 // VMs in the same pair share the same label.
@@ -216,6 +256,52 @@ func TestPoolVMMetadataFromEmbed_HAPairIndexing(t *testing.T) {
 	require.Equal(t, "ha_pair-0", got[1].HAPair, "vm2 of pair 0 must be ha_pair-0")
 	require.Equal(t, "ha_pair-1", got[2].HAPair, "vm1 of pair 1 must be ha_pair-1")
 	require.Equal(t, "ha_pair-1", got[3].HAPair, "vm2 of pair 1 must be ha_pair-1")
+}
+
+func TestPoolVMMetadataFromEmbed_RBACOnlyVMOmitted(t *testing.T) {
+	t.Parallel()
+	const snippet = `{
+  "cloud": {
+    "ha_pair": [
+      {
+        "vm1": {
+          "name": "vm-01",
+          "serial_number": "1234501",
+          "vsa_management_ip": "150.136.212.147",
+          "lifs": {
+            "intercluster": { "ip": "10.38.25.146" },
+            "nodemgmtinternal": { "ip": "10.38.18.182" },
+            "rbac": { "ip": "10.38.23.99" }
+          }
+        },
+        "vm2": {
+          "lifs": {
+            "rbac": { "ip": "" }
+          }
+        }
+      }
+    ]
+  }
+}`
+	var cfg vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
+
+	got := poolVMMetadataFromEmbed(&cfg)
+	require.Len(t, got, 1,
+		"VM2 carries no per-VM signal (name/serial/intercluster/nodemgmt/disks all empty) — even with RBAC tracked at pool level, it must not be promoted to a per-VM entry")
+	require.Equal(t, "vm-01", got[0].Name,
+		"VM1 must still be emitted because it carries real per-VM data; RBAC presence is irrelevant to per-VM emptiness")
+
+	require.Equal(t, "10.38.23.99", clusterIPFromEmbed(&cfg),
+		"RBAC LIF IP belongs at pool level; ClusterIP must be populated from whichever VM hosts the active RBAC LIF")
+}
+
+func TestVMMetadataIsEmpty_RBACDoesNotMakeVMNonEmpty(t *testing.T) {
+	t.Parallel()
+	vm := vmMetadata{}
+	vm.Lifs.Rbac.IP = "10.38.23.99"
+	require.True(t, vmMetadataIsEmpty(vm),
+		"RBAC LIF IP alone must not flip a VM from empty to non-empty; RBAC is surfaced at pool level via clusterIPFromEmbed")
 }
 
 func TestPoolVMMetadataFromEmbed_VM2Omitted(t *testing.T) {

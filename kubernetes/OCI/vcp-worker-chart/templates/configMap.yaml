@@ -105,7 +105,8 @@ data:
   OCI_VAULT_OCID: {{ $.Values.workerConfig.ociVaultOcid | quote }}
   OCI_MASTER_KEY_OCID: {{ $.Values.workerConfig.ociMasterKeyOcid | quote }}
   OCI_COMPARTMENT_OCID: {{ $.Values.workerConfig.ociCompartmentOcid | quote }}
-
+  LOCAL_CELL: {{ $.Values.workerConfig.localCell | quote }}
+  OCI_VSA_SERIAL_NUMBER_ALLOCATION_ENABLED: {{ $.Values.workerConfig.ociVSASerialAllocationEnabled | quote }}
 
 ---
 {{- end }}

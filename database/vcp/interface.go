@@ -78,7 +78,7 @@ type (
 		GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error)
 		CountActivePoolsByNetwork(ctx context.Context, network string, excludePoolUUID string) (int64, error)
 		GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error)
-		GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error)
+		GetNextSerialNumber(ctx context.Context) (int64, error)
 		ListTpProjects(ctx context.Context) ([]string, error)
 		// ListAllTpProjects returns all distinct RTP values, including soft-deleted.
 		ListAllTpProjects(ctx context.Context) ([]string, error)

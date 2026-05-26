@@ -1908,8 +1908,7 @@ func TestUpdatePoolSubnetNames_UpdatesSnHostProject(t *testing.T) {
 	assert.Equal(t, expectedSnHostProject, updatedPool.SnHostProject)
 }
 
-func TestGetNextSerialNumberInRegion(t *testing.T) {
-	// Could not cover success case due to the use of a sequence, and sqlite in-memory database does not support sequences.
+func TestGetNextSerialNumber(t *testing.T) {
 	t.Run("ReturnsError", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		if err != nil {
@@ -1923,9 +1922,9 @@ func TestGetNextSerialNumberInRegion(t *testing.T) {
 			t.Fatalf("Failed to clean up test database: %v", err)
 		}
 
-		_, err = store.GetNextSerialNumberInRegion(context.Background(), "93501")
+		_, err = store.GetNextSerialNumber(context.Background())
 		if err == nil {
-			tt.Errorf("Expected error, got nil")
+			tt.Errorf("Expected error from sqlite-backed nextval call, got nil")
 		}
 	})
 }

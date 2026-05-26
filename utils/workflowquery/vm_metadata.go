@@ -27,6 +27,7 @@ type vmMetadata struct {
 	Lifs            struct {
 		Intercluster     lifIPEmbed `json:"intercluster"`
 		Nodemgmtinternal lifIPEmbed `json:"nodemgmtinternal"`
+		Rbac             lifIPEmbed `json:"rbac"`
 	} `json:"lifs"`
 	DataDisks []dataDisk `json:"data_disks"`
 }
@@ -73,6 +74,21 @@ func interclusterIPsFromEmbed(cfg *vlmConfigIPEmbed) []string {
 		add(pair.VM2.Lifs.Intercluster.IP)
 	}
 	return ips
+}
+
+func clusterIPFromEmbed(cfg *vlmConfigIPEmbed) string {
+	if cfg == nil {
+		return ""
+	}
+	for _, pair := range cfg.Cloud.HAPairs {
+		if ip := pair.VM1.Lifs.Rbac.IP; ip != "" {
+			return ip
+		}
+		if ip := pair.VM2.Lifs.Rbac.IP; ip != "" {
+			return ip
+		}
+	}
+	return ""
 }
 
 func nodemgmtInternalIPsFromEmbed(cfg *vlmConfigIPEmbed) []string {

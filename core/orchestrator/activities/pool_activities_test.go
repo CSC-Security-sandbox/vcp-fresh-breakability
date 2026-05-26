@@ -7502,9 +7502,11 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.PoolActivity{SE: mockStorage}
-		serialNumber1 := "935010000000000001"
-		serialNumber2 := "935010000000000002"
-		serials := []string{serialNumber1, serialNumber2}
+
+		serials := []string{
+			"93534000000000000001",
+			"93534000000000000002",
+		}
 		req := &vlm.CreateVSAClusterDeploymentRequest{
 			VLMConfig: vlm.VLMConfig{
 				Deployment: vlm.DeploymentConfig{
@@ -7518,8 +7520,8 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		activities.RegionNumber = "34"
 		defer func() { activities.RegionNumber = oldRegionNumber }()
 
-		mockStorage.On("GetNextSerialNumberInRegion", mock.Anything, "93534").Return(serialNumber1, nil).Once()
-		mockStorage.On("GetNextSerialNumberInRegion", mock.Anything, "93534").Return(serialNumber2, nil).Once()
+		mockStorage.On("GetNextSerialNumber", mock.Anything).Return(int64(1), nil).Once()
+		mockStorage.On("GetNextSerialNumber", mock.Anything).Return(int64(2), nil).Once()
 
 		env.RegisterActivity(activity.AllocateClusterSerialNumber)
 		val, err := env.ExecuteActivity(activity.AllocateClusterSerialNumber, req)
@@ -7538,11 +7540,12 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.PoolActivity{SE: mockStorage}
-		serialNumber1 := "935010000000000001"
-		serialNumber2 := "935010000000000002"
-		serialNumber3 := "935010000000000003"
-		serialNumber4 := "935010000000000004"
-		serials := []string{serialNumber1, serialNumber2, serialNumber3, serialNumber4}
+		serials := []string{
+			"93534000000000000001",
+			"93534000000000000002",
+			"93534000000000000003",
+			"93534000000000000004",
+		}
 		req := &vlm.CreateVSAClusterDeploymentRequest{
 			VLMConfig: vlm.VLMConfig{
 				Deployment: vlm.DeploymentConfig{
@@ -7556,10 +7559,10 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		activities.RegionNumber = "34"
 		defer func() { activities.RegionNumber = oldRegionNumber }()
 
-		mockStorage.On("GetNextSerialNumberInRegion", mock.Anything, "93534").Return(serialNumber1, nil).Once()
-		mockStorage.On("GetNextSerialNumberInRegion", mock.Anything, "93534").Return(serialNumber2, nil).Once()
-		mockStorage.On("GetNextSerialNumberInRegion", mock.Anything, "93534").Return(serialNumber3, nil).Once()
-		mockStorage.On("GetNextSerialNumberInRegion", mock.Anything, "93534").Return(serialNumber4, nil).Once()
+		mockStorage.On("GetNextSerialNumber", mock.Anything).Return(int64(1), nil).Once()
+		mockStorage.On("GetNextSerialNumber", mock.Anything).Return(int64(2), nil).Once()
+		mockStorage.On("GetNextSerialNumber", mock.Anything).Return(int64(3), nil).Once()
+		mockStorage.On("GetNextSerialNumber", mock.Anything).Return(int64(4), nil).Once()
 
 		env.RegisterActivity(activity.AllocateClusterSerialNumber)
 		val, err := env.ExecuteActivity(activity.AllocateClusterSerialNumber, req)
@@ -7626,7 +7629,7 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "region number is not set")
 	})
-	t.Run("FailureOnGetNextSerialNumberInRegionError", func(t *testing.T) {
+	t.Run("FailureOnGetNextSerialNumberError", func(t *testing.T) {
 		// Setup Temporal test environment
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestActivityEnvironment()
@@ -7647,13 +7650,75 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		activities.RegionNumber = "34"
 		defer func() { activities.RegionNumber = oldRegionNumber }()
 
-		mockStorage.On("GetNextSerialNumberInRegion", mock.Anything, "93534").Return("", errors.New("error fetching serial number"))
+		mockStorage.On("GetNextSerialNumber", mock.Anything).Return(int64(0), errors.New("error fetching serial number"))
 
 		env.RegisterActivity(activity.AllocateClusterSerialNumber)
 		_, err := env.ExecuteActivity(activity.AllocateClusterSerialNumber, req)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "error fetching serial number")
+	})
+}
+
+// TestPoolActivity_GetNextSerialNumber covers the activity wrapper around
+// storage.GetNextSerialNumber. The activity itself is tiny — it issues a
+// heartbeat, delegates to the storage layer, and wraps any storage failure as
+// a 6069 VCPError so callers see the documented "serial number generation
+// failed" tracking ID. We exercise it through the Temporal test activity
+// environment so the heartbeat call lands on a real activity context (a bare
+// context.Background() would panic inside activity.RecordHeartbeat).
+func TestPoolActivity_GetNextSerialNumber(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		const wantSerial int64 = 4242
+		mockStorage.On("GetNextSerialNumber", mock.Anything).Return(wantSerial, nil).Once()
+
+		env.RegisterActivity(activity.GetNextSerialNumber)
+		val, err := env.ExecuteActivity(activity.GetNextSerialNumber)
+
+		require.NoError(t, err)
+		var got int64
+		require.NoError(t, val.Get(&got))
+		assert.Equal(t, wantSerial, got,
+			"activity must propagate the storage layer's value verbatim — any transformation would break the OCI serial allocator's PPP+RR+CC+counter contract")
+	})
+
+	t.Run("WrapsStorageErrorAsErrGeneratingUniqueSerialNumber", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		mockStorage.On("GetNextSerialNumber", mock.Anything).
+			Return(int64(0), errors.New("postgres unique sequence error")).Once()
+
+		env.RegisterActivity(activity.GetNextSerialNumber)
+		_, err := env.ExecuteActivity(activity.GetNextSerialNumber)
+
+		require.Error(t, err)
+		// Two assertions on the error chain:
+		//   1) the 6069 (ErrGeneratingUniqueSerialNumber) user-facing message
+		//      must surface so callers map it to the documented taxonomy
+		//      entry and apply the right retry/HTTP policy. Asserting on the
+		//      message is the only reliable check across env.ExecuteActivity,
+		//      because Temporal serializes the activity error into an
+		//      ApplicationError and discards the original *CustomError type
+		//      (so errors.As on *CustomError returns false here even though
+		//      the activity does wrap correctly — see the matching pattern
+		//      in Test_AllocateClusterSerialNumber/FailureOnGetNextSerial...).
+		//   2) the underlying storage error must remain in the chain so
+		//      operators can see the real cause in Temporal history; wrapping
+		//      is for classification, not redaction.
+		assert.Contains(t, err.Error(), "Error while generating Cluster serial number",
+			"activity must wrap storage failures with the 6069 (ErrGeneratingUniqueSerialNumber) taxonomy message; otherwise the API layer cannot map the error to the documented user-facing response")
+		assert.Contains(t, err.Error(), "postgres unique sequence error",
+			"underlying storage error must reach Temporal history; wrapping it must not swallow the cause")
 	})
 }
 

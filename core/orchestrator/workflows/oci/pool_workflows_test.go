@@ -1,7 +1,9 @@
 package oci
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -2059,4 +2061,456 @@ func TestOCIDeletePoolWorkflow_RunArgsValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func withOCIVSASerialAllocationFlag(t *testing.T, enabled bool) {
+	t.Helper()
+	orig := ociVSASerialAllocationEnabled
+	ociVSASerialAllocationEnabled = enabled
+	t.Cleanup(func() { ociVSASerialAllocationEnabled = orig })
+}
+
+func withOCISerialAllocationEnv(t *testing.T, region, cell string) {
+	t.Helper()
+	origRegion := activities.RegionNumber
+	origCell := ociCellNumber
+	activities.RegionNumber = region
+	ociCellNumber = cell
+	t.Cleanup(func() {
+		activities.RegionNumber = origRegion
+		ociCellNumber = origCell
+	})
+}
+
+func TestValidateNumericCode(t *testing.T) {
+	cases := []struct {
+		name    string
+		code    string
+		want    int
+		wantErr bool
+		errSubs string
+	}{
+		{name: "exact length numeric", code: "42", want: 2, wantErr: false},
+		{name: "too short", code: "4", want: 2, wantErr: true, errSubs: "expected 2 digits, got 1"},
+		{name: "too long", code: "423", want: 2, wantErr: true, errSubs: "expected 2 digits, got 3"},
+		{name: "empty", code: "", want: 2, wantErr: true, errSubs: "expected 2 digits, got 0"},
+		{name: "non-digit", code: "4a", want: 2, wantErr: true, errSubs: "must contain only digits"},
+		{name: "leading zero ok", code: "01", want: 2, wantErr: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			err := validateNumericCode("test", tc.code, tc.want)
+			if !tc.wantErr {
+				assert.NoError(tt, err)
+				return
+			}
+			require.Error(tt, err)
+			assert.True(tt, utilserrors.IsUserInputValidationErr(err),
+				"length/charset failures must surface as 4xx UserInputValidationErr, not internal errors")
+			assert.Contains(tt, err.Error(), tc.errSubs)
+		})
+	}
+}
+
+func TestBuildOCISerialPrefix(t *testing.T) {
+	cases := []struct {
+		name       string
+		regionCode string
+		cellCode   string
+		want       string
+		wantErr    bool
+		errSubs    string
+	}{
+		{name: "valid", regionCode: "34", cellCode: "01", want: "9553401"},
+		{name: "leading zero region", regionCode: "01", cellCode: "02", want: "9550102"},
+		{name: "region too short", regionCode: "3", cellCode: "01", wantErr: true, errSubs: "region"},
+		{name: "cell too long", regionCode: "34", cellCode: "001", wantErr: true, errSubs: "cell"},
+		{name: "region non-digit", regionCode: "3a", cellCode: "01", wantErr: true, errSubs: "region"},
+		{name: "cell empty", regionCode: "34", cellCode: "", wantErr: true, errSubs: "cell"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			got, err := buildOCISerialPrefix(tc.regionCode, tc.cellCode)
+			if !tc.wantErr {
+				require.NoError(tt, err)
+				assert.Equal(tt, tc.want, got)
+				assert.Len(tt, got, ociSerialPrefixLen,
+					"prefix must be exactly PPP+RR+CC = 7 digits; downstream counter formatting depends on this width")
+				return
+			}
+			require.Error(tt, err)
+			assert.True(tt, utilserrors.IsUserInputValidationErr(err))
+			assert.Contains(tt, err.Error(), tc.errSubs)
+		})
+	}
+}
+
+func TestAllocateOCIVMSerialNumbers_EarlyValidationErrors(t *testing.T) {
+	cases := []struct {
+		name      string
+		region    string
+		cell      string
+		numHAPair int
+		errSubs   string
+	}{
+		{name: "missing region", region: "", cell: "01", numHAPair: 1, errSubs: "region number is not set"},
+		{name: "missing cell", region: "34", cell: "", numHAPair: 1, errSubs: "cell number is not set"},
+		{name: "zero ha pairs", region: "34", cell: "01", numHAPair: 0, errSubs: "invalid VM count for serial allocation"},
+		{name: "negative ha pairs", region: "34", cell: "01", numHAPair: -1, errSubs: "invalid VM count for serial allocation"},
+		{name: "non-numeric region", region: "3a", cell: "01", numHAPair: 1, errSubs: "region"},
+		{name: "wrong-length cell", region: "34", cell: "001", numHAPair: 1, errSubs: "cell"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			withOCISerialAllocationEnv(tt, tc.region, tc.cell)
+			req := &vlm.CreateVSAClusterDeploymentRequest{
+				VLMConfig: vlm.VLMConfig{
+					Deployment: vlm.DeploymentConfig{NumHAPair: tc.numHAPair},
+				},
+			}
+
+			err := allocateOCIVMSerialNumbers(nil, nil, req)
+
+			require.Error(tt, err)
+			assert.True(tt, utilserrors.IsUserInputValidationErr(err),
+				"missing-config and bad-arity failures must surface as 4xx UserInputValidationErr so callers see a configuration problem, not an internal error")
+			assert.Contains(tt, err.Error(), tc.errSubs)
+			assert.Empty(tt, req.VLMConfig.Deployment.VMSerialNumbers,
+				"failed allocation must not partially populate VMSerialNumbers")
+		})
+	}
+}
+
+func TestOCICreatePoolWorkflow_SerialAllocation_FlagOffSkipsAllocation(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, false)
+	withOCISerialAllocationEnv(t, "34", "01")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	getNextSerialNumberCalled := false
+	env.OnActivity("GetNextSerialNumber", mock.Anything).
+		Run(func(args mock.Arguments) { getNextSerialNumberCalled = true }).
+		Return(int64(0), nil).
+		Maybe()
+
+	var capturedDeployment vlm.DeploymentConfig
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			req, ok := args.Get(1).(*vlm.CreateVSAClusterDeploymentRequest)
+			if ok && req != nil {
+				capturedDeployment = req.VLMConfig.Deployment
+			}
+		}).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+
+	assert.False(t, getNextSerialNumberCalled,
+		"GetNextSerialNumber must NOT be invoked when the allocation flag is off; "+
+			"this is the load-bearing assertion for the rollout gate — if it fires, the workflow has bypassed the feature flag")
+
+	assert.Equal(t, ociSerialNumberLeadingPrefix+ociSerialNumberPrefix, capturedDeployment.SerialNumberPrefix,
+		"with the gate off, SerialNumberPrefix must remain the hardcoded \"955\"+15 zeros so VLM can generate VM serials from the prefix")
+	assert.Empty(t, capturedDeployment.VMSerialNumbers,
+		"VMSerialNumbers must be empty when allocation is gated off; VLM honors VMSerialNumbers only when SerialNumberPrefix is empty")
+}
+
+func TestOCICreatePoolWorkflow_SerialAllocation_FlagOnAllocatesSerials(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, true)
+	withOCISerialAllocationEnv(t, "34", "01")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	const haPairs = 2
+	wantNumVMs := haPairs * activities.VMsPerHAPair
+
+	counters := []int64{1, 2, 3, 4}
+	require.Equal(t, wantNumVMs, len(counters), "test must enumerate one counter per allocated VM")
+
+	var counterIdx int
+	env.OnActivity("GetNextSerialNumber", mock.Anything).
+		Return(func(_ context.Context) (int64, error) {
+			n := counters[counterIdx]
+			counterIdx++
+			return n, nil
+		}).
+		Times(wantNumVMs)
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     haPairs,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	var capturedDeployment vlm.DeploymentConfig
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			req, ok := args.Get(1).(*vlm.CreateVSAClusterDeploymentRequest)
+			if ok && req != nil {
+				capturedDeployment = req.VLMConfig.Deployment
+			}
+		}).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+
+	assert.Equal(t, wantNumVMs, counterIdx,
+		"GetNextSerialNumber must be invoked exactly NumHAPair*VMsPerHAPair times when the flag is on; "+
+			"a different count means the per-VM loop changed without updating this test")
+
+	assert.Empty(t, capturedDeployment.SerialNumberPrefix,
+		"with the gate on, SerialNumberPrefix must be cleared so VLM honors VMSerialNumbers instead")
+	wantSerials := []string{
+		"9553401" + "0000000000001",
+		"9553401" + "0000000000002",
+		"9553401" + "0000000000003",
+		"9553401" + "0000000000004",
+	}
+	assert.Equal(t, wantSerials, capturedDeployment.VMSerialNumbers,
+		"VMSerialNumbers must be PPP(955)+RR(34)+CC(01)+13-digit zero-padded counter for each VM, in allocation order")
+}
+
+func TestOCICreatePoolWorkflow_SerialAllocation_FlagOnMissingRegionRollsBack(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, true)
+	withOCISerialAllocationEnv(t, "", "01")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		DeploymentName:  "dep-serial-rollback",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	erroredPoolCalled := false
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { erroredPoolCalled = true }).
+		Return(pool, nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError(),
+		"allocation failure must surface as a workflow error so the caller doesn't observe a half-created pool")
+	assert.True(t, erroredPoolCalled,
+		"rollback must run on allocation failure to mark the pool as errored and undo the ONTAP credential side effect")
+	mockVlmWorkflowClient.AssertNotCalled(t, "CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestOCICreatePoolWorkflow_SerialAllocation_ActivityErrorRollsBack(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, true)
+	withOCISerialAllocationEnv(t, "34", "01")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	env.OnActivity("GetNextSerialNumber", mock.Anything).
+		Return(int64(0), errors.New("simulated GetNextSerialNumber DB failure"))
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		DeploymentName:  "dep-serial-activity-err",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	erroredPoolCalled := false
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { erroredPoolCalled = true }).
+		Return(pool, nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError(),
+		"GetNextSerialNumber failure must surface as a workflow error so the pool is marked errored")
+	assert.True(t, erroredPoolCalled,
+		"rollback must run when the per-VM serial allocator fails — otherwise we'd ask VLM to deploy with no/partial serials")
+	mockVlmWorkflowClient.AssertNotCalled(t, "CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestOCICreatePoolWorkflow_SerialAllocation_CounterOverflowRollsBack(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVSASerialAllocationFlag(t, true)
+	withOCISerialAllocationEnv(t, "34", "01")
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	env.OnActivity("GetNextSerialNumber", mock.Anything).
+		Return(ociSerialCounterMax, nil)
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     1,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:            "test-pool",
+		DeploymentName:  "dep-serial-overflow",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	erroredPoolCalled := false
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { erroredPoolCalled = true }).
+		Return(pool, nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError(),
+		"counter overflow must surface as a workflow error; silently emitting a 21-digit serial would break the VLM contract")
+	assert.True(t, erroredPoolCalled,
+		"rollback must run on counter overflow so the pool isn't left half-created")
+	mockVlmWorkflowClient.AssertNotCalled(t, "CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything)
 }

@@ -70,8 +70,9 @@ type OCICreatePoolCredentialsMetadata struct {
 }
 
 type OCICreatePoolMetadata struct {
-	PoolUUID string                    `json:"poolUUID,omitempty"`
-	Vms      []OCICreatePoolVMMetadata `json:"vms,omitempty"`
+	PoolUUID  string                    `json:"poolUUID,omitempty"`
+	ClusterIP string                    `json:"clusterIP,omitempty"`
+	Vms       []OCICreatePoolVMMetadata `json:"vms,omitempty"`
 	// Credentials surfaces OCI Vault references captured from the
 	// CreateOnTapCredentialsForOCI activity completion event. It is populated
 	// only after the parent OCICreatePoolWorkflow has terminated successfully.
@@ -266,6 +267,7 @@ func getCompletedWorkflowMetadata(ctx context.Context, svc historyFetcher, names
 			if childMeta := vsaClusterChildMetadataFromPayloads(a.GetResult().GetPayloads()); childMeta != nil {
 				m := ensurePoolMeta()
 				m.PoolUUID = childMeta.PoolUUID
+				m.ClusterIP = childMeta.ClusterIP
 				m.Vms = childMeta.Vms
 			}
 

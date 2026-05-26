@@ -1254,6 +1254,10 @@ components:
         - vms
         - credentials
       properties:
+        clusterIP:
+          type: string
+          description: |
+            RBAC LIF IP for the cluster
         vms:
           type: array
           description: VM metadata for OCI pool nodes.

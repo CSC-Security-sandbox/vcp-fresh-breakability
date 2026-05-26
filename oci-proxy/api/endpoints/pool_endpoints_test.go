@@ -531,6 +531,58 @@ func TestGetWorkflow(t *testing.T) {
 		assert.Equal(tt, "", meta.Credentials.Certificate.Version)
 	})
 
+	t.Run("GetWorkflow surfaces clusterIP from pool metadata when assigned", func(tt *testing.T) {
+		orig := workflowQueryFn
+		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
+			return workflowquery.Result{
+				Status:       workflowquery.WorkflowStatusCompleted,
+				WorkflowType: "OCICreatePoolWorkflow",
+				PoolMetadata: &workflowquery.OCICreatePoolMetadata{
+					ClusterIP: "10.38.23.99",
+					Vms: []workflowquery.OCICreatePoolVMMetadata{
+						{Name: "vm-01"},
+					},
+				},
+			}, nil
+		}
+		tt.Cleanup(func() { workflowQueryFn = orig })
+
+		h := Handler{}
+		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-cluster-ip"})
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		assert.True(tt, ok)
+		meta, ok := headers.Response.PoolMetadata.Get()
+		assert.True(tt, ok)
+		assert.True(tt, meta.ClusterIP.IsSet(), "clusterIP must be set when VLM has assigned the cluster's RBAC LIF IP")
+		assert.Equal(tt, "10.38.23.99", meta.ClusterIP.Value,
+			"clusterIP is the pool's cluster-scoped address — it must be propagated unchanged from the workflow query result")
+	})
+
+	t.Run("GetWorkflow omits clusterIP when not yet assigned", func(tt *testing.T) {
+		orig := workflowQueryFn
+		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
+			return workflowquery.Result{
+				Status:       workflowquery.WorkflowStatusCompleted,
+				WorkflowType: "OCICreatePoolWorkflow",
+				PoolMetadata: &workflowquery.OCICreatePoolMetadata{
+					Vms: []workflowquery.OCICreatePoolVMMetadata{{Name: "vm-01"}},
+				},
+			}, nil
+		}
+		tt.Cleanup(func() { workflowQueryFn = orig })
+
+		h := Handler{}
+		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-cluster-ip-empty"})
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		assert.True(tt, ok)
+		meta, ok := headers.Response.PoolMetadata.Get()
+		assert.True(tt, ok)
+		assert.False(tt, meta.ClusterIP.IsSet(),
+			"clusterIP must read as absent (not empty string) until VLM assigns the RBAC LIF — the schema documents this contract for clients")
+	})
+
 	t.Run("GetWorkflow maps SVM metadata when query returns SVM result", func(tt *testing.T) {
 		orig := workflowQueryFn
 		haPair := "ha_pair-1"

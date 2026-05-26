@@ -8102,14 +8102,14 @@ func TestPersistenceStore_ListExpertModeVolumesWithPagination(t *testing.T) {
 
 func newTestAddressRange(uuid, name, cidr, vpc, hostProject, lifType string) *datamodel.AddressRange {
 	return &datamodel.AddressRange{
-		BaseModel:             datamodel.BaseModel{UUID: uuid},
-		Name:                  name,
-		AddressRangeCidr:      cidr,
-		Network:               "projects/host/global/networks/vpc1",
-		VpcName:               vpc,
-		HostProjectNumber:     hostProject,
-		LifType:               lifType,
-		AddressRangeState: "CREATED",
+		BaseModel:                datamodel.BaseModel{UUID: uuid},
+		Name:                     name,
+		AddressRangeCidr:         cidr,
+		Network:                  "projects/host/global/networks/vpc1",
+		VpcName:                  vpc,
+		HostProjectNumber:        hostProject,
+		LifType:                  lifType,
+		AddressRangeState:        "CREATED",
 		AddressRangeStateDetails: "CREATED",
 	}
 }
@@ -8465,7 +8465,7 @@ func TestUpdateAddressRange_DisabledTransition(t *testing.T) {
 		assert.NoError(tt, err)
 
 		update := &datamodel.AddressRange{
-			BaseModel:      datamodel.BaseModel{UUID: created.UUID},
+			BaseModel:         datamodel.BaseModel{UUID: created.UUID},
 			AddressRangeState: AddressRangeStateDisabled,
 		}
 		updated, err := store.UpdateAddressRange(ctx, update)
@@ -8482,7 +8482,7 @@ func TestUpdateAddressRange_DisabledTransition(t *testing.T) {
 
 		// First disable it
 		update := &datamodel.AddressRange{
-			BaseModel:      datamodel.BaseModel{UUID: created.UUID},
+			BaseModel:         datamodel.BaseModel{UUID: created.UUID},
 			AddressRangeState: AddressRangeStateDisabled,
 		}
 		_, err = store.UpdateAddressRange(ctx, update)
@@ -8593,4 +8593,19 @@ func TestPersistenceStore_PollerRebalanceDataPaths(t *testing.T) {
 	maps, err := store.ListNodeNodeGroupMapsByNodeGroupID(ctx, ng.ID)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(maps), 1)
+}
+
+func TestPersistenceStore_GetNextSerialNumber(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if cerr := store.Close(); cerr != nil {
+			t.Logf("Error closing store: %v", cerr)
+		}
+	}()
+
+	_, err = store.GetNextSerialNumber(context.Background())
+	require.Error(t, err,
+		"sqlite-backed test DB cannot run nextval() — wrapper must surface the underlying error rather than silently returning 0")
 }

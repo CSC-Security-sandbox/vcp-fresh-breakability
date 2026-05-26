@@ -567,13 +567,13 @@ func (re *retryEngine) GetPoolsByActiveDirectoryId(ctx context.Context, activeDi
 	return var0, err
 }
 
-func (re *retryEngine) GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error) {
-	var var0 string
+func (re *retryEngine) GetNextSerialNumber(ctx context.Context) (int64, error) {
+	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetNextSerialNumberInRegion(ctx, region)
+		var0, err = re.dataStore.GetNextSerialNumber(ctx)
 		if err != nil {
-			re.logError("GetNextSerialNumberInRegion", err)
+			re.logError("GetNextSerialNumber", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
