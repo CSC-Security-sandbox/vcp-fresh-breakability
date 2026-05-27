@@ -343,9 +343,11 @@ type (
 		GetLatestBackupByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.Backup, error)
 		GetLatestBackupByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (*datamodel.Backup, error)
 		GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error)
-		UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error
+		UpdateBackupChainHistory(ctx context.Context, volumeUUID string, endpointUUID string, newSize int64) error
 		DeleteBackupChainHistoryOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
 		GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)
+		GetBackupChainMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)
+		GetDistinctVolumeGCBDRVaultPairs(ctx context.Context) ([]VolumeVaultPair, error)
 		GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)
 		GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error)
 		ListBackupChainHistoriesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupChainHistory, error)
@@ -358,7 +360,7 @@ type (
 		// for telemetry billing metrics. Account name and deployment name are resolved via JOINs.
 		// Pass a non-nil Pagination to iterate in pages; nil returns all records.
 		ListExpertModeVolumesForTelemetryMetrics(ctx context.Context, pagination *dbutils.Pagination) ([]*ExpertModeVolumeMetricsData, error)
-		UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error
+		UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, endpointUUID string, newLogicalSize int64) error
 		GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error)
 		GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error)
 		CreateBackupMetadata(ctx context.Context, backupMetadata *datamodel.BackupMetadata) (*datamodel.BackupMetadata, error)

@@ -178,22 +178,22 @@ func (a *VolumeBackupSyncActivity) UpdateBackupAndVolumeActivity(ctx context.Con
 		)
 	}
 
-	// Update backup chain history (method checks if size actually changed).
-	// Derive the UUID from the volume pointer directly rather than from backup.VolumeUUID:
-	// backup.VolumeUUID carries the same value by design, but it has no JSON tag and may
-	// not survive Temporal's JSON serialization round-trip when the activity input is decoded.
-	// - Regular volumes:    volume.UUID           == backup.VolumeUUID
-	// - Expert mode volumes: expertModeVolume.ExternalUUID == backup.VolumeUUID
-	//                        (= resource_uuid stored in backup_chain_histories)
+	// Derive the resource_uuid for the chain history row.
+	// - Regular volumes:      volume.UUID
+	// - Expert mode volumes:  expertModeVolume.ExternalUUID (= resource_uuid in backup_chain_histories)
 	var chainHistoryUUID string
 	if volumeBackup.ExpertModeVolume != nil {
 		chainHistoryUUID = volumeBackup.ExpertModeVolume.ExternalUUID
 	} else {
 		chainHistoryUUID = volumeBackup.Volume.UUID
 	}
-	err = a.SE.UpdateBackupChainHistory(ctx, chainHistoryUUID, logicalSize)
+	endpointUUID := ""
+	if volumeBackup.LatestBackup.Attributes != nil {
+		endpointUUID = volumeBackup.LatestBackup.Attributes.EndpointUUID
+	}
+	err = a.SE.UpdateBackupChainHistory(ctx, chainHistoryUUID, endpointUUID, logicalSize)
 	if err != nil {
-		logger.Warnf("Ledger: Failed to update backup chain history for volume %s: %v", volumeBackupName(volumeBackup), err)
+		logger.Warnf("Ledger: Failed to update backup chain history for volume %s endpoint %s: %v", volumeBackupName(volumeBackup), endpointUUID, err)
 		// Don't fail the entire operation if history update fails
 	}
 

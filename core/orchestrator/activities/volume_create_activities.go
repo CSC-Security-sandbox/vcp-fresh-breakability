@@ -42,7 +42,7 @@ const (
 	VolumeTypeRW                 = "rw"
 	VolumeTypeDP                 = "dp"
 	SnapshotPolicyNone           = "none"
-	CrossRegionBackupType        = "CROSS_REGION"
+	CrossRegionBackupType        = models.BackupVaultTypeCrossRegion
 	GCBDRServiceType             = models.ServiceTypeCrossProject
 	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
 	RestoreBackupWorkflow        = "RestoreBackupWorkflow"

@@ -82,6 +82,54 @@ func (m *mockVolumeStorage) ListAccountsForTelemetry(ctx context.Context, pagina
 	return args.Get(0).([]*database.AccountTelemetryData), args.Error(1)
 }
 
+// GetBackupMetrics is provided here so mockVolumeStorage satisfies the database.Storage
+// interface; returns empty by default since the volume collector does not call it directly.
+func (m *mockVolumeStorage) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Backup, error) {
+	for _, e := range m.ExpectedCalls {
+		if e.Method == "GetBackupMetrics" {
+			args := m.Called(ctx, conditions, pagination)
+			if args.Get(0) == nil {
+				return nil, args.Error(1)
+			}
+			return args.Get(0).([]*datamodel.Backup), args.Error(1)
+		}
+	}
+	return []*datamodel.Backup{}, nil
+}
+
+// GetBackupChainMetrics is used by the backup collector (not the volume collector).
+// Provided here so mockVolumeStorage satisfies the database.Storage interface; returns
+// empty by default.
+func (m *mockVolumeStorage) GetBackupChainMetrics(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Backup, error) {
+	for _, e := range m.ExpectedCalls {
+		if e.Method == "GetBackupChainMetrics" {
+			args := m.Called(ctx, conditions, pagination)
+			if args.Get(0) == nil {
+				return nil, args.Error(1)
+			}
+			return args.Get(0).([]*datamodel.Backup), args.Error(1)
+		}
+	}
+	return []*datamodel.Backup{}, nil
+}
+
+// GetDistinctVolumeGCBDRVaultPairs satisfies the Storage interface. The volume collector
+// no longer calls this directly (detached-vault BMF is handled by collectDetachedVaultBMF
+// via GetBackupChainMetrics). Tests that need to stub the method set an explicit
+// expectation; all other tests return an empty slice automatically.
+func (m *mockVolumeStorage) GetDistinctVolumeGCBDRVaultPairs(ctx context.Context) ([]database.VolumeVaultPair, error) {
+	for _, e := range m.ExpectedCalls {
+		if e.Method == "GetDistinctVolumeGCBDRVaultPairs" {
+			args := m.Called(ctx)
+			if args.Get(0) == nil {
+				return nil, args.Error(1)
+			}
+			return args.Get(0).([]database.VolumeVaultPair), args.Error(1)
+		}
+	}
+	return []database.VolumeVaultPair{}, nil
+}
+
 func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
@@ -454,12 +502,17 @@ func Test_GetVolumeMetrics_GcbdrBackupBillingEnabled_IncludesGcbdrVaults(t *test
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
 			ServiceType: models.ServiceTypeCrossProject,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
+				Name:      "VaultOwnerProject",
+			},
 		},
 	}
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
 
 	config.EnableBackupBillingMetrics = true
 	config.EnableFilesBackupBilling = true
+	// The CrossProject billing account redirect is gated by EnableGcbdrBackupBilling.
 	config.EnableGcbdrBackupBilling = true
 
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
@@ -471,6 +524,239 @@ func Test_GetVolumeMetrics_GcbdrBackupBillingEnabled_IncludesGcbdrVaults(t *test
 	require.Len(t, result.HydratedMetricsDataModel, 1)
 	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetricsDataModel[0].Quantity)
+	assert.Equal(t, "VaultOwnerProject", result.HydratedMetricsDataModel[0].ConsumerID,
+		"CrossProject vault should bill to vault's owning project")
+}
+
+func Test_GetVolumeMetrics_CrossProjectVault_BillsToVaultProject(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-cp",
+			Name:        "VolumeCrossProject",
+			SizeInBytes: 4096,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "VolumeOwnerProject",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-cp",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+		{
+			UUID:        "volume-uuid-gcnv",
+			Name:        "VolumeGCNV",
+			SizeInBytes: 8192,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "VolumeOwnerProject",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-gcnv",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	backupVaults := []*datamodel.BackupVault{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "bv-cp"},
+			ServiceType: models.ServiceTypeCrossProject,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
+				Name:      "VaultOwnerProject",
+			},
+		},
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "bv-gcnv"},
+			ServiceType: models.ServiceTypeGCNV,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "gcnv-account-uuid"},
+				Name:      "GcnvVaultProject",
+			},
+		},
+	}
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+
+	// All three billing flags are true — this is the scenario where the old prefetch
+	// condition (!CRB || !CMEK || !GCBDR) evaluated to false and the vault map was
+	// empty, causing the CrossProject account override to silently fall back to the
+	// volume owner.
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+	config.EnableCrossRegionBackupBillingMetrics = true
+	config.EnableCmekBackupBilling = true
+	// The CrossProject billing account redirect is gated by EnableGcbdrBackupBilling.
+	config.EnableGcbdrBackupBilling = true
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	require.Len(t, result.HydratedMetricsDataModel, 2)
+
+	// CrossProject vault: should bill to vault's project
+	assert.Equal(t, "VaultOwnerProject", result.HydratedMetricsDataModel[0].ConsumerID,
+		"CrossProject vault should bill to vault's owning project, not volume owner")
+	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[0].Quantity)
+
+	// GCNV vault: should bill to volume owner's project
+	assert.Equal(t, "VolumeOwnerProject", result.HydratedMetricsDataModel[1].ConsumerID,
+		"GCNV vault should bill to volume owner's project")
+	assert.Equal(t, float64(8192), result.HydratedMetricsDataModel[1].Quantity)
+}
+
+// Test_GetVolumeMetrics_MultiVaultSameVolume_EmitsBMFPerVault verifies that when a
+// volume has available backups across multiple vaults (GCBDR vault switching), BMF is
+// emitted once per (volume, billing-project) pair. In this scenario:
+//
+//	V1 is currently attached to Vault3 (active, with chain bytes), but still has
+//	  available backups in Vault1 and Vault2 (both detached).
+//	  Vault1 and Vault2 both bill to Project1, so only one detached row is emitted for V1.
+//	V2 is currently attached to Vault3 (active).
+//
+// Expected: 3 BMF rows — V1+Vault3 (active, Project2), V2+Vault3 (active, Project2),
+// V1+Vault1 (detached, Project1). V1+Vault2 is deduplicated because (V1, Project1) was
+// already emitted by V1+Vault1.
+//
+// Detached-vault rows are produced by collectDetachedVaultBMF (which calls
+// GetBackupChainMetrics), not by the per-volume loop.
+func Test_GetVolumeMetrics_MultiVaultSameVolume_EmitsBMFPerVault(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+
+	v1ChainBytes := int64(500) // V1 currently attached to Vault3 with chain bytes
+	v2ChainBytes := int64(600) // V2 currently attached to Vault3 with chain bytes
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume1",
+			Name:        "V1",
+			SizeInBytes: 1024,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Project4",
+				DeploymentName: "v1-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "vault3-uuid",
+				BackupChainBytes: &v1ChainBytes,
+			},
+		},
+		{
+			UUID:        "volume2",
+			Name:        "V2",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Project4",
+				DeploymentName: "v2-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "vault3-uuid",
+				BackupChainBytes: &v2ChainBytes,
+			},
+		},
+	}
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	// Vault1 + Vault2 owned by Project1; Vault3 owned by Project2. All cross-project.
+	vaults := []*datamodel.BackupVault{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "vault1-uuid"},
+			Name:        "vault1",
+			ServiceType: models.ServiceTypeCrossProject,
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-p1"}, Name: "Project1"},
+		},
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "vault2-uuid"},
+			Name:        "vault2",
+			ServiceType: models.ServiceTypeCrossProject,
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-p1"}, Name: "Project1"},
+		},
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "vault3-uuid"},
+			Name:        "vault3",
+			ServiceType: models.ServiceTypeCrossProject,
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-p2"}, Name: "Project2"},
+		},
+	}
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(vaults, nil)
+
+	// collectDetachedVaultBMF calls GetBackupChainMetrics (paginated) to find detached-vault
+	// chain tips. Return one chain tip per (volume, vault) pair so the function groups them
+	// and emits a BMF row. vault3 for both volumes is the active vault already covered by
+	// the per-volume loop and will be deduplicated via emittedBMF.
+	vault1 := vaults[0]
+	vault2 := vaults[1]
+	vault3 := vaults[2]
+	chainTips := []*datamodel.Backup{
+		{VolumeUUID: "volume1", BackupVault: vault1},
+		{VolumeUUID: "volume1", BackupVault: vault2},
+		{VolumeUUID: "volume1", BackupVault: vault3},
+		{VolumeUUID: "volume2", BackupVault: vault3},
+	}
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *utils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(chainTips, nil)
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *utils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	config := &common.TelemetryConfig{
+		RegionName:                            "us-east-1",
+		EnableBackupBillingMetrics:            true,
+		EnableFilesBackupBilling:              true,
+		EnableGcbdrBackupBilling:              true,
+		EnableCrossRegionBackupBillingMetrics: true,
+		EnableCmekBackupBilling:               true,
+	}
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// 3 BMF rows total. Emission order: active-vault rows come from the per-volume loop;
+	// detached-vault rows come from collectDetachedVaultBMF which runs after the loop:
+	//   [0] V1 + Vault3 (active)   — Project2, quantity 1024
+	//   [1] V2 + Vault3 (active)   — Project2, quantity 2048
+	//   [2] V1 + Vault1 (detached) — Project1, quantity 1024  ← V1+Vault2 + V1+Vault3 deduplicated
+	require.Len(t, result.HydratedMetricsDataModel, 3,
+		"expected 3 BMF rows: V1 active, V2 active, V1 detached (Vault1 only; Vault2+Vault3 deduplicated)")
+
+	// [0] V1 active vault
+	assert.Equal(t, "Project2", result.HydratedMetricsDataModel[0].ConsumerID, "V1 active vault bills to Project2")
+	assert.Equal(t, float64(1024), result.HydratedMetricsDataModel[0].Quantity)
+	assert.Equal(t, "V1", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, "v1-deployment", result.HydratedMetricsDataModel[0].DeploymentName,
+		"active-vault BMF uses volume's deployment name")
+
+	// [1] V2 active vault
+	assert.Equal(t, "Project2", result.HydratedMetricsDataModel[1].ConsumerID, "V2 active vault bills to Project2")
+	assert.Equal(t, float64(2048), result.HydratedMetricsDataModel[1].Quantity)
+	assert.Equal(t, "V2", result.HydratedMetricsDataModel[1].ResourceName)
+
+	// [2] V1 detached: Vault1 is first-seen for (V1, Project1); Vault2 and Vault3 are skipped (deduped).
+	assert.Equal(t, "Project1", result.HydratedMetricsDataModel[2].ConsumerID, "V1+Vault1 bills to Project1")
+	assert.Equal(t, float64(1024), result.HydratedMetricsDataModel[2].Quantity, "detached row billed on volume size")
+	assert.Equal(t, "V1", result.HydratedMetricsDataModel[2].ResourceName)
 }
 
 func Test_GetVolumeMetrics_GcbdrBackupBillingDisabled_VaultNotFound_SkipsBilling(t *testing.T) {
@@ -3187,3 +3473,4 @@ func Test_GetVolumeMetrics_AccountNotInMap(t *testing.T) {
 
 	m.AssertExpectations(t)
 }
+

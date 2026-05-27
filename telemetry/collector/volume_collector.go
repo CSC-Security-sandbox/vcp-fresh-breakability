@@ -19,6 +19,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+// bmfDedupeKey deduplicates BMF billing rows within the per-volume loop for GCBDR Vault Switch Case, emit at most one row per (volume, billing project).
+type bmfDedupeKey struct {
+	VolumeUUID     string
+	BillingAccount string
+}
+
 // VolumeMetricsResult holds the results from GetVolumeMetrics operation
 type VolumeMetricsResult struct {
 	// HydratedMetrics contains the traditional hydrated metrics
@@ -57,9 +63,22 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	var sfrMetrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
 
-	// Pre-fetch backup vaults only when needed for billing filters (CRB, CMEK, or GCBDR).
+	// Tracks BMF rows already emitted to prevent double-billing a (volume, billing project)
+	// pair — e.g. when the active vault and a detached vault belong to the same project.
+	emittedBMF := make(map[bmfDedupeKey]struct{})
+
+	// Pre-fetch backup vaults when needed.
+	//   - Flag off (main behaviour): only prefetch when at least one of the billing
+	//     skip filters (CRB, CMEK, GCBDR) is disabled, since that is the only caller.
+	//   - Flag on: always prefetch. The cross-project account override and the
+	//     detached-vault BMF pass both need the map even when all skip flags are on.
 	backupVaultMap := make(map[string]*datamodel.BackupVault)
-	if config.EnableBackupBillingMetrics && (!config.EnableCrossRegionBackupBillingMetrics || !config.EnableCmekBackupBilling || !config.EnableGcbdrBackupBilling) {
+	prefetchBackupVaults := config.EnableBackupBillingMetrics &&
+		(config.EnableGcbdrBackupBilling ||
+			config.EnableExpertModeBackupBilling ||
+			!config.EnableCrossRegionBackupBillingMetrics ||
+			!config.EnableCmekBackupBilling)
+	if prefetchBackupVaults {
 		backupVaults, err := vcpDB.GetMultipleBackupVaults(ctx, nil)
 		if err != nil {
 			logger.Error("Failed to fetch backup vaults for billing filters", "error", err.Error())
@@ -199,21 +218,31 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 						}
 					}
 
-				if !skipBilling {
-					if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
-						if volume.DataProtection.BackupVaultID != "" {
+					if !skipBilling {
+						// For cross-project backup vaults, bill to the vault's owning project instead of the volume owner.
+						billingAccountName := accountName
+						if config.EnableGcbdrBackupBilling && volume.DataProtection.BackupVaultID != "" {
 							if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists &&
-								bv.BackupVaultType == activities.CrossRegionBackupType &&
-								bv.BackupRegionName != nil && *bv.BackupRegionName != "" {
-								volumeMetadata.SetBackupRegionName(*bv.BackupRegionName)
-								setCrossRegionRegionMetadata(logger, hydratedMetric, volumeMetadata)
+								bv.ServiceType == models.ServiceTypeCrossProject &&
+								bv.Account != nil && bv.Account.Name != "" {
+								billingAccountName = bv.Account.Name
 							}
 						}
-						// Standard volumes always use DEFAULT mode.
-						setBackupModeMetadata(hydratedMetric, BackupModeDefault)
-						hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+						if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, billingAccountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
+							if volume.DataProtection.BackupVaultID != "" {
+								if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists &&
+									bv.BackupVaultType == activities.CrossRegionBackupType &&
+									bv.BackupRegionName != nil && *bv.BackupRegionName != "" {
+									volumeMetadata.SetBackupRegionName(*bv.BackupRegionName)
+									setCrossRegionRegionMetadata(logger, hydratedMetric, volumeMetadata)
+								}
+							}
+							// Standard volumes always use DEFAULT mode.
+							setBackupModeMetadata(hydratedMetric, BackupModeDefault)
+							hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+							emittedBMF[bmfDedupeKey{VolumeUUID: volume.UUID, BillingAccount: billingAccountName}] = struct{}{}
+						}
 					}
-				}
 				}
 			}
 		}
@@ -244,6 +273,17 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		} else {
 			hydratedMetrics = append(hydratedMetrics, expertModeMetrics...)
 		}
+	}
+
+	// Emit BMF rows for (volume, vault) pairs where available backups exist in vaults
+	// other than the volume's currently-attached vault. The currently-attached vault row
+	// (gated by BackupChainBytes > 0) is already emitted by the per-volume loop above.
+	//
+	// This covers GCBDR vault switching: a volume may have available backups in vaults it
+	// has since detached from. Backups across multiple endpoints of the same vault are
+	// collapsed to a single row (billed on volume allocated size).
+	if config.EnableBackupBillingMetrics && config.EnableGcbdrBackupBilling {
+		hydratedMetrics = append(hydratedMetrics, collectDetachedVaultBMF(ctx, vcpDB, config, volumes, backupVaultMap, accountStateMap, poolMetadataMap, emittedBMF, timestamp)...)
 	}
 
 	// Return the structured result
@@ -408,6 +448,151 @@ func assembleExpertModeVolumeMetadata(volume *database.ExpertModeVolumeMetricsDa
 	met.SetAccountName(volume.AccountName)
 	met.SetDeploymentName(volume.DeploymentName)
 	return met
+}
+
+// collectDetachedVaultBMF emits BackupEnabledVolumeAllocatedSize (BMF) billing rows for
+// (volume, vault) pairs where available backups exist in vaults other than the volume's
+// currently-attached vault. The active-vault row is produced by the main per-volume loop
+// in GetVolumeMetrics; this function covers GCBDR vault switching where a volume still
+// has backups in detached vaults. Chain tips across multiple endpoints of the same vault
+// collapse into a single billing row (volume allocated size billed once per vault).
+func collectDetachedVaultBMF(
+	ctx context.Context,
+	vcpDB database.Storage,
+	config *common.TelemetryConfig,
+	volumes []*database.VolumeMetricsData,
+	backupVaultMap map[string]*datamodel.BackupVault,
+	accountStateMap map[string]string,
+	poolMetadataMap map[int64]metadata.ResourceMetadata,
+	emittedBMF map[bmfDedupeKey]struct{},
+	timestamp time.Time,
+) []datamodel2.HydratedMetrics {
+	logger := util.GetLogger(ctx)
+
+	volumeDataMap := make(map[string]*database.VolumeMetricsData, len(volumes))
+	for _, v := range volumes {
+		volumeDataMap[v.UUID] = v
+	}
+
+	var allBackups []*datamodel.Backup
+	offset := int64(0)
+	limit := pageSize
+	for {
+		pagination := &dbutils.Pagination{Offset: int(offset), Limit: int(limit)}
+		backups, err := vcpDB.GetBackupChainMetrics(ctx, nil, pagination)
+		if err != nil {
+			logger.Error("Failed to fetch backup chain metrics for detached-vault BMF rows", "error", err.Error())
+			return nil
+		}
+		if len(backups) == 0 {
+			break
+		}
+		allBackups = append(allBackups, backups...)
+		offset += limit
+	}
+	if len(allBackups) == 0 {
+		return nil
+	}
+
+	// Group chain tips by (VolumeUUID, VaultUUID) so endpoint splits collapse into one row.
+	type bmfKey struct {
+		VolumeUUID string
+		VaultUUID  string
+	}
+	type bmfGroup struct {
+		vault *datamodel.BackupVault
+	}
+	var orderedKeys []bmfKey
+	groups := make(map[bmfKey]*bmfGroup)
+	for _, b := range allBackups {
+		if b.BackupVault == nil {
+			continue
+		}
+		key := bmfKey{VolumeUUID: b.VolumeUUID, VaultUUID: b.BackupVault.UUID}
+		if _, exists := groups[key]; !exists {
+			groups[key] = &bmfGroup{vault: b.BackupVault}
+			orderedKeys = append(orderedKeys, key)
+		}
+	}
+
+	var out []datamodel2.HydratedMetrics
+	for _, key := range orderedKeys {
+		group := groups[key]
+		volume, exists := volumeDataMap[key.VolumeUUID]
+		if !exists {
+			continue
+		}
+
+		if volume.UUID == "" || volume.Name == "" {
+			continue
+		}
+		accountName := volume.GetAccountName()
+		if accountName == "" {
+			continue
+		}
+		if accountState, ok := accountStateMap[accountName]; ok && accountState == models.AccountStateHyperscalerDisabled {
+			continue
+		}
+
+		// Protocol gate (matches existing BMF behaviour).
+		isSANProtocol := volume.VolumeAttributes != nil && utils.IsSanProtocols(volume.VolumeAttributes.Protocols)
+		if !(config.EnableFilesBackupBilling || isSANProtocol) {
+			continue
+		}
+
+		// Prefer the fully-populated vault from backupVaultMap (has SourceRegionName etc.).
+		// Fall back to the vault returned by GetBackupChainMetrics if the map lookup misses.
+		vault := group.vault
+		if bv, ok := backupVaultMap[key.VaultUUID]; ok {
+			vault = bv
+		}
+
+		var resourceType metadata.ResourceType
+		if poolMeta, ok := poolMetadataMap[volume.PoolID]; ok {
+			if poolMeta.ResourceType == metadata.VolumePoolRegionalHA {
+				resourceType = metadata.VolumeRegionalHA
+			} else {
+				resourceType = metadata.Volume
+			}
+		}
+
+		// Cross-project vaults bill to the vault's owning project, not the volume owner.
+		billingAccountName := accountName
+		if vault.ServiceType == models.ServiceTypeCrossProject && vault.Account != nil && vault.Account.Name != "" {
+			billingAccountName = vault.Account.Name
+		}
+
+		// Dedupe: BMF is a volume-allocated-size charge. If this (volume, billing
+		// project) already produced a BMF row (either from the main loop's active
+		// vault or from an earlier detached vault in the same project), skip to
+		// avoid billing the same project twice for the same volume.
+		dedupeKey := bmfDedupeKey{VolumeUUID: volume.UUID, BillingAccount: billingAccountName}
+		if _, already := emittedBMF[dedupeKey]; already {
+			continue
+		}
+
+		vm := assembleVolumeMetadata(volume, config)
+
+		hm := setupHydratedMetricsDataModel(
+			metadata.BackupEnabledVolumeAllocatedSize,
+			resourceType,
+			billingAccountName,
+			vm,
+			timestamp,
+			float64(volume.SizeInBytes),
+		)
+		if hm == nil {
+			continue
+		}
+		if vault.BackupVaultType == activities.CrossRegionBackupType &&
+			vault.BackupRegionName != nil && *vault.BackupRegionName != "" {
+			vm.SetBackupRegionName(*vault.BackupRegionName)
+			setCrossRegionRegionMetadata(logger, hm, vm)
+		}
+		out = append(out, *hm)
+		emittedBMF[dedupeKey] = struct{}{}
+	}
+	return out
 }
 
 // assembleVolumeMetadata creates metadata from optimized VolumeMetricsData struct

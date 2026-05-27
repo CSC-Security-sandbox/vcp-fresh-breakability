@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -35,41 +36,46 @@ type BackupMetricsResult struct {
 	HydratedMetricsDataModel []datamodel2.HydratedMetrics
 }
 
-// GetBackupMetrics retrieves backup logical size metrics from the database and returns them in a structured result.
+// GetBackupMetrics retrieves backup logical size metrics from the database and returns them
+// in a structured result.
+//
+// Behaviour depends on config.EnableGcbdrBackupBilling:
+//   - false (default): one BackupLogicalSize row per volume (main behaviour); uses
+//     vcpDB.GetBackupMetrics (GROUP BY volume_uuid) and bills to the volume owner.
+//   - true: one row per (volume, vault) covering GCBDR vault-switched volumes; uses
+//     vcpDB.GetBackupChainMetrics (per-chain) and bills cross-project vaults to the
+//     vault's owning project.
 func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, timestamp time.Time) (*BackupMetricsResult, error) {
+	if config != nil && config.EnableGcbdrBackupBilling {
+		return getBackupMetricsPerVault(ctx, vcpDB, config, timestamp)
+	}
+	return getBackupMetricsPerVolume(ctx, vcpDB, config, timestamp)
+}
+
+// getBackupMetricsPerVolume is the legacy (flag-off) emission path: one BackupLogicalSize row
+// per volume, billed to the volume owner. Matches pre-GCBDR-multi-vault behaviour.
+func getBackupMetricsPerVolume(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, timestamp time.Time) (*BackupMetricsResult, error) {
 	logger := util.GetLogger(ctx)
 
-	// Fetch all backup metrics using pagination
 	var allBackups []*datamodel.Backup
 	offset := int64(0)
-	limit := pageSize // Use a reasonable page size for collector
-
-	// Create conditions for backup metrics (available state is already handled in the query)
+	limit := pageSize
 	conditions := [][]interface{}{}
 
 	for {
-		// Create pagination with offset and limit
 		pagination := &dbutils.Pagination{
 			Offset: int(offset),
 			Limit:  int(limit),
 		}
-
-		// Fetch paginated backup metrics
 		backups, err := vcpDB.GetBackupMetrics(ctx, conditions, pagination)
 		if err != nil {
 			logger.Error("Failed to get backup logical size metrics", "error", err.Error())
 			return &BackupMetricsResult{}, err
 		}
-
-		// Break if no records returned
 		if len(backups) == 0 {
 			break
 		}
-
-		// Append to all backups
 		allBackups = append(allBackups, backups...)
-
-		// Update offset for next iteration
 		offset += limit
 	}
 
@@ -79,27 +85,21 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		return &BackupMetricsResult{}, nil
 	}
 
-	// Initialize a slice to hold the hydrated metrics
 	var metrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
 
-	// Iterate over all backups and generate metrics
 	for _, backup := range allBackups {
-		// Assemble metadata for the backup (billing on volume)
 		if backup.Attributes == nil {
 			logger.Error(fmt.Sprintf("Backup attributes is missing found for volume %s", backup.VolumeUUID))
 			continue
 		}
 		backupMetadata := assembleBackupMetadata(backup, config)
 
-		// Create a metric for the backup logical size
 		metric := setupHydratedMetric(timestamp, backupMetadata, metadata.BackupLogicalSize, float64(backup.LatestLogicalBackupSize))
 		metrics = append(metrics, metric)
 
-		// Determine if we should skip billing for this backup.
 		skipBilling := false
 
-		// Skip billing for cross region backups if the feature flag is disabled.
 		if !config.EnableCrossRegionBackupBillingMetrics {
 			if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
 				logger.Debug("Skipping BackupLogicalSize billing metric for cross-region backup", "backupUUID", backup.UUID)
@@ -107,8 +107,6 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			}
 		}
 
-		// When cross-region billing is enabled, skip BackupLogicalSize for cross-region
-		// backups where the backup region is nil or matches the current region.
 		if !skipBilling && config.EnableCrossRegionBackupBillingMetrics &&
 			backup.BackupVault != nil &&
 			backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
@@ -121,7 +119,6 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			}
 		}
 
-		// Skip billing for backups in CMEK backup vaults when CMEK backup billing is disabled.
 		if !skipBilling && !config.EnableCmekBackupBilling {
 			if backup.BackupVault != nil &&
 				backup.BackupVault.CmekAttributes != nil &&
@@ -132,7 +129,6 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			}
 		}
 
-		// Skip billing for backups in cross-project backup vaults when GCBDR backup billing is disabled.
 		if !skipBilling && !config.EnableGcbdrBackupBilling {
 			if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
 				logger.Debug("Skipping BackupLogicalSize billing metric for cross-project backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
@@ -140,31 +136,20 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			}
 		}
 
-		// Skip billing for expert mode backups when the feature flag is disabled.
 		if !skipBilling && !config.EnableExpertModeBackupBilling && backup.Attributes != nil && backup.Attributes.IsExpertModeBackup {
 			logger.Debug("Skipping BackupLogicalSize billing metric for expert mode backup", "backupUUID", backup.UUID)
 			skipBilling = true
 		}
 
-		// Get account identifier from backup attributes
 		accountName := ""
 		if backup.Attributes != nil {
 			accountName = backup.Attributes.AccountIdentifier
 		}
-		// Determine backup mode: ONTAP for expert mode backups, DEFAULT for standard backups.
-		backupMode := BackupModeDefault
-		if backup.Attributes != nil && backup.Attributes.IsExpertModeBackup {
-			backupMode = BackupModeOntap
-		}
-
-		// Execute only if SAN protocol or files backup billing enabled and billing is not skipped.
 		isSANProtocol := utils.IsSanProtocols(backup.Attributes.Protocols)
 		if !skipBilling && (config.EnableFilesBackupBilling || isSANProtocol) {
 			if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)); hydratedMetric != nil {
-				setBackupModeMetadata(hydratedMetric, backupMode)
 				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
 			}
-			// cross region backup network transfer billing metric
 			if config.EnableCrossRegionBackupBillingMetrics &&
 				backup.BackupVault != nil &&
 				backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType &&
@@ -179,14 +164,196 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 					totalTransferBytes,
 				); hm != nil {
 					setCrossRegionRegionMetadata(logger, hm, backupMetadata)
-					setBackupModeMetadata(hm, backupMode)
 					hydratedMetrics = append(hydratedMetrics, *hm)
 				}
 			}
 		}
 	}
 
-	// Return the structured result
+	return &BackupMetricsResult{
+		HydratedMetrics:          metrics,
+		HydratedMetricsDataModel: hydratedMetrics,
+	}, nil
+}
+
+// getBackupMetricsPerVault is the flag-on emission path: one BackupLogicalSize row per
+// (volume, vault) so GCBDR vault-switched volumes emit multiple rows — one per vault with
+// available backups. Cross-project backups are billed to the vault's owning project.
+func getBackupMetricsPerVault(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, timestamp time.Time) (*BackupMetricsResult, error) {
+	logger := util.GetLogger(ctx)
+
+	var allBackups []*datamodel.Backup
+	offset := int64(0)
+	limit := pageSize
+	conditions := [][]interface{}{}
+
+	for {
+		pagination := &dbutils.Pagination{
+			Offset: int(offset),
+			Limit:  int(limit),
+		}
+		backups, err := vcpDB.GetBackupChainMetrics(ctx, conditions, pagination)
+		if err != nil {
+			logger.Error("Failed to get backup chain metrics", "error", err.Error())
+			return &BackupMetricsResult{}, err
+		}
+		if len(backups) == 0 {
+			break
+		}
+		allBackups = append(allBackups, backups...)
+		offset += limit
+	}
+
+	logger.Info(fmt.Sprintf("Found %d backup chain tips", len(allBackups)))
+
+	if len(allBackups) == 0 {
+		return &BackupMetricsResult{}, nil
+	}
+
+	// Group chain tips by (VolumeUUID, BackupVault UUID) so that each vault attached to a
+	// volume produces its own billing row. A GCBDR vault attached volumes may have backups across multiple
+	// vaults (vault switching) or across multiple endpoints within the same vault
+	// (detach/re-attach); the DB query returns one chain tip per
+	// (volume_uuid, backup_vault_id, endpoint_uuid), and here we merge chain tips sharing
+	// the same vault so each billing row represents a single vault's total backup size.
+	type billingGroupKey struct {
+		VolumeUUID string
+		VaultUUID  string
+	}
+	type vaultChainGroup struct {
+		chainTips []*datamodel.Backup
+	}
+	var orderedGroups []*vaultChainGroup
+	groupIndex := make(map[billingGroupKey]int)
+	for _, backup := range allBackups {
+		if backup.Attributes == nil {
+			logger.Error(fmt.Sprintf("Backup attributes is missing for volume %s", backup.VolumeUUID))
+			continue
+		}
+		vaultUUID := ""
+		if backup.BackupVault != nil {
+			vaultUUID = backup.BackupVault.UUID
+		}
+		key := billingGroupKey{VolumeUUID: backup.VolumeUUID, VaultUUID: vaultUUID}
+		idx, exists := groupIndex[key]
+		if !exists {
+			orderedGroups = append(orderedGroups, &vaultChainGroup{})
+			idx = len(orderedGroups) - 1
+			groupIndex[key] = idx
+		}
+		orderedGroups[idx].chainTips = append(orderedGroups[idx].chainTips, backup)
+	}
+
+	var metrics []entity.HydratedMetric
+	var hydratedMetrics []datamodel2.HydratedMetrics
+
+	for _, group := range orderedGroups {
+		sort.Slice(group.chainTips, func(i, j int) bool {
+			return group.chainTips[i].ID > group.chainTips[j].ID
+		})
+		canonicalBackup := group.chainTips[0]
+
+		var totalSize int64
+		for _, b := range group.chainTips {
+			totalSize += b.LatestLogicalBackupSize
+		}
+
+		backupMetadata := assembleBackupMetadata(canonicalBackup, config)
+
+		if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == models.ServiceTypeCrossProject &&
+			canonicalBackup.BackupVault.Account != nil && canonicalBackup.BackupVault.Account.Name != "" {
+			backupMetadata.SetAccountName(canonicalBackup.BackupVault.Account.Name)
+		}
+
+		metric := setupHydratedMetric(timestamp, backupMetadata, metadata.BackupLogicalSize, float64(totalSize))
+		metrics = append(metrics, metric)
+
+		skipBilling := false
+
+		if !config.EnableCrossRegionBackupBillingMetrics {
+			if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
+				logger.Debug("Skipping BackupLogicalSize billing metric for cross-region backup", "backupUUID", canonicalBackup.UUID)
+				skipBilling = true
+			}
+		}
+
+		if !skipBilling && config.EnableCrossRegionBackupBillingMetrics &&
+			canonicalBackup.BackupVault != nil &&
+			canonicalBackup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
+			if canonicalBackup.BackupVault.BackupRegionName == nil {
+				logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName is nil", canonicalBackup.UUID, canonicalBackup.VolumeUUID)
+				skipBilling = true
+			} else if *canonicalBackup.BackupVault.BackupRegionName == config.RegionName {
+				logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName %s matches current region", canonicalBackup.UUID, canonicalBackup.VolumeUUID, *canonicalBackup.BackupVault.BackupRegionName)
+				skipBilling = true
+			}
+		}
+
+		if !skipBilling && !config.EnableCmekBackupBilling {
+			if canonicalBackup.BackupVault != nil &&
+				canonicalBackup.BackupVault.CmekAttributes != nil &&
+				canonicalBackup.BackupVault.CmekAttributes.KmsConfigResourcePath != nil &&
+				*canonicalBackup.BackupVault.CmekAttributes.KmsConfigResourcePath != "" {
+				logger.Debug("Skipping BackupLogicalSize billing metric for CMEK backup", "backupUUID", canonicalBackup.UUID, "backupVaultID", canonicalBackup.BackupVault.UUID)
+				skipBilling = true
+			}
+		}
+
+		if !skipBilling && !config.EnableGcbdrBackupBilling {
+			if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
+				logger.Debug("Skipping BackupLogicalSize billing metric for cross-project backup", "backupUUID", canonicalBackup.UUID, "backupVaultID", canonicalBackup.BackupVault.UUID)
+				skipBilling = true
+			}
+		}
+
+		// Skip billing for expert mode backups when the feature flag is disabled.
+		if !skipBilling && !config.EnableExpertModeBackupBilling && canonicalBackup.Attributes != nil && canonicalBackup.Attributes.IsExpertModeBackup {
+			logger.Debug("Skipping BackupLogicalSize billing metric for expert mode backup", "backupUUID", canonicalBackup.UUID)
+			skipBilling = true
+		}
+
+		// Get account identifier from the canonical backup's attributes.
+		accountName := canonicalBackup.Attributes.AccountIdentifier
+		if canonicalBackup.BackupVault != nil && canonicalBackup.BackupVault.ServiceType == models.ServiceTypeCrossProject &&
+			canonicalBackup.BackupVault.Account != nil && canonicalBackup.BackupVault.Account.Name != "" {
+			accountName = canonicalBackup.BackupVault.Account.Name
+		}
+
+		// Determine backup mode: ONTAP for expert mode backups, DEFAULT for standard backups.
+		backupMode := BackupModeDefault
+		if canonicalBackup.Attributes != nil && canonicalBackup.Attributes.IsExpertModeBackup {
+			backupMode = BackupModeOntap
+		}
+
+		isSANProtocol := utils.IsSanProtocols(canonicalBackup.Attributes.Protocols)
+		if !skipBilling && (config.EnableFilesBackupBilling || isSANProtocol) {
+			if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(totalSize)); hydratedMetric != nil {
+				setBackupModeMetadata(hydratedMetric, backupMode)
+				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+			}
+			for _, b := range group.chainTips {
+				if config.EnableCrossRegionBackupBillingMetrics &&
+					b.BackupVault != nil &&
+					b.BackupVault.BackupVaultType == activities.CrossRegionBackupType &&
+					b.Attributes.GetTotalTransferBytes() > 0 {
+					chainMetadata := assembleBackupMetadata(b, config)
+					if hm := setupHydratedMetricsDataModel(
+						metadata.CbsCrossRegionVolumeBackupTransferBytes,
+						metadata.Backup,
+						b.Attributes.AccountIdentifier,
+						chainMetadata,
+						timestamp,
+						float64(b.Attributes.GetTotalTransferBytes()),
+					); hm != nil {
+						setCrossRegionRegionMetadata(logger, hm, chainMetadata)
+						setBackupModeMetadata(hm, backupMode)
+						hydratedMetrics = append(hydratedMetrics, *hm)
+					}
+				}
+			}
+		}
+	}
+
 	return &BackupMetricsResult{
 		HydratedMetrics:          metrics,
 		HydratedMetricsDataModel: hydratedMetrics,

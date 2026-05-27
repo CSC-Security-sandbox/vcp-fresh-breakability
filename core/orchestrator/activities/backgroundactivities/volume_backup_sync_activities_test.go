@@ -533,8 +533,8 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(1024*1024*1024)
 				})).Return(nil)
 
-				// Mock backup chain history update
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(1024*1024*1024)).Return(nil)
+				// Mock backup chain history update (no vault → endpointUUID = "")
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(1024*1024*1024)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -624,8 +624,8 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(0)
 				})).Return(nil)
 
-				// Mock backup chain history update
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(0)).Return(nil)
+				// Mock backup chain history update (no vault → endpointUUID = "")
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(0)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -656,8 +656,8 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(2*1024*1024*1024*1024)
 				})).Return(nil)
 
-			// Mock backup chain history update
-			s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(2*1024*1024*1024*1024)).Return(nil)
+			// Mock backup chain history update (no vault → endpointUUID = "")
+			s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(2*1024*1024*1024*1024)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -688,7 +688,7 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					dp, ok := updates["data_protection"].(*datamodel.DataProtection)
 					return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == int64(1024*1024*1024)
 				})).Return(nil)
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "external-volume-uuid", int64(1024*1024*1024)).Return(nil)
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "external-volume-uuid", "", int64(1024*1024*1024)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -712,9 +712,9 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 			setupMock: func() {
 				s.mockStorage.On("UpdateBackupFields", s.ctx, "backup-uuid", mock.Anything).Return(nil)
 				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.Anything).Return(nil)
-				// Force ledger update to fail; the activity should still succeed because the error is swallowed.
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(1024*1024*1024)).Return(
-					errors.New("simulated chain history update failure"))
+			// Force ledger update to fail; the activity should still succeed because the error is swallowed.
+			s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(1024*1024*1024)).Return(
+				errors.New("simulated chain history update failure"))
 			},
 			expectedError: false,
 		},
@@ -741,7 +741,7 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					dp, ok := updates["data_protection"].(*datamodel.DataProtection)
 					return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == int64(512*1024*1024)
 				})).Return(nil)
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "external-uuid-2", int64(512*1024*1024)).Return(nil)
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "external-uuid-2", "", int64(512*1024*1024)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -764,6 +764,98 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 			} else {
 				s.NoError(err)
 			}
+		})
+	}
+}
+
+// TestUpdateBackupAndVolumeActivity_EndpointScoping verifies that UpdateBackupChainHistory
+// is always called with the endpointUUID from Attributes, regardless of vault type.
+func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivity_EndpointScoping() {
+	tests := []struct {
+		name             string
+		volumeBackup     *datamodel.VolumeLatestBackup
+		logicalSize      int64
+		wantEndpointUUID string
+	}{
+		{
+			name: "GCBDR_CrossProject_PassesEndpointUUID",
+			volumeBackup: &datamodel.VolumeLatestBackup{
+				Volume: &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "vol-gcbdr-ep"},
+					Name:      "vol-gcbdr-ep",
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: nillable.ToPointer(int64(0)),
+					},
+				},
+				LatestBackup: &datamodel.Backup{
+					BaseModel: datamodel.BaseModel{UUID: "bkp-gcbdr-ep"},
+					BackupVault: &datamodel.BackupVault{
+						ServiceType: models.ServiceTypeCrossProject,
+					},
+					Attributes: &datamodel.BackupAttributes{
+						EndpointUUID: "ep-gcbdr-123",
+					},
+				},
+			},
+			logicalSize:      int64(1024),
+			wantEndpointUUID: "ep-gcbdr-123",
+		},
+		{
+			name: "GCNV_PassesEndpointUUIDFromAttributes",
+			volumeBackup: &datamodel.VolumeLatestBackup{
+				Volume: &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "vol-gcnv-ep"},
+					Name:      "vol-gcnv-ep",
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: nillable.ToPointer(int64(0)),
+					},
+				},
+				LatestBackup: &datamodel.Backup{
+					BaseModel: datamodel.BaseModel{UUID: "bkp-gcnv-ep"},
+					BackupVault: &datamodel.BackupVault{
+						ServiceType: models.ServiceTypeGCNV,
+					},
+					Attributes: &datamodel.BackupAttributes{
+						EndpointUUID: "ep-gcnv-456",
+					},
+				},
+			},
+			logicalSize:      int64(512),
+			wantEndpointUUID: "ep-gcnv-456",
+		},
+		{
+			name: "NilAttributes_PassesEmptyEndpointUUID",
+			volumeBackup: &datamodel.VolumeLatestBackup{
+				Volume: &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "vol-nil-attrs"},
+					Name:      "vol-nil-attrs",
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: nillable.ToPointer(int64(0)),
+					},
+				},
+				LatestBackup: &datamodel.Backup{
+					BaseModel:  datamodel.BaseModel{UUID: "bkp-nil-attrs"},
+					Attributes: nil,
+				},
+			},
+			logicalSize:      int64(256),
+			wantEndpointUUID: "",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.SetupTest()
+
+			s.mockStorage.On("UpdateBackupFields", s.ctx, tt.volumeBackup.LatestBackup.UUID, mock.Anything).Return(nil)
+			s.mockStorage.On("UpdateVolumeFields", s.ctx, tt.volumeBackup.Volume.UUID, mock.Anything).Return(nil)
+			s.mockStorage.On("UpdateBackupChainHistory", s.ctx, tt.volumeBackup.Volume.UUID, tt.wantEndpointUUID, tt.logicalSize).Return(nil)
+
+			err := s.activity.UpdateBackupAndVolumeActivity(s.ctx, tt.volumeBackup, tt.logicalSize)
+
+			s.NoError(err)
+			s.mockStorage.AssertCalled(s.T(), "UpdateBackupChainHistory",
+				s.ctx, tt.volumeBackup.Volume.UUID, tt.wantEndpointUUID, tt.logicalSize)
 		})
 	}
 }

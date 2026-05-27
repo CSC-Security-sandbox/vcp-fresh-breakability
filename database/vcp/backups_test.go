@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
 )
@@ -502,7 +503,8 @@ func TestCreateBackup_Errors(t *testing.T) {
 		err = store.db.Create(backupVault).Error()
 		assert.NoError(tt, err)
 
-		// Create a backup - the backup chain history creation might log warnings but backup should succeed
+		// Backup chain history is no longer created during CreateBackup; it is written
+		// by FinishBackup once the backup completes and a logical size is known.
 		backup := &datamodel.Backup{
 			Name:          "test-backup-with-history",
 			BackupVaultID: backupVault.ID,
@@ -514,17 +516,15 @@ func TestCreateBackup_Errors(t *testing.T) {
 		}
 
 		createdBackup, err := store.CreateBackup(context.Background(), backup)
-		assert.NoError(tt, err) // Should succeed even if history creation has issues (lines 147, 154, 175)
+		assert.NoError(tt, err)
 		assert.NotNil(tt, createdBackup)
 		assert.NotEmpty(tt, createdBackup.UUID)
 
-		// Verify backup chain history was created
-		var history datamodel.BackupChainHistory
-		err = store.db.GORM().Where("resource_uuid = ?", createdBackup.VolumeUUID).First(&history).Error
-		assert.NoError(tt, err)
-		assert.Equal(tt, "test-volume", history.ResourceName)
-		assert.Equal(tt, "account-123", history.ConsumerID)
-		assert.Equal(tt, int64(0), history.Size) // Initial size is 0
+		// No backup chain history row should exist yet — history is deferred to FinishBackup.
+		var count int64
+		store.db.GORM().Model(&datamodel.BackupChainHistory{}).
+			Where("resource_uuid = ?", createdBackup.VolumeUUID).Count(&count)
+		assert.Equal(tt, int64(0), count)
 	})
 
 	// Covers the ledger warning paths in CreateBackup: when markPreviousBackupChainHistoryAsDeleted
@@ -596,6 +596,7 @@ func TestFinishBackup_BackupChainHistoryUpdate(t *testing.T) {
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        "test-volume",
 				AccountIdentifier: "account-123",
+				Protocols:         []string{"ISCSI"},
 			},
 		}
 
@@ -756,6 +757,7 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        volume.Name,
 				AccountIdentifier: "account-123",
+				Protocols:         []string{"ISCSI"},
 			},
 		}
 
@@ -773,7 +775,7 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 
 		// Update latest backup logical size
 		newLogicalSize := int64(2 * 1024 * 1024 * 1024) // 2GB
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), volume.UUID, newLogicalSize)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volume.UUID, "", newLogicalSize)
 		assert.NoError(tt, err)
 
 		// Verify backup chain history was updated (line 738)
@@ -805,7 +807,7 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 		volumeUUID := "volume-without-history"
 
 		// This should fail because no AVAILABLE backup exists
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, int64(1024*1024*1024))
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, "", int64(1024*1024*1024))
 		assert.Error(tt, err) // Should fail - no backup found
 	})
 
@@ -856,7 +858,7 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 		err = store.db.GORM().Exec("DROP TABLE backup_chain_histories").Error
 		assert.NoError(tt, err)
 
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, int64(4096))
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, "", int64(4096))
 		assert.NoError(tt, err) // Outer call must succeed despite the chain history failure
 	})
 }
@@ -3360,7 +3362,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 
 		// Test: update the latest backup's logical size
 		newLogicalSize := int64(4096)
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", newLogicalSize)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", "", newLogicalSize)
 		assert.NoError(tt, err)
 
 		// Verify the update
@@ -3401,7 +3403,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test: should return error when no available backups exist
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", 4096)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", "", 4096)
 		assert.Error(tt, err)
 	})
 
@@ -3416,7 +3418,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Test: should return error when no backups exist for the volume
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", 4096)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", "", 4096)
 		assert.Error(tt, err)
 	})
 
@@ -3452,7 +3454,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		}
 
 		// Test: should return error when transaction fails
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", 4096)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", "", 4096)
 		assert.Error(tt, err)
 		assert.Equal(tt, "transaction failed", err.Error())
 	})
@@ -3486,7 +3488,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		_ = sqlDB.Close()
 
 		// Test: should return error when update fails
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", 4096)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", "", 4096)
 		assert.Error(tt, err)
 	})
 
@@ -3553,7 +3555,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 
 		// Test: update the latest backup's logical size
 		newLogicalSize := int64(8192)
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", newLogicalSize)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", "", newLogicalSize)
 		assert.NoError(tt, err)
 
 		// Verify only backup3 (latest) was updated
@@ -3617,7 +3619,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 
 		// Update with new size - should trigger backup chain history update
 		newSize := int64(2048)
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, newSize)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, "", newSize)
 		assert.NoError(tt, err)
 
 		// Verify backup was updated
@@ -3683,7 +3685,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Update with same size - should NOT trigger new history entry
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, 1024)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, "", 1024)
 		assert.NoError(tt, err)
 
 		// Verify old history entry is still active (not deleted)
@@ -3741,15 +3743,15 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// First size change
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, 2048)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, "", 2048)
 		assert.NoError(tt, err)
 
 		// Second size change
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, 4096)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, "", 4096)
 		assert.NoError(tt, err)
 
 		// Third size change
-		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, 8192)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, "", 8192)
 		assert.NoError(tt, err)
 
 		// Verify all history entries exist
@@ -3990,31 +3992,38 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					panic(err)
 				}
 
-				// Create volumes
-				volume1 := &datamodel.Volume{
-					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
-					Name:      "test-volume-1",
-					PoolID:    pool.ID,
-					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
-				}
-				volume2 := &datamodel.Volume{
-					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
-					Name:      "test-volume-2",
-					PoolID:    pool.ID,
-					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
-				}
-				err = store.db.Create(volume1).Error()
-				if err != nil {
-					panic(err)
-				}
-				err = store.db.Create(volume2).Error()
-				if err != nil {
-					panic(err)
-				}
+			// Create volumes — DataProtection.BackupVaultID must match the vault UUID
+			// so the current-vault JOIN in GetLatestBackupsGroupedByVolumeUUID returns them.
+			volume1 := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+				Name:      "test-volume-1",
+				PoolID:    pool.ID,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				DataProtection: &datamodel.DataProtection{
+					BackupVaultID: backupVault.UUID,
+				},
+			}
+			volume2 := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
+				Name:      "test-volume-2",
+				PoolID:    pool.ID,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				DataProtection: &datamodel.DataProtection{
+					BackupVaultID: backupVault.UUID,
+				},
+			}
+			err = store.db.Create(volume1).Error()
+			if err != nil {
+				panic(err)
+			}
+			err = store.db.Create(volume2).Error()
+			if err != nil {
+				panic(err)
+			}
 
-				// Create backups for volume1 (older backup first, then newer)
+			// Create backups for volume1 (older backup first, then newer)
 				backup1Old := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-1-old-uuid", CreatedAt: time.Now().Add(-2 * time.Hour)},
 					Name:          "backup-1-old",
@@ -4117,19 +4126,22 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					panic(err)
 				}
 
-				volume := &datamodel.Volume{
-					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-3"},
-					Name:      "test-volume-3",
-					PoolID:    pool.ID,
-					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
-				}
-				err = store.db.Create(volume).Error()
-				if err != nil {
-					panic(err)
-				}
+			volume := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-3"},
+				Name:      "test-volume-3",
+				PoolID:    pool.ID,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				DataProtection: &datamodel.DataProtection{
+					BackupVaultID: backupVault.UUID,
+				},
+			}
+			err = store.db.Create(volume).Error()
+			if err != nil {
+				panic(err)
+			}
 
-				// Create one available and one creating backup
+			// Create one available and one creating backup
 				backupAvailable := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-available-uuid"},
 					Name:          "backup-available",
@@ -4196,19 +4208,22 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					panic(err)
 				}
 
-				volume := &datamodel.Volume{
-					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-4"},
-					Name:      "test-volume-4",
-					PoolID:    pool.ID,
-					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
-				}
-				err = store.db.Create(volume).Error()
-				if err != nil {
-					panic(err)
-				}
+			volume := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-4"},
+				Name:      "test-volume-4",
+				PoolID:    pool.ID,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				DataProtection: &datamodel.DataProtection{
+					BackupVaultID: backupVault.UUID,
+				},
+			}
+			err = store.db.Create(volume).Error()
+			if err != nil {
+				panic(err)
+			}
 
-				// Create one normal and one soft-deleted backup
+			// Create one normal and one soft-deleted backup
 				backupNormal := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-normal-uuid"},
 					Name:          "backup-normal",
@@ -4326,55 +4341,62 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					panic(err)
 				}
 
-				// Create volumes
-				volume1 := &datamodel.Volume{
-					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
-					Name:      "test-volume-1",
-					PoolID:    pool.ID,
-					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
-				}
-				volume2 := &datamodel.Volume{
-					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
-					Name:      "test-volume-2",
-					PoolID:    pool.ID,
-					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
-				}
-				err = store.db.Create(volume1).Error()
-				if err != nil {
-					panic(err)
-				}
-				err = store.db.Create(volume2).Error()
-				if err != nil {
-					panic(err)
-				}
+			// Create volumes — DataProtection.BackupVaultID must match the vault UUID
+			// so the current-vault JOIN in GetLatestBackupsGroupedByVolumeUUID returns them.
+			volume1 := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+				Name:      "test-volume-1",
+				PoolID:    pool.ID,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				DataProtection: &datamodel.DataProtection{
+					BackupVaultID: backupVault.UUID,
+				},
+			}
+			volume2 := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
+				Name:      "test-volume-2",
+				PoolID:    pool.ID,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				DataProtection: &datamodel.DataProtection{
+					BackupVaultID: backupVault.UUID,
+				},
+			}
+			err = store.db.Create(volume1).Error()
+			if err != nil {
+				panic(err)
+			}
+			err = store.db.Create(volume2).Error()
+			if err != nil {
+				panic(err)
+			}
 
-				// Create backups
-				backup1 := &datamodel.Backup{
-					BaseModel:     datamodel.BaseModel{UUID: "backup-1-uuid"},
-					Name:          "backup-1",
-					VolumeUUID:    volume1.UUID,
-					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
-				}
-				backup2 := &datamodel.Backup{
-					BaseModel:     datamodel.BaseModel{UUID: "backup-2-uuid"},
-					Name:          "backup-2",
-					VolumeUUID:    volume2.UUID,
-					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
-				}
-				err = store.db.Create(backup1).Error()
-				if err != nil {
-					panic(err)
-				}
-				err = store.db.Create(backup2).Error()
-				if err != nil {
-					panic(err)
-				}
+			// Create backups
+			backup1 := &datamodel.Backup{
+				BaseModel:     datamodel.BaseModel{UUID: "backup-1-uuid"},
+				Name:          "backup-1",
+				VolumeUUID:    volume1.UUID,
+				BackupVaultID: backupVault.ID,
+				State:         models.LifeCycleStateAvailable,
+			}
+			backup2 := &datamodel.Backup{
+				BaseModel:     datamodel.BaseModel{UUID: "backup-2-uuid"},
+				Name:          "backup-2",
+				VolumeUUID:    volume2.UUID,
+				BackupVaultID: backupVault.ID,
+				State:         models.LifeCycleStateAvailable,
+			}
+			err = store.db.Create(backup1).Error()
+			if err != nil {
+				panic(err)
+			}
+			err = store.db.Create(backup2).Error()
+			if err != nil {
+				panic(err)
+			}
 
-				return []*datamodel.Volume{volume1, volume2}, []*datamodel.Backup{backup1, backup2}
+			return []*datamodel.Volume{volume1, volume2}, []*datamodel.Backup{backup1, backup2}
 			},
 			expectedCount: 2,
 			expectedError: false,
@@ -4478,21 +4500,25 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					panic(err)
 				}
 
-				// Create ready and creating volumes
-				volumeReady := &datamodel.Volume{
-					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-ready"},
-					Name:      "test-volume-ready",
-					PoolID:    pool.ID,
-					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
-				}
-				volumeCreating := &datamodel.Volume{
-					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-creating"},
-					Name:      "test-volume-creating",
-					PoolID:    pool.ID,
-					AccountID: account.ID,
-					State:     models.LifeCycleStateCreating,
-				}
+			// Create ready and creating volumes — only the ready one needs DataProtection set
+			// because its backup must survive the current-vault JOIN filter.
+			volumeReady := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-ready"},
+				Name:      "test-volume-ready",
+				PoolID:    pool.ID,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				DataProtection: &datamodel.DataProtection{
+					BackupVaultID: backupVault.UUID,
+				},
+			}
+			volumeCreating := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-creating"},
+				Name:      "test-volume-creating",
+				PoolID:    pool.ID,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateCreating,
+			}
 				err = store.db.Create(volumeReady).Error()
 				if err != nil {
 					panic(err)
@@ -7441,7 +7467,7 @@ func TestGetExpertModeVolumesByBackupVaultID(t *testing.T) {
 }
 
 func TestUpdateBackupChainHistory(t *testing.T) {
-	t.Run("Success_CreatesNewHistoryEntry", func(tt *testing.T) {
+	t.Run("Success_CreatesRowWhenNoPriorRowExists", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err)
 
@@ -7455,15 +7481,14 @@ func TestUpdateBackupChainHistory(t *testing.T) {
 		volumeUUID := "test-volume-uuid"
 		newSize := int64(1024 * 1024 * 1024) // 1GB
 
-		// Call UpdateBackupChainHistory
-		err = store.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
+		err = store.UpdateBackupChainHistory(ctx, volumeUUID, "", newSize)
 		assert.NoError(tt, err)
 
-		// Verify no history was created because there was no existing history to supersede
-		var histories []datamodel.BackupChainHistory
-		err = store.db.GORM().Unscoped().Where("resource_uuid = ?", volumeUUID).Find(&histories).Error
+		var newHistory datamodel.BackupChainHistory
+		err = store.db.GORM().Where("resource_uuid = ? AND deleted_at IS NULL", volumeUUID).First(&newHistory).Error
 		assert.NoError(tt, err)
-		assert.Len(tt, histories, 0)
+		assert.Equal(tt, newSize, newHistory.Size)
+		assert.Equal(tt, volumeUUID, newHistory.ResourceUUID)
 	})
 
 	t.Run("Success_SupersedesExistingHistory", func(tt *testing.T) {
@@ -7494,7 +7519,7 @@ func TestUpdateBackupChainHistory(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Call UpdateBackupChainHistory with new size
-		err = store.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
+		err = store.UpdateBackupChainHistory(ctx, volumeUUID, "", newSize)
 		assert.NoError(tt, err)
 
 		// Verify old history was soft-deleted
@@ -7541,7 +7566,7 @@ func TestUpdateBackupChainHistory(t *testing.T) {
 		assert.NoError(tt, err)
 
 		// Call UpdateBackupChainHistory with same size
-		err = store.UpdateBackupChainHistory(ctx, volumeUUID, size)
+		err = store.UpdateBackupChainHistory(ctx, volumeUUID, "", size)
 		assert.NoError(tt, err)
 
 		// Verify history was NOT deleted (size unchanged)
@@ -7575,7 +7600,7 @@ func TestUpdateBackupChainHistory(t *testing.T) {
 		_ = sqlDB.Close()
 
 		// This should fail because the database connection is closed
-		err = store.UpdateBackupChainHistory(ctx, "test-volume-uuid", 1024)
+		err = store.UpdateBackupChainHistory(ctx, "test-volume-uuid", "", 1024)
 		assert.Error(tt, err)
 	})
 }
@@ -8116,3 +8141,1228 @@ func TestGetExpertModeBackupsByVolumeExternalUUID(t *testing.T) {
 		assert.Nil(tt, results)
 	})
 }
+
+func TestGetDistinctVolumeGCBDRVaultPairs(t *testing.T) {
+	setupStoreWithAccount := func(tt *testing.T) (*DataStoreRepository, *datamodel.Account) {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-uuid"}, Name: "test-account"}
+		require.NoError(tt, store.db.Create(account).Error())
+		return store, account
+	}
+
+	t.Run("ReturnsEmptyWhenNoBackups", func(tt *testing.T) {
+		store, _ := setupStoreWithAccount(tt)
+
+		results, err := store.GetDistinctVolumeGCBDRVaultPairs(context.Background())
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("ReturnsPairsForAvailableCrossProjectBackups", func(tt *testing.T) {
+		store, account := setupStoreWithAccount(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-uuid"},
+			Name:        "cp-vault",
+			AccountID:   account.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-gcbdr-uuid"},
+			Name:          "backup-gcbdr",
+			VolumeUUID:    "vol-gcbdr-1",
+			State:         models.LifeCycleStateAvailable,
+			BackupVaultID: vault.ID,
+		}
+		require.NoError(tt, store.db.Create(backup).Error())
+
+		results, err := store.GetDistinctVolumeGCBDRVaultPairs(context.Background())
+
+		assert.NoError(tt, err)
+		require.Len(tt, results, 1)
+		assert.Equal(tt, "vol-gcbdr-1", results[0].VolumeUUID)
+		assert.Equal(tt, "cp-vault-uuid", results[0].VaultUUID)
+	})
+
+	t.Run("ExcludesNonAvailableBackups", func(tt *testing.T) {
+		store, account := setupStoreWithAccount(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-uuid-2"},
+			Name:        "cp-vault-2",
+			AccountID:   account.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-creating-uuid"},
+			Name:          "backup-creating",
+			VolumeUUID:    "vol-creating",
+			State:         models.LifeCycleStateCreating,
+			BackupVaultID: vault.ID,
+		}
+		require.NoError(tt, store.db.Create(backup).Error())
+
+		results, err := store.GetDistinctVolumeGCBDRVaultPairs(context.Background())
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("ExcludesNonCrossProjectVaults", func(tt *testing.T) {
+		store, account := setupStoreWithAccount(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "gcnv-vault-uuid"},
+			Name:        "gcnv-vault",
+			AccountID:   account.ID,
+			ServiceType: models.ServiceTypeGCNV,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-gcnv-uuid"},
+			Name:          "backup-gcnv",
+			VolumeUUID:    "vol-gcnv",
+			State:         models.LifeCycleStateAvailable,
+			BackupVaultID: vault.ID,
+		}
+		require.NoError(tt, store.db.Create(backup).Error())
+
+		results, err := store.GetDistinctVolumeGCBDRVaultPairs(context.Background())
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, results, "GCNV vaults should not be included")
+	})
+
+	t.Run("ReturnsErrorOnClosedDB", func(tt *testing.T) {
+		store, _ := setupStoreWithAccount(tt)
+
+		sqlDB, err := store.db.GORM().DB()
+		require.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		_, err = store.GetDistinctVolumeGCBDRVaultPairs(context.Background())
+		assert.Error(tt, err)
+	})
+}
+
+func TestGetBackupChainMetrics_ReturnsErrorOnClosedDB(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	require.NoError(t, ClearInMemoryDB(store.db.GORM()))
+
+	sqlDB, err := store.db.GORM().DB()
+	require.NoError(t, err)
+	_ = sqlDB.Close()
+
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 10}
+	_, err = store.GetBackupChainMetrics(context.Background(), [][]interface{}{}, pagination)
+	assert.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// TestUpdateBackupChainHistory_EndpointScoping: endpoint-aware behaviour
+// ---------------------------------------------------------------------------
+
+func TestUpdateBackupChainHistory_EndpointScoping(t *testing.T) {
+	setupStore := func(tt *testing.T) *DataStoreRepository {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+		return store
+	}
+
+	t.Run("SupersedesOnlyMatchingEndpointRow", func(tt *testing.T) {
+		store := setupStore(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-ep-scoping"
+		ep1 := "ep-1"
+		ep2 := "ep-2"
+		oldSize := int64(100)
+		newSize := int64(200)
+
+		// Two active history rows — one per endpoint.
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-ep1"},
+			ResourceName: "vol", Size: oldSize, ResourceUUID: volumeUUID,
+			EndpointUUID: &ep1,
+		}).Error())
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-ep2"},
+			ResourceName: "vol", Size: oldSize, ResourceUUID: volumeUUID,
+			EndpointUUID: &ep2,
+		}).Error())
+
+		// Supersede only ep-1's row.
+		require.NoError(tt, store.UpdateBackupChainHistory(ctx, volumeUUID, ep1, newSize))
+
+		// ep-1's old row must be soft-deleted.
+		var oldEp1 datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().Unscoped().Where("uuid = ?", "hist-ep1").First(&oldEp1).Error)
+		assert.NotNil(tt, oldEp1.DeletedAt)
+
+		// ep-2's row must still be active and unchanged.
+		var ep2Row datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().Where("uuid = ? AND deleted_at IS NULL", "hist-ep2").First(&ep2Row).Error)
+		assert.Equal(tt, oldSize, ep2Row.Size)
+
+		// A new active row for ep-1 must exist with the updated size.
+		var newEp1 datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("resource_uuid = ? AND deleted_at IS NULL AND endpoint_uuid = ?", volumeUUID, ep1).
+			First(&newEp1).Error)
+		assert.Equal(tt, newSize, newEp1.Size)
+		assert.Equal(tt, &ep1, newEp1.EndpointUUID)
+	})
+
+	t.Run("NoMatchingEndpointRow_CreatesNewRowForUnknownEndpoint", func(tt *testing.T) {
+		store := setupStore(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-no-match"
+		knownEP := "ep-known"
+		unknownEP := "ep-unknown"
+		newSize := int64(999)
+
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-known"},
+			ResourceName: "vol", Size: int64(100), ResourceUUID: volumeUUID,
+			EndpointUUID: &knownEP,
+		}).Error())
+
+		require.NoError(tt, store.UpdateBackupChainHistory(ctx, volumeUUID, unknownEP, newSize))
+
+		// Existing row for knownEP must be untouched.
+		var h datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().Where("uuid = ? AND deleted_at IS NULL", "hist-known").First(&h).Error)
+		assert.Equal(tt, int64(100), h.Size)
+
+		// A new active row for the unknown endpoint must exist.
+		var newRow datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("resource_uuid = ? AND deleted_at IS NULL AND endpoint_uuid = ?", volumeUUID, unknownEP).
+			First(&newRow).Error)
+		assert.Equal(tt, newSize, newRow.Size)
+		require.NotNil(tt, newRow.EndpointUUID)
+		assert.Equal(tt, unknownEP, *newRow.EndpointUUID)
+	})
+
+	t.Run("NewRowPreservesEndpointUUID", func(tt *testing.T) {
+		store := setupStore(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-preserve-ep"
+		ep := "ep-preserve"
+
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-preserve"},
+			ResourceName: "vol", Size: int64(50), ResourceUUID: volumeUUID,
+			EndpointUUID: &ep,
+		}).Error())
+
+		require.NoError(tt, store.UpdateBackupChainHistory(ctx, volumeUUID, ep, int64(150)))
+
+		var newRow datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("resource_uuid = ? AND deleted_at IS NULL AND endpoint_uuid = ?", volumeUUID, ep).
+			First(&newRow).Error)
+		assert.Equal(tt, int64(150), newRow.Size)
+		require.NotNil(tt, newRow.EndpointUUID)
+		assert.Equal(tt, ep, *newRow.EndpointUUID)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestCreateBackup_BackupChainHistory verifies that CreateBackup does NOT write any
+// backup chain history rows — history creation is deferred to FinishBackup so that
+// the first row carries a real logical size.  Endpoint-UUID scoping for the history
+// rows is covered by TestFinishBackup_BackupChainHistory_GCBDR.
+// ---------------------------------------------------------------------------
+
+func TestCreateBackup_BackupChainHistory(t *testing.T) {
+	setupStoreWithAccount := func(tt *testing.T) (*DataStoreRepository, *datamodel.Account) {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+		acct := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-create-history"}, Name: "test"}
+		require.NoError(tt, store.db.Create(acct).Error())
+		return store, acct
+	}
+
+	t.Run("NoHistoryCreated_ForCrossProjectVault", func(tt *testing.T) {
+		store, acct := setupStoreWithAccount(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-create-1"},
+			Name:        "cp-vault",
+			AccountID:   acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-cp-create-1"},
+			Name:          "bkp-cp-create-1",
+			BackupVaultID: vault.ID,
+			VolumeUUID:    "vol-cp-create-1",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "vol-cp-create-1",
+				AccountIdentifier: "acct-id",
+				EndpointUUID:      "ep-create-1",
+			},
+		}
+
+		_, err := store.CreateBackup(context.Background(), backup)
+		require.NoError(tt, err)
+
+		var count int64
+		store.db.GORM().Model(&datamodel.BackupChainHistory{}).
+			Where("resource_uuid = ? AND deleted_at IS NULL", "vol-cp-create-1").Count(&count)
+		assert.Equal(tt, int64(0), count, "no history row should exist after CreateBackup")
+	})
+
+	t.Run("NoHistoryCreated_ForNonCrossProjectVault", func(tt *testing.T) {
+		store, acct := setupStoreWithAccount(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "gcnv-vault-create-1"},
+			Name:        "gcnv-vault",
+			AccountID:   acct.ID,
+			ServiceType: models.ServiceTypeGCNV,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-gcnv-create-1"},
+			Name:          "bkp-gcnv-create-1",
+			BackupVaultID: vault.ID,
+			VolumeUUID:    "vol-gcnv-create-1",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "vol-gcnv-create-1",
+				AccountIdentifier: "acct-id",
+				EndpointUUID:      "ep-should-be-ignored",
+			},
+		}
+
+		_, err := store.CreateBackup(context.Background(), backup)
+		require.NoError(tt, err)
+
+		var count int64
+		store.db.GORM().Model(&datamodel.BackupChainHistory{}).
+			Where("resource_uuid = ? AND deleted_at IS NULL", "vol-gcnv-create-1").Count(&count)
+		assert.Equal(tt, int64(0), count, "no history row should exist after CreateBackup")
+	})
+
+	t.Run("NoHistoryCreated_WhenVaultIsNil", func(tt *testing.T) {
+		store, _ := setupStoreWithAccount(tt)
+
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "bkp-novault-create-1"},
+			Name:       "bkp-novault-create-1",
+			VolumeUUID: "vol-novault-create-1",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:   "vol-novault-create-1",
+				EndpointUUID: "ep-should-be-ignored",
+			},
+		}
+
+		_, err := store.CreateBackup(context.Background(), backup)
+		require.NoError(tt, err)
+
+		var count int64
+		store.db.GORM().Model(&datamodel.BackupChainHistory{}).
+			Where("resource_uuid = ? AND deleted_at IS NULL", "vol-novault-create-1").Count(&count)
+		assert.Equal(tt, int64(0), count, "no history row should exist after CreateBackup")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestFinishBackup_BackupChainHistory_GCBDR: endpoint-scoped size update
+// ---------------------------------------------------------------------------
+
+func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
+	setupStore := func(tt *testing.T) (*DataStoreRepository, *datamodel.Account) {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+		acct := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-finish-gcbdr"}, Name: "test"}
+		require.NoError(tt, store.db.Create(acct).Error())
+		return store, acct
+	}
+
+	t.Run("UpdatesOnlyMatchingEndpointRow_ForCrossProjectVault", func(tt *testing.T) {
+		tt.Setenv("ENABLE_GCBDR_BACKUP_BILLING", "true")
+		store, acct := setupStore(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-finish-gcbdr-1"
+
+		cpVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-finish-1"},
+			Name:        "cp-vault-finish-1",
+			AccountID:   acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(cpVault).Error())
+
+		// Create a backup that will be finished.
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-finish-gcbdr-1"},
+			Name:          "bkp-finish-gcbdr-1",
+			BackupVaultID: cpVault.ID,
+			VolumeUUID:    volumeUUID,
+			Attributes:    &datamodel.BackupAttributes{EndpointUUID: "ep-finish-A"},
+		}
+		require.NoError(tt, store.db.Create(backup).Error())
+
+		// History row for ep-A.
+		epA := "ep-finish-A"
+		epB := "ep-finish-B"
+		sizeA := int64(100)
+		sizeB := int64(200)
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel: datamodel.BaseModel{UUID: "hist-finish-A"},
+			ResourceName: "vol", Size: sizeA, ResourceUUID: volumeUUID,
+			EndpointUUID: &epA,
+		}).Error())
+		// History row for ep-B (must not be touched).
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel: datamodel.BaseModel{UUID: "hist-finish-B"},
+			ResourceName: "vol", Size: sizeB, ResourceUUID: volumeUUID,
+			EndpointUUID: &epB,
+		}).Error())
+
+		newSize := int64(999)
+		finishInput := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "bkp-finish-gcbdr-1"},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: newSize,
+			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-finish-A", Protocols: []string{"ISCSI"}},
+		}
+		_, err := store.FinishBackup(ctx, finishInput)
+		require.NoError(tt, err)
+
+		// ep-A's OLD row must be soft-deleted; a fresh row with the new size must exist.
+		var oldHistA datamodel.BackupChainHistory
+		require.Error(tt, store.db.GORM().
+			Where("uuid = ? AND deleted_at IS NULL", "hist-finish-A").First(&oldHistA).Error,
+			"old ep-A row should be soft-deleted")
+		var newHistA datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("resource_uuid = ? AND endpoint_uuid = ? AND deleted_at IS NULL", volumeUUID, epA).
+			First(&newHistA).Error)
+		assert.Equal(tt, newSize, newHistA.Size)
+
+		// ep-B's history must be completely unchanged.
+		var histB datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("uuid = ? AND deleted_at IS NULL", "hist-finish-B").First(&histB).Error)
+		assert.Equal(tt, sizeB, histB.Size)
+	})
+
+	t.Run("UpdatesAnyActiveRow_ForNonCrossProjectVault", func(tt *testing.T) {
+		store, _ := setupStore(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-finish-gcnv-1"
+
+		gcnvVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "gcnv-vault-finish-1"},
+			Name:        "gcnv-vault-finish-1",
+			ServiceType: models.ServiceTypeGCNV,
+		}
+		require.NoError(tt, store.db.Create(gcnvVault).Error())
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-finish-gcnv-1"},
+			Name:          "bkp-finish-gcnv-1",
+			BackupVaultID: gcnvVault.ID,
+			VolumeUUID:    volumeUUID,
+		}
+		require.NoError(tt, store.db.Create(backup).Error())
+
+		// Single unscoped history row (no endpoint_uuid, legacy style).
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-finish-gcnv"},
+			ResourceName: "vol", Size: int64(50), ResourceUUID: volumeUUID,
+		}).Error())
+
+		newSize := int64(750)
+		finishInput := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "bkp-finish-gcnv-1"},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: newSize,
+			Attributes:              &datamodel.BackupAttributes{Protocols: []string{"ISCSI"}},
+		}
+		_, err := store.FinishBackup(ctx, finishInput)
+		require.NoError(tt, err)
+
+		// Old row must be tombstoned; a fresh unscoped row with the updated size must exist.
+		var oldHist datamodel.BackupChainHistory
+		require.Error(tt, store.db.GORM().
+			Where("uuid = ? AND deleted_at IS NULL", "hist-finish-gcnv").First(&oldHist).Error,
+			"old history row should be soft-deleted")
+		var newHist datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("resource_uuid = ? AND deleted_at IS NULL", volumeUUID).First(&newHist).Error)
+		assert.Equal(tt, newSize, newHist.Size)
+	})
+
+	t.Run("CreatesNewHistoryRow_WhenNoPreviousRowExists", func(tt *testing.T) {
+		// First backup ever for this volume: no backup chain history row exists yet.
+		// FinishBackup must create one with the real size and endpoint UUID.
+		tt.Setenv("ENABLE_GCBDR_BACKUP_BILLING", "true")
+		store, acct := setupStore(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-finish-first-backup"
+
+		cpVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-first"},
+			Name:        "cp-vault-first",
+			AccountID:   acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(cpVault).Error())
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-first"},
+			Name:          "bkp-first",
+			BackupVaultID: cpVault.ID,
+			VolumeUUID:    volumeUUID,
+			Attributes: &datamodel.BackupAttributes{
+				EndpointUUID:      "ep-real",
+				VolumeName:        "vol",
+				AccountIdentifier: "acct",
+			},
+		}
+		require.NoError(tt, store.db.Create(backup).Error())
+
+		newSize := int64(512)
+		finishInput := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "bkp-first"},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: newSize,
+			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-real", Protocols: []string{"ISCSI"}},
+		}
+		_, err := store.FinishBackup(ctx, finishInput)
+		require.NoError(tt, err)
+
+		var hist datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("resource_uuid = ? AND deleted_at IS NULL", volumeUUID).First(&hist).Error)
+		assert.Equal(tt, newSize, hist.Size)
+		require.NotNil(tt, hist.EndpointUUID)
+		assert.Equal(tt, "ep-real", *hist.EndpointUUID)
+	})
+
+	t.Run("VaultSwitch_CreatesNewEndpointRow_LeavesOtherChainUntouched", func(tt *testing.T) {
+		// Vault switch: volume had ep-X backups (active history row), now finishing
+		// the first backup in the new vault (ep-Y).  FinishBackup must create a
+		// fresh ep-Y history row without touching ep-X's row.
+		tt.Setenv("ENABLE_GCBDR_BACKUP_BILLING", "true")
+		store, acct := setupStore(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-vault-switch"
+
+		cpVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-switch"},
+			Name:        "cp-vault-switch",
+			AccountID:   acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(cpVault).Error())
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-vault-switch"},
+			Name:          "bkp-vault-switch",
+			BackupVaultID: cpVault.ID,
+			VolumeUUID:    volumeUUID,
+			Attributes:    &datamodel.BackupAttributes{EndpointUUID: "ep-Y"},
+		}
+		require.NoError(tt, store.db.Create(backup).Error())
+
+		epX := "ep-X"
+		sizeX := int64(777)
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-ep-X-switch"},
+			ResourceName: "vol", Size: sizeX, ResourceUUID: volumeUUID,
+			EndpointUUID: &epX,
+		}).Error())
+
+		newSize := int64(888)
+		finishInput := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "bkp-vault-switch"},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: newSize,
+			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-Y", Protocols: []string{"ISCSI"}},
+		}
+		_, err := store.FinishBackup(ctx, finishInput)
+		require.NoError(tt, err)
+
+		// A fresh ep-Y row must be created with the new size.
+		var histY datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("resource_uuid = ? AND endpoint_uuid = ? AND deleted_at IS NULL", volumeUUID, "ep-Y").
+			First(&histY).Error)
+		assert.Equal(tt, newSize, histY.Size)
+
+		// ep-X row must be completely untouched.
+		var histX datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("uuid = ? AND deleted_at IS NULL", "hist-ep-X-switch").First(&histX).Error)
+		assert.Equal(tt, sizeX, histX.Size)
+		require.NotNil(tt, histX.EndpointUUID)
+		assert.Equal(tt, "ep-X", *histX.EndpointUUID)
+	})
+}
+
+// setupStoreWithAccount is a shared helper for tests that need an account.
+func setupStoreWithAccount(tt *testing.T) (*DataStoreRepository, *datamodel.Account) {
+	db, err := SetupTestDB()
+	require.NoError(tt, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+	acct := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-shared-" + tt.Name()}, Name: "test"}
+	require.NoError(tt, store.db.Create(acct).Error())
+	return store, acct
+}
+
+// ---------------------------------------------------------------------------
+// TestDeleteBackup_BackupChainHistory_GCBDR: endpoint-scoped history cleanup
+// ---------------------------------------------------------------------------
+
+func TestDeleteBackup_BackupChainHistory_GCBDR(t *testing.T) {
+	t.Run("SoftDeletesEndpointHistoryRow_WhenLastBackupForEndpoint", func(tt *testing.T) {
+		store, acct := setupStoreWithAccount(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-del-gcbdr-1"
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-del-1"},
+			Name:        "cp-vault-del-1",
+			AccountID:   acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		// Backup for ep-1 (the one we will delete).
+		ep1Attrs := &datamodel.BackupAttributes{EndpointUUID: "ep-del-1"}
+		bkpEP1 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "bkp-del-ep1"},
+			Name:      "bkp-del-ep1", BackupVaultID: vault.ID,
+			VolumeUUID: volumeUUID, State: models.LifeCycleStateAvailable,
+			Attributes: ep1Attrs,
+		}
+		// Backup for ep-2 (must survive and keep its history row).
+		ep2Attrs := &datamodel.BackupAttributes{EndpointUUID: "ep-del-2"}
+		bkpEP2 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "bkp-del-ep2"},
+			Name:      "bkp-del-ep2", BackupVaultID: vault.ID,
+			VolumeUUID: volumeUUID, State: models.LifeCycleStateAvailable,
+			Attributes: ep2Attrs,
+		}
+		require.NoError(tt, store.db.Create(bkpEP1).Error())
+		require.NoError(tt, store.db.Create(bkpEP2).Error())
+
+		// One history row per endpoint.
+		ep1 := "ep-del-1"
+		ep2 := "ep-del-2"
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-del-ep1"},
+			ResourceName: "vol", Size: int64(100), ResourceUUID: volumeUUID,
+			EndpointUUID: &ep1,
+		}).Error())
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-del-ep2"},
+			ResourceName: "vol", Size: int64(200), ResourceUUID: volumeUUID,
+			EndpointUUID: &ep2,
+		}).Error())
+
+		// Delete the backup for ep-1.
+		_, err := store.DeleteBackup(ctx, "bkp-del-ep1")
+		require.NoError(tt, err)
+
+		// ep-1's history row must be soft-deleted.
+		var histEP1 datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().Unscoped().Where("uuid = ?", "hist-del-ep1").First(&histEP1).Error)
+		assert.NotNil(tt, histEP1.DeletedAt)
+
+		// ep-2's history row must still be active.
+		var histEP2 datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().Where("uuid = ? AND deleted_at IS NULL", "hist-del-ep2").First(&histEP2).Error)
+		assert.NotNil(tt, histEP2)
+	})
+
+	t.Run("LeavesEndpointHistoryRow_WhenOtherBackupExistsForEndpoint", func(tt *testing.T) {
+		store, acct := setupStoreWithAccount(tt)
+		ctx := context.Background()
+		volumeUUID := "vol-del-gcbdr-2"
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-del-2"},
+			Name:        "cp-vault-del-2",
+			AccountID:   acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		epAttrs := &datamodel.BackupAttributes{EndpointUUID: "ep-shared"}
+		// Two backups for the same endpoint (older + newer).
+		bkpOld := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-shared-old", CreatedAt: time.Now().Add(-2 * time.Hour)},
+			Name:          "bkp-shared-old",
+			BackupVaultID: vault.ID,
+			VolumeUUID:    volumeUUID,
+			State:         models.LifeCycleStateAvailable,
+			Attributes:    epAttrs,
+		}
+		bkpNew := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-shared-new", CreatedAt: time.Now().Add(-1 * time.Hour)},
+			Name:          "bkp-shared-new",
+			BackupVaultID: vault.ID,
+			VolumeUUID:    volumeUUID,
+			State:         models.LifeCycleStateAvailable,
+			Attributes:    epAttrs,
+		}
+		require.NoError(tt, store.db.Create(bkpOld).Error())
+		require.NoError(tt, store.db.Create(bkpNew).Error())
+
+		ep := "ep-shared"
+		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
+			BaseModel:    datamodel.BaseModel{UUID: "hist-shared"},
+			ResourceName: "vol", Size: int64(300), ResourceUUID: volumeUUID,
+			EndpointUUID: &ep,
+		}).Error())
+
+		// Delete the older backup — ep-shared still has bkp-shared-new.
+		_, err := store.DeleteBackup(ctx, "bkp-shared-old")
+		require.NoError(tt, err)
+
+		// The history row must remain active because a backup for the same endpoint still exists.
+		var hist datamodel.BackupChainHistory
+		require.NoError(tt, store.db.GORM().
+			Where("uuid = ? AND deleted_at IS NULL", "hist-shared").First(&hist).Error)
+		assert.Equal(tt, int64(300), hist.Size)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestGetBackupChainMetrics: happy-path tests for the new DB method
+// ---------------------------------------------------------------------------
+
+func TestGetBackupChainMetrics(t *testing.T) {
+	setupStore := func(tt *testing.T) (*DataStoreRepository, *datamodel.Account) {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+		acct := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-chain-metrics"}, Name: "test"}
+		require.NoError(tt, store.db.Create(acct).Error())
+		return store, acct
+	}
+
+	t.Run("ReturnsLatestPerChain_SingleChain", func(tt *testing.T) {
+		store, acct := setupStore(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-chain-1"},
+			Name:      "vault-chain-1", AccountID: acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		// Two available backups for the same (volume, vault, endpoint) chain — only latest (higher ID) returned.
+		older := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "chain-older", CreatedAt: time.Now().Add(-2 * time.Hour)},
+			Name: "chain-older", BackupVaultID: vault.ID,
+			VolumeUUID: "vol-chain-1", State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-chain-1"},
+			LatestLogicalBackupSize: int64(100),
+		}
+		newer := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "chain-newer", CreatedAt: time.Now().Add(-1 * time.Hour)},
+			Name: "chain-newer", BackupVaultID: vault.ID,
+			VolumeUUID: "vol-chain-1", State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-chain-1"},
+			LatestLogicalBackupSize: int64(200),
+		}
+		require.NoError(tt, store.db.Create(older).Error())
+		require.NoError(tt, store.db.Create(newer).Error())
+
+		pagination := &dbutils.Pagination{Offset: 0, Limit: 10}
+		results, err := store.GetBackupChainMetrics(context.Background(), [][]interface{}{}, pagination)
+		require.NoError(tt, err)
+		require.Len(tt, results, 1)
+		// The one returned must be the one with the higher auto-increment ID (newer insert).
+		assert.Equal(tt, "vol-chain-1", results[0].VolumeUUID)
+	})
+
+	t.Run("ReturnsOneRowPerEndpoint_MultipleChains", func(tt *testing.T) {
+		store, acct := setupStore(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-chain-2"},
+			Name:      "vault-chain-2", AccountID: acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		bkpA := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "chain-ep-A"},
+			Name: "chain-ep-A", BackupVaultID: vault.ID,
+			VolumeUUID: "vol-chain-2", State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-A"},
+		}
+		bkpB := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "chain-ep-B"},
+			Name: "chain-ep-B", BackupVaultID: vault.ID,
+			VolumeUUID: "vol-chain-2", State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-B"},
+		}
+		require.NoError(tt, store.db.Create(bkpA).Error())
+		require.NoError(tt, store.db.Create(bkpB).Error())
+
+		pagination := &dbutils.Pagination{Offset: 0, Limit: 10}
+		results, err := store.GetBackupChainMetrics(context.Background(), [][]interface{}{}, pagination)
+		require.NoError(tt, err)
+		assert.Len(tt, results, 2, "expected one row per distinct endpoint chain")
+	})
+
+	t.Run("ExcludesNonAvailableBackups", func(tt *testing.T) {
+		store, acct := setupStore(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-chain-3"},
+			Name:      "vault-chain-3", AccountID: acct.ID,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		creating := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "chain-creating"},
+			Name: "chain-creating", BackupVaultID: vault.ID,
+			VolumeUUID: "vol-chain-3", State: models.LifeCycleStateCreating,
+		}
+		require.NoError(tt, store.db.Create(creating).Error())
+
+		pagination := &dbutils.Pagination{Offset: 0, Limit: 10}
+		results, err := store.GetBackupChainMetrics(context.Background(), [][]interface{}{}, pagination)
+		require.NoError(tt, err)
+		assert.Empty(tt, results, "creating-state backup must not appear in chain metrics")
+	})
+
+	t.Run("HandlesPagination_LimitAndOffset", func(tt *testing.T) {
+		store, acct := setupStore(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-chain-4"},
+			Name:      "vault-chain-4", AccountID: acct.ID,
+		}
+		require.NoError(tt, store.db.Create(vault).Error())
+
+		// Create 3 available backups for 3 different volumes (one chain each).
+		for _, pair := range []struct{ uuid, vol string }{
+			{"chain-page-1", "vol-page-1"},
+			{"chain-page-2", "vol-page-2"},
+			{"chain-page-3", "vol-page-3"},
+		} {
+			bkp := &datamodel.Backup{
+				BaseModel:     datamodel.BaseModel{UUID: pair.uuid},
+				Name:          pair.uuid,
+				BackupVaultID: vault.ID,
+				VolumeUUID:    pair.vol,
+				State:         models.LifeCycleStateAvailable,
+			}
+			require.NoError(tt, store.db.Create(bkp).Error())
+		}
+
+		// Offset=1, Limit=1 → only one row returned.
+		pagination := &dbutils.Pagination{Offset: 1, Limit: 1}
+		results, err := store.GetBackupChainMetrics(context.Background(), [][]interface{}{}, pagination)
+		require.NoError(tt, err)
+		assert.Len(tt, results, 1, "pagination Limit=1 must return exactly one row")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestGetLatestBackupsGroupedByVolumeUUID_GCBDR: new vault-filter behaviours
+// ---------------------------------------------------------------------------
+
+func TestGetLatestBackupsGroupedByVolumeUUID_GCBDR(t *testing.T) {
+	setupStore := func(tt *testing.T) (*DataStoreRepository, *datamodel.Account, *datamodel.Pool) {
+		db, err := SetupTestDB()
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		require.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		acct := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-grouped-gcbdr"}, Name: "test"}
+		require.NoError(tt, store.db.Create(acct).Error())
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-grouped-gcbdr"},
+			Name:      "pool", AccountID: acct.ID,
+		}
+		require.NoError(tt, store.db.Create(pool).Error())
+		return store, acct, pool
+	}
+
+	t.Run("ExcludesBackupsFromNonCurrentVault", func(tt *testing.T) {
+		store, acct, pool := setupStore(tt)
+		ctx := context.Background()
+
+		oldVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "old-vault-grouped"},
+			Name: "old-vault", AccountID: acct.ID,
+		}
+		newVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "new-vault-grouped"},
+			Name: "new-vault", AccountID: acct.ID,
+		}
+		require.NoError(tt, store.db.Create(oldVault).Error())
+		require.NoError(tt, store.db.Create(newVault).Error())
+
+		// Volume currently points to newVault.
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-grouped-gcbdr-1"},
+			Name:      "vol-grouped-gcbdr-1",
+			PoolID:    pool.ID, AccountID: acct.ID,
+			DataProtection: &datamodel.DataProtection{BackupVaultID: newVault.UUID},
+		}
+		require.NoError(tt, store.db.Create(volume).Error())
+
+		// A detached backup that belongs to the OLD vault.
+		detached := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-old-vault", CreatedAt: time.Now().Add(-2 * time.Hour)},
+			Name:          "bkp-old-vault",
+			BackupVaultID: oldVault.ID, VolumeUUID: volume.UUID,
+			State: models.LifeCycleStateAvailable,
+		}
+		// The current backup in the NEW vault.
+		current := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-new-vault", CreatedAt: time.Now().Add(-1 * time.Hour)},
+			Name:          "bkp-new-vault",
+			BackupVaultID: newVault.ID, VolumeUUID: volume.UUID,
+			State: models.LifeCycleStateAvailable,
+		}
+		require.NoError(tt, store.db.Create(detached).Error())
+		require.NoError(tt, store.db.Create(current).Error())
+
+		results, err := store.GetLatestBackupsGroupedByVolumeUUID(ctx)
+		require.NoError(tt, err)
+		require.Len(tt, results, 1, "only backup from current vault must be returned")
+		assert.Equal(tt, "bkp-new-vault", results[0].UUID)
+	})
+
+	t.Run("PopulatesBackupVaultServiceType", func(tt *testing.T) {
+		store, acct, pool := setupStore(tt)
+		ctx := context.Background()
+
+		cpVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "cp-vault-grouped"},
+			Name:        "cp-vault-grouped",
+			AccountID:   acct.ID,
+			ServiceType: models.ServiceTypeCrossProject,
+		}
+		require.NoError(tt, store.db.Create(cpVault).Error())
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-grouped-gcbdr-2"},
+			Name:      "vol-grouped-gcbdr-2",
+			PoolID:    pool.ID, AccountID: acct.ID,
+			DataProtection: &datamodel.DataProtection{BackupVaultID: cpVault.UUID},
+		}
+		require.NoError(tt, store.db.Create(volume).Error())
+
+		bkp := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "bkp-cp-grouped"},
+			Name:          "bkp-cp-grouped",
+			BackupVaultID: cpVault.ID, VolumeUUID: volume.UUID,
+			State: models.LifeCycleStateAvailable,
+		}
+		require.NoError(tt, store.db.Create(bkp).Error())
+
+		results, err := store.GetLatestBackupsGroupedByVolumeUUID(ctx)
+		require.NoError(tt, err)
+		require.Len(tt, results, 1)
+		require.NotNil(tt, results[0].BackupVault, "BackupVault must be populated")
+		assert.Equal(tt, models.ServiceTypeCrossProject, results[0].BackupVault.ServiceType)
+	})
+}
+func Test_shouldSkipBackupChainHistory_NilBackup(t *testing.T) {
+	config := &common.TelemetryConfig{}
+	result := shouldSkipBackupChainHistory(context.Background(), nil, config)
+	assert.True(t, result, "should skip when backup is nil")
+}
+
+func Test_shouldSkipBackupChainHistory_NilConfig(t *testing.T) {
+	backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-1"}}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, nil)
+	assert.True(t, result, "should skip when config is nil")
+}
+
+func Test_shouldSkipBackupChainHistory_CrossRegionBillingDisabled(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableCrossRegionBackupBillingMetrics: false,
+		EnableFilesBackupBilling:             true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		BackupVault: &datamodel.BackupVault{
+			BackupVaultType: models.BackupVaultTypeCrossRegion,
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.True(t, result, "should skip cross-region backup when billing disabled")
+}
+
+func Test_shouldSkipBackupChainHistory_CrossRegionBillingEnabled_NilRegion(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableCrossRegionBackupBillingMetrics: true,
+		EnableFilesBackupBilling:             true,
+		RegionName:                           "us-central1",
+	}
+	backup := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
+		VolumeUUID: "v-1",
+		BackupVault: &datamodel.BackupVault{
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: nil,
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.True(t, result, "should skip cross-region backup with nil region name")
+}
+
+func Test_shouldSkipBackupChainHistory_CrossRegionBillingEnabled_SameRegion(t *testing.T) {
+	region := "us-central1"
+	config := &common.TelemetryConfig{
+		EnableCrossRegionBackupBillingMetrics: true,
+		EnableFilesBackupBilling:             true,
+		RegionName:                           region,
+	}
+	backup := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
+		VolumeUUID: "v-1",
+		BackupVault: &datamodel.BackupVault{
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: &region,
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.True(t, result, "should skip cross-region backup when region matches current")
+}
+
+func Test_shouldSkipBackupChainHistory_CrossRegionBillingEnabled_DifferentRegion(t *testing.T) {
+	region := "europe-west1"
+	config := &common.TelemetryConfig{
+		EnableCrossRegionBackupBillingMetrics: true,
+		EnableFilesBackupBilling:             true,
+		RegionName:                           "us-central1",
+	}
+	backup := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
+		VolumeUUID: "v-1",
+		BackupVault: &datamodel.BackupVault{
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: &region,
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.False(t, result, "should NOT skip cross-region backup with different region when billing enabled")
+}
+
+func Test_shouldSkipBackupChainHistory_CmekBillingDisabled(t *testing.T) {
+	kmsPath := "projects/p1/locations/l1/keyRings/kr1/cryptoKeys/k1"
+	config := &common.TelemetryConfig{
+		EnableCmekBackupBilling:  false,
+		EnableFilesBackupBilling: true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		BackupVault: &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "bv-1"},
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath: &kmsPath,
+			},
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.True(t, result, "should skip CMEK backup when billing disabled")
+}
+
+func Test_shouldSkipBackupChainHistory_CmekBillingEnabled(t *testing.T) {
+	kmsPath := "projects/p1/locations/l1/keyRings/kr1/cryptoKeys/k1"
+	config := &common.TelemetryConfig{
+		EnableCmekBackupBilling:  true,
+		EnableFilesBackupBilling: true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		BackupVault: &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "bv-1"},
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath: &kmsPath,
+			},
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.False(t, result, "should NOT skip CMEK backup when billing enabled")
+}
+
+func Test_shouldSkipBackupChainHistory_GcbdrBillingDisabled(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableGcbdrBackupBilling: false,
+		EnableFilesBackupBilling: true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		BackupVault: &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
+			ServiceType: models.ServiceTypeCrossProject,
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.True(t, result, "should skip GCBDR cross-project backup when billing disabled")
+}
+
+func Test_shouldSkipBackupChainHistory_GcbdrBillingEnabled(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableGcbdrBackupBilling: true,
+		EnableFilesBackupBilling: true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		BackupVault: &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
+			ServiceType: models.ServiceTypeCrossProject,
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.False(t, result, "should NOT skip GCBDR backup when billing enabled")
+}
+
+func Test_shouldSkipBackupChainHistory_ExpertModeBillingDisabled(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableExpertModeBackupBilling: false,
+		EnableFilesBackupBilling:      true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		Attributes: &datamodel.BackupAttributes{
+			IsExpertModeBackup: true,
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.True(t, result, "should skip expert mode backup when billing disabled")
+}
+
+func Test_shouldSkipBackupChainHistory_ExpertModeBillingEnabled(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableExpertModeBackupBilling: true,
+		EnableFilesBackupBilling:      true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		Attributes: &datamodel.BackupAttributes{
+			IsExpertModeBackup: true,
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.False(t, result, "should NOT skip expert mode backup when billing enabled")
+}
+
+func Test_shouldSkipBackupChainHistory_FilesBackupBillingDisabled_NotSAN(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableFilesBackupBilling: false,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		Attributes: &datamodel.BackupAttributes{
+			Protocols: []string{"NFS"},
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.True(t, result, "should skip NAS backup when files billing disabled")
+}
+
+func Test_shouldSkipBackupChainHistory_FilesBackupBillingDisabled_SANProtocol(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableFilesBackupBilling: false,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		Attributes: &datamodel.BackupAttributes{
+			Protocols: []string{"ISCSI"},
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.False(t, result, "should NOT skip SAN protocol backup even when files billing disabled")
+}
+
+func Test_shouldSkipBackupChainHistory_FilesBackupBillingEnabled_NASProtocol(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableFilesBackupBilling: true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "b-1"},
+		Attributes: &datamodel.BackupAttributes{
+			Protocols: []string{"NFS"},
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.False(t, result, "should NOT skip NAS backup when files billing enabled")
+}
+
+func Test_shouldSkipBackupChainHistory_NilAttributes_FilesDisabled(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableFilesBackupBilling: false,
+	}
+	backup := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
+		Attributes: nil,
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.True(t, result, "should skip when attributes nil and files billing disabled")
+}
+
+func Test_shouldSkipBackupChainHistory_NormalBackup_AllBillingEnabled(t *testing.T) {
+	config := &common.TelemetryConfig{
+		EnableCrossRegionBackupBillingMetrics: true,
+		EnableCmekBackupBilling:              true,
+		EnableGcbdrBackupBilling:             true,
+		EnableExpertModeBackupBilling:        true,
+		EnableFilesBackupBilling:             true,
+	}
+	backup := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
+		VolumeUUID: "v-1",
+		BackupVault: &datamodel.BackupVault{
+			BaseModel:       datamodel.BaseModel{UUID: "bv-1"},
+			BackupVaultType: "LOCAL",
+			Name:            "my-vault",
+		},
+		Attributes: &datamodel.BackupAttributes{
+			Protocols: []string{"NFS"},
+		},
+	}
+	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
+	assert.False(t, result, "should NOT skip normal local backup with all billing enabled")
+}
+

@@ -1463,7 +1463,7 @@ func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
 
 	// Create mock storage
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, int64(expectedLogicalSize)).Return(nil)
+	mockStorage.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, "", int64(expectedLogicalSize)).Return(nil)
 
 	// Create a test server that returns successful response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1488,8 +1488,8 @@ func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
 
 	activity := activities.ADCActivity{SE: mockStorage}
 
-	// Execute the function
-	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL)
+	// Execute the function (non-GCBDR path → endpointUUID = "")
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, "", adcParams, server.URL)
 
 	// Assertions
 	assert.Nil(t, err)
@@ -1512,7 +1512,7 @@ func TestFetchLogicalSizeAndUpdateActivity_ADCError(t *testing.T) {
 	activity := activities.ADCActivity{SE: mockStorage}
 
 	// Execute the function
-	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, adcParams, serviceURL)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, "", adcParams, serviceURL)
 
 	// Assertions
 	assert.NotNil(t, err)
@@ -1543,7 +1543,7 @@ func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
 
 	// Create mock storage
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, int64(expectedLogicalSize)).Return(expectedError)
+	mockStorage.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, "", int64(expectedLogicalSize)).Return(expectedError)
 
 	// Create a test server that returns successful response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1569,7 +1569,7 @@ func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
 	activity := activities.ADCActivity{SE: mockStorage}
 
 	// Execute the function
-	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, "", adcParams, server.URL)
 
 	// Assertions
 	assert.NotNil(t, err)
@@ -1610,7 +1610,7 @@ func TestFetchLogicalSizeAndUpdateActivity_HTTPError(t *testing.T) {
 	invalidURL := "https://invalid-url-that-will-fail.com"
 
 	// Execute the function
-	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, adcParams, invalidURL)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, "", adcParams, invalidURL)
 
 	// Assertions
 	assert.NotNil(t, err)
@@ -1661,7 +1661,6 @@ func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_Success(t *t
 		return ok && v == int64(expectedLogicalSize)
 	})).Return(nil)
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
-	mockStorage.On("UpdateBackupChainHistory", ctx, volumeUUID, int64(expectedLogicalSize)).Return(nil)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := activities.LogicalBytesResp{
@@ -1734,7 +1733,6 @@ func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_GetBucketDet
 		return ok && v == int64(0)
 	})).Return(nil)
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
-	mockStorage.On("UpdateBackupChainHistory", ctx, volumeUUID, int64(0)).Return(nil)
 
 	activity := activities.ADCActivity{SE: mockStorage}
 	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, "http://localhost:9999", deletedBackupVaultID)
@@ -1780,27 +1778,6 @@ func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_UpdateBackup
 	mockStorage.AssertExpectations(t)
 }
 
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_UpdateBackupChainHistoryFails_WarnsOnly(t *testing.T) {
-	ctx := context.Background()
-	volumeUUID := "vol-uuid"
-	latestUUID := "latest-uuid"
-	adcParams := &commonparams.ADCParams{BucketName: "b", ServerURL: "http://x", Port: 443}
-	backupsPerVault := []*datamodel.Backup{}
-	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: latestUUID}, VolumeUUID: volumeUUID}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
-	mockStorage.On("UpdateBackupFields", ctx, latestUUID, mock.Anything).Return(nil)
-	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestUUID).Return(nil)
-	mockStorage.On("UpdateBackupChainHistory", ctx, volumeUUID, int64(0)).Return(errors.New("history update failed"))
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, "", 1)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
 
 // TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_GetBackupVaultByIdReturnsNilVault_Continues
 // covers getBucketDetailsForBucket(backupVault==nil) when GetBackupVaultById returns (nil, nil) for another vault.
@@ -1822,7 +1799,6 @@ func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_GetBackupVau
 	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
 	mockStorage.On("UpdateBackupFields", ctx, latestBackupUUID, mock.Anything).Return(nil)
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
-	mockStorage.On("UpdateBackupChainHistory", ctx, volumeUUID, int64(0)).Return(nil)
 
 	activity := activities.ADCActivity{SE: mockStorage}
 	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, "", deletedBackupVaultID)
@@ -1860,7 +1836,6 @@ func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_NilBackupInL
 	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
 	mockStorage.On("UpdateBackupFields", ctx, latestBackupUUID, mock.Anything).Return(nil)
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
-	mockStorage.On("UpdateBackupChainHistory", ctx, volumeUUID, int64(1024)).Return(nil)
 
 	activity := activities.ADCActivity{SE: mockStorage}
 	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL, deletedBackupVaultID)
@@ -1899,7 +1874,6 @@ func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_CalculateLog
 		return ok && v == 0
 	})).Return(nil)
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
-	mockStorage.On("UpdateBackupChainHistory", ctx, volumeUUID, int64(0)).Return(nil)
 
 	activity := activities.ADCActivity{SE: mockStorage}
 	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL, deletedBackupVaultID)

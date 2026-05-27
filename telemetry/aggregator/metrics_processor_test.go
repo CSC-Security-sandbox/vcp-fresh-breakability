@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -376,6 +377,304 @@ func TestFetchBackupHistoryMetrics_PopulatesFields(t *testing.T) {
 	second := byResource["resource-uuid-2"]
 	require.NotNil(t, second.DeletedAt)
 	assert.Equal(t, deletedAt, *second.DeletedAt)
+}
+
+// TestMergeEndpointHistories_* cover the sweep-line algorithm used for GCBDR billing.
+
+func TestMergeEndpointHistories_SingleEndpoint(t *testing.T) {
+	// Only one endpoint — output should be one interval with that endpoint's size.
+	t0 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	t1 := t0.Add(2 * time.Hour)
+
+	ep := strPtr("ep-A")
+	rows := []*datamodel.BackupChainHistory{
+		{
+			BaseModel:    datamodel.BaseModel{CreatedAt: t0, DeletedAt: &gorm.DeletedAt{Time: t1, Valid: true}},
+			ResourceUUID: "vol-1",
+			Size:         50,
+			EndpointUUID: ep,
+		},
+	}
+
+	result := mergeEndpointHistories(rows)
+	require.Len(t, result, 1)
+	assert.Equal(t, t0, result[0].start)
+	require.NotNil(t, result[0].end)
+	assert.Equal(t, t1, *result[0].end)
+	assert.Equal(t, int64(50), result[0].size)
+}
+
+func TestMergeEndpointHistories_TwoEndpointsFullyOverlapping(t *testing.T) {
+	// ep-A and ep-B are both active for the entire window — total should be 50+30=80.
+	t0 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+
+	rows := []*datamodel.BackupChainHistory{
+		{
+			BaseModel:    datamodel.BaseModel{CreatedAt: t0},
+			ResourceUUID: "vol-1",
+			Size:         50,
+			EndpointUUID: strPtr("ep-A"),
+		},
+		{
+			BaseModel:    datamodel.BaseModel{CreatedAt: t0},
+			ResourceUUID: "vol-1",
+			Size:         30,
+			EndpointUUID: strPtr("ep-B"),
+		},
+	}
+
+	result := mergeEndpointHistories(rows)
+	require.Len(t, result, 1)
+	assert.Equal(t, t0, result[0].start)
+	assert.Nil(t, result[0].end)
+	assert.Equal(t, int64(80), result[0].size)
+}
+
+func TestMergeEndpointHistories_TwoEndpointsPartialOverlap(t *testing.T) {
+	// ep-A: [13:00, 14:30)  size=50
+	// ep-B: [14:00, nil )   size=30
+	// Expected intervals:
+	//   [13:00, 14:00) → 50
+	//   [14:00, 14:30) → 80
+	//   [14:30, nil  ) → 30
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	t1300 := base.Add(13 * time.Hour)
+	t1400 := base.Add(14 * time.Hour)
+	t1430 := base.Add(14*time.Hour + 30*time.Minute)
+
+	rows := []*datamodel.BackupChainHistory{
+		{
+			BaseModel:    datamodel.BaseModel{CreatedAt: t1300, DeletedAt: &gorm.DeletedAt{Time: t1430, Valid: true}},
+			ResourceUUID: "vol-1",
+			Size:         50,
+			EndpointUUID: strPtr("ep-X"),
+		},
+		{
+			BaseModel:    datamodel.BaseModel{CreatedAt: t1400},
+			ResourceUUID: "vol-1",
+			Size:         30,
+			EndpointUUID: strPtr("ep-Y"),
+		},
+	}
+
+	result := mergeEndpointHistories(rows)
+	require.Len(t, result, 3)
+
+	// Sort by start time for deterministic assertions.
+	slices.SortFunc(result, func(a, b combinedInterval) int {
+		if a.start.Before(b.start) {
+			return -1
+		}
+		if a.start.After(b.start) {
+			return 1
+		}
+		return 0
+	})
+
+	assert.Equal(t, t1300, result[0].start)
+	require.NotNil(t, result[0].end)
+	assert.Equal(t, t1400, *result[0].end)
+	assert.Equal(t, int64(50), result[0].size)
+
+	assert.Equal(t, t1400, result[1].start)
+	require.NotNil(t, result[1].end)
+	assert.Equal(t, t1430, *result[1].end)
+	assert.Equal(t, int64(80), result[1].size)
+
+	assert.Equal(t, t1430, result[2].start)
+	assert.Nil(t, result[2].end)
+	assert.Equal(t, int64(30), result[2].size)
+}
+
+func TestMergeEndpointHistories_NonOverlappingEndpoints(t *testing.T) {
+	// ep-A ends before ep-B starts — two separate intervals with no gap.
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	t0 := base.Add(10 * time.Hour)
+	t1 := base.Add(11 * time.Hour)
+	t2 := base.Add(12 * time.Hour)
+
+	rows := []*datamodel.BackupChainHistory{
+		{
+			BaseModel:    datamodel.BaseModel{CreatedAt: t0, DeletedAt: &gorm.DeletedAt{Time: t1, Valid: true}},
+			ResourceUUID: "vol-1",
+			Size:         40,
+			EndpointUUID: strPtr("ep-A"),
+		},
+		{
+			BaseModel:    datamodel.BaseModel{CreatedAt: t1, DeletedAt: &gorm.DeletedAt{Time: t2, Valid: true}},
+			ResourceUUID: "vol-1",
+			Size:         60,
+			EndpointUUID: strPtr("ep-B"),
+		},
+	}
+
+	result := mergeEndpointHistories(rows)
+	// At t1: ep-A ends (-40) and ep-B begins (+60) simultaneously — the algorithm
+	// processes endings before beginnings so the running total briefly hits zero,
+	// meaning no combined interval is emitted for that instant.
+	require.Len(t, result, 2)
+
+	slices.SortFunc(result, func(a, b combinedInterval) int {
+		if a.start.Before(b.start) {
+			return -1
+		}
+		if a.start.After(b.start) {
+			return 1
+		}
+		return 0
+	})
+
+	assert.Equal(t, t0, result[0].start)
+	assert.Equal(t, int64(40), result[0].size)
+	assert.Equal(t, t1, result[1].start)
+	assert.Equal(t, int64(60), result[1].size)
+}
+
+func TestFetchBackupHistoryMetrics_GCBDREndpointsMerged(t *testing.T) {
+	// Two concurrently active endpoints for the same (volume, vault, consumer).
+	// ep-X: [10:00, 11:30)  size=50
+	// ep-Y: [10:30, nil  )  size=30
+	// Combined timeline:
+	//   [10:00, 10:30) → 50
+	//   [10:30, 11:30) → 80
+	//   [11:30, nil  ) → 30
+	ctx := context.Background()
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	t1000 := base.Add(10 * time.Hour)
+	t1030 := base.Add(10*time.Hour + 30*time.Minute)
+	t1130 := base.Add(11*time.Hour + 30*time.Minute)
+
+	epX := strPtr("ep-X")
+	epY := strPtr("ep-Y")
+
+	histories := []*datamodel.BackupChainHistory{
+		{
+			BaseModel:      datamodel.BaseModel{CreatedAt: t1000, DeletedAt: &gorm.DeletedAt{Time: t1130, Valid: true}},
+			ResourceUUID:   "vol-1",
+			ConsumerID:     "consumer-vault",
+			DeploymentName: "vault-1",
+			Size:           50,
+			EndpointUUID:   epX,
+		},
+		{
+			BaseModel:      datamodel.BaseModel{CreatedAt: t1030},
+			ResourceUUID:   "vol-1",
+			ConsumerID:     "consumer-vault",
+			DeploymentName: "vault-1",
+			Size:           30,
+			EndpointUUID:   epY,
+		},
+	}
+
+	vcpDB := &database2.MockStorage{}
+	vcpDB.On("ListBackupChainHistoriesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(histories, nil).Once()
+
+	provider := &BillingProvider{
+		vcpDataStore: vcpDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 100,
+			RegionName:              "us-central1",
+		},
+	}
+
+	metrics, err := provider.fetchBackupHistoryMetrics(ctx, t1000.Add(-time.Hour), t1130.Add(time.Hour), 0, &ResourceCollection{})
+	require.NoError(t, err)
+	require.Len(t, metrics, 3, "expected three combined intervals")
+
+	slices.SortFunc(metrics, func(a, b datamodel2.HydratedMetrics) int {
+		if a.MetricTimestamp.Before(b.MetricTimestamp) {
+			return -1
+		}
+		if a.MetricTimestamp.After(b.MetricTimestamp) {
+			return 1
+		}
+		return 0
+	})
+
+	// All intervals must share the same billing identity and carry DEFAULT backup_mode metadata
+	// (neither row has IsExpertModeBackup set).
+	for _, m := range metrics {
+		assert.Equal(t, "vol-1", m.ResourceName)
+		assert.Equal(t, "consumer-vault", m.ConsumerID)
+		assert.Equal(t, "vault-1", m.DeploymentName)
+		assert.Equal(t, metadata.Backup, m.ResourceType)
+		assert.Equal(t, metadata.BackupLogicalSize, m.MeasuredType)
+		require.NotNil(t, m.Metadata, "GCBDR interval must carry backup_mode metadata")
+		var meta map[string]string
+		require.NoError(t, json.Unmarshal(m.Metadata, &meta))
+		assert.Equal(t, backupModeDefault, meta[backupModeMetadataKey], "non-expert-mode GCBDR must emit DEFAULT mode")
+	}
+
+	// Interval 1: [10:00, 10:30)  size=50
+	assert.Equal(t, t1000, metrics[0].MetricTimestamp)
+	assert.Equal(t, float64(50), metrics[0].Quantity)
+	require.NotNil(t, metrics[0].DeletedAt)
+	assert.Equal(t, t1030, *metrics[0].DeletedAt)
+
+	// Interval 2: [10:30, 11:30)  size=80
+	assert.Equal(t, t1030, metrics[1].MetricTimestamp)
+	assert.Equal(t, float64(80), metrics[1].Quantity)
+	require.NotNil(t, metrics[1].DeletedAt)
+	assert.Equal(t, t1130, *metrics[1].DeletedAt)
+
+	// Interval 3: [11:30, nil)  size=30
+	assert.Equal(t, t1130, metrics[2].MetricTimestamp)
+	assert.Equal(t, float64(30), metrics[2].Quantity)
+	assert.Nil(t, metrics[2].DeletedAt)
+}
+
+func TestFetchBackupHistoryMetrics_GCBDREndpointsMerged_ExpertMode(t *testing.T) {
+	ctx := context.Background()
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	t1000 := base.Add(10 * time.Hour)
+	t1030 := base.Add(10*time.Hour + 30*time.Minute)
+
+	epX := strPtr("ep-X")
+	epY := strPtr("ep-Y")
+
+	histories := []*datamodel.BackupChainHistory{
+		{
+			BaseModel:          datamodel.BaseModel{CreatedAt: t1000},
+			ResourceUUID:       "vol-expert",
+			ConsumerID:         "consumer-vault",
+			DeploymentName:     "vault-1",
+			Size:               50,
+			EndpointUUID:       epX,
+			IsExpertModeBackup: true,
+		},
+		{
+			BaseModel:      datamodel.BaseModel{CreatedAt: t1030},
+			ResourceUUID:   "vol-expert",
+			ConsumerID:     "consumer-vault",
+			DeploymentName: "vault-1",
+			Size:           30,
+			EndpointUUID:   epY,
+		},
+	}
+
+	vcpDB := &database2.MockStorage{}
+	vcpDB.On("ListBackupChainHistoriesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(histories, nil).Once()
+
+	provider := &BillingProvider{
+		vcpDataStore: vcpDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 100,
+			RegionName:              "us-central1",
+		},
+	}
+
+	metrics, err := provider.fetchBackupHistoryMetrics(ctx, t1000.Add(-time.Hour), t1030.Add(time.Hour), 0, &ResourceCollection{})
+	require.NoError(t, err)
+	require.NotEmpty(t, metrics)
+
+	for _, m := range metrics {
+		require.NotNil(t, m.Metadata, "GCBDR expert-mode interval must carry backup_mode metadata")
+		var meta map[string]string
+		require.NoError(t, json.Unmarshal(m.Metadata, &meta))
+		assert.Equal(t, backupModeOntap, meta[backupModeMetadataKey], "expert-mode GCBDR must emit ONTAP mode")
+	}
+
+	vcpDB.AssertExpectations(t)
 }
 
 func TestGroupMetricsByResource_ParsesBackupRegionName(t *testing.T) {

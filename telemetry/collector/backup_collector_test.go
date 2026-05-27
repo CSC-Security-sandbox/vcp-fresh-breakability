@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -31,6 +32,23 @@ func (m *mockBackupStorage) GetBackupMetrics(ctx context.Context, conditions [][
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*datamodel.Backup), args.Error(1)
+}
+
+// GetBackupChainMetrics routes through the mock when a test has set an explicit
+// expectation (m.On("GetBackupChainMetrics", ...)); otherwise it falls back to the
+// GetBackupMetrics mock so existing tests that only registered the legacy method keep
+// working when they enable EnableGcbdrBackupBilling.
+func (m *mockBackupStorage) GetBackupChainMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	for _, e := range m.ExpectedCalls {
+		if e.Method == "GetBackupChainMetrics" {
+			args := m.Called(ctx, conditions, pagination)
+			if args.Get(0) == nil {
+				return nil, args.Error(1)
+			}
+			return args.Get(0).([]*datamodel.Backup), args.Error(1)
+		}
+	}
+	return m.GetBackupMetrics(ctx, conditions, pagination)
 }
 
 func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
@@ -2003,7 +2021,734 @@ func TestGetBackupMetrics_ExpertModeBackupBilling_SkipsAndIncludes(t *testing.T)
 	}
 }
 
+func TestGetBackupMetrics_CrossProjectVault_BillsToVaultProject(t *testing.T) {
+	tests := []struct {
+		name               string
+		backup             *datamodel.Backup
+		expectedConsumerID string
+		description        string
+	}{
+		{
+			name: "CrossProject vault with Account - bills to vault project",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-cp"}, VolumeUUID: "v-cp",
+				LatestLogicalBackupSize: 1024,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "VolumeOwnerProject",
+					VolumeName:        "vol",
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:   datamodel.BaseModel{UUID: "bv-cp"},
+					Name:        "vault",
+					ServiceType: models.ServiceTypeCrossProject,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
+						Name:      "VaultOwnerProject",
+					},
+				},
+			},
+			expectedConsumerID: "VaultOwnerProject",
+			description:        "CrossProject backup should bill to vault's owning project, not the volume owner",
+		},
+		{
+			name: "GCNV vault - bills to volume owner (no override)",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-gcnv"}, VolumeUUID: "v-gcnv",
+				LatestLogicalBackupSize: 2048,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "VolumeOwnerProject",
+					VolumeName:        "vol",
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:   datamodel.BaseModel{UUID: "bv-gcnv"},
+					Name:        "vault",
+					ServiceType: models.ServiceTypeGCNV,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
+						Name:      "VaultOwnerProject",
+					},
+				},
+			},
+			expectedConsumerID: "VolumeOwnerProject",
+			description:        "GCNV backup should bill to volume owner's project (AccountIdentifier)",
+		},
+		{
+			name: "CrossProject vault with nil Account - falls back to volume owner",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-cp-nil"}, VolumeUUID: "v-cp-nil",
+				LatestLogicalBackupSize: 512,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "VolumeOwnerProject",
+					VolumeName:        "vol",
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:   datamodel.BaseModel{UUID: "bv-cp-nil"},
+					Name:        "vault",
+					ServiceType: models.ServiceTypeCrossProject,
+					Account:     nil,
+				},
+			},
+			expectedConsumerID: "VolumeOwnerProject",
+			description:        "CrossProject vault with nil Account should fall back to volume owner",
+		},
+		{
+			name: "CrossProject vault with empty Account name - falls back to volume owner",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-cp-empty"}, VolumeUUID: "v-cp-empty",
+				LatestLogicalBackupSize: 256,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "VolumeOwnerProject",
+					VolumeName:        "vol",
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:   datamodel.BaseModel{UUID: "bv-cp-empty"},
+					Name:        "vault",
+					ServiceType: models.ServiceTypeCrossProject,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "vault-account-uuid"},
+						Name:      "",
+					},
+				},
+			},
+			expectedConsumerID: "VolumeOwnerProject",
+			description:        "CrossProject vault with empty Account.Name should fall back to volume owner",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockBackupStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:               "us-east-1",
+				EnableFilesBackupBilling: true,
+				EnableGcbdrBackupBilling: true,
+			}
+
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+				return p.Offset == 0
+			})).Return([]*datamodel.Backup{tt.backup}, nil)
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+				return p.Offset > 0
+			})).Return([]*datamodel.Backup{}, nil)
+
+			result, err := GetBackupMetrics(ctx, m, config, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			require.Len(t, result.HydratedMetricsDataModel, 1, tt.description)
+			assert.Equal(t, tt.expectedConsumerID, result.HydratedMetricsDataModel[0].ConsumerID,
+				"%s: ConsumerID mismatch", tt.description)
+		})
+	}
+}
+
+func TestGetBackupMetrics_MultiVaultSameVolume_EmitsPerVaultBillingRows(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:               "us-east-1",
+		EnableFilesBackupBilling: true,
+		EnableGcbdrBackupBilling: true,
+	}
+
+	// Volume1 is in Project4. Backups span 3 vaults across 2 projects.
+	//   Backup1: Vault1 (Project1), endpoint-a  — size 100
+	//   Backup2: Vault1 (Project1), endpoint-b  — size 200  (re-attached, different endpoint)
+	//   Backup3: Vault2 (Project1), endpoint-c  — size 300  (new vault, same project)
+	//   Backup4: Vault3 (Project2), endpoint-d  — size 400  (new vault, different project)
+	backups := []*datamodel.Backup{
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "b1"}, VolumeUUID: "volume1",
+			LatestLogicalBackupSize: 100,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Project4",
+				VolumeName:        "vol1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:   datamodel.BaseModel{UUID: "vault1-uuid"},
+				Name:        "vault1",
+				ServiceType: models.ServiceTypeCrossProject,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "acct-p1"},
+					Name:      "Project1",
+				},
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "b2"}, VolumeUUID: "volume1",
+			LatestLogicalBackupSize: 200,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Project4",
+				VolumeName:        "vol1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:   datamodel.BaseModel{UUID: "vault1-uuid"},
+				Name:        "vault1",
+				ServiceType: models.ServiceTypeCrossProject,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "acct-p1"},
+					Name:      "Project1",
+				},
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 3, UUID: "b3"}, VolumeUUID: "volume1",
+			LatestLogicalBackupSize: 300,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Project4",
+				VolumeName:        "vol1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:   datamodel.BaseModel{UUID: "vault2-uuid"},
+				Name:        "vault2",
+				ServiceType: models.ServiceTypeCrossProject,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "acct-p1"},
+					Name:      "Project1",
+				},
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 4, UUID: "b4"}, VolumeUUID: "volume1",
+			LatestLogicalBackupSize: 400,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Project4",
+				VolumeName:        "vol1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:   datamodel.BaseModel{UUID: "vault3-uuid"},
+				Name:        "vault3",
+				ServiceType: models.ServiceTypeCrossProject,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "acct-p2"},
+					Name:      "Project2",
+				},
+			},
+		},
+	}
+
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// 3 billing rows: Vault1 (B1+B2), Vault2 (B3), Vault3 (B4)
+	require.Len(t, result.HydratedMetricsDataModel, 3,
+		"should emit one billing row per (volume, vault) — 3 vaults for the same volume")
+
+	// 3 observation metrics matching the billing rows
+	require.Len(t, result.HydratedMetrics, 3)
+
+	// Row 0: Vault1 — B1(100) + B2(200) = 300, billed to Project1
+	assert.Equal(t, "Project1", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, float64(300), result.HydratedMetricsDataModel[0].Quantity)
+	assert.Equal(t, "vault1", result.HydratedMetricsDataModel[0].DeploymentName)
+	assert.Equal(t, "volume1", result.HydratedMetricsDataModel[0].ResourceName)
+
+	// Row 1: Vault2 — B3(300), billed to Project1
+	assert.Equal(t, "Project1", result.HydratedMetricsDataModel[1].ConsumerID)
+	assert.Equal(t, float64(300), result.HydratedMetricsDataModel[1].Quantity)
+	assert.Equal(t, "vault2", result.HydratedMetricsDataModel[1].DeploymentName)
+	assert.Equal(t, "volume1", result.HydratedMetricsDataModel[1].ResourceName)
+
+	// Row 2: Vault3 — B4(400), billed to Project2
+	assert.Equal(t, "Project2", result.HydratedMetricsDataModel[2].ConsumerID)
+	assert.Equal(t, float64(400), result.HydratedMetricsDataModel[2].Quantity)
+	assert.Equal(t, "vault3", result.HydratedMetricsDataModel[2].DeploymentName)
+	assert.Equal(t, "volume1", result.HydratedMetricsDataModel[2].ResourceName)
+}
+
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s
+}
+
+// ---------------------------------------------------------------------------
+// Tests for getBackupMetricsPerVault (flag-on path: EnableGcbdrBackupBilling)
+// ---------------------------------------------------------------------------
+
+func TestGetBackupMetrics_PerVault_DbError_ReturnsError(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:               "us-east-1",
+		EnableGcbdrBackupBilling: true,
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(nil, assert.AnError)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.Error(t, err)
+	assert.NotNil(t, result)
+	assert.Empty(t, result.HydratedMetrics)
+}
+
+func TestGetBackupMetrics_PerVault_EmptyBackups_ReturnsEmpty(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:               "us-east-1",
+		EnableGcbdrBackupBilling: true,
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.Anything).
+		Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Empty(t, result.HydratedMetrics)
+	assert.Empty(t, result.HydratedMetricsDataModel)
+}
+
+func TestGetBackupMetrics_PerVault_NilAttributes_Skipped(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:               "us-east-1",
+		EnableGcbdrBackupBilling: true,
+		EnableFilesBackupBilling: true,
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{ID: 1, UUID: "b-nil-attr"},
+			VolumeUUID:              "vol-nil-attr",
+			LatestLogicalBackupSize: 512,
+			Attributes:              nil, // nil attributes — should be skipped
+		},
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Empty(t, result.HydratedMetrics, "backup with nil attributes should be skipped entirely")
+	assert.Empty(t, result.HydratedMetricsDataModel)
+}
+
+func TestGetBackupMetrics_PerVault_CrossRegionSkipped_FlagDisabled(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                            "us-east-1",
+		EnableGcbdrBackupBilling:              true,
+		EnableFilesBackupBilling:              true,
+		EnableCrossRegionBackupBillingMetrics: false,
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{ID: 1, UUID: "b-crb"},
+			VolumeUUID:              "vol-crb",
+			LatestLogicalBackupSize: 1024,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Account1",
+				VolumeName:        "Volume1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "bv-crb"},
+				BackupVaultType:  activities.CrossRegionBackupType,
+				BackupRegionName: stringPtr("us-west-1"),
+			},
+		},
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	require.Len(t, result.HydratedMetrics, 1, "observation metric always emitted")
+	assert.Empty(t, result.HydratedMetricsDataModel, "billing skipped when CRB flag disabled")
+}
+
+func TestGetBackupMetrics_PerVault_CrossRegionSkipped_NilRegionName(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                            "us-east-1",
+		EnableGcbdrBackupBilling:              true,
+		EnableFilesBackupBilling:              true,
+		EnableCrossRegionBackupBillingMetrics: true,
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{ID: 1, UUID: "b-crb-nil"},
+			VolumeUUID:              "vol-crb-nil",
+			LatestLogicalBackupSize: 2048,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Account1",
+				VolumeName:        "Volume1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "bv-crb-nil"},
+				BackupVaultType:  activities.CrossRegionBackupType,
+				BackupRegionName: nil, // nil → skip
+			},
+		},
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	require.Len(t, result.HydratedMetrics, 1)
+	assert.Empty(t, result.HydratedMetricsDataModel, "billing skipped when BackupRegionName is nil")
+}
+
+func TestGetBackupMetrics_PerVault_CrossRegionSkipped_MatchingRegion(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                            "us-east-1",
+		EnableGcbdrBackupBilling:              true,
+		EnableFilesBackupBilling:              true,
+		EnableCrossRegionBackupBillingMetrics: true,
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{ID: 1, UUID: "b-crb-same"},
+			VolumeUUID:              "vol-crb-same",
+			LatestLogicalBackupSize: 4096,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Account1",
+				VolumeName:        "Volume1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "bv-crb-same"},
+				BackupVaultType:  activities.CrossRegionBackupType,
+				BackupRegionName: stringPtr("us-east-1"), // matches config.RegionName → skip
+			},
+		},
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	require.Len(t, result.HydratedMetrics, 1)
+	assert.Empty(t, result.HydratedMetricsDataModel, "billing skipped when BackupRegionName matches current region")
+}
+
+func TestGetBackupMetrics_PerVault_CmekSkipped(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:               "us-east-1",
+		EnableGcbdrBackupBilling: true,
+		EnableFilesBackupBilling: true,
+		EnableCmekBackupBilling:  false,
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{ID: 1, UUID: "b-cmek"},
+			VolumeUUID:              "vol-cmek",
+			LatestLogicalBackupSize: 8192,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Account1",
+				VolumeName:        "Volume1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "bv-cmek"},
+				CmekAttributes: &datamodel.CmekAttributes{
+					KmsConfigResourcePath: stringPtr("projects/p/locations/l/keyRings/r/cryptoKeys/k"),
+				},
+			},
+		},
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	require.Len(t, result.HydratedMetrics, 1)
+	assert.Empty(t, result.HydratedMetricsDataModel, "CMEK billing skipped when flag disabled")
+}
+
+func TestGetBackupMetrics_PerVault_CrossRegionTransferBilling(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                            "us-east-1",
+		EnableGcbdrBackupBilling:              true,
+		EnableFilesBackupBilling:              true,
+		EnableCrossRegionBackupBillingMetrics: true,
+	}
+
+	regionName := "us-west-2"
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{ID: 1, UUID: "b-crb-xfer"},
+			VolumeUUID:              "vol-crb-xfer",
+			LatestLogicalBackupSize: 1024,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:  "Account1",
+				VolumeName:         "Volume1",
+				TotalTransferBytes: 500,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "bv-crb-xfer"},
+				BackupVaultType:  activities.CrossRegionBackupType,
+				BackupRegionName: &regionName,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "acct-1"},
+					Name:      "Account1",
+				},
+			},
+		},
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	require.Len(t, result.HydratedMetrics, 1, "one BackupLogicalSize observation metric")
+	require.Len(t, result.HydratedMetricsDataModel, 2,
+		"one BackupLogicalSize billing row + one CbsCrossRegionVolumeBackupTransferBytes row")
+
+	// Verify transfer billing row
+	transferRow := result.HydratedMetricsDataModel[1]
+	assert.Equal(t, metadata.CbsCrossRegionVolumeBackupTransferBytes, transferRow.MeasuredType)
+	assert.Equal(t, float64(500), transferRow.Quantity)
+	assert.NotNil(t, transferRow.Metadata, "cross-region region metadata should be set")
+}
+
+func TestGetBackupMetricsPerVault_GcbdrFlagDisabled_SkipsCrossProject(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	// Call getBackupMetricsPerVault directly with EnableGcbdrBackupBilling=false to
+	// exercise the dead-code guard at the bottom of the grouping loop (lines 304-308).
+	config := &common.TelemetryConfig{
+		RegionName:               "us-east-1",
+		EnableGcbdrBackupBilling: false,
+		EnableFilesBackupBilling: true,
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{ID: 1, UUID: "b-cp"},
+			VolumeUUID:              "vol-cp",
+			LatestLogicalBackupSize: 2048,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "Account1",
+				VolumeName:        "Volume1",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:   datamodel.BaseModel{UUID: "bv-cp"},
+				ServiceType: models.ServiceTypeCrossProject,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "acct-cp"},
+					Name:      "VaultProject",
+				},
+			},
+		},
+	}
+
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := getBackupMetricsPerVault(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	require.Len(t, result.HydratedMetrics, 1, "observation metric always emitted")
+	assert.Empty(t, result.HydratedMetricsDataModel,
+		"cross-project billing skipped when EnableGcbdrBackupBilling is false")
+}
+
+func TestGetBackupMetricsPerVault_ExpertModeBackupBilling_SkipsAndIncludes(t *testing.T) {
+	tests := []struct {
+		name                          string
+		enableExpertModeBackupBilling bool
+		backups                       []*datamodel.Backup
+		expectedHydratedMetricsCount  int
+		expectedDataModelMetricsCount int
+		description                   string
+	}{
+		{
+			name:                          "Expert mode billing disabled - skip expert mode backup billing metrics",
+			enableExpertModeBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{ID: 1, UUID: "backup-uuid-em-vault-1"},
+					VolumeUUID:              "volume-uuid-em-vault-1",
+					LatestLogicalBackupSize: 1024,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountEMVault1",
+						VolumeName:         "VolumeEMVault1",
+						IsExpertModeBackup: true,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-em-vault-1"},
+						Name:      "BackupVaultEMVault1",
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1, // observability metric always emitted
+			expectedDataModelMetricsCount: 0, // billing skipped when flag is disabled
+			description:                   "Expert mode backup should skip HydratedMetricsDataModel when billing flag is disabled (perVault path)",
+		},
+		{
+			name:                          "Expert mode billing enabled - include expert mode backup billing metrics",
+			enableExpertModeBackupBilling: true,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{ID: 1, UUID: "backup-uuid-em-vault-2"},
+					VolumeUUID:              "volume-uuid-em-vault-2",
+					LatestLogicalBackupSize: 2048,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountEMVault2",
+						VolumeName:         "VolumeEMVault2",
+						IsExpertModeBackup: true,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-em-vault-2"},
+						Name:      "BackupVaultEMVault2",
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // billing included when flag is enabled
+			description:                   "Expert mode backup should create both metrics when billing flag is enabled (perVault path)",
+		},
+		{
+			name:                          "Expert mode billing disabled - non-expert mode backups still billed",
+			enableExpertModeBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{ID: 1, UUID: "backup-uuid-non-em-vault-1"},
+					VolumeUUID:              "volume-uuid-non-em-vault-1",
+					LatestLogicalBackupSize: 4096,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountNonEMVault1",
+						VolumeName:         "VolumeNonEMVault1",
+						IsExpertModeBackup: false,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-non-em-vault-1"},
+						Name:      "BackupVaultNonEMVault1",
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // non-expert mode backups are not affected by the flag
+			description:                   "Non-expert mode backup should create both metrics even when expert mode billing flag is disabled (perVault path)",
+		},
+		{
+			name:                          "Expert mode billing disabled - mixed expert and non-expert backups",
+			enableExpertModeBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{ID: 2, UUID: "backup-uuid-em-vault-mix-1"},
+					VolumeUUID:              "volume-uuid-em-vault-mix-1",
+					LatestLogicalBackupSize: 1024,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountEMVaultMix1",
+						VolumeName:         "VolumeEMVaultMix1",
+						IsExpertModeBackup: true,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-em-vault-mix-1"},
+						Name:      "BackupVaultEMVaultMix1",
+					},
+				},
+				{
+					BaseModel:               datamodel.BaseModel{ID: 1, UUID: "backup-uuid-non-em-vault-mix-2"},
+					VolumeUUID:              "volume-uuid-non-em-vault-mix-2",
+					LatestLogicalBackupSize: 2048,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountNonEMVaultMix2",
+						VolumeName:         "VolumeNonEMVaultMix2",
+						IsExpertModeBackup: false,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-non-em-vault-mix-2"},
+						Name:      "BackupVaultNonEMVaultMix2",
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  2, // both get observability metrics
+			expectedDataModelMetricsCount: 1, // only non-expert mode backup gets billing metric
+			description:                   "Mixed backups: expert mode skipped, non-expert mode billed when flag is disabled (perVault path)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockBackupStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:                    "us-east-1",
+				EnableFilesBackupBilling:      true,
+				EnableGcbdrBackupBilling:      true,
+				EnableExpertModeBackupBilling: tt.enableExpertModeBackupBilling,
+			}
+
+			m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+				return p.Offset == 0
+			})).Return(tt.backups, nil)
+			m.On("GetBackupChainMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+				return p.Offset > 0
+			})).Return([]*datamodel.Backup{}, nil)
+
+			result, err := GetBackupMetrics(ctx, m, config, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			assert.Len(t, result.HydratedMetrics, tt.expectedHydratedMetricsCount,
+				"HydratedMetrics count mismatch: %s", tt.description)
+			assert.Len(t, result.HydratedMetricsDataModel, tt.expectedDataModelMetricsCount,
+				"HydratedMetricsDataModel count mismatch: %s", tt.description)
+
+			for i, metric := range result.HydratedMetrics {
+				assert.Equal(t, metadata.BackupLogicalSize, metric.MeasuredType,
+					"HydratedMetrics[%d] should have BackupLogicalSize type", i)
+			}
+		})
+	}
 }

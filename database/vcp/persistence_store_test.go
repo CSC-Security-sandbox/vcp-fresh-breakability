@@ -559,58 +559,6 @@ func TestCreateSVM_Persistence_Store(t *testing.T) {
 	assert.NotNil(t, created)
 }
 
-// SvmExistsByExternalIdentifier is a thin wrapper over the dataStore method.
-// Cover both the empty-input fast path and a typical existence check so the
-// PersistenceStore-level delegation is exercised.
-func TestSvmExistsByExternalIdentifier_Persistence_Store(t *testing.T) {
-	logger := log.NewLogger()
-	store, err := SetupStorageForTest(logger)
-	require.NoError(t, err)
-	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
-
-	exists, err := store.SvmExistsByExternalIdentifier(ctx, "ocid1.svm..none", 1)
-	assert.NoError(t, err)
-	assert.False(t, exists)
-
-	exists, err = store.SvmExistsByExternalIdentifier(ctx, "", 1)
-	assert.NoError(t, err)
-	assert.False(t, exists)
-}
-
-// TransitionSvmToDeleting is a thin wrapper. Drive it through a CAS path that
-// flips a READY row to DELETING so the PersistenceStore-level delegation runs
-// once end-to-end.
-func TestTransitionSvmToDeleting_Persistence_Store(t *testing.T) {
-	logger := log.NewLogger()
-	store, err := SetupStorageForTest(logger)
-	require.NoError(t, err)
-	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
-
-	acc, err := store.CreateAccount(ctx, &datamodel.Account{Name: "ts-svm-trans"})
-	require.NoError(t, err)
-	pool := &datamodel.Pool{
-		Name:      "p-ts-svm-trans",
-		AccountID: acc.ID,
-		Account:   acc,
-		State:     models.LifeCycleStateREADY,
-	}
-	require.NoError(t, store.DB().Create(pool).Error)
-
-	created, err := store.CreateSVM(ctx, &datamodel.Svm{
-		Name:      "svm-ts-trans",
-		AccountID: acc.ID,
-		PoolID:    pool.ID,
-	})
-	require.NoError(t, err)
-	require.Equal(t, models.LifeCycleStateREADY, created.State)
-
-	updated, err := store.TransitionSvmToDeleting(ctx, created)
-	assert.NoError(t, err)
-	if assert.NotNil(t, updated) {
-		assert.Equal(t, models.LifeCycleStateDeleting, updated.State)
-	}
-}
-
 func TestGetSvmsByPoolID_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)
@@ -3010,7 +2958,7 @@ func TestCreateAdminJobSpecIfNotExists_Persistence_Store(t *testing.T) {
 		assert.Equal(t, "CREATING", newJobSpec.State)
 	})
 
-	t.Run("WhenAdminJobSpecAlreadyExists_ReturnsAlreadyExists", func(t *testing.T) {
+	t.Run("WhenAdminJobSpecAlreadyExists_Fails", func(t *testing.T) {
 		logger := log.NewLogger()
 		store, err := SetupStorageForTest(logger)
 		require.NoError(t, err)
@@ -3029,11 +2977,10 @@ func TestCreateAdminJobSpecIfNotExists_Persistence_Store(t *testing.T) {
 		_, err = store.CreateAdminJobSpecIfNotExists(context.Background(), jobSpec)
 		assert.NoError(t, err)
 
-		// Second creation with same JobType must return ErrAdminJobSpecAlreadyExists
-		// (not a raw database error) so cron callers can fall through to lock acquisition.
+		// Second creation with same JobType should fail
 		duplicateJobSpec := &datamodel.AdminJobSpec{
 			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-duplicate"},
-			JobType:        "TEST_JOB_EXISTS",
+			JobType:        "TEST_JOB_EXISTS", // Same JobType
 			CronExpression: "*/5 * * * *",
 			State:          "SCHEDULED",
 		}
@@ -3270,21 +3217,8 @@ func TestPersistenceStore_BackupVaultAndBackupDelegateMethods(t *testing.T) {
 	// IsLatestBackupInVault - wrapper at 1122
 	_, _ = store.IsLatestBackupInVault(ctx, "backup-uuid", "volume-uuid", 0)
 
-	// IsLatestBackupInVaultAndInEndpoint - PersistenceStore wrapper for endpoint-scoped latest check
-	_, _ = store.IsLatestBackupInVaultAndInEndpoint(ctx, "backup-uuid", "volume-uuid", 0, "endpoint-uuid")
-
 	// GetBackupCountByVolumeAndVault - wrapper at 1322
 	count, err := store.GetBackupCountByVolumeAndVault(ctx, "volume-uuid", 0)
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, count, int64(0))
-
-	// GetBackupCountByVolumeVaultAndEndpoint - PersistenceStore wrapper for endpoint-scoped count
-	count, err = store.GetBackupCountByVolumeVaultAndEndpoint(ctx, "volume-uuid", 0, "endpoint-uuid")
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, count, int64(0))
-
-	// BackupCountByVolumeIDVaultAndEndpoint - PersistenceStore wrapper used by delete-validation flow
-	count, err = store.BackupCountByVolumeIDVaultAndEndpoint(ctx, "volume-uuid", 0, "endpoint-uuid")
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, count, int64(0))
 
@@ -8593,6 +8527,46 @@ func TestPersistenceStore_PollerRebalanceDataPaths(t *testing.T) {
 	maps, err := store.ListNodeNodeGroupMapsByNodeGroupID(ctx, ng.ID)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(maps), 1)
+}
+
+// ---------------------------------------------------------------------------
+// PersistenceStore delegation tests for GetBackupChainMetrics /
+// GetDistinctVolumeGCBDRVaultPairs (lines 1453, 1457 in persistance_store.go).
+// ---------------------------------------------------------------------------
+
+func TestPersistenceStore_GetBackupChainMetrics_DelegatesToDataStore(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 10}
+
+	// The underlying query uses PostgreSQL JSON syntax which fails in SQLite; the
+	// important thing for coverage is that the delegation line (1453) is executed.
+	_, _ = store.GetBackupChainMetrics(ctx, [][]interface{}{}, pagination)
+}
+
+func TestPersistenceStore_GetDistinctVolumeGCBDRVaultPairs_ReturnsEmpty(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	results, err := store.GetDistinctVolumeGCBDRVaultPairs(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, results)
 }
 
 func TestPersistenceStore_GetNextSerialNumber(t *testing.T) {

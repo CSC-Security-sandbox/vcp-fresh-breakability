@@ -40,6 +40,7 @@ type backupChainHistoryParams struct {
 	DeploymentName     string
 	Timestamp          time.Time
 	IsExpertModeBackup bool
+	EndpointUUID       string
 }
 
 type BackupMetricsData struct {
@@ -55,6 +56,10 @@ type BackupMetricsData struct {
 
 // createBackupChainHistoryEntry creates a new backup chain history entry
 func createBackupChainHistoryEntry(ctx context.Context, tx *gorm.DB, params backupChainHistoryParams) error {
+	var endpointUUID *string
+	if params.EndpointUUID != "" {
+		endpointUUID = &params.EndpointUUID
+	}
 	history := &datamodel.BackupChainHistory{
 		BaseModel: datamodel.BaseModel{
 			UUID:      utils.RandomUUID(),
@@ -68,6 +73,7 @@ func createBackupChainHistoryEntry(ctx context.Context, tx *gorm.DB, params back
 		ConsumerID:         params.ConsumerID,
 		DeploymentName:     params.DeploymentName,
 		IsExpertModeBackup: params.IsExpertModeBackup,
+		EndpointUUID:       endpointUUID,
 	}
 	if err := tx.Create(history).Error; err != nil {
 		return err
@@ -77,50 +83,111 @@ func createBackupChainHistoryEntry(ctx context.Context, tx *gorm.DB, params back
 	return nil
 }
 
-// supersedePreviousBackupChainHistory marks old entries as deleted and creates a new one if size changed
-func supersedePreviousBackupChainHistory(ctx context.Context, tx *gorm.DB, volumeUUID string, newSize int64, now time.Time) error {
-	var currentHistory datamodel.BackupChainHistory
-	err := tx.Where("resource_uuid = ?", volumeUUID).
-		Where("deleted_at IS NULL").
-		First(&currentHistory).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil // No history to supersede
+type backupChainHistoryUpdateParams struct {
+	VolumeUUID     string
+	EndpointUUID   string
+	NewSize        int64
+	TimeStamp      time.Time
+	ResourceName   string
+	ConsumerID     string
+	DeploymentName string
+	SkipCreate bool
+}
+
+// pickRowToTombstone returns the active row to tombstone for the given endpoint, or nil if none should be touched.
+func pickRowToTombstone(activeRows []datamodel.BackupChainHistory, endpointUUID string) *datamodel.BackupChainHistory {
+	switch len(activeRows) {
+	case 0:
+		return nil
+	case 1:
+		row := &activeRows[0]
+		if row.EndpointUUID == nil || *row.EndpointUUID == endpointUUID {
+			return row
 		}
+		return nil
+	default:
+		if endpointUUID == "" {
+			return nil
+		}
+		for i := range activeRows {
+			if activeRows[i].EndpointUUID != nil && *activeRows[i].EndpointUUID == endpointUUID {
+				return &activeRows[i]
+			}
+		}
+		return nil
+	}
+}
+
+// writeBackupChainHistory implements the full multi-endpoint decision matrix for
+// inserting/updating backup chain history rows.
+func writeBackupChainHistory(ctx context.Context, tx *gorm.DB, params backupChainHistoryUpdateParams) error {
+	logger := util.GetLogger(ctx)
+
+	var activeRows []datamodel.BackupChainHistory
+	err := tx.Where("resource_uuid = ? AND deleted_at IS NULL", params.VolumeUUID).
+		Find(&activeRows).Error
+	if err != nil {
 		return err
 	}
 
-	// Skip if size unchanged
-	if currentHistory.Size == newSize {
-		util.GetLogger(ctx).Debugf("Ledger: Backup chain history size unchanged for volume %s (size: %d)", volumeUUID, newSize)
+	rowToTombstone := pickRowToTombstone(activeRows, params.EndpointUUID)
+
+	if rowToTombstone != nil && rowToTombstone.Size == params.NewSize {
+		logger.Debugf("Ledger: Backup chain history size unchanged for volume %s endpoint %q (size: %d)",
+			params.VolumeUUID, params.EndpointUUID, params.NewSize)
 		return nil
 	}
 
-	// Mark current as deleted
-	err = tx.Model(&datamodel.BackupChainHistory{}).
-		Where("id = ?", currentHistory.ID).
-		Update("deleted_at", now).Error
-	if err != nil {
-		util.GetLogger(ctx).Warnf("Ledger: Failed to mark current backup chain history as deleted for volume %s: %v", volumeUUID, err)
-		return err
+	if rowToTombstone != nil {
+		err = tx.Model(&datamodel.BackupChainHistory{}).
+			Where("id = ?", rowToTombstone.ID).
+			Update("deleted_at", params.TimeStamp).Error
+		if err != nil {
+			logger.Warnf("Ledger: Failed to mark current backup chain history as deleted for volume %s: %v", params.VolumeUUID, err)
+			return err
+		}
 	}
 
-	// Create new entry with updated size, preserving IsExpertModeBackup from the existing entry.
+	if params.SkipCreate {
+		return nil
+	}
+
+	resourceName := params.ResourceName
+	consumerID := params.ConsumerID
+	deploymentName := params.DeploymentName
+	if rowToTombstone != nil {
+		if resourceName == "" {
+			resourceName = rowToTombstone.ResourceName
+		}
+		if consumerID == "" {
+			consumerID = rowToTombstone.ConsumerID
+		}
+		if deploymentName == "" {
+			deploymentName = rowToTombstone.DeploymentName
+		}
+	}
+
+	isExpertModeBackup := rowToTombstone != nil && rowToTombstone.IsExpertModeBackup
 	err = createBackupChainHistoryEntry(ctx, tx, backupChainHistoryParams{
-		ResourceName:       currentHistory.ResourceName,
-		VolumeUUID:         volumeUUID,
-		Size:               newSize,
-		ConsumerID:         currentHistory.ConsumerID,
-		DeploymentName:     currentHistory.DeploymentName,
-		Timestamp:          now,
-		IsExpertModeBackup: currentHistory.IsExpertModeBackup,
+		ResourceName:       resourceName,
+		VolumeUUID:         params.VolumeUUID,
+		Size:               params.NewSize,
+		ConsumerID:         consumerID,
+		DeploymentName:     deploymentName,
+		Timestamp:          params.TimeStamp,
+		IsExpertModeBackup: isExpertModeBackup,
+		EndpointUUID:       params.EndpointUUID,
 	})
 	if err != nil {
 		return err
 	}
 
-	util.GetLogger(ctx).Infof("Ledger: Successfully updated backup chain history for volume %s: old size %d -> new size %d",
-		volumeUUID, currentHistory.Size, newSize)
+	oldSize := int64(0)
+	if rowToTombstone != nil {
+		oldSize = rowToTombstone.Size
+	}
+	logger.Infof("Ledger: Updated backup chain history for volume %s endpoint %q: old size %d -> new size %d",
+		params.VolumeUUID, params.EndpointUUID, oldSize, params.NewSize)
 	return nil
 }
 
@@ -162,62 +229,85 @@ func (d *DataStoreRepository) CreateBackup(ctx context.Context, backup *datamode
 			return nil, err
 		}
 
-		// Handle backup chain history: mark previous entries as deleted and create new entry
-		// Mark previous backup chain history entries for this volume as deleted
-		err = markPreviousBackupChainHistoryAsDeleted(ctx, tx, dbBackup.VolumeUUID, dbBackup.CreatedAt)
-		if err != nil {
-			util.GetLogger(ctx).Warnf("Ledger: Failed to mark previous backup chain history as deleted for volume %s: %v", dbBackup.VolumeUUID, err)
-			// Don't fail the entire backup creation if history update fails
-		}
-
-		volumeName := ""
-		// Create backup chain history entry for this new backup
-		if dbBackup.Attributes != nil && dbBackup.Attributes.VolumeName != "" {
-			volumeName = dbBackup.Attributes.VolumeName
-		}
-		deploymentName := ""
-		if dbBackup.BackupVault != nil {
-			deploymentName = dbBackup.BackupVault.Name
-		}
-
-		consumerID := ""
-		if dbBackup.Attributes != nil {
-			consumerID = dbBackup.Attributes.AccountIdentifier
-		}
-
-		isExpertModeBackup := dbBackup.Attributes != nil && dbBackup.Attributes.IsExpertModeBackup
-		err = createBackupChainHistoryEntry(ctx, tx, backupChainHistoryParams{
-			ResourceName:       volumeName,
-			VolumeUUID:         dbBackup.VolumeUUID,
-			Size:               0, // Will be updated later when backup completes
-			ConsumerID:         consumerID,
-			DeploymentName:     deploymentName,
-			Timestamp:          dbBackup.CreatedAt,
-			IsExpertModeBackup: isExpertModeBackup,
-		})
-		if err != nil {
-			util.GetLogger(ctx).Warnf("Ledger: Failed to create backup chain history for backup %s: %v", backup.UUID, err)
-			// Don't fail the entire backup creation if history creation fails
-		}
-
 		return dbBackup, nil
 	}
 	return nil, customerrors.NewUserInputValidationErr("backup already exists")
 }
 
-// markPreviousBackupChainHistoryAsDeleted marks backup chain history entries as deleted for a volume
-// Can be used when creating new backups or when deleting the last backup for a volume
-func markPreviousBackupChainHistoryAsDeleted(ctx context.Context, tx *gorm.DB, volumeUUID string, timeStamp time.Time) error {
-	result := tx.Model(&datamodel.BackupChainHistory{}).
+// markPreviousBackupChainHistoryAsDeleted soft-deletes active backup chain history rows for a volume.
+// When endpointUUID is non-empty only the row for that endpoint is soft-deleted; when empty all
+// active rows for the volume are soft-deleted (used when no backups remain at all).
+func markPreviousBackupChainHistoryAsDeleted(ctx context.Context, tx *gorm.DB, volumeUUID string, endpointUUID string, timeStamp time.Time) error {
+	q := tx.Model(&datamodel.BackupChainHistory{}).
 		Where("resource_uuid = ?", volumeUUID).
-		Where("deleted_at IS NULL").
-		Update("deleted_at", timeStamp)
+		Where("deleted_at IS NULL")
+	if endpointUUID != "" {
+		q = q.Where("endpoint_uuid = ?", endpointUUID)
+	}
+	result := q.Update("deleted_at", timeStamp)
 	if result.Error != nil {
 		return result.Error
 	}
-	util.GetLogger(ctx).Infof("Ledger: Successfully marked %d backup chain history entries as deleted for volume %s",
-		result.RowsAffected, volumeUUID)
+	util.GetLogger(ctx).Infof("Ledger: Successfully marked %d backup chain history entries as deleted for volume %s endpoint %q",
+		result.RowsAffected, volumeUUID, endpointUUID)
 	return nil
+}
+
+// shouldSkipBackupChainHistory returns true for backup types that are not billed based on
+// current feature flag configuration, so chain history entries are unnecessary.
+func shouldSkipBackupChainHistory(ctx context.Context, backup *datamodel.Backup, config *common.TelemetryConfig) bool {
+	logger := util.GetLogger(ctx)
+	if backup == nil || config == nil {
+		logger.Warnf("shouldSkipBackupChainHistory called with nil backup or config, skipping chain history to avoid invalid billing records")
+		return true
+	}
+	// Cross-region backups when cross-region billing is disabled
+	if !config.EnableCrossRegionBackupBillingMetrics {
+		if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == models.BackupVaultTypeCrossRegion {
+			logger.Debug("Skipping BackupLogicalSize billing metric for cross-region backup", "backupUUID", backup.UUID)
+			return true
+		}
+	}
+	// Cross-region backups where region is nil or matches current region (even when billing enabled)
+	if config.EnableCrossRegionBackupBillingMetrics &&
+		backup.BackupVault != nil &&
+		backup.BackupVault.BackupVaultType == models.BackupVaultTypeCrossRegion {
+		if backup.BackupVault.BackupRegionName == nil {
+			logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName is nil", backup.UUID, backup.VolumeUUID)
+			return true
+		}
+		if *backup.BackupVault.BackupRegionName == config.RegionName {
+			logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName %s matches current region", backup.UUID, backup.VolumeUUID, *backup.BackupVault.BackupRegionName)
+			return true
+		}
+	}
+	// CMEK backups when CMEK billing is disabled
+	if !config.EnableCmekBackupBilling {
+		if backup.BackupVault != nil &&
+			backup.BackupVault.CmekAttributes != nil &&
+			backup.BackupVault.CmekAttributes.KmsConfigResourcePath != nil &&
+			*backup.BackupVault.CmekAttributes.KmsConfigResourcePath != "" {
+			logger.Debug("Skipping BackupLogicalSize billing metric for CMEK backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
+			return true
+		}
+	}
+	// Cross-project (GCBDR) backups when GCBDR billing is disabled
+	if !config.EnableGcbdrBackupBilling {
+		if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
+			logger.Debug("Skipping BackupLogicalSize billing metric for cross-project backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
+			return true
+		}
+	}
+	// Expert mode backups when expert mode billing is disabled
+	if !config.EnableExpertModeBackupBilling && backup.Attributes != nil && backup.Attributes.IsExpertModeBackup {
+		logger.Debug("Skipping BackupLogicalSize billing metric for expert mode backup", "backupUUID", backup.UUID)
+		return true
+	}
+	// Skip if neither files backup billing is enabled nor SAN protocol
+	if !config.EnableFilesBackupBilling && (backup.Attributes == nil || !utils.IsSanProtocols(backup.Attributes.Protocols)) {
+		return true
+	}
+	return false
 }
 
 func _getBackupWithDetails(db *gorm.DB, query *datamodel.Backup) (*datamodel.Backup, error) {
@@ -492,12 +582,34 @@ func _deleteBackup(ctx context.Context, db *gorm.DB, backupUUID string) (*datamo
 		return nil, err
 	}
 
-	// If this was the last backup for the volume, mark backup chain history as deleted
+	// History cleanup:
+	//  • Volume-wide: when no backups remain at all, soft-delete every active history row
+	//    (all endpoints) so billing stops entirely.
+	//  • Endpoint-scoped: when other backups still exist but this backup belongs to a GCBDR
+	//    endpoint chain, check whether any backup remains for that specific endpoint.  If
+	//    none do, soft-delete only that endpoint's history row so the other chains keep
+	//    billing correctly.
 	if remainingBackupCount == 0 {
-		err = markPreviousBackupChainHistoryAsDeleted(ctx, tx, backup.VolumeUUID, backup.DeletedAt.Time)
+		err = markPreviousBackupChainHistoryAsDeleted(ctx, tx, backup.VolumeUUID, "", backup.DeletedAt.Time)
 		if err != nil {
 			util.GetLogger(ctx).Warnf("Ledger: Failed to mark backup chain history as deleted for volume %s: %v", backup.VolumeUUID, err)
 			// Don't fail the entire backup deletion if history update fails
+		}
+	} else if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeCrossProject && backup.Attributes != nil {
+		endpointUUID := backup.Attributes.EndpointUUID
+		var endpointBackupCount int64
+		countErr := tx.Model(&datamodel.Backup{}).
+			Where("volume_uuid = ? AND uuid != ? AND deleted_at IS NULL AND attributes->>'endpoint_uuid' = ?",
+				backup.VolumeUUID, backupUUID, endpointUUID).
+			Count(&endpointBackupCount).Error
+		if countErr != nil {
+			util.GetLogger(ctx).Warnf("Failed to count remaining backups for volume %s endpoint %s: %v", backup.VolumeUUID, endpointUUID, countErr)
+		} else if endpointBackupCount == 0 {
+			err = markPreviousBackupChainHistoryAsDeleted(ctx, tx, backup.VolumeUUID, endpointUUID, backup.DeletedAt.Time)
+			if err != nil {
+				util.GetLogger(ctx).Warnf("Failed to mark backup chain history as deleted for volume %s endpoint %s: %v", backup.VolumeUUID, endpointUUID, err)
+				// Don't fail the entire backup deletion if history update fails
+			}
 		}
 	}
 
@@ -529,21 +641,40 @@ func (d *DataStoreRepository) FinishBackup(ctx context.Context, backup *datamode
 		return nil, err
 	}
 
-	// Update backup chain history size if backup has a volume and size
 	if dbBackup.VolumeUUID != "" && backup.LatestLogicalBackupSize > 0 {
-		result := tx.Model(&datamodel.BackupChainHistory{}).
-			Where("resource_uuid = ?", dbBackup.VolumeUUID).
-			Where("deleted_at IS NULL").
-			Updates(map[string]interface{}{
-				"size":       backup.LatestLogicalBackupSize,
-				"updated_at": time.Now(),
-			})
-		if result.Error != nil {
-			util.GetLogger(ctx).Warnf("Ledger: Failed to update backup chain history size for backup %s: %v", dbBackup.UUID, result.Error)
+		endpointUUID := ""
+		if backup.Attributes != nil {
+			endpointUUID = backup.Attributes.EndpointUUID
+		}
+
+		volumeName := ""
+		if dbBackup.Attributes != nil && dbBackup.Attributes.VolumeName != "" {
+			volumeName = dbBackup.Attributes.VolumeName
+		}
+		deploymentName := ""
+		if dbBackup.BackupVault != nil {
+			deploymentName = dbBackup.BackupVault.Name
+		}
+		consumerID := ""
+		if dbBackup.BackupVault != nil && dbBackup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
+			consumerID = dbBackup.BackupVault.AccountVendorID
+		} else if dbBackup.Attributes != nil {
+			consumerID = dbBackup.Attributes.AccountIdentifier
+		}
+
+		err = writeBackupChainHistory(ctx, tx, backupChainHistoryUpdateParams{
+			VolumeUUID:     dbBackup.VolumeUUID,
+			EndpointUUID:   endpointUUID,
+			NewSize:        backup.LatestLogicalBackupSize,
+			TimeStamp:      time.Now(),
+			ResourceName:   volumeName,
+			ConsumerID:     consumerID,
+			DeploymentName: deploymentName,
+			SkipCreate:     shouldSkipBackupChainHistory(ctx, dbBackup, common.LoadConfig()),
+		})
+		if err != nil {
+			util.GetLogger(ctx).Warnf("Ledger: Failed to write backup chain history for backup %s: %v", dbBackup.UUID, err)
 			// Don't fail the entire operation if history update fails
-		} else {
-			util.GetLogger(ctx).Infof("Ledger: Successfully updated backup chain history size for backup %s (volume %s, size %d, rows %d)",
-				dbBackup.UUID, dbBackup.VolumeUUID, backup.LatestLogicalBackupSize, result.RowsAffected)
 		}
 	}
 
@@ -1022,6 +1153,58 @@ func (d *DataStoreRepository) GetBackupMetrics(ctx context.Context, conditions [
 	return results, nil
 }
 
+// GetBackupChainMetrics retrieves backup logical size metrics per backup chain with pagination.
+// Returns the latest backup entry per (volume_uuid, backup_vault_id, endpoint_uuid) chain with
+// state 'available'. For volumes with a single chain this matches GetBackupMetrics. For GCBDR
+// volumes with multiple chains (vault switching) it returns one row per chain so the collector
+// can sum LatestLogicalBackupSize across chains for correct per-(volume, vault) billing totals.
+//
+// This method is only used by telemetry collectors when EnableGcbdrBackupBilling is true.
+// Other callers (e.g. customer adoption) continue to use GetBackupMetrics.
+func (d *DataStoreRepository) GetBackupChainMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	db := d.db.ApplyFilter(conditions).GORM().WithContext(ctx)
+	var results []*datamodel.Backup
+
+	err := db.Preload("BackupVault", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, uuid, name, account_id, backup_vault_type, cmek_attributes, backup_region_name, service_type")
+	}).Preload("BackupVault.Account").
+		Where("state = ?", models.LifeCycleStateAvailable).
+		Where("id IN (?)", db.Table("backups").
+			Select("MAX(id)").
+			Where("state = ?", models.LifeCycleStateAvailable).
+			Group("volume_uuid, backup_vault_id, attributes->>'endpoint_uuid'")).
+		Scopes(dbutils.Paginate(pagination)).
+		Find(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// VolumeVaultPair holds the minimal (VolumeUUID, VaultUUID) pair returned by GetDistinctVolumeGCBDRVaultPairs.
+type VolumeVaultPair struct {
+	VolumeUUID string
+	VaultUUID  string
+}
+
+// GetDistinctVolumeGCBDRVaultPairs returns one row per distinct (volume_uuid, vault_uuid)
+// combination that has at least one available backup in a CrossProject vault.
+func (d *DataStoreRepository) GetDistinctVolumeGCBDRVaultPairs(ctx context.Context) ([]VolumeVaultPair, error) {
+	var results []VolumeVaultPair
+	err := d.db.GORM().WithContext(ctx).
+		Table("backups").
+		Select("DISTINCT backups.volume_uuid, backup_vaults.uuid AS vault_uuid").
+		Joins("JOIN backup_vaults ON backup_vaults.id = backups.backup_vault_id").
+		Where("backups.state = ? AND backup_vaults.service_type = ?", models.LifeCycleStateAvailable, models.ServiceTypeCrossProject).
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
 func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
 	db := d.db.Unscoped().ApplyFilter(conditions).GORM().WithContext(ctx)
 
@@ -1097,8 +1280,10 @@ func (d *DataStoreRepository) GetBackupMetadata(ctx context.Context, conditions 
 	return results, nil
 }
 
-// UpdateLatestBackupLogicalSize updates the latest backup's logical size for a given volume
-func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
+// UpdateLatestBackupLogicalSize updates the latest backup's logical size for a given volume and
+// updates the backup chain history. endpointUUID scopes the history update to a specific
+// endpoint's row for GCBDR vaults; pass "" for non-GCBDR (legacy/ADC) paths.
+func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, endpointUUID string, newLogicalSize int64) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -1120,10 +1305,14 @@ func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context,
 		return err
 	}
 
-	// Update backup chain history
-	err = supersedePreviousBackupChainHistory(ctx, tx, volumeUUID, newLogicalSize, time.Now())
+	err = writeBackupChainHistory(ctx, tx, backupChainHistoryUpdateParams{
+		VolumeUUID:   volumeUUID,
+		EndpointUUID: endpointUUID,
+		NewSize:      newLogicalSize,
+		TimeStamp:    time.Now(),
+	})
 	if err != nil {
-		util.GetLogger(ctx).Warnf("Ledger: Failed to update backup chain history for volume %s: %v", volumeUUID, err)
+		util.GetLogger(ctx).Warnf("Ledger: Failed to update backup chain history for volume %s endpoint %s: %v", volumeUUID, endpointUUID, err)
 		// Don't fail the entire operation if history update fails
 	}
 
@@ -1224,25 +1413,62 @@ func (d *DataStoreRepository) GetVolumeLatestBackupMap(ctx context.Context) (map
 	return resultMap, nil
 }
 
-// GetLatestBackupsGroupedByVolumeUUID gets all latest backups grouped by volume_uuid
+// latestBackupScanRow is the private scan target for GetLatestBackupsGroupedByVolumeUUID.
+// backup_vaults is already JOINed for the current-vault filter, so selecting
+// bv.service_type here costs zero extra DB work — it is just one more column from a
+// table already in the query plan.  GORM Raw().Scan() cannot auto-populate nested
+// structs, so we capture the column here and manually wire it into BackupVault below.
+type latestBackupScanRow struct {
+	datamodel.Backup
+	VaultServiceType string `gorm:"column:vault_service_type"`
+}
+
+// GetLatestBackupsGroupedByVolumeUUID returns the single most-recently-created available
+// backup per volume, restricted to the vault that is currently configured for that volume
+// (volumes.data_protection->>'backup_vault_id').
+//
+// The JOIN filters out detached backups that belong to a vault the volume no longer uses
+// (e.g. after a GCBDR vault switch where the first backup in the new vault is still
+// creating).  When no available backup exists in the current vault the volume is simply
+// absent from the result set — it will be skipped by the periodic sync and picked up again
+// on the next cycle once the first available backup lands in the new vault.
+//
+// Each returned Backup has BackupVault.ServiceType populated so callers can gate
+// GCBDR-specific logic (e.g. endpoint scoping) without any extra DB round-trip.
 func (d *DataStoreRepository) GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error) {
 	db := d.db.GORM().WithContext(ctx)
-	var latestBackups []datamodel.Backup
+	var rows []latestBackupScanRow
 
-	// Use GORM's Raw method with a window function for better performance
-	// Select only the necessary columns instead of * to improve performance
 	err := db.Raw(`
-		SELECT id, uuid, name, attributes, volume_uuid, state, size_in_bytes, latest_logical_backup_size
+		SELECT id, uuid, name, attributes, volume_uuid, state,
+		       size_in_bytes, latest_logical_backup_size, backup_vault_id,
+		       vault_service_type
 		FROM (
-			SELECT id, uuid, name, attributes, volume_uuid, state, size_in_bytes, latest_logical_backup_size,
-				   ROW_NUMBER() OVER (PARTITION BY volume_uuid ORDER BY created_at DESC) as rn
-			FROM backups 
-			WHERE deleted_at IS NULL AND state = ?
-		) ranked 
+			SELECT b.id, b.uuid, b.name, b.attributes, b.volume_uuid, b.state,
+			       b.size_in_bytes, b.latest_logical_backup_size, b.backup_vault_id,
+			       bv.service_type AS vault_service_type,
+			       ROW_NUMBER() OVER (PARTITION BY b.volume_uuid ORDER BY b.created_at DESC) AS rn
+			FROM backups b
+			LEFT JOIN volumes v   ON v.uuid = b.volume_uuid
+			                     AND v.deleted_at IS NULL
+			JOIN backup_vaults bv ON bv.id = b.backup_vault_id
+			WHERE b.deleted_at IS NULL
+			  AND b.state = ?
+			  AND (v.uuid IS NULL OR v.data_protection->>'backup_vault_id' IS NULL OR bv.uuid = v.data_protection->>'backup_vault_id')
+		) ranked
 		WHERE rn = 1
-	`, models.LifeCycleStateAvailable).Scan(&latestBackups).Error
+	`, models.LifeCycleStateAvailable).Scan(&rows).Error
 	if err != nil {
 		return nil, err
+	}
+
+	latestBackups := make([]datamodel.Backup, 0, len(rows))
+	for _, r := range rows {
+		b := r.Backup
+		if r.VaultServiceType != "" {
+			b.BackupVault = &datamodel.BackupVault{ServiceType: r.VaultServiceType}
+		}
+		latestBackups = append(latestBackups, b)
 	}
 	return latestBackups, nil
 }
@@ -1436,10 +1662,13 @@ func (d *DataStoreRepository) GetBackupWithVaultByUUID(ctx context.Context, back
 	return &backup, nil
 }
 
-// UpdateBackupChainHistory updates the backup chain history with a new size for the active backup.
-// It marks the current active entry as deleted and creates a new entry with the updated size.
-// When vault switching is on, newSize is the summed chain bytes across all vaults (same as volume BackupChainBytes).
-func (d *DataStoreRepository) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
+// UpdateBackupChainHistory updates the backup chain history with a new size for the active
+// backup. It marks the current active entry as deleted and creates a new one with the updated
+// size. endpointUUID scopes the operation to a single endpoint's row (periodic-sync / GCBDR
+// path); pass "" for the legacy path where no endpoint scoping is required.
+// When no matching active row exists, a new row is created (metadata inherited from a tombstoned
+// row when applicable).
+func (d *DataStoreRepository) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, endpointUUID string, newSize int64) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -1447,7 +1676,12 @@ func (d *DataStoreRepository) UpdateBackupChainHistory(ctx context.Context, volu
 	}
 	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
 
-	err = supersedePreviousBackupChainHistory(ctx, tx, volumeUUID, newSize, time.Now())
+	err = writeBackupChainHistory(ctx, tx, backupChainHistoryUpdateParams{
+		VolumeUUID:   volumeUUID,
+		EndpointUUID: endpointUUID,
+		NewSize:      newSize,
+		TimeStamp:    time.Now(),
+	})
 	if err != nil {
 		return err
 	}

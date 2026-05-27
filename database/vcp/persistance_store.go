@@ -1441,12 +1441,12 @@ func (s *PersistenceStore) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Cont
 	return s.dataStore.GetLatestBackupsPerVaultByVolumeUUID(ctx, volumeUUID)
 }
 
-func (s *PersistenceStore) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
-	return s.dataStore.UpdateLatestBackupLogicalSize(ctx, volumeUUID, newLogicalSize)
+func (s *PersistenceStore) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, endpointUUID string, newLogicalSize int64) error {
+	return s.dataStore.UpdateLatestBackupLogicalSize(ctx, volumeUUID, endpointUUID, newLogicalSize)
 }
 
-func (s *PersistenceStore) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
-	return s.dataStore.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
+func (s *PersistenceStore) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, endpointUUID string, newSize int64) error {
+	return s.dataStore.UpdateBackupChainHistory(ctx, volumeUUID, endpointUUID, newSize)
 }
 
 func (s *PersistenceStore) DeleteBackupChainHistoryOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
@@ -1491,6 +1491,14 @@ func (s *PersistenceStore) RollBackDeletedAccount(ctx context.Context, accountID
 
 func (s *PersistenceStore) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
 	return s.dataStore.GetBackupMetrics(ctx, conditions, pagination)
+}
+
+func (s *PersistenceStore) GetBackupChainMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetBackupChainMetrics(ctx, conditions, pagination)
+}
+
+func (s *PersistenceStore) GetDistinctVolumeGCBDRVaultPairs(ctx context.Context) ([]VolumeVaultPair, error) {
+	return s.dataStore.GetDistinctVolumeGCBDRVaultPairs(ctx)
 }
 
 func (s *PersistenceStore) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {

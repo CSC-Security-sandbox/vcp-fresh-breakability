@@ -805,6 +805,11 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 }
 
 // fetchBackupHistoryMetrics builds hydrated metrics from backup chain history entries.
+//
+// For GCBDR volumes, the same (volume, vault) pair can have multiple concurrently active
+// rows — one per endpoint UUID. To produce a correct billing signal, rows that share the
+// same resource key are merged into a single combined timeline using a sweep-line algorithm
+// that sums sizes across all active endpoints at every boundary point.
 func (p *BillingProvider) fetchBackupHistoryMetrics(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, backfillLimit time.Duration, resourceCollection *ResourceCollection) ([]datamodel2.HydratedMetrics, error) {
 	startWindow := aggregationStartTime.Add(-backfillLimit)
 	endWindow := aggregationEndTime.Add(backfillLimit)
@@ -841,37 +846,212 @@ func (p *BillingProvider) fetchBackupHistoryMetrics(ctx context.Context, aggrega
 		return []datamodel2.HydratedMetrics{}, nil
 	}
 
+	// Group histories by (resourceUUID, deploymentName, consumerID).
+	type historyGroupKey struct {
+		resourceUUID   string
+		deploymentName string
+		consumerID     string
+	}
+	grouped := make(map[historyGroupKey][]*datamodel.BackupChainHistory)
+	for _, h := range histories {
+		if h.ResourceUUID == "" {
+			continue
+		}
+		key := historyGroupKey{
+			resourceUUID:   h.ResourceUUID,
+			deploymentName: h.DeploymentName,
+			consumerID:     h.ConsumerID,
+		}
+		grouped[key] = append(grouped[key], h)
+	}
+
 	var metrics []datamodel2.HydratedMetrics
-	for _, history := range histories {
-		if history.ResourceUUID == "" {
+	for key, rows := range grouped {
+		// Detect whether any row in this group carries an endpoint UUID (GCBDR path).
+		hasEndpoint := false
+		for _, r := range rows {
+			if r.EndpointUUID != nil && *r.EndpointUUID != "" {
+				hasEndpoint = true
+				break
+			}
+		}
+
+		if !hasEndpoint {
+			// Normal (non-GCBDR) path: one active row per volume at a time — emit directly.
+			for _, h := range rows {
+				backupMode := backupModeDefault
+				if h.IsExpertModeBackup {
+					backupMode = backupModeOntap
+				}
+				modeMetadata, err := json.Marshal(map[string]string{backupModeMetadataKey: backupMode})
+				if err != nil {
+					modeMetadata = nil
+				}
+				deletedAt := deletedAtPtr(h.DeletedAt)
+				metrics = append(metrics, datamodel2.HydratedMetrics{
+					MetricTimestamp: h.CreatedAt,
+					MeasuredType:    metadata.BackupLogicalSize,
+					ConsumerID:      key.consumerID,
+					ResourceType:    metadata.Backup,
+					ResourceName:    key.resourceUUID,
+					Location:        p.config.RegionName,
+					Quantity:        float64(h.Size),
+					DeploymentName:  key.deploymentName,
+					DeletedAt:       deletedAt,
+					Metadata:        modeMetadata,
+				})
+			}
 			continue
 		}
 
-		backupMode := backupModeDefault
-		if history.IsExpertModeBackup {
-			backupMode = backupModeOntap
+		// GCBDR path: multiple endpoints may be active simultaneously.
+		// Use a sweep-line merge to sum sizes across all active endpoints at every
+		// boundary point, producing a single combined timeline for this resource group.
+		combined := mergeEndpointHistories(rows)
+		for _, interval := range combined {
+			backupMode := backupModeDefault
+			if interval.isExpertMode {
+				backupMode = backupModeOntap
+			}
+			modeMetadata, err := json.Marshal(map[string]string{backupModeMetadataKey: backupMode})
+			if err != nil {
+				modeMetadata = nil
+			}
+			metrics = append(metrics, datamodel2.HydratedMetrics{
+				MetricTimestamp: interval.start,
+				MeasuredType:    metadata.BackupLogicalSize,
+				ConsumerID:      key.consumerID,
+				ResourceType:    metadata.Backup,
+				ResourceName:    key.resourceUUID,
+				Location:        p.config.RegionName,
+				Quantity:        float64(interval.size),
+				DeploymentName:  key.deploymentName,
+				DeletedAt:       interval.end,
+				Metadata:        modeMetadata,
+			})
 		}
-		modeMetadata, err := json.Marshal(map[string]string{backupModeMetadataKey: backupMode})
-		if err != nil {
-			modeMetadata = nil
-		}
-
-		deletedAt := deletedAtPtr(history.DeletedAt)
-		metrics = append(metrics, datamodel2.HydratedMetrics{
-			MetricTimestamp: history.CreatedAt,
-			MeasuredType:    metadata.BackupLogicalSize,
-			ConsumerID:      history.ConsumerID,
-			ResourceType:    metadata.Backup,
-			ResourceName:    history.ResourceUUID,
-			Location:        p.config.RegionName,
-			Quantity:        float64(history.Size),
-			DeploymentName:  history.DeploymentName,
-			DeletedAt:       deletedAt,
-			Metadata:        modeMetadata,
-		})
 	}
 
 	return metrics, nil
+}
+
+// combinedInterval represents one segment of the merged GCBDR timeline.
+type combinedInterval struct {
+	start        time.Time
+	end          *time.Time // nil means still active
+	size         int64
+	isExpertMode bool
+}
+
+// mergeEndpointHistories implements a sweep-line algorithm over a set of
+// BackupChainHistory rows that may belong to different endpoints but share the
+// same (volume, vault, consumer). Each row is an interval [CreatedAt, DeletedAt).
+// The algorithm produces a non-overlapping, sorted list of intervals whose Size
+// is the sum of all rows active during that sub-interval.
+func mergeEndpointHistories(rows []*datamodel.BackupChainHistory) []combinedInterval {
+	// Represent each boundary as a signed event: +size at start, -size at end.
+	type event struct {
+		t     time.Time
+		delta int64 // positive = endpoint starts, negative = endpoint ends
+	}
+	var events []event
+	for _, r := range rows {
+		events = append(events, event{t: r.CreatedAt, delta: r.Size})
+		if r.DeletedAt != nil && r.DeletedAt.Valid {
+			events = append(events, event{t: r.DeletedAt.Time, delta: -r.Size})
+		}
+	}
+
+	// Sort events by time; for equal times apply endings before beginnings so
+	// a zero-size gap is not emitted when one endpoint closes and another opens.
+	slices.SortFunc(events, func(a, b event) int {
+		if a.t.Before(b.t) {
+			return -1
+		}
+		if a.t.After(b.t) {
+			return 1
+		}
+		// Same time: process endings (negative delta) first.
+		if a.delta < b.delta {
+			return -1
+		}
+		if a.delta > b.delta {
+			return 1
+		}
+		return 0
+	})
+
+	// Collect all unique boundary timestamps.
+	seen := make(map[time.Time]struct{})
+	var boundaries []time.Time
+	for _, e := range events {
+		if _, ok := seen[e.t]; !ok {
+			seen[e.t] = struct{}{}
+			boundaries = append(boundaries, e.t)
+		}
+	}
+	slices.SortFunc(boundaries, func(a, b time.Time) int {
+		if a.Before(b) {
+			return -1
+		}
+		if a.After(b) {
+			return 1
+		}
+		return 0
+	})
+
+	// Walk the boundaries, maintaining a running total of active size.
+	// Compute the running total at each boundary by replaying the events.
+	// Build a map: boundary time → running total AFTER applying all events at that time.
+	totalAtBoundary := make(map[time.Time]int64)
+	runningTotal := int64(0)
+	ei := 0
+	for _, b := range boundaries {
+		for ei < len(events) && !events[ei].t.After(b) {
+			runningTotal += events[ei].delta
+			ei++
+		}
+		totalAtBoundary[b] = runningTotal
+	}
+
+	// Determine the latest deleted_at across all rows; nil means at least one is still active.
+	var latestEnd *time.Time
+	for _, r := range rows {
+		if r.DeletedAt == nil || !r.DeletedAt.Valid {
+			latestEnd = nil
+			break
+		}
+		if latestEnd == nil || r.DeletedAt.Time.After(*latestEnd) {
+			t := r.DeletedAt.Time
+			latestEnd = &t
+		}
+	}
+
+	isExpertMode := false
+	for _, r := range rows {
+		if r.IsExpertModeBackup {
+			isExpertMode = true
+			break
+		}
+	}
+
+	// Emit one combined interval per boundary segment.
+	var result []combinedInterval
+	for i, b := range boundaries {
+		size := totalAtBoundary[b]
+		if size <= 0 {
+			continue
+		}
+		var end *time.Time
+		if i+1 < len(boundaries) {
+			t := boundaries[i+1]
+			end = &t
+		} else {
+			end = latestEnd
+		}
+		result = append(result, combinedInterval{start: b, end: end, size: size, isExpertMode: isExpertMode})
+	}
+	return result
 }
 
 func deletedAtPtr(deletedAt *gorm.DeletedAt) *time.Time {

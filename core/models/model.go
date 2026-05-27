@@ -36,6 +36,9 @@ const (
 	ServiceTypeGCNV         = "GCNV"
 	ServiceTypeCrossProject = "CrossProject"
 
+	// Backup vault type constants
+	BackupVaultTypeCrossRegion = "CROSS_REGION"
+
 	LifeCycleStateCreatingDetails                      = "Creation in progress"
 	LifeCycleStateRevertingDetails                     = "Revert in progress"
 	LifeCycleStateUndeletingDetails                    = "Undelete in progress"

@@ -673,7 +673,7 @@ func (a *ADCActivity) GetFileInodeNumbers(ctx context.Context, adcParams *common
 	return fileInodeSizeMap, nil
 }
 
-func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, volumeUUID string, adcParams *common.ADCParams, serviceURL string) error {
+func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, volumeUUID string, endpointUUID string, adcParams *common.ADCParams, serviceURL string) error {
 	logger := util.GetLogger(ctx)
 
 	// Fetch logical size from ADC
@@ -683,8 +683,8 @@ func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, vol
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// Update the latest backup's logical size
-	err = a.SE.UpdateLatestBackupLogicalSize(ctx, volumeUUID, int64(logicalSizeResult.LogicalSize))
+	// Update the latest backup's logical size, scoping the history update to the endpoint when provided.
+	err = a.SE.UpdateLatestBackupLogicalSize(ctx, volumeUUID, endpointUUID, int64(logicalSizeResult.LogicalSize))
 	if err != nil {
 		logger.Errorf("Failed to update latest backup logical size: %v", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -765,14 +765,6 @@ func (a *ADCActivity) FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity
 	if err != nil {
 		logger.Errorf("Failed to zero other backups' logical size: %v", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	err = a.SE.UpdateBackupChainHistory(ctx, volumeUUID, int64(totalLogicalSize))
-	if err != nil {
-		logger.Warnf("Ledger: Failed to update backup chain history for volume %s: %v", volumeUUID, err)
-		// Don't fail the entire operation if history update fails (match UpdateLatestBackupLogicalSize behavior)
-	} else {
-		logger.Infof("Ledger: Successfully updated backup chain history for volume %s with size %d", volumeUUID, totalLogicalSize)
 	}
 
 	return nil

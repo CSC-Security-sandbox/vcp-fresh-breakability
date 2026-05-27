@@ -4315,10 +4315,10 @@ func (re *retryEngine) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context,
 	return var0, err
 }
 
-func (re *retryEngine) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
+func (re *retryEngine) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, endpointUUID string, newSize int64) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		err = re.dataStore.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
+		err = re.dataStore.UpdateBackupChainHistory(ctx, volumeUUID, endpointUUID, newSize)
 		if err != nil {
 			re.logError("UpdateBackupChainHistory", err)
 			if !dbutils.IsTransientErr(err) {
@@ -4353,6 +4353,38 @@ func (re *retryEngine) GetBackupMetrics(ctx context.Context, conditions [][]inte
 		var0, err = re.dataStore.GetBackupMetrics(ctx, conditions, pagination)
 		if err != nil {
 			re.logError("GetBackupMetrics", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupChainMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupChainMetrics(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("GetBackupChainMetrics", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetDistinctVolumeGCBDRVaultPairs(ctx context.Context) ([]VolumeVaultPair, error) {
+	var var0 []VolumeVaultPair
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetDistinctVolumeGCBDRVaultPairs(ctx)
+		if err != nil {
+			re.logError("GetDistinctVolumeGCBDRVaultPairs", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -4458,10 +4490,10 @@ func (re *retryEngine) ListExpertModeVolumesForTelemetryMetrics(ctx context.Cont
 	return var0, err
 }
 
-func (re *retryEngine) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {
+func (re *retryEngine) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, endpointUUID string, newLogicalSize int64) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		err = re.dataStore.UpdateLatestBackupLogicalSize(ctx, volumeUUID, newLogicalSize)
+		err = re.dataStore.UpdateLatestBackupLogicalSize(ctx, volumeUUID, endpointUUID, newLogicalSize)
 		if err != nil {
 			re.logError("UpdateLatestBackupLogicalSize", err)
 			if !dbutils.IsTransientErr(err) {
