@@ -272,11 +272,11 @@ fields = {
     'VULN_PREEXISTING_COUNT': str(d.get('vuln_preexisting_count', 0)),
     'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
     'TEST_FAIL_DETAIL': next((s.get('detail','') for s in d.get('verification_steps',[]) if s.get('step')=='test_suite' and s.get('status')=='pre_existing'), ''),
-    'BUILD_EXIT': str(build.get('pr_exit', -1)),
-    'MAIN_BUILD_EXIT': str(build.get('main_exit', -1)),
-    'TEST_EXIT_CODE': str(test.get('exit', -1)),
-    'BUILD_EVIDENCE': (lambda t: next((l.strip() for l in t.splitlines() if 'targeted build' in l or 'full build' in l or 'npm run build' in l), ''))(build.get('output_tail', '')),
-    'BUILD_DIRS': (lambda t: next((l.strip() for l in t.splitlines() if 'dirs:' in l), ''))(build.get('output_tail', '')),
+    'BUILD_EXIT': str(d.get('main_exit', -1)),  # pr_exit not in flattened d
+    'MAIN_BUILD_EXIT': str(d.get('main_exit', -1)),
+    'TEST_EXIT_CODE': str(d.get('test_exit', -1)),
+    'BUILD_EVIDENCE': (lambda t: next((l.strip() for l in t.splitlines() if 'targeted build' in l or 'full build' in l or 'npm run build' in l), ''))(d.get('output_tail', '')),
+    'BUILD_DIRS': (lambda t: next((l.strip() for l in t.splitlines() if 'dirs:' in l), ''))(d.get('output_tail', '')),
 }
 for k, v in fields.items():
     # Use null byte as delimiter to safely handle any value content
