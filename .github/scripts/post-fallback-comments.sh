@@ -573,7 +573,7 @@ ${_BUILD_STDOUT_SNIPPET}
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
-- ✅ Build passes\${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
+- ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ✅ Tests pass (exit=$TEST_EXIT_CODE) — no regressions vs main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
@@ -583,7 +583,7 @@ ${_BUILD_STDOUT_SNIPPET}
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
-- ✅ Build passes\${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
+- ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
@@ -625,7 +625,7 @@ ${_BUILD_STDOUT_SNIPPET}
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
-- ✅ Build passes\${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
+- ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — pre-existing, same failure on main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
@@ -634,7 +634,7 @@ ${_BUILD_STDOUT_SNIPPET}
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
-- ✅ Build passes\${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
+- ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
