@@ -129,7 +129,7 @@ jobs:
   deterministic:
     needs: discover
     runs-on: [self-hosted, breakability]
-    timeout-minutes: 120
+    timeout-minutes: 180
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
