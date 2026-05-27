@@ -76,6 +76,18 @@ func (UnimplementedHandler) GetWorkflow(ctx context.Context, params GetWorkflowP
 	return r, ht.ErrNotImplemented
 }
 
+// RbacRefreshPool implements rbacRefreshPool operation.
+//
+// Applies the RBAC definition file to the pool's ONTAP cluster. When
+// rbacFilePath is provided it is used directly; otherwise the service
+// resolves the path from its environment configuration.
+// The operation is asynchronous. Use the returned workflowId to poll for completion.
+//
+// POST /v1beta/pools/{poolOCID}/rbacRefresh
+func (UnimplementedHandler) RbacRefreshPool(ctx context.Context, req OptRbacRefreshRequest, params RbacRefreshPoolParams) (r RbacRefreshPoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UpdatePool implements updatePool operation.
 //
 // Updates an existing storage pool's capacity and/or throughput. The operation
@@ -83,5 +95,16 @@ func (UnimplementedHandler) GetWorkflow(ctx context.Context, params GetWorkflowP
 //
 // PUT /v1beta/pools/{poolOCID}
 func (UnimplementedHandler) UpdatePool(ctx context.Context, req *UpdatePoolRequest, params UpdatePoolParams) (r UpdatePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpgradePool implements upgradePool operation.
+//
+// Upgrades the ONTAP software on the pool's underlying VSA cluster to the
+// specified target version using the provided image path.
+// The operation is asynchronous. Use the returned workflowId to poll for completion.
+//
+// POST /v1beta/pools/{poolOCID}/upgrade
+func (UnimplementedHandler) UpgradePool(ctx context.Context, req *UpgradePoolRequest, params UpgradePoolParams) (r UpgradePoolRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

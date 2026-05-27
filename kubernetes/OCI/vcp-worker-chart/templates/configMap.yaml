@@ -61,6 +61,10 @@ data:
   CLUSTER_SERIAL_NUMBER_PREFIX: {{ $.Values.workerConfig.clusterSerialNumberPrefix | quote }}
   REGION_NUMBER_MAP: {{ $.Values.regionNumberMap | toJson | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_LV: {{ $.Values.workerConfig.startToCloseWorkflowTimeoutLv | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT_UPGRADE: {{ $.Values.workerConfig.startToCloseWorkflowTimeoutUpgrade | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT_UPGRADE_LV: {{ $.Values.workerConfig.startToCloseWorkflowTimeoutUpgradeLv | quote }}
+  OCI_PARALLEL_NUMBER_OF_NODES_FOR_ITC: {{ $.Values.workerConfig.ociParallelNumberOfNodesForItc | quote }}
+  VSA_SIGNED_URL_DURATION_HOURS: {{ $.Values.workerConfig.vsaSignedUrlDurationHours | quote }}
   ONTAP_TRANSIENT_ERROR_RETRY_MINUTES: {{ $.Values.workerConfig.ontapTransientErrorRetryMinutes | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{ $.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
   CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES: {{ $.Values.workerConfig.createPoolWorkflowTimeoutMinutes | quote }}
@@ -101,6 +105,9 @@ data:
   OCI_RESOURCE_PRINCIPAL_REGION: {{ $.Values.workerConfig.ociResourcePrincipalRegion | quote }}
   OCI_RESOURCE_PRINCIPAL_VERSION: {{ $.Values.workerConfig.ociResourcePrincipalVersion | quote }}
   OCI_EXPERT_MODE_PASSWORD: {{ $.Values.workerConfig.ociExpertModePassword | quote }}
+  OCI_EXPERT_MODE_RBAC_FILE_URL: {{ $.Values.workerConfig.ociExpertModeRbacFileUrl | quote }}
+  OCI_EXPERT_MODE_RBAC_FILE_CHECKSUM: {{ $.Values.workerConfig.ociExpertModeRbacFileChecksum | quote }}
+  OCI_EXPERT_MODE_USERNAME: {{ $.Values.workerConfig.ociExpertModeUsername | quote }}
   OCI_ONTAP_ADMIN_PASSWORD: {{ $.Values.workerConfig.ociOntapAdminPassword | quote }}
   OCI_VAULT_OCID: {{ $.Values.workerConfig.ociVaultOcid | quote }}
   OCI_MASTER_KEY_OCID: {{ $.Values.workerConfig.ociMasterKeyOcid | quote }}

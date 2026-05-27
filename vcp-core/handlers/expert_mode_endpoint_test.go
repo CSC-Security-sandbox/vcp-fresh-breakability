@@ -823,7 +823,7 @@ func TestV1RefreshRbacForExpertModePoolById(t *testing.T) {
 		jobID := "job-uuid-12345"
 		params := oasgenserver.V1RefreshRbacForExpertModePoolByIdParams{PoolId: poolId}
 
-		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, poolId).Return(jobID, nil)
+		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, &commonparams.RefreshRbacForPoolParams{PoolID: poolId}).Return(jobID, nil)
 
 		result, err := handler.V1RefreshRbacForExpertModePoolById(context.Background(), params)
 		assert.NoError(t, err)
@@ -843,7 +843,7 @@ func TestV1RefreshRbacForExpertModePoolById(t *testing.T) {
 		params := oasgenserver.V1RefreshRbacForExpertModePoolByIdParams{PoolId: poolId}
 
 		badRequestErr := customerrors.NewBadRequestErr("invalid pool id format")
-		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, poolId).Return("", badRequestErr)
+		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, &commonparams.RefreshRbacForPoolParams{PoolID: poolId}).Return("", badRequestErr)
 
 		result, err := handler.V1RefreshRbacForExpertModePoolById(context.Background(), params)
 		assert.NoError(t, err)
@@ -861,7 +861,7 @@ func TestV1RefreshRbacForExpertModePoolById(t *testing.T) {
 		params := oasgenserver.V1RefreshRbacForExpertModePoolByIdParams{PoolId: poolId}
 
 		notFoundErr := customerrors.NewNotFoundErr("pool", &poolId)
-		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, poolId).Return("", notFoundErr)
+		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, &commonparams.RefreshRbacForPoolParams{PoolID: poolId}).Return("", notFoundErr)
 
 		result, err := handler.V1RefreshRbacForExpertModePoolById(context.Background(), params)
 		assert.NoError(t, err)
@@ -878,7 +878,7 @@ func TestV1RefreshRbacForExpertModePoolById(t *testing.T) {
 		params := oasgenserver.V1RefreshRbacForExpertModePoolByIdParams{PoolId: poolId}
 
 		internalErr := errors.New("temporal connection failed")
-		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, poolId).Return("", internalErr)
+		mockOrch.EXPECT().UpdateRbacForPoolById(mock.Anything, &commonparams.RefreshRbacForPoolParams{PoolID: poolId}).Return("", internalErr)
 
 		result, err := handler.V1RefreshRbacForExpertModePoolById(context.Background(), params)
 		assert.NoError(t, err)

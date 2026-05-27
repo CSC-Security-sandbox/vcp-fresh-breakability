@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
@@ -311,7 +312,7 @@ func TestCheckActiveUpgradeJob(t *testing.T) {
 		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{}, nil)
 
 		// Execute
-		result, err := CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
+		result, err := common.CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
 
 		// Assert
 		assert.NoError(t, err)
@@ -336,7 +337,7 @@ func TestCheckActiveUpgradeJob(t *testing.T) {
 		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{activeJob}, nil)
 
 		// Execute
-		result, err := CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
+		result, err := common.CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
 
 		// Assert
 		assert.NoError(t, err)
@@ -355,7 +356,7 @@ func TestCheckActiveUpgradeJob(t *testing.T) {
 		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return(nil, errors.New("database error"))
 
 		// Execute
-		result, err := CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
+		result, err := common.CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
 
 		// Assert
 		assert.Error(t, err)
@@ -454,7 +455,7 @@ func TestUpdateUpgradeJobStatus(t *testing.T) {
 		mockStorage.On("UpdateClusterUpgradeJob", ctx, mock.AnythingOfType("*datamodel.ClusterUpgradeJob")).Return(nil)
 
 		// Execute
-		err := _updateUpgradeJobStatus(ctx, mockStorage, jobUUID, status, errorMessage)
+		err := common.UpdateUpgradeJobStatus(ctx, mockStorage, jobUUID, status, errorMessage)
 
 		// Assert
 		assert.NoError(t, err)
@@ -483,7 +484,7 @@ func TestUpdateUpgradeJobStatus(t *testing.T) {
 		mockStorage.On("UpdateClusterUpgradeJob", ctx, mock.AnythingOfType("*datamodel.ClusterUpgradeJob")).Return(nil)
 
 		// Execute
-		err := _updateUpgradeJobStatus(ctx, mockStorage, jobUUID, status, errorMessage)
+		err := common.UpdateUpgradeJobStatus(ctx, mockStorage, jobUUID, status, errorMessage)
 
 		// Assert
 		assert.NoError(t, err)
@@ -502,7 +503,7 @@ func TestUpdateUpgradeJobStatus(t *testing.T) {
 		mockStorage.On("GetClusterUpgradeJobByUUID", ctx, jobUUID).Return(nil, gorm.ErrRecordNotFound)
 
 		// Execute
-		err := _updateUpgradeJobStatus(ctx, mockStorage, jobUUID, status, errorMessage)
+		err := common.UpdateUpgradeJobStatus(ctx, mockStorage, jobUUID, status, errorMessage)
 
 		// Assert
 		assert.Error(t, err)
@@ -510,7 +511,6 @@ func TestUpdateUpgradeJobStatus(t *testing.T) {
 	})
 
 	t.Run("InProgressStatus", func(t *testing.T) {
-		// Test lines 327-328: Setting StartedAt timestamp for in-progress status
 		mockStorage := database.NewMockStorage(t)
 
 		ctx := context.Background()
@@ -534,7 +534,7 @@ func TestUpdateUpgradeJobStatus(t *testing.T) {
 		mockStorage.On("UpdateClusterUpgradeJob", ctx, mock.AnythingOfType("*datamodel.ClusterUpgradeJob")).Return(nil)
 
 		// Execute function
-		err := _updateUpgradeJobStatus(ctx, mockStorage, jobUUID, status, errorMessage)
+		err := common.UpdateUpgradeJobStatus(ctx, mockStorage, jobUUID, status, errorMessage)
 
 		// Assert
 		assert.NoError(t, err)
@@ -549,7 +549,7 @@ func TestConvertMetadataToJSONB(t *testing.T) {
 			"key2": "value2",
 		}
 
-		result := convertMetadataToJSONB(metadata)
+		result := common.ConvertMetadataToJSONB(metadata)
 
 		assert.NotNil(t, result)
 		assert.Equal(t, "value1", (*result)["key1"])
@@ -557,7 +557,7 @@ func TestConvertMetadataToJSONB(t *testing.T) {
 	})
 
 	t.Run("NilMetadata", func(t *testing.T) {
-		result := convertMetadataToJSONB(nil)
+		result := common.ConvertMetadataToJSONB(nil)
 
 		assert.Nil(t, result)
 	})
@@ -565,7 +565,7 @@ func TestConvertMetadataToJSONB(t *testing.T) {
 	t.Run("EmptyMetadata", func(t *testing.T) {
 		metadata := map[string]string{}
 
-		result := convertMetadataToJSONB(metadata)
+		result := common.ConvertMetadataToJSONB(metadata)
 
 		assert.NotNil(t, result)
 		assert.Len(t, *result, 0)

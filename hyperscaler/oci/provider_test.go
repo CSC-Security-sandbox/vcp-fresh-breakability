@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/oracle/oci-go-sdk/v65/objectstorage"
 	"github.com/oracle/oci-go-sdk/v65/secrets"
 	"github.com/oracle/oci-go-sdk/v65/vault"
 	"github.com/stretchr/testify/assert"
@@ -56,9 +57,11 @@ func TestInitializeClients(t *testing.T) {
 	t.Run("successful initialisation", func(t *testing.T) {
 		origVault := initializeVaultClient
 		origSecrets := initializeSecretsClient
+		origObjStorage := initializeObjectStorageClient
 		defer func() {
 			initializeVaultClient = origVault
 			initializeSecretsClient = origSecrets
+			initializeObjectStorageClient = origObjStorage
 		}()
 
 		initializeVaultClient = func() (*vault.VaultsClient, error) {
@@ -67,6 +70,10 @@ func TestInitializeClients(t *testing.T) {
 		}
 		initializeSecretsClient = func() (*secrets.SecretsClient, error) {
 			cl := secrets.SecretsClient{}
+			return &cl, nil
+		}
+		initializeObjectStorageClient = func() (*objectstorage.ObjectStorageClient, error) {
+			cl := objectstorage.ObjectStorageClient{}
 			return &cl, nil
 		}
 
@@ -311,9 +318,11 @@ func TestNewOCIClients(t *testing.T) {
 	t.Run("both clients succeed — returns AdminOCIService", func(t *testing.T) {
 		origVault := initializeVaultClient
 		origSecrets := initializeSecretsClient
+		origObjStorage := initializeObjectStorageClient
 		defer func() {
 			initializeVaultClient = origVault
 			initializeSecretsClient = origSecrets
+			initializeObjectStorageClient = origObjStorage
 		}()
 
 		initializeVaultClient = func() (*vault.VaultsClient, error) {
@@ -321,6 +330,9 @@ func TestNewOCIClients(t *testing.T) {
 		}
 		initializeSecretsClient = func() (*secrets.SecretsClient, error) {
 			return &secrets.SecretsClient{}, nil
+		}
+		initializeObjectStorageClient = func() (*objectstorage.ObjectStorageClient, error) {
+			return &objectstorage.ObjectStorageClient{}, nil
 		}
 
 		admin, err := newOCIClients(ctx)
@@ -366,6 +378,66 @@ func TestNewOCIClients(t *testing.T) {
 		admin, err := newOCIClients(ctx)
 		assert.Error(t, err)
 		assert.Nil(t, admin)
+	})
+
+	t.Run("object storage client fails — returns error", func(t *testing.T) {
+		origVault := initializeVaultClient
+		origSecrets := initializeSecretsClient
+		origObjStorage := initializeObjectStorageClient
+		defer func() {
+			initializeVaultClient = origVault
+			initializeSecretsClient = origSecrets
+			initializeObjectStorageClient = origObjStorage
+		}()
+
+		initializeVaultClient = func() (*vault.VaultsClient, error) {
+			return &vault.VaultsClient{}, nil
+		}
+		initializeSecretsClient = func() (*secrets.SecretsClient, error) {
+			return &secrets.SecretsClient{}, nil
+		}
+		initializeObjectStorageClient = func() (*objectstorage.ObjectStorageClient, error) {
+			return nil, errors.New("object storage failure")
+		}
+
+		admin, err := newOCIClients(ctx)
+		assert.Error(t, err)
+		assert.Nil(t, admin)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestInitializeObjectStorageClient
+// ---------------------------------------------------------------------------
+
+func TestInitializeObjectStorageClient(t *testing.T) {
+	t.Run("ociConfigProvider fails — returns error", func(t *testing.T) {
+		origAuthType := env.OCIAuthType
+		defer func() { env.OCIAuthType = origAuthType }()
+
+		env.OCIAuthType = "unsupported_auth_type_for_test"
+
+		client, err := _initializeObjectStorageClient()
+		assert.Error(t, err)
+		assert.Nil(t, client)
+		assert.Contains(t, err.Error(), "ociConfigProvider")
+	})
+
+	t.Run("invalid private key — SDK rejects config", func(t *testing.T) {
+		origAuthType := env.OCIAuthType
+		defer func() { env.OCIAuthType = origAuthType }()
+
+		env.OCIAuthType = "env"
+		t.Setenv("OCI_TENANCY", "ocid1.tenancy.oc1..test")
+		t.Setenv("OCI_USER", "ocid1.user.oc1..test")
+		t.Setenv("OCI_REGION", "us-ashburn-1")
+		t.Setenv("OCI_FINGERPRINT", "aa:bb:cc:dd:ee:ff")
+		t.Setenv("OCI_PRIVATE_KEY", "-----BEGIN RSA PRIVATE KEY-----\ninvalid\n-----END RSA PRIVATE KEY-----")
+
+		client, err := _initializeObjectStorageClient()
+		assert.Error(t, err)
+		assert.Nil(t, client)
+		assert.Contains(t, err.Error(), "NewObjectStorageClientWithConfigurationProvider")
 	})
 }
 

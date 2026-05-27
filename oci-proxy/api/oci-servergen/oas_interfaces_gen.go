@@ -25,6 +25,14 @@ type GetWorkflowRes interface {
 	getWorkflowRes()
 }
 
+type RbacRefreshPoolRes interface {
+	rbacRefreshPoolRes()
+}
+
 type UpdatePoolRes interface {
 	updatePoolRes()
+}
+
+type UpgradePoolRes interface {
+	upgradePoolRes()
 }

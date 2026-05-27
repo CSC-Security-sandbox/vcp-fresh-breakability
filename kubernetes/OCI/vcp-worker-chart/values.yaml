@@ -92,6 +92,9 @@ workerConfig:
   ociResourcePrincipalRegion: "us-ashburn-1"
   ociResourcePrincipalVersion: "2.2"
   ociExpertModePassword: ""
+  ociExpertModeRbacFileUrl: ""
+  ociExpertModeRbacFileChecksum: ""
+  ociExpertModeUsername: "ociadmin"
   ociOntapAdminPassword: ""
   ociVaultOcid: ""
   ociMasterKeyOcid: ""
@@ -102,6 +105,10 @@ workerConfig:
   enableUniqueSerialNumberGeneration: false
   clusterSerialNumberPrefix: "935"
   startToCloseWorkflowTimeoutLv: "60m"
+  startToCloseWorkflowTimeoutUpgrade: "300m"
+  startToCloseWorkflowTimeoutUpgradeLv: "360m"
+  ociParallelNumberOfNodesForItc: 4
+  vsaSignedUrlDurationHours: 12
   ontapTransientErrorRetryMinutes: 20
 
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes

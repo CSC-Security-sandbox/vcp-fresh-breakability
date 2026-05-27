@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -239,7 +240,7 @@ func TestUpdateRbacForPoolById_Success(t *testing.T) {
 		mock.Anything, // Workflow function
 		poolId,
 	).Return(nil, nil).Once()
-	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, poolId)
+	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, &commonparams.RefreshRbacForPoolParams{PoolID: poolId})
 	assert.NoError(t, err)
 	assert.Equal(t, expectedJob.UUID, jobID)
 	mockStorage.AssertExpectations(t)
@@ -256,7 +257,7 @@ func TestUpdateRbacForPoolById_CreateJobFails(t *testing.T) {
 	expectedError := errors.New("failed to create job")
 	poolId := "pool-uuid-123"
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, expectedError).Once()
-	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, poolId)
+	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, &commonparams.RefreshRbacForPoolParams{PoolID: poolId})
 	assert.Error(t, err)
 	assert.Equal(t, expectedError, err)
 	assert.Empty(t, jobID)
@@ -297,7 +298,7 @@ func TestUpdateRbacForPoolById_ExecuteWorkflowFails(t *testing.T) {
 		poolId,
 	).Return(nil, workflowError).Once()
 	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(models.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(nil).Once()
-	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, poolId)
+	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, &commonparams.RefreshRbacForPoolParams{PoolID: poolId})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to start single pool RBAC update workflow")
 	assert.Empty(t, jobID)
@@ -339,7 +340,7 @@ func TestUpdateRbacForPoolById_ExecuteWorkflowFails_UpdateJobFails(t *testing.T)
 		poolId,
 	).Return(nil, workflowError).Once()
 	mockStorage.On("UpdateJob", ctx, expectedJob.UUID, string(models.JobsStateERROR), expectedJob.TrackingID, workflowError.Error()).Return(updateJobError).Once()
-	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, poolId)
+	jobID, err := orchestrator.UpdateRbacForPoolById(ctx, &commonparams.RefreshRbacForPoolParams{PoolID: poolId})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to start single pool RBAC update workflow")
 	assert.Empty(t, jobID)

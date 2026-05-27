@@ -7,6 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -21,9 +22,9 @@ func (o *GCPOrchestrator) UpdateRbacForPools(ctx context.Context) (string, error
 	return _updateRbacForPools(ctx, o.storage, o.temporal)
 }
 
-// UpdateRbacForPoolById triggers the workflow to update RBAC hash for a single pool identified by UUID
-func (o *GCPOrchestrator) UpdateRbacForPoolById(ctx context.Context, poolId string) (string, error) {
-	return _updateRbacForPoolById(ctx, o.storage, o.temporal, poolId)
+// UpdateRbacForPoolById triggers the workflow to update RBAC hash for a single pool identified by UUID.
+func (o *GCPOrchestrator) UpdateRbacForPoolById(ctx context.Context, params *commonparams.RefreshRbacForPoolParams) (string, error) {
+	return UpdateRbacForPoolById(ctx, o.storage, o.temporal, params.PoolID)
 }
 
 // _updateRbacForPools creates a job and triggers the RBAC update workflow
@@ -68,8 +69,9 @@ func _updateRbacForPools(ctx context.Context, se database.Storage, temporal clie
 	return createdJob.UUID, nil
 }
 
-// _updateRbacForPoolById creates a job and triggers the RBAC update workflow for a single pool by UUID
-func _updateRbacForPoolById(ctx context.Context, se database.Storage, temporal client.Client, poolId string) (string, error) {
+// UpdateRbacForPoolById creates a job and triggers the RBAC update workflow for a single pool by UUID.
+// Exported so both GCP and OCI orchestrators can reuse the same workflow invocation.
+func UpdateRbacForPoolById(ctx context.Context, se database.Storage, temporal client.Client, poolId string) (string, error) {
 	logger := util.GetLogger(ctx)
 
 	job := &datamodel.Job{

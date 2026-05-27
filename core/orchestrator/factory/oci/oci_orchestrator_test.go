@@ -9,10 +9,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"gorm.io/gorm"
 )
 
 func TestNewOCIOrchestrator(t *testing.T) {
@@ -32,7 +34,7 @@ func TestOCIOrchestrator_UpdatePool(t *testing.T) {
 	t.Run("ReturnsBadRequestWhenPoolExternalIdentifierMissing", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdatePoolParams{}
+		params := &commonparams.UpdatePoolParams{}
 
 		result, jobID, err := orch.UpdatePool(ctx, params)
 
@@ -73,7 +75,7 @@ func TestOCIOrchestrator_DeletePool(t *testing.T) {
 	t.Run("ReturnsBadRequestWhenPoolOCIDMissing", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeletePoolParams{}
+		params := &commonparams.DeletePoolParams{}
 
 		result, jobID, err := orch.DeletePool(ctx, params)
 
@@ -153,7 +155,7 @@ func TestOCIOrchestrator_CreateHostGroup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateHostGroupParams{}
+		params := &commonparams.CreateHostGroupParams{}
 
 		result, err := orch.CreateHostGroup(ctx, params)
 
@@ -193,7 +195,7 @@ func TestOCIOrchestrator_UpdateHostGroup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateHostGroupParams{}
+		params := &commonparams.UpdateHostGroupParams{}
 
 		result, jobID, err := orch.UpdateHostGroup(ctx, params)
 
@@ -234,7 +236,7 @@ func TestOCIOrchestrator_CreateVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateVolumeParams{}
+		params := &commonparams.CreateVolumeParams{}
 
 		result, jobID, err := orch.CreateVolume(ctx, params)
 
@@ -249,7 +251,7 @@ func TestOCIOrchestrator_CreateFlexCacheVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateVolumeParams{}
+		params := &commonparams.CreateVolumeParams{}
 
 		result, jobID, err := orch.CreateFlexCacheVolume(ctx, params)
 
@@ -264,7 +266,7 @@ func TestOCIOrchestrator_RevertVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.RevertVolumeParams{}
+		params := &commonparams.RevertVolumeParams{}
 
 		result, jobID, err := orch.RevertVolume(ctx, params)
 
@@ -292,7 +294,7 @@ func TestOCIOrchestrator_UpdateVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateVolumeParams{}
+		params := &commonparams.UpdateVolumeParams{}
 
 		result, jobID, err := orch.UpdateVolume(ctx, params)
 
@@ -307,7 +309,7 @@ func TestOCIOrchestrator_UpdateVolumeV2(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateVolumeParams{}
+		params := &commonparams.UpdateVolumeParams{}
 
 		result, jobID, err := orch.UpdateVolumeV2(ctx, params)
 
@@ -363,7 +365,7 @@ func TestOCIOrchestrator_GetVolumesByUUIDs(t *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
 
-		result, err := orch.GetVolumesByUUIDs(ctx, []string{"id1", "id2"}, common.VolumeFetchOptions{})
+		result, err := orch.GetVolumesByUUIDs(ctx, []string{"id1", "id2"}, commonparams.VolumeFetchOptions{})
 
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsNotImplementedYetErr(err))
@@ -401,7 +403,7 @@ func TestOCIOrchestrator_EstablishFlexCacheVolumePeering(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.EstablishVolumePeeringParams{}
+		params := &commonparams.EstablishVolumePeeringParams{}
 
 		result, jobID, err := orch.EstablishFlexCacheVolumePeering(ctx, params)
 
@@ -416,7 +418,7 @@ func TestOCIOrchestrator_EstablishReplicationPeering(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.EstablishReplicationPeeringParams{}
+		params := &commonparams.EstablishReplicationPeeringParams{}
 
 		result, jobID, err := orch.EstablishReplicationPeering(ctx, params)
 
@@ -431,7 +433,7 @@ func TestOCIOrchestrator_RestoreFilesFromBackup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.RestoreFilesFromBackupParams{}
+		params := &commonparams.RestoreFilesFromBackupParams{}
 
 		result, err := orch.RestoreFilesFromBackup(ctx, params)
 
@@ -445,7 +447,7 @@ func TestOCIOrchestrator_SplitCloneVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.SplitStartVolumeParams{}
+		params := &commonparams.SplitStartVolumeParams{}
 
 		result, jobID, err := orch.SplitStartVolume(ctx, params)
 
@@ -499,7 +501,7 @@ func TestOCIOrchestrator_CreateJob(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateJobParams{}
+		params := &commonparams.CreateJobParams{}
 
 		result, err := orch.CreateJob(ctx, params)
 
@@ -537,7 +539,7 @@ func TestOCIOrchestrator_CreateSnapshot(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateSnapshotParams{}
+		params := &commonparams.CreateSnapshotParams{}
 
 		result, jobID, err := orch.CreateSnapshot(ctx, params)
 
@@ -552,7 +554,7 @@ func TestOCIOrchestrator_GetSnapshot(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetSnapshotParams{}
+		params := &commonparams.GetSnapshotParams{}
 
 		result, err := orch.GetSnapshot(ctx, params)
 
@@ -566,7 +568,7 @@ func TestOCIOrchestrator_DeleteSnapshot(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteSnapshotParams{}
+		params := &commonparams.DeleteSnapshotParams{}
 
 		result, jobID, err := orch.DeleteSnapshot(ctx, params)
 
@@ -581,7 +583,7 @@ func TestOCIOrchestrator_ListSnapshots(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ListSnapshotsParams{}
+		params := &commonparams.ListSnapshotsParams{}
 
 		result, err := orch.ListSnapshots(ctx, params)
 
@@ -595,7 +597,7 @@ func TestOCIOrchestrator_UpdateSnapshot(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateSnapshotParams{}
+		params := &commonparams.UpdateSnapshotParams{}
 
 		result, jobID, err := orch.UpdateSnapshot(ctx, params)
 
@@ -623,7 +625,7 @@ func TestOCIOrchestrator_DeleteSnapmirrorSnapshots(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.SnapshotsInternalDeleteParams{}
+		params := &commonparams.SnapshotsInternalDeleteParams{}
 
 		result, err := orch.DeleteSnapmirrorSnapshots(ctx, params)
 
@@ -637,7 +639,7 @@ func TestOCIOrchestrator_CreateQuotaRule(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateQuotaRulesParam{}
+		params := &commonparams.CreateQuotaRulesParam{}
 
 		result, jobID, err := orch.CreateQuotaRule(ctx, params)
 
@@ -652,7 +654,7 @@ func TestOCIOrchestrator_CreateQuotaRuleInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateQuotaRulesParam{}
+		params := &commonparams.CreateQuotaRulesParam{}
 
 		result, job, err := orch.CreateQuotaRuleInternal(ctx, params)
 
@@ -667,7 +669,7 @@ func TestOCIOrchestrator_UpdateQuotaRule(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateQuotaRulesParam{}
+		params := &commonparams.UpdateQuotaRulesParam{}
 
 		result, jobID, err := orch.UpdateQuotaRule(ctx, params)
 
@@ -682,7 +684,7 @@ func TestOCIOrchestrator_UpdateQuotaRuleInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateQuotaRulesParam{}
+		params := &commonparams.UpdateQuotaRulesParam{}
 
 		result, job, err := orch.UpdateQuotaRuleInternal(ctx, params)
 
@@ -697,7 +699,7 @@ func TestOCIOrchestrator_DeleteQuotaRule(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteQuotaRulesParam{}
+		params := &commonparams.DeleteQuotaRulesParam{}
 
 		result, jobID, err := orch.DeleteQuotaRule(ctx, params)
 
@@ -712,7 +714,7 @@ func TestOCIOrchestrator_DeleteQuotaRuleInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteQuotaRulesParam{}
+		params := &commonparams.DeleteQuotaRulesParam{}
 
 		result, job, err := orch.DeleteQuotaRuleInternal(ctx, params)
 
@@ -727,7 +729,7 @@ func TestOCIOrchestrator_ListQuotaRules(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ListQuotaRulesParams{}
+		params := &commonparams.ListQuotaRulesParams{}
 
 		result, err := orch.ListQuotaRules(ctx, params)
 
@@ -767,7 +769,7 @@ func TestOCIOrchestrator_CreateVolumeReplicationInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateVolumeReplicationInternalParams{}
+		params := &commonparams.CreateVolumeReplicationInternalParams{}
 
 		result, job, err := orch.CreateVolumeReplicationInternal(ctx, params)
 
@@ -795,7 +797,7 @@ func TestOCIOrchestrator_CreateVolumeReplication(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateVolumeReplicationParams{}
+		params := &commonparams.CreateVolumeReplicationParams{}
 
 		result, jobID, err := orch.CreateVolumeReplication(ctx, params)
 
@@ -810,7 +812,7 @@ func TestOCIOrchestrator_UpdateVolumeReplicationInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateVolumeReplicationInternalParams{}
+		params := &commonparams.UpdateVolumeReplicationInternalParams{}
 
 		result, job, err := orch.UpdateVolumeReplicationInternal(ctx, params)
 
@@ -866,7 +868,7 @@ func TestOCIOrchestrator_GetMultipleReplications(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := common.GetMultipleReplicationsParams{}
+		params := commonparams.GetMultipleReplicationsParams{}
 
 		result, err := orch.GetMultipleReplications(ctx, params)
 
@@ -880,7 +882,7 @@ func TestOCIOrchestrator_GetMultipleReplicationsByExternalUUID(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := common.GetMultipleReplicationsByExternalUUIDParams{}
+		params := commonparams.GetMultipleReplicationsByExternalUUIDParams{}
 
 		result, err := orch.GetMultipleReplicationsByExternalUUID(ctx, params)
 
@@ -894,7 +896,7 @@ func TestOCIOrchestrator_AcceptClusterPeer(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ClusterPeerParams{}
+		params := &commonparams.ClusterPeerParams{}
 
 		result, job, err := orch.AcceptClusterPeer(ctx, params, "pool-id")
 
@@ -922,7 +924,7 @@ func TestOCIOrchestrator_ResumeReplication(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ResumeReplicationParams{}
+		params := &commonparams.ResumeReplicationParams{}
 
 		result, jobID, err := orch.ResumeReplication(ctx, params)
 
@@ -937,7 +939,7 @@ func TestOCIOrchestrator_UpdateReplication(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateReplicationParams{}
+		params := &commonparams.UpdateReplicationParams{}
 
 		result, jobID, err := orch.UpdateReplication(ctx, params)
 
@@ -1035,7 +1037,7 @@ func TestOCIOrchestrator_StopReplication(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.StopReplicationParams{}
+		params := &commonparams.StopReplicationParams{}
 
 		result, jobID, err := orch.StopReplication(ctx, params)
 
@@ -1050,7 +1052,7 @@ func TestOCIOrchestrator_DeleteReplication(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteReplicationParams{}
+		params := &commonparams.DeleteReplicationParams{}
 
 		result, jobID, err := orch.DeleteReplication(ctx, params, "cleanup-job-id", false)
 
@@ -1065,7 +1067,7 @@ func TestOCIOrchestrator_SyncReplication(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ResumeReplicationParams{}
+		params := &commonparams.ResumeReplicationParams{}
 
 		result, jobID, err := orch.SyncReplication(ctx, params)
 
@@ -1080,7 +1082,7 @@ func TestOCIOrchestrator_ReverseAndResumeReplication(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ReverseAndResumeReplicationParams{}
+		params := &commonparams.ReverseAndResumeReplicationParams{}
 
 		result, jobID, err := orch.ReverseAndResumeReplication(ctx, params)
 
@@ -1095,7 +1097,7 @@ func TestOCIOrchestrator_CreateKmsConfig(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateKmsConfigParams{}
+		params := &commonparams.CreateKmsConfigParams{}
 
 		result, jobID, err := orch.CreateKmsConfig(ctx, params)
 
@@ -1110,7 +1112,7 @@ func TestOCIOrchestrator_GetKmsConfig(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetKmsConfigParams{}
+		params := &commonparams.GetKmsConfigParams{}
 
 		result, err := orch.GetKmsConfig(ctx, params)
 
@@ -1124,7 +1126,7 @@ func TestOCIOrchestrator_GetKmsConfigByKeyFullPath(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetKmsConfigParams{}
+		params := &commonparams.GetKmsConfigParams{}
 
 		result, err := orch.GetKmsConfigByKeyFullPath(ctx, params)
 
@@ -1151,7 +1153,7 @@ func TestOCIOrchestrator_UpdateKmsConfig(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateKmsConfigParams{}
+		params := &commonparams.UpdateKmsConfigParams{}
 
 		result, err := orch.UpdateKmsConfig(ctx, params)
 
@@ -1192,7 +1194,7 @@ func TestOCIOrchestrator_DeleteKmsConfig(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteKmsConfigParams{}
+		params := &commonparams.DeleteKmsConfigParams{}
 
 		result, jobID, err := orch.DeleteKmsConfig(ctx, params)
 
@@ -1207,7 +1209,7 @@ func TestOCIOrchestrator_MigrateKmsConfig(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.MigrateKmsConfigParams{}
+		params := &commonparams.MigrateKmsConfigParams{}
 
 		result, err := orch.MigrateKmsConfig(ctx, params)
 
@@ -1221,7 +1223,7 @@ func TestOCIOrchestrator_RotateKmsConfig(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.RotateKmsConfigParams{}
+		params := &commonparams.RotateKmsConfigParams{}
 
 		result, job, err := orch.RotateKmsConfig(ctx, params)
 
@@ -1236,7 +1238,7 @@ func TestOCIOrchestrator_CreateAndSyncKmsConfig(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateKmsConfigParams{}
+		params := &commonparams.CreateKmsConfigParams{}
 
 		result, err := orch.CreateAndSyncKmsConfig(ctx, params)
 
@@ -1250,7 +1252,7 @@ func TestOCIOrchestrator_GetSDEKmsConfiguration(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetKmsConfigParams{}
+		params := &commonparams.GetKmsConfigParams{}
 
 		result, err := orch.GetSDEKmsConfiguration(ctx, params)
 
@@ -1303,7 +1305,7 @@ func TestOCIOrchestrator_UpdateBackupPolicy(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateBackupPolicyParams{}
+		params := &commonparams.UpdateBackupPolicyParams{}
 
 		result, jobID, err := orch.UpdateBackupPolicy(ctx, params)
 
@@ -1346,7 +1348,7 @@ func TestOCIOrchestrator_DeleteBackupPolicy(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteBackupPolicyParams{}
+		params := &commonparams.DeleteBackupPolicyParams{}
 
 		result, jobID, err := orch.DeleteBackupPolicy(ctx, params)
 
@@ -1400,7 +1402,7 @@ func TestOCIOrchestrator_UpdateBackupVault(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.BackupVaultParams{}
+		params := &commonparams.BackupVaultParams{}
 
 		result, jobID, err := orch.UpdateBackupVault(ctx, params)
 
@@ -1428,7 +1430,7 @@ func TestOCIOrchestrator_DeleteBackupVault(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.BackupVaultParams{}
+		params := &commonparams.BackupVaultParams{}
 
 		result, jobID, err := orch.DeleteBackupVault(ctx, params)
 
@@ -1443,7 +1445,7 @@ func TestOCIOrchestrator_DeleteBackupVaultInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.BackupVaultParams{}
+		params := &commonparams.BackupVaultParams{}
 
 		result, err := orch.DeleteBackupVaultInternal(ctx, params)
 
@@ -1457,7 +1459,7 @@ func TestOCIOrchestrator_UpdateBackupVaultInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.BackupVaultParams{}
+		params := &commonparams.BackupVaultParams{}
 
 		result, jobID, err := orch.UpdateBackupVaultInternal(ctx, params, false)
 
@@ -1500,7 +1502,7 @@ func TestOCIOrchestrator_CreateBackupVaultEntryInVCP(t *testing.T) {
 		ctx := context.Background()
 		bv := &datamodel.BackupVault{}
 
-		result, err := orch.CreateBackupVaultEntryInVCP(ctx, bv, &common.BackupVaultParams{})
+		result, err := orch.CreateBackupVaultEntryInVCP(ctx, bv, &commonparams.BackupVaultParams{})
 
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsNotImplementedYetErr(err))
@@ -1512,7 +1514,7 @@ func TestOCIOrchestrator_CreateBackupVault(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateBackupVaultParams{}
+		params := &commonparams.CreateBackupVaultParams{}
 
 		jobID, err := orch.CreateBackupVault(ctx, params)
 
@@ -1575,7 +1577,7 @@ func TestOCIOrchestrator_UpdateResourceState(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateResourceStateParams{}
+		params := &commonparams.UpdateResourceStateParams{}
 
 		result, err := orch.UpdateResourceState(ctx, params)
 
@@ -1589,7 +1591,7 @@ func TestOCIOrchestrator_CreateBackup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateBackupParams{}
+		params := &commonparams.CreateBackupParams{}
 
 		result, jobID, err := orch.CreateBackup(ctx, params)
 
@@ -1604,7 +1606,7 @@ func TestOCIOrchestrator_CreateBackupInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateBackupParams{}
+		params := &commonparams.CreateBackupParams{}
 
 		result, jobID, err := orch.CreateBackupInternal(ctx, params)
 
@@ -1619,7 +1621,7 @@ func TestOCIOrchestrator_GetBackup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetBackupParams{}
+		params := &commonparams.GetBackupParams{}
 
 		result, err := orch.GetBackup(ctx, params)
 
@@ -1646,7 +1648,7 @@ func TestOCIOrchestrator_DeleteBackup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteBackupParams{}
+		params := &commonparams.DeleteBackupParams{}
 
 		result, jobID, err := orch.DeleteBackup(ctx, params)
 
@@ -1661,7 +1663,7 @@ func TestOCIOrchestrator_DeleteBackupInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteBackupParams{}
+		params := &commonparams.DeleteBackupParams{}
 
 		result, err := orch.DeleteBackupInternal(ctx, params)
 
@@ -1688,7 +1690,7 @@ func TestOCIOrchestrator_UpdateBackup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateBackupParams{}
+		params := &commonparams.UpdateBackupParams{}
 
 		result, jobID, err := orch.UpdateBackup(ctx, params)
 
@@ -1703,7 +1705,7 @@ func TestOCIOrchestrator_UpdateBackupInternal(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateBackupParams{}
+		params := &commonparams.UpdateBackupParams{}
 
 		result, jobID, err := orch.UpdateBackupInternal(ctx, params)
 
@@ -1743,7 +1745,7 @@ func TestOCIOrchestrator_RotateCmekBackupsForBackupVault(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.BackupVaultParams{}
+		params := &commonparams.BackupVaultParams{}
 
 		result, err := orch.RotateCmekBackupsForBackupVault(ctx, params, "primary-key-version")
 
@@ -1757,7 +1759,7 @@ func TestOCIOrchestrator_CreateOrGetStartProjectEventJob(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.StartProjectEventParams{}
+		params := &commonparams.StartProjectEventParams{}
 
 		result, err := orch.CreateOrGetStartProjectEventJob(ctx, params)
 
@@ -1771,7 +1773,7 @@ func TestOCIOrchestrator_CreateOrGetFinishProjectEventJob(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.FinishProjectEventParams{}
+		params := &commonparams.FinishProjectEventParams{}
 
 		result, err := orch.CreateOrGetFinishProjectEventJob(ctx, params)
 
@@ -1785,7 +1787,7 @@ func TestOCIOrchestrator_CreateActiveDirectory(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateActiveDirectoryParams{}
+		params := &commonparams.CreateActiveDirectoryParams{}
 
 		result, jobID, err := orch.CreateActiveDirectory(ctx, params)
 
@@ -1800,7 +1802,7 @@ func TestOCIOrchestrator_UpdateActiveDirectory(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateActiveDirectoryParams{}
+		params := &commonparams.UpdateActiveDirectoryParams{}
 
 		result, jobID, err := orch.UpdateActiveDirectory(ctx, params)
 
@@ -1811,77 +1813,11 @@ func TestOCIOrchestrator_UpdateActiveDirectory(t *testing.T) {
 	})
 }
 
-func TestOCIOrchestrator_UpgradeCluster(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
-		orch := &OCIOrchestrator{}
-		ctx := context.Background()
-		params := &common.UpgradeClusterParams{}
-
-		result, jobID, err := orch.UpgradeCluster(ctx, params)
-
-		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotImplementedYetErr(err))
-		assert.Nil(tt, result)
-		assert.Empty(tt, jobID)
-	})
-}
-
-func TestOCIOrchestrator_GetClusterUpgradeStatus(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
-		orch := &OCIOrchestrator{}
-		ctx := context.Background()
-
-		result, err := orch.GetClusterUpgradeStatus(ctx, "job-uuid")
-
-		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotImplementedYetErr(err))
-		assert.Nil(tt, result)
-	})
-}
-
-func TestOCIOrchestrator_ListAvailableVersions(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
-		orch := &OCIOrchestrator{}
-		ctx := context.Background()
-
-		result, err := orch.ListAvailableVersions(ctx)
-
-		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotImplementedYetErr(err))
-		assert.Nil(tt, result)
-	})
-}
-
-func TestOCIOrchestrator_CreateImageVersion(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
-		orch := &OCIOrchestrator{}
-		ctx := context.Background()
-
-		result, err := orch.CreateImageVersion(ctx, "ontap-version", "vsa-image-path", "vsa-name", "mediator-name", false)
-
-		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotImplementedYetErr(err))
-		assert.Nil(tt, result)
-	})
-}
-
-func TestOCIOrchestrator_DeleteImageVersion(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
-		orch := &OCIOrchestrator{}
-		ctx := context.Background()
-
-		err := orch.DeleteImageVersion(ctx, "ontap-version")
-
-		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotImplementedYetErr(err))
-	})
-}
-
 func TestOCIOrchestrator_GetActiveDirectory(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetADParams{}
+		params := &commonparams.GetADParams{}
 
 		result, err := orch.GetActiveDirectory(ctx, params)
 
@@ -1921,7 +1857,7 @@ func TestOCIOrchestrator_GetADConfig(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetADParams{}
+		params := &commonparams.GetADParams{}
 
 		result, err := orch.GetADConfig(ctx, params)
 
@@ -1935,7 +1871,7 @@ func TestOCIOrchestrator_GetSDEActiveDirectory(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetADParams{}
+		params := &commonparams.GetADParams{}
 
 		result, err := orch.GetSDEActiveDirectory(ctx, params)
 
@@ -1949,7 +1885,7 @@ func TestOCIOrchestrator_DeleteActiveDirectory(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteActiveDirectoryParams{}
+		params := &commonparams.DeleteActiveDirectoryParams{}
 
 		result, err := orch.DeleteActiveDirectory(ctx, params)
 
@@ -1976,7 +1912,7 @@ func TestOCIOrchestrator_CreateExpertModeVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ExpertModeVolumeParams{}
+		params := &commonparams.ExpertModeVolumeParams{}
 
 		err := orch.CreateExpertModeVolume(ctx, params)
 
@@ -1989,7 +1925,7 @@ func TestOCIOrchestrator_UpdateExpertModeVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ExpertModeVolumeParams{}
+		params := &commonparams.ExpertModeVolumeParams{}
 
 		err := orch.UpdateExpertModeVolume(ctx, params)
 
@@ -2002,7 +1938,7 @@ func TestOCIOrchestrator_DeleteExpertModeVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ExpertModeVolumeParams{}
+		params := &commonparams.ExpertModeVolumeParams{}
 
 		err := orch.DeleteExpertModeVolume(ctx, params)
 
@@ -2015,7 +1951,7 @@ func TestOCIOrchestrator_RenameExpertModeVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ExpertModeVolumeRenameParams{}
+		params := &commonparams.ExpertModeVolumeRenameParams{}
 
 		err := orch.RenameExpertModeVolume(ctx, params)
 
@@ -2028,7 +1964,7 @@ func TestOCIOrchestrator_StartExpertModeFlexCloneSplit(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ExpertModeFlexCloneSplitParams{}
+		params := &commonparams.ExpertModeFlexCloneSplitParams{}
 
 		err := orch.StartExpertModeFlexCloneSplit(ctx, params)
 
@@ -2051,14 +1987,16 @@ func TestOCIOrchestrator_UpdateRbacForPools(t *testing.T) {
 }
 
 func TestOCIOrchestrator_UpdateRbacForPoolById(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
-		orch := &OCIOrchestrator{}
+	t.Run("ReturnsBadRequestWhenPoolOCIDMissing", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		orch := NewOCIOrchestrator(mockStorage, mockTemporal)
 		ctx := context.Background()
 
-		result, err := orch.UpdateRbacForPoolById(ctx, "6bed33e1-cc9c-e0b5-ac63-24e9410e64c1")
+		result, err := orch.UpdateRbacForPoolById(ctx, &commonparams.RefreshRbacForPoolParams{PoolID: "6bed33e1-cc9c-e0b5-ac63-24e9410e64c1"})
 
 		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.True(tt, errors.IsBadRequestErr(err))
 		assert.Empty(tt, result)
 	})
 }
@@ -2080,7 +2018,7 @@ func TestOCIOrchestrator_CreateVolumePerformanceGroup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.CreateVolumePerformanceGroupParams{}
+		params := &commonparams.CreateVolumePerformanceGroupParams{}
 
 		result, err := orch.CreateVolumePerformanceGroup(ctx, params)
 
@@ -2094,7 +2032,7 @@ func TestOCIOrchestrator_ListVolumePerformanceGroups(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ListVolumePerformanceGroupsParams{}
+		params := &commonparams.ListVolumePerformanceGroupsParams{}
 
 		result, err := orch.ListVolumePerformanceGroups(ctx, params)
 
@@ -2108,7 +2046,7 @@ func TestOCIOrchestrator_GetVolumePerformanceGroup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.GetVolumePerformanceGroupParams{}
+		params := &commonparams.GetVolumePerformanceGroupParams{}
 
 		result, err := orch.GetVolumePerformanceGroup(ctx, params)
 
@@ -2122,7 +2060,7 @@ func TestOCIOrchestrator_UpdateVolumePerformanceGroup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.UpdateVolumePerformanceGroupParams{}
+		params := &commonparams.UpdateVolumePerformanceGroupParams{}
 
 		result, jobUUID, err := orch.UpdateVolumePerformanceGroup(ctx, params)
 
@@ -2137,7 +2075,7 @@ func TestOCIOrchestrator_DeleteVolumePerformanceGroup(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.DeleteVolumePerformanceGroupParams{}
+		params := &commonparams.DeleteVolumePerformanceGroupParams{}
 
 		_, jobUUID, err := orch.DeleteVolumePerformanceGroup(ctx, params)
 
@@ -2151,8 +2089,8 @@ func TestOCIOrchestrator_ReplaceDstQuotaRulesWithSrc(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		req := &common.UpdateDstWithSrcQuotaRulesV1beta{}
-		params := common.V1betaUpdateDestinationQuotaRulesVCPParams{}
+		req := &commonparams.UpdateDstWithSrcQuotaRulesV1beta{}
+		params := commonparams.V1betaUpdateDestinationQuotaRulesVCPParams{}
 
 		result, err := orch.ReplaceDstQuotaRulesWithSrc(ctx, req, params)
 
@@ -2166,7 +2104,7 @@ func TestOCIOrchestrator_ManageBackupConfigForExpertModeVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.ManageBackupConfigForExpertModeVolumeParams{}
+		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{}
 
 		backupConfig, jobUUID, err := orch.ManageBackupConfigForExpertModeVolume(ctx, params)
 
@@ -2245,5 +2183,813 @@ func TestOCIOrchestrator_GetNodesByPoolUUID(t *testing.T) {
 			assert.Equal(tt, "node-uuid-1", result[0].UUID)
 			assert.Equal(tt, "vm-01", result[0].Name)
 		}
+	})
+}
+
+func TestOCIOrchestrator_HasActiveClusterUpgrade(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		result, err := orch.HasActiveClusterUpgrade(ctx, "cluster-id")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.False(tt, result)
+	})
+}
+
+func TestOCIOrchestrator_DeleteImageVersion(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		err := orch.DeleteImageVersion(ctx, "9.17.1P2")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+	})
+}
+
+func TestOCIOrchestrator_UpdateRbacForPoolById_Success(t *testing.T) {
+	t.Run("DispatchesWorkflowSuccessfully", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		orch := NewOCIOrchestrator(mockStorage, mockTemporal)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 10}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		params := &commonparams.RefreshRbacForPoolParams{
+			PoolOCID:    "ocid1.pool.oc1..abc",
+			AccountName: "test-account",
+			RbacFileURL: "https://example.com/rbac.yaml",
+		}
+		result, err := orch.UpdateRbacForPoolById(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotEmpty(tt, result)
+	})
+
+	t.Run("ReturnsErrorWhenAccountNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		orch := NewOCIOrchestrator(mockStorage, mockTemporal)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "missing-account").Return(nil, gorm.ErrRecordNotFound)
+
+		params := &commonparams.RefreshRbacForPoolParams{
+			PoolOCID:    "ocid1.pool.oc1..abc",
+			AccountName: "missing-account",
+		}
+		result, err := orch.UpdateRbacForPoolById(ctx, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.Empty(tt, result)
+	})
+
+	t.Run("ReturnsErrorWhenPoolNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		orch := NewOCIOrchestrator(mockStorage, mockTemporal)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 10}, Name: "test-account"}
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, gorm.ErrRecordNotFound)
+
+		params := &commonparams.RefreshRbacForPoolParams{
+			PoolOCID:    "ocid1.pool.oc1..missing",
+			AccountName: "test-account",
+		}
+		result, err := orch.UpdateRbacForPoolById(ctx, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.Empty(tt, result)
+	})
+
+	t.Run("ReturnsErrorWhenWorkflowFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		orch := NewOCIOrchestrator(mockStorage, mockTemporal)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 10}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("temporal unavailable"))
+
+		params := &commonparams.RefreshRbacForPoolParams{
+			PoolOCID:    "ocid1.pool.oc1..abc",
+			AccountName: "test-account",
+		}
+		result, err := orch.UpdateRbacForPoolById(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to dispatch RBAC refresh workflow")
+		assert.Empty(tt, result)
+	})
+}
+
+func TestGetPoolByOCID(t *testing.T) {
+	t.Run("ReturnsBadRequestWhenPoolOCIDEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		result, err := getPoolByOCID(ctx, mockStorage, "", "account-name")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsBadRequestErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsBadRequestWhenAccountNameEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		result, err := getPoolByOCID(ctx, mockStorage, "ocid1.pool.oc1..abc", "")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsBadRequestErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsBadRequestWhenBothEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		result, err := getPoolByOCID(ctx, mockStorage, "", "")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsBadRequestErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsNotFoundWhenAccountNotFound_GormErr", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "missing-account").Return(nil, gorm.ErrRecordNotFound)
+
+		result, err := getPoolByOCID(ctx, mockStorage, "ocid1.pool.oc1..abc", "missing-account")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsNotFoundWhenAccountNotFound_CustomErr", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		accountName := "missing-account"
+		mockStorage.EXPECT().GetAccount(mock.Anything, accountName).Return(nil, errors.NewNotFoundErr("account", &accountName))
+
+		result, err := getPoolByOCID(ctx, mockStorage, "ocid1.pool.oc1..abc", accountName)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsRawErrorOnAccountLookupFailure", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "account-name").Return(nil, fmt.Errorf("db connection failed"))
+
+		result, err := getPoolByOCID(ctx, mockStorage, "ocid1.pool.oc1..abc", "account-name")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "db connection failed")
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsNotFoundWhenPoolNotFound_GormErr", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 5}, Name: "test-account"}
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, gorm.ErrRecordNotFound)
+
+		result, err := getPoolByOCID(ctx, mockStorage, "ocid1.pool.oc1..missing", "test-account")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsNotFoundWhenPoolNotFound_CustomErr", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		poolOCID := "ocid1.pool.oc1..missing"
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 5}, Name: "test-account"}
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("pool", &poolOCID))
+
+		result, err := getPoolByOCID(ctx, mockStorage, poolOCID, "test-account")
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsRawErrorOnPoolLookupFailure", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 5}, Name: "test-account"}
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("timeout"))
+
+		result, err := getPoolByOCID(ctx, mockStorage, "ocid1.pool.oc1..abc", "test-account")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "timeout")
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsPoolOnSuccess", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 5}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:              datamodel.BaseModel{UUID: "pool-uuid-1", ID: 100},
+				PoolExternalIdentifier: "ocid1.pool.oc1..abc",
+				State:                  models.LifeCycleStateREADY,
+			},
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+
+		result, err := getPoolByOCID(ctx, mockStorage, "ocid1.pool.oc1..abc", "test-account")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "pool-uuid-1", result.UUID)
+	})
+}
+
+func TestCheckActiveUpgradeJob(t *testing.T) {
+	t.Run("ReturnsNilWhenNoJobs", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "cluster-1").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+
+		result, err := common.CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsNilWhenAllJobsCompleted", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		jobs := []*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, Status: string(models.UpgradeStatusCompleted)},
+			{BaseModel: datamodel.BaseModel{UUID: "job-2"}, Status: string(models.UpgradeStatusFailed)},
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "cluster-1").Return(jobs, nil)
+
+		result, err := common.CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsPendingJob", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		jobs := []*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, Status: string(models.UpgradeStatusCompleted)},
+			{BaseModel: datamodel.BaseModel{UUID: "job-2"}, Status: string(models.UpgradeStatusPending)},
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "cluster-1").Return(jobs, nil)
+
+		result, err := common.CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "job-2", result.UUID)
+		assert.Equal(tt, string(models.UpgradeStatusPending), result.Status)
+	})
+
+	t.Run("ReturnsInProgressJob", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		jobs := []*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, Status: string(models.UpgradeStatusInProgress)},
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "cluster-1").Return(jobs, nil)
+
+		result, err := common.CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "job-1", result.UUID)
+		assert.Equal(tt, string(models.UpgradeStatusInProgress), result.Status)
+	})
+
+	t.Run("ReturnsErrorOnStorageFailure", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "cluster-1").Return(nil, fmt.Errorf("db error"))
+
+		result, err := common.CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "db error")
+		assert.Nil(tt, result)
+	})
+}
+
+func TestCreateUpgradeJobInDB(t *testing.T) {
+	t.Run("CreatesJobWithBuildInfoVersion", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+			BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: "9.16.1"},
+		}
+		params := &commonparams.UpgradeClusterParams{
+			ClusterID: "cluster-1",
+			Metadata:  map[string]string{"key": "value"},
+		}
+
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.MatchedBy(func(job *datamodel.ClusterUpgradeJob) bool {
+			return job.UUID == "test-job-uuid" &&
+				job.ClusterID == "pool-uuid-1" &&
+				job.PoolID == "pool-uuid-1" &&
+				job.TargetVersion == "9.17.1P2" &&
+				job.CurrentVersion == "9.16.1" &&
+				job.VSABuildImage == "/path/to/image" &&
+				job.Status == string(models.UpgradeStatusPending) &&
+				job.Metadata != nil
+		})).Return(&datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Status:    string(models.UpgradeStatusPending),
+		}, nil)
+
+		result, err := createUpgradeJobInDB(ctx, mockStorage, params, pool, "9.17.1P2", "test-job-uuid", "/path/to/image")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-job-uuid", result.UUID)
+	})
+
+	t.Run("CreatesJobWithUnknownVersionWhenBuildInfoNil", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"},
+			BuildInfo: nil,
+		}
+		params := &commonparams.UpgradeClusterParams{
+			ClusterID:    "cluster-2",
+			ForceUpgrade: true,
+		}
+
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.MatchedBy(func(job *datamodel.ClusterUpgradeJob) bool {
+			return job.CurrentVersion == "unknown" &&
+				job.ForceUpgrade == true &&
+				job.Metadata == nil
+		})).Return(&datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid-2"},
+		}, nil)
+
+		result, err := createUpgradeJobInDB(ctx, mockStorage, params, pool, "9.17.1P2", "test-job-uuid-2", "/path/to/image")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("CreatesJobWithUnknownVersionWhenOntapVersionEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"},
+			BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: ""},
+		}
+		params := &commonparams.UpgradeClusterParams{ClusterID: "cluster-3"}
+
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.MatchedBy(func(job *datamodel.ClusterUpgradeJob) bool {
+			return job.CurrentVersion == "unknown"
+		})).Return(&datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid-3"},
+		}, nil)
+
+		result, err := createUpgradeJobInDB(ctx, mockStorage, params, pool, "9.17.1P2", "test-job-uuid-3", "")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("ReturnsErrorOnStorageFailure", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		ctx := context.Background()
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-4"},
+		}
+		params := &commonparams.UpgradeClusterParams{ClusterID: "cluster-4"}
+
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("constraint violation"))
+
+		result, err := createUpgradeJobInDB(ctx, mockStorage, params, pool, "9.17.1P2", "test-job-uuid-4", "")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "constraint violation")
+		assert.Nil(tt, result)
+	})
+}
+
+func TestConvertMetadataToJSONB(t *testing.T) {
+	t.Run("ReturnsNilForNilInput", func(tt *testing.T) {
+		result := common.ConvertMetadataToJSONB(nil)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ConvertsEmptyMap", func(tt *testing.T) {
+		result := common.ConvertMetadataToJSONB(map[string]string{})
+
+		assert.NotNil(tt, result)
+		assert.Empty(tt, *result)
+	})
+
+	t.Run("ConvertsSingleEntry", func(tt *testing.T) {
+		input := map[string]string{"key1": "value1"}
+
+		result := common.ConvertMetadataToJSONB(input)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "value1", (*result)["key1"])
+	})
+
+	t.Run("ConvertsMultipleEntries", func(tt *testing.T) {
+		input := map[string]string{
+			"env":     "staging",
+			"team":    "storage",
+			"version": "9.17.1",
+		}
+
+		result := common.ConvertMetadataToJSONB(input)
+
+		assert.NotNil(tt, result)
+		assert.Len(tt, *result, 3)
+		assert.Equal(tt, "staging", (*result)["env"])
+		assert.Equal(tt, "storage", (*result)["team"])
+		assert.Equal(tt, "9.17.1", (*result)["version"])
+	})
+}
+
+func TestUpgradeCluster(t *testing.T) {
+	t.Run("ReturnsErrorWhenGetPoolByOCIDFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(nil, gorm.ErrRecordNotFound)
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:    "ocid1.pool.oc1..abc",
+			AccountName: "test-account",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.Nil(tt, result)
+		assert.Empty(tt, wfID)
+	})
+
+	t.Run("ReturnsErrorWhenClusterNotInValidState", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				State:     "CREATING",
+			},
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:    "ocid1.pool.oc1..abc",
+			AccountName: "test-account",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "READY or DISABLED")
+		assert.Nil(tt, result)
+		assert.Empty(tt, wfID)
+	})
+
+	t.Run("ReturnsErrorWhenCheckActiveUpgradeJobFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return(nil, fmt.Errorf("db error"))
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:    "ocid1.pool.oc1..abc",
+			AccountName: "test-account",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUnavailableErr(err))
+		assert.Nil(tt, result)
+		assert.Empty(tt, wfID)
+	})
+
+	t.Run("ReturnsConflictWhenActiveUpgradeJobExists", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+		activeJobs := []*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "active-job"}, Status: string(models.UpgradeStatusInProgress)},
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return(activeJobs, nil)
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:    "ocid1.pool.oc1..abc",
+			AccountName: "test-account",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsConflictErr(err))
+		assert.Contains(tt, err.Error(), "active-job")
+		assert.Nil(tt, result)
+		assert.Empty(tt, wfID)
+	})
+
+	t.Run("ReturnsErrorWhenCreateUpgradeJobFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("insert failed"))
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:           "ocid1.pool.oc1..abc",
+			AccountName:        "test-account",
+			TargetOntapVersion: "9.17.1P2",
+			VSAImagePath:       "/path/to/image",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUnavailableErr(err))
+		assert.Nil(tt, result)
+		assert.Empty(tt, wfID)
+	})
+
+	t.Run("ReturnsErrorWhenWorkflowExecutionFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+		createdJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "new-job-uuid"},
+			Status:    string(models.UpgradeStatusPending),
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("workflow error"))
+		mockStorage.EXPECT().GetClusterUpgradeJobByUUID(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateClusterUpgradeJob(mock.Anything, mock.MatchedBy(func(j *datamodel.ClusterUpgradeJob) bool {
+			return j.Status == string(models.UpgradeStatusFailed) && j.ErrorDetails != nil
+		})).Return(nil)
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:           "ocid1.pool.oc1..abc",
+			AccountName:        "test-account",
+			TargetOntapVersion: "9.17.1P2",
+			VSAImagePath:       "/path/to/image",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUnavailableErr(err))
+		assert.Nil(tt, result)
+		assert.Empty(tt, wfID)
+	})
+
+	t.Run("MarkJobFailedErrorIsLoggedNonFatal", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+		createdJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "new-job-uuid"},
+			Status:    string(models.UpgradeStatusPending),
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("workflow error"))
+		mockStorage.EXPECT().GetClusterUpgradeJobByUUID(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("db unavailable"))
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:           "ocid1.pool.oc1..abc",
+			AccountName:        "test-account",
+			TargetOntapVersion: "9.17.1P2",
+			VSAImagePath:       "/path/to/image",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUnavailableErr(err))
+		assert.Nil(tt, result)
+		assert.Empty(tt, wfID)
+	})
+
+	t.Run("SucceedsWithREADYStatePool", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+				BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: "9.16.1"},
+			},
+		}
+		createdJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "new-job-uuid"},
+			Status:    string(models.UpgradeStatusPending),
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:           "ocid1.pool.oc1..abc",
+			AccountName:        "test-account",
+			TargetOntapVersion: "9.17.1P2",
+			VSAImagePath:       "/path/to/image",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotEmpty(tt, wfID)
+		assert.Equal(tt, "pool-uuid", result.ClusterID)
+		assert.Equal(tt, models.UpgradeStatusInProgress, result.Status)
+		assert.Equal(tt, "new-job-uuid", result.JobID)
+	})
+
+	t.Run("SucceedsWithDISABLEDStatePool", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				State:     models.LifeCycleStateDisabled,
+			},
+		}
+		createdJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "new-job-uuid"},
+			Status:    string(models.UpgradeStatusPending),
+		}
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(account, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:           "ocid1.pool.oc1..abc",
+			AccountName:        "test-account",
+			TargetOntapVersion: "9.17.1P2",
+		}
+		result, wfID, err := upgradeCluster(ctx, mockStorage, mockTemporal, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotEmpty(tt, wfID)
+		assert.Equal(tt, models.UpgradeStatusInProgress, result.Status)
+	})
+
+	t.Run("OrchestratorWrapperDelegatesToInternal", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		orch := NewOCIOrchestrator(mockStorage, mockTemporal)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-account").Return(nil, gorm.ErrRecordNotFound)
+
+		params := &commonparams.UpgradeClusterParams{
+			PoolOCID:    "ocid1.pool.oc1..abc",
+			AccountName: "test-account",
+		}
+		result, wfID, err := orch.UpgradeCluster(ctx, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.Nil(tt, result)
+		assert.Empty(tt, wfID)
 	})
 }

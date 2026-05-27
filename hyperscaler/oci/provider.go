@@ -9,6 +9,7 @@ import (
 
 	"github.com/oracle/oci-go-sdk/v65/common"
 	"github.com/oracle/oci-go-sdk/v65/common/auth"
+	"github.com/oracle/oci-go-sdk/v65/objectstorage"
 	"github.com/oracle/oci-go-sdk/v65/secrets"
 	"github.com/oracle/oci-go-sdk/v65/vault"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -27,23 +28,30 @@ type OciServices struct {
 	AdminOCIService *AdminOCIService
 }
 
-// AdminOCIService groups the OCI SDK clients needed for secret management.
+// AdminOCIService groups the OCI SDK clients needed for secret management
+// and object storage pre-authenticated request (PAR) generation.
 //
 // OCI splits secret operations across two services:
 //   - vault.VaultsClient  — CRUD on secret metadata + creating new versions (write API)
 //   - secrets.SecretsClient — reading secret content / bundles (read API)
 //
+// Object Storage exposes a single client used to mint PARs for the VSA image
+// hand-off to VLM, mirroring what GcpServices does with V4 signed URLs on GCS.
+//
 // Docs:
-//   - Vault (write): https://docs.oracle.com/en-us/iaas/api/#/en/secretmgmt/20180608/
-//   - Secrets (read): https://docs.oracle.com/en-us/iaas/api/#/en/secretretrieval/20190301/
+//   - Vault (write):       https://docs.oracle.com/en-us/iaas/api/#/en/secretmgmt/20180608/
+//   - Secrets (read):      https://docs.oracle.com/en-us/iaas/api/#/en/secretretrieval/20190301/
+//   - Object Storage:      https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/
 type AdminOCIService struct {
-	vaultClient   vault.VaultsClient
-	secretsClient secrets.SecretsClient
+	vaultClient         vault.VaultsClient
+	secretsClient       secrets.SecretsClient
+	objectStorageClient objectstorage.ObjectStorageClient
 }
 
 var (
-	initializeVaultClient   = _initializeVaultClient
-	initializeSecretsClient = _initializeSecretsClient
+	initializeVaultClient         = _initializeVaultClient
+	initializeSecretsClient       = _initializeSecretsClient
+	initializeObjectStorageClient = _initializeObjectStorageClient
 )
 
 // InitializeClients Creates the OCI SDK clients using the auth method
@@ -97,9 +105,16 @@ func newOCIClients(ctx context.Context) (*AdminOCIService, error) {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err)
 	}
 
+	objectStorageCl, err := initializeObjectStorageClient()
+	if err != nil {
+		log.Errorf("Error initializing OCI Object Storage client: %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err)
+	}
+
 	return &AdminOCIService{
-		vaultClient:   *vaultCl,
-		secretsClient: *secretsCl,
+		vaultClient:         *vaultCl,
+		secretsClient:       *secretsCl,
+		objectStorageClient: *objectStorageCl,
 	}, nil
 }
 
@@ -196,6 +211,21 @@ func _initializeSecretsClient() (*secrets.SecretsClient, error) {
 	client, err := secrets.NewSecretsClientWithConfigurationProvider(configProvider)
 	if err != nil {
 		return nil, fmt.Errorf("secrets.NewSecretsClientWithConfigurationProvider: %w", err)
+	}
+	return &client, nil
+}
+
+// _initializeObjectStorageClient creates the Object Storage client used for
+// pre-authenticated request (PAR) generation and namespace lookup.
+// Docs: https://docs.oracle.com/en-us/iaas/tools/go/65.108.3/objectstorage/index.html
+func _initializeObjectStorageClient() (*objectstorage.ObjectStorageClient, error) {
+	configProvider, err := ociConfigProvider()
+	if err != nil {
+		return nil, fmt.Errorf("ociConfigProvider: %w", err)
+	}
+	client, err := objectstorage.NewObjectStorageClientWithConfigurationProvider(configProvider)
+	if err != nil {
+		return nil, fmt.Errorf("objectstorage.NewObjectStorageClientWithConfigurationProvider: %w", err)
 	}
 	return &client, nil
 }

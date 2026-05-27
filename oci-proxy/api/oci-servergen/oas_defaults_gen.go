@@ -9,3 +9,15 @@ func (s *DeleteSvmReq) setDefaults() {
 		s.Force.SetTo(val)
 	}
 }
+
+// setDefaults set default value of fields.
+func (s *UpgradePoolRequest) setDefaults() {
+	{
+		val := bool(false)
+		s.ForceUpgrade.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.SkipUpdateRBAC.SetTo(val)
+	}
+}

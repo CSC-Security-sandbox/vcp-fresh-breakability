@@ -373,6 +373,155 @@ paths:
           $ref: '#/components/responses/DeletePoolDefaultError'
       x-codegen-request-body-name: body
 
+  /v1beta/pools/{poolOCID}/upgrade:
+    post:
+      tags:
+        - pools
+      summary: Upgrade pool cluster ONTAP version
+      description: |
+        Upgrades the ONTAP software on the pool's underlying VSA cluster to the
+        specified target version using the provided image path. 
+        
+        The operation is asynchronous. Use the returned workflowId to poll for completion.
+      operationId: upgradePool
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/tenancyOCIDHeader'
+        - $ref: '#/components/parameters/poolOCIDPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradePoolRequest'
+            example:
+              targetOntapVersion: "9.20.1P2"
+              vsaImagePath: "/n/controlplane-nb/b/vsaimage/o/image-9-20-1P2.tgz"
+              forceUpgrade: false
+              skipUpdateRBAC: false
+      responses:
+        "202":
+          description: Accepted. Pool upgrade in progress.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpgradePoolAcceptedResponse'
+              example:
+                status: "in_progress"
+                workflowId: "ad134355-08ad-cfd1-a728-b62c3cf754a5"
+                poolOCID: "ocid1.pool.oc1.ashburn-1.testing-pool1"
+        "400":
+          description: Bad request
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "404":
+          description: Not found
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "409":
+          description: Conflict — pool already has an active upgrade
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        default:
+          $ref: '#/components/responses/UpgradePoolDefaultError'
+      x-codegen-request-body-name: body
+
+  /v1beta/pools/{poolOCID}/rbacRefresh:
+    post:
+      tags:
+        - pools
+      summary: Refresh pool RBAC configuration
+      description: |
+        Applies the RBAC definition file to the pool's ONTAP cluster. When
+        rbacFilePath is provided it is used directly; otherwise the service
+        resolves the path from its environment configuration.
+
+        The operation is asynchronous. Use the returned workflowId to poll for completion.
+      operationId: rbacRefreshPool
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/tenancyOCIDHeader'
+        - $ref: '#/components/parameters/poolOCIDPathParameter'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RbacRefreshRequest'
+            example:
+              rbacFilePath: "path/to/rbac-file.json"
+      responses:
+        "202":
+          description: Accepted. RBAC refresh in progress.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RbacRefreshAcceptedResponse'
+              example:
+                status: "in_progress"
+                workflowId: "ad134355-08ad-cfd1-a728-b62c3cf754a5"
+                poolOCID: "ocid1.pool.oc1.ashburn-1.testing-pool1"
+        "400":
+          description: Bad request
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "404":
+          description: Not found
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        default:
+          $ref: '#/components/responses/RbacRefreshPoolDefaultError'
+      x-codegen-request-body-name: body
+
   /v1beta/pools/{poolOCID}/svms:
     post:
       tags:
@@ -837,6 +986,79 @@ components:
         poolOCID:
           type: string
           description: OCID of the pool being updated.
+
+    UpgradePoolRequest:
+      type: object
+      required:
+        - targetOntapVersion
+        - vsaImagePath
+      properties:
+        targetOntapVersion:
+          type: string
+          description: Target ONTAP version (e.g. "9.20.0").
+        vsaImagePath:
+          type: string
+          description: |
+            Full OCI Object Storage path to the ONTAP .tgz upgrade image
+            in the format /n/{namespace}/b/{bucket}/o/{objectName}
+            (e.g. "/n/controlplane-nb/b/vsaimage/o/image-9-20-1P2.tgz").
+        forceUpgrade:
+          type: boolean
+          default: false
+          description: |
+            When true, proceed with the upgrade even if the pool's current
+            build info already matches the target images. Default false.
+        skipUpdateRBAC:
+          type: boolean
+          default: false
+          description: |
+            When true, skip the RBAC refresh after the upgrade completes.
+            Default false (RBAC refresh runs by default).
+
+    UpgradePoolAcceptedResponse:
+      type: object
+      required:
+        - status
+        - workflowId
+        - poolOCID
+      properties:
+        status:
+          type: string
+          description: Current workflow status for the upgrade operation.
+          example: in_progress
+        workflowId:
+          type: string
+          description: Workflow identifier used to poll operation status.
+        poolOCID:
+          type: string
+          description: Pool OCID for the requested pool.
+
+    RbacRefreshRequest:
+      type: object
+      properties:
+        rbacFilePath:
+          type: string
+          description: |
+            When provided, the service uses this path to fetch the RBAC file. 
+            When omitted or null, the service fetch the path from the environment variable if set.
+
+    RbacRefreshAcceptedResponse:
+      type: object
+      required:
+        - status
+        - workflowId
+        - poolOCID
+      properties:
+        status:
+          type: string
+          description: Current workflow status for the RBAC refresh operation.
+          example: in_progress
+        workflowId:
+          type: string
+          description: Workflow identifier used to poll operation status.
+        poolOCID:
+          type: string
+          description: Pool OCID for the requested pool.
 
     DeletePoolAcceptedResponse:
       type: object
@@ -1411,6 +1633,24 @@ components:
           description: Human-readable error message.
 
   responses:
+    UpgradePoolDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolOperationErrorResponse'
+    RbacRefreshPoolDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolOperationErrorResponse'
     CreatePoolDefaultError:
       description: Internal server error
       headers:

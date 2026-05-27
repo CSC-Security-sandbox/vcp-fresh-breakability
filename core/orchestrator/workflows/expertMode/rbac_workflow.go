@@ -3,7 +3,6 @@ package expertMode
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -24,11 +23,7 @@ import (
 )
 
 const (
-	rbacActivityStartToClose   = 3 * time.Minute
-	rbacActivityInitialBackoff = 5 * time.Second
-	rbacActivityMaxInterval    = 2 * time.Minute
-	rbacActivityMaxAttempts    = 3
-	rbacPoolBatchSize          = 5 // Number of pools to process in parallel per batch
+	rbacPoolBatchSize = 5 // Number of pools to process in parallel per batch
 )
 
 // failedPoolInfo tracks a pool that failed during RBAC update
@@ -177,12 +172,12 @@ func UpdateSinglePoolRbacChildWorkflow(ctx workflow.Context, poolDetails expertm
 	logger := util.GetLogger(ctx)
 	ao := workflow.ActivityOptions{
 		TaskQueue:           workflowengine.BackgroundTaskQueue,
-		StartToCloseTimeout: rbacActivityStartToClose,
+		StartToCloseTimeout: workflows.RbacActivityStartToClose,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:        rbacActivityInitialBackoff,
+			InitialInterval:        workflows.RbacActivityInitialBackoff,
 			BackoffCoefficient:     2.0,
-			MaximumInterval:        rbacActivityMaxInterval,
-			MaximumAttempts:        int32(rbacActivityMaxAttempts),
+			MaximumInterval:        workflows.RbacActivityMaxInterval,
+			MaximumAttempts:        int32(workflows.RbacActivityMaxAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
@@ -275,12 +270,12 @@ func UpdateSinglePoolRbacChildWorkflow(ctx workflow.Context, poolDetails expertm
 
 func (wf *updateRBACForPoolsWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: rbacActivityStartToClose,
+		StartToCloseTimeout: workflows.RbacActivityStartToClose,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:        rbacActivityInitialBackoff,
+			InitialInterval:        workflows.RbacActivityInitialBackoff,
 			BackoffCoefficient:     2.0,
-			MaximumInterval:        rbacActivityMaxInterval,
-			MaximumAttempts:        int32(rbacActivityMaxAttempts),
+			MaximumInterval:        workflows.RbacActivityMaxInterval,
+			MaximumAttempts:        int32(workflows.RbacActivityMaxAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
@@ -433,12 +428,12 @@ func (wf *updateRBACForPoolsWorkflow) Run(ctx workflow.Context, args ...interfac
 // RunForSinglePool looks up a single pool by UUID and runs the RBAC update child workflow for it.
 func (wf *updateRBACForPoolsWorkflow) RunForSinglePool(ctx workflow.Context, poolId string) (interface{}, *vsaerrors.CustomError) {
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: rbacActivityStartToClose,
+		StartToCloseTimeout: workflows.RbacActivityStartToClose,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:        rbacActivityInitialBackoff,
+			InitialInterval:        workflows.RbacActivityInitialBackoff,
 			BackoffCoefficient:     2.0,
-			MaximumInterval:        rbacActivityMaxInterval,
-			MaximumAttempts:        int32(rbacActivityMaxAttempts),
+			MaximumInterval:        workflows.RbacActivityMaxInterval,
+			MaximumAttempts:        int32(workflows.RbacActivityMaxAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}

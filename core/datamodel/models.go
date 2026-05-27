@@ -119,6 +119,8 @@ type PoolCredentials struct {
 
 	ExternalSecret      *models.ExternalCredRef `json:"external_secret,omitempty"`
 	ExternalCertificate *models.ExternalCredRef `json:"external_certificate,omitempty"`
+
+	ExpertModeSecret *models.ExternalCredRef `json:"expert_mode_secret,omitempty"`
 }
 
 // ExternalCredRef is re-exported from core/models so existing call sites that

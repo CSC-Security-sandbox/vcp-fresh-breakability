@@ -522,6 +522,15 @@ func (s *OptOCIOCIDVersionRef) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptRbacRefreshRequest) SetFake() {
+	var elem RbacRefreshRequest
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptString) SetFake() {
 	var elem string
 	{
@@ -572,6 +581,34 @@ func (s *PoolOperationErrorResponse) SetFake() {
 	{
 		{
 			s.ErrorMessage = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *RbacRefreshAcceptedResponse) SetFake() {
+	{
+		{
+			s.Status = "string"
+		}
+	}
+	{
+		{
+			s.WorkflowId = "string"
+		}
+	}
+	{
+		{
+			s.PoolOCID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *RbacRefreshRequest) SetFake() {
+	{
+		{
+			s.RbacFilePath.SetFake()
 		}
 	}
 }
@@ -750,6 +787,49 @@ func (s *UpdatePoolRequestSecurityAttributes) SetFake() {
 	)
 	for i := 0; i < 0; i++ {
 		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *UpgradePoolAcceptedResponse) SetFake() {
+	{
+		{
+			s.Status = "string"
+		}
+	}
+	{
+		{
+			s.WorkflowId = "string"
+		}
+	}
+	{
+		{
+			s.PoolOCID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *UpgradePoolRequest) SetFake() {
+	{
+		{
+			s.TargetOntapVersion = "string"
+		}
+	}
+	{
+		{
+			s.VsaImagePath = "string"
+		}
+	}
+	{
+		{
+			s.ForceUpgrade.SetFake()
+		}
+	}
+	{
+		{
+			s.SkipUpdateRBAC.SetFake()
+		}
 	}
 }
 

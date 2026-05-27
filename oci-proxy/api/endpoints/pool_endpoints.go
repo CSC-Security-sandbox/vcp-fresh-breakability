@@ -302,7 +302,7 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 			Enabled:         true,
 			ThroughputMibps: int64(req.ThroughputGBps * workflowquery.MiBpsPerGBps), // convert GBps from API contract to MiBps for orchestrator
 		},
-		LargeCapacity:   false,
+		LargeCapacity:   req.DataEndpointCount/2 >= 2,
 		CompartmentOCID: req.CompartmentOCID,
 		OciAdminPassword: &commonparams.OciAdminPassword{
 			Ocid:    req.OciAdminPassword.Ocid,

@@ -1109,6 +1109,18 @@ func (j *PoolActivity) GetExpertModeCredentialsForOCI(ctx context.Context, pool 
 	return credentials, nil
 }
 
+// GetOnTapCredentialsForOCI fetches ONTAP admin credentials for OCI pools.
+// Mirrors GetOnTapCredentials (GCP) — thin activity wrapper around fetchOnTapCredentialsForOCI.
+func (j *PoolActivity) GetOnTapCredentialsForOCI(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetOnTapCredentialsForOCI activity")
+	credentials, err := fetchOnTapCredentialsForOCI(ctx, pool)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	activity.RecordHeartbeat(ctx, "Finished GetOnTapCredentialsForOCI activity")
+	return credentials, nil
+}
+
 // CreateExpertModeCredentials creates ONTAP expert mode credentials based on the authentication type
 func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *datamodel.Pool, clusterName, username string) (*vlm.OntapCredentials, error) {
 	activity.RecordHeartbeat(ctx, "Starting CreateExpertModeCredentials activity")
@@ -1354,6 +1366,35 @@ func _getBucketFile(service hyperscaler2.GoogleServices, ctx context.Context, bu
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return bucketFileDetails, nil
+}
+
+// UpdateRbacInPoolWithURL is the OCI counterpart to UpdateRbacCheckSumInPool:
+// it stores the RBAC file URL exactly as provided (no gs:// synthesis) along
+// with the checksum into Pool.BuildInfo. Used by the single-pool OCI RBAC
+// refresh flow where the URL is sourced from the API caller (PAR).
+func (j *PoolActivity) UpdateRbacInPoolWithURL(ctx context.Context, pool *datamodel.Pool, rbacFileURL string, rbacFileChecksum string) error {
+	se := j.SE
+	latestPool, err := se.GetPoolByUUID(ctx, pool.UUID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	vsaBuildInfo := latestPool.BuildInfo
+	if vsaBuildInfo == nil {
+		vsaBuildInfo = &datamodel.PoolBuildInfo{}
+	}
+	if strings.TrimSpace(rbacFileURL) == "" {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, errors.New("rbacFileURL is required")))
+	}
+	vsaBuildInfo.RbacFileHash = rbacFileChecksum
+	vsaBuildInfo.RbacFileUrl = rbacFileURL
+	updates := map[string]interface{}{
+		"build_info": vsaBuildInfo,
+	}
+	if err := se.UpdatePoolFields(ctx, pool.UUID, updates); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
 }
 
 func (j *PoolActivity) UpdateRbacCheckSumInPool(ctx context.Context, pool *datamodel.Pool, bucketFileDetails *hyperscaler_models.BucketFileDetails) error {
@@ -3060,6 +3101,29 @@ func fetchOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.Onta
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
 		secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
+		if err != nil {
+			return nil, err
+		}
+		credentials.AdminPassword = secret
+	default:
+		credentials.AdminPassword = pool.PoolCredentials.Password
+	}
+	return credentials, nil
+}
+
+// fetchOnTapCredentialsForOCI resolves the ONTAP admin password for an OCI pool
+// based on the configured auth type.
+func fetchOnTapCredentialsForOCI(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	if pool.PoolCredentials == nil {
+		return nil, fmt.Errorf("pool credentials are nil for pool %s", pool.Name)
+	}
+	credentials := &vlm.OntapCredentials{}
+	switch pool.PoolCredentials.AuthType {
+	case env.USER_CERTIFICATE:
+		// TODO: add env.USER_CERTIFICATE case when certificate-based auth is supported for OCI
+		fallthrough
+	case env.USERNAME_PWD_SEC_MGR:
+		secret, err := hyperscaler2.GetPasswordFromCacheOrOCIVault(ctx, pool.PoolCredentials.ExternalSecret)
 		if err != nil {
 			return nil, err
 		}

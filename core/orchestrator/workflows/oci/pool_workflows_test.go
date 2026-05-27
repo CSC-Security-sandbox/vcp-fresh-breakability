@@ -1107,13 +1107,43 @@ func TestOCICreatePoolWorkflow_PersistsExternalSecretOnPoolCredentials(t *testin
 		}),
 		mock.Anything,
 	).Return(pool, nil)
-	// The workflow persists build_info via UpdatePoolFields after CreatedPool
-	// (see pool_workflows.go: "build_info": NewPoolBuildInfo(...)). This test
-	// is not asserting on build_info — TestOCICreatePoolWorkflow_PersistsBuildInfo
-	// owns that contract — so a permissive stub is sufficient. Without it the
-	// activity nil-derefs in the mock and surfaces as a workflow error,
-	// masking the credential-persistence assertions below.
-	wfEnv.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// The workflow now calls UpdatePoolFields twice on the happy path:
+	//   1. "pool_credentials" — the OCI vault secret-ref write-back that
+	//      this test owns.
+	//   2. "build_info" — covered by TestOCICreatePoolWorkflow_PersistsBuildInfo.
+	// We register a single permissive stub that inspects the updates map on
+	// every call and captures the typed PoolCredentials payload from the
+	// pool_credentials call. Temporal's data converter erases the in-workflow
+	// *PoolCredentials into a generic map[string]interface{} on the wire (the
+	// activity signature is map[string]interface{}), so we round-trip it
+	// through JSON to recover the typed view that GORM would actually
+	// persist into the JSONB column.
+	var (
+		capturedCredentialsUpdateUUID string
+		capturedCredentialsUpdate     *datamodel.PoolCredentials
+	)
+	wfEnv.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			updates, ok := args[2].(map[string]interface{})
+			if !ok {
+				return
+			}
+			raw, ok := updates["pool_credentials"]
+			if !ok {
+				return
+			}
+			encoded, mErr := json.Marshal(raw)
+			if mErr != nil {
+				return
+			}
+			var pc datamodel.PoolCredentials
+			if uErr := json.Unmarshal(encoded, &pc); uErr != nil {
+				return
+			}
+			capturedCredentialsUpdate = &pc
+			capturedCredentialsUpdateUUID, _ = args[1].(string)
+		}).
+		Return(nil)
 
 	wfEnv.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
 
@@ -1156,6 +1186,39 @@ func TestOCICreatePoolWorkflow_PersistsExternalSecretOnPoolCredentials(t *testin
 					"so _saveNodeDetails (which reads ExternalSecret off the passed-in pool "+
 					"and copies it onto the in-memory models.Node) sees the populated value")
 		}
+	}
+
+	// Tertiary assertion — the actual DB-level persistence contract. The
+	// primary/secondary assertions only prove the workflow's *in-memory*
+	// pool object carries ExternalSecret as it flows through activity
+	// invocations; they do NOT prove the JSONB column on disk gets the
+	// reference. The only path that actually writes to pool_credentials
+	// JSONB before CreatedPool refetches the row is an explicit
+	// UpdatePoolFields(pool_credentials=...) activity call. Without this
+	// assertion, the bug (CreatedPool refetching from DB and the subsequent
+	// UpdatedPool re-serializing stale PoolCredentials, silently dropping
+	// ExternalSecret) would slip past the in-memory checks above.
+	if assert.NotNil(t, capturedCredentialsUpdate,
+		"UpdatePoolFields must be invoked with a pool_credentials column update — "+
+			"this is the only path that writes ExternalSecret into the JSONB column on disk; "+
+			"without it CreatedPool's refetch overwrites the in-memory mutation and the "+
+			"secret reference is silently lost between the workflow and the DB") {
+		assert.Equal(t, "test-pool-uuid", capturedCredentialsUpdateUUID,
+			"the UpdatePoolFields(pool_credentials=...) call must target the exact pool the workflow is creating")
+		if assert.NotNil(t, capturedCredentialsUpdate.ExternalSecret,
+			"pool_credentials.ExternalSecret must be present in the JSONB write so future "+
+				"operations that load the pool from DB can resolve the OCI Vault secret") {
+			assert.Equal(t, expectedRef.Name, capturedCredentialsUpdate.ExternalSecret.Name)
+			assert.Equal(t, expectedRef.Version, capturedCredentialsUpdate.ExternalSecret.Version)
+			assert.Equal(t, expectedRef.ExternalIdentifier, capturedCredentialsUpdate.ExternalSecret.ExternalIdentifier)
+		}
+		// ExternalCertificate stays nil today (cert flow is a TODO in
+		// CreateOnTapCredentialsForOCI). When that lands, mirror the
+		// ExternalSecret assertions above for the persisted cert ref.
+		assert.Nil(t, capturedCredentialsUpdate.ExternalCertificate,
+			"ExternalCertificate is expected to be nil in the JSONB write until the OCI "+
+				"certificate flow is wired up; if this fires, mirror the ExternalSecret "+
+				"assertions above for the persisted cert ref")
 	}
 
 	wfEnv.AssertExpectations(t)
@@ -1308,6 +1371,12 @@ func TestOCICreatePoolWorkflow_UpdateJobStatusError(t *testing.T) {
 
 	// SaveVSANodeDetails takes (ctx, pool, vlmConfig, deploymentName, hostMap) → 5 matchers.
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
+	// The OCI create-pool workflow now persists pool_credentials via
+	// UpdatePoolFields BEFORE CreatedPool runs (write-back for the OCI
+	// vault secret-ref). This test exercises the CreatedPool failure
+	// branch; the upstream credentials write must succeed so the workflow
+	// actually reaches CreatedPool. Permissive stub.
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Pool)(nil), assert.AnError)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 
@@ -1887,9 +1956,16 @@ func TestOCICreatePoolWorkflow_PersistsBuildInfo(t *testing.T) {
 		gotPoolUUID  string
 		gotBuildInfo *datamodel.PoolBuildInfo
 	)
+	// The workflow now calls UpdatePoolFields twice on the happy path:
+	// once for "pool_credentials" (the OCI vault secret-ref write-back)
+	// and once for "build_info" (what this test owns). A single permissive
+	// stub captures only the build_info call by filtering on the updates
+	// map key; the pool_credentials call passes through with no capture
+	// and a nil return. Cannot use .Once() here because two invocations
+	// are expected, and cannot scope to "build_info" via MatchedBy at the
+	// registration level without complicating the existing matcher shape.
 	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
-			gotPoolUUID, _ = args[1].(string)
 			updates, ok := args[2].(map[string]interface{})
 			if !ok {
 				return
@@ -1898,6 +1974,7 @@ func TestOCICreatePoolWorkflow_PersistsBuildInfo(t *testing.T) {
 			if !ok {
 				return
 			}
+			gotPoolUUID, _ = args[1].(string)
 			encoded, err := json.Marshal(raw)
 			if err != nil {
 				return
@@ -1908,8 +1985,7 @@ func TestOCICreatePoolWorkflow_PersistsBuildInfo(t *testing.T) {
 			}
 			gotBuildInfo = &bi
 		}).
-		Return(nil).
-		Once()
+		Return(nil)
 
 	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
 
@@ -1980,10 +2056,31 @@ func TestOCICreatePoolWorkflow_BuildInfoPersistFailureIsNonFatal(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
 
+	// The workflow makes TWO UpdatePoolFields calls on the happy path:
+	//   1. "pool_credentials" — BEFORE CreatedPool. This is FATAL on failure
+	//      (the pool isn't marked ready yet, so a rollback is the safe
+	//      response). This test is not exercising that branch; it must
+	//      succeed so the workflow reaches the build_info call below.
+	//   2. "build_info" — AFTER CreatedPool. This is NON-FATAL on failure
+	//      (the pool is already marked ready; failing the workflow would
+	//      invalidate a usable pool). That is the contract under test.
+	// Route the two calls by inspecting the updates-map key.
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything,
+		mock.MatchedBy(func(updates map[string]interface{}) bool {
+			_, ok := updates["pool_credentials"]
+			return ok
+		}),
+	).Return(nil)
+
 	updatePoolFieldsAttempted := false
-	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) { updatePoolFieldsAttempted = true }).
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything,
+		mock.MatchedBy(func(updates map[string]interface{}) bool {
+			_, ok := updates["build_info"]
+			return ok
+		}),
+	).Run(func(args mock.Arguments) { updatePoolFieldsAttempted = true }).
 		Return(assert.AnError)
+
 	erroredPoolCalled := false
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) { erroredPoolCalled = true }).

@@ -475,6 +475,88 @@ func TestPoolOperationErrorResponse_EncodeDecode(t *testing.T) {
 	var typ2 PoolOperationErrorResponse
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestRbacRefreshAcceptedResponse_EncodeDecode(t *testing.T) {
+	var typ RbacRefreshAcceptedResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 RbacRefreshAcceptedResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestRbacRefreshAcceptedResponse_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"poolOCID\":\"ocid1.pool.oc1.ashburn-1.testing-pool1\",\"status\":\"in_progress\",\"workflowId\":\"ad134355-08ad-cfd1-a728-b62c3cf754a5\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ RbacRefreshAcceptedResponse
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 RbacRefreshAcceptedResponse
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestRbacRefreshRequest_EncodeDecode(t *testing.T) {
+	var typ RbacRefreshRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 RbacRefreshRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestRbacRefreshRequest_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"rbacFilePath\":\"path/to/rbac-file.json\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ RbacRefreshRequest
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 RbacRefreshRequest
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestSvmLif_EncodeDecode(t *testing.T) {
 	var typ SvmLif
 	typ.SetFake()
@@ -589,6 +671,88 @@ func TestUpdatePoolRequestSecurityAttributes_EncodeDecode(t *testing.T) {
 	var typ2 UpdatePoolRequestSecurityAttributes
 	typ2 = make(UpdatePoolRequestSecurityAttributes)
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestUpgradePoolAcceptedResponse_EncodeDecode(t *testing.T) {
+	var typ UpgradePoolAcceptedResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 UpgradePoolAcceptedResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestUpgradePoolAcceptedResponse_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"poolOCID\":\"ocid1.pool.oc1.ashburn-1.testing-pool1\",\"status\":\"in_progress\",\"workflowId\":\"ad134355-08ad-cfd1-a728-b62c3cf754a5\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ UpgradePoolAcceptedResponse
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 UpgradePoolAcceptedResponse
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestUpgradePoolRequest_EncodeDecode(t *testing.T) {
+	var typ UpgradePoolRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 UpgradePoolRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestUpgradePoolRequest_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"forceUpgrade\":false,\"skipUpdateRBAC\":false,\"targetOntapVersion\":\"9.20.1P2\",\"vsaImagePath\":\"/n/controlplane-nb/b/vsaimage/o/image-9-20-1P2.tgz\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ UpgradePoolRequest
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 UpgradePoolRequest
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
 }
 func TestWorkflowStatusError_EncodeDecode(t *testing.T) {
 	var typ WorkflowStatusError

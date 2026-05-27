@@ -1742,6 +1742,170 @@ func encodeGetWorkflowResponse(response GetWorkflowRes, w http.ResponseWriter, s
 	}
 }
 
+func encodeRbacRefreshPoolResponse(response RbacRefreshPoolRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *RbacRefreshAcceptedResponseHeaders:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *RbacRefreshPoolBadRequest:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *RbacRefreshPoolNotFound:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *RbacRefreshPoolInternalServerError:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *RbacRefreshPoolDefaultErrorStatusCodeWithHeaders:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		code := response.StatusCode
+		if code == 0 {
+			// Set default status code.
+			code = http.StatusOK
+		}
+		w.WriteHeader(code)
+		if st := http.StatusText(code); code >= http.StatusBadRequest {
+			span.SetStatus(codes.Error, st)
+		} else {
+			span.SetStatus(codes.Ok, st)
+		}
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		if code >= http.StatusInternalServerError {
+			return errors.Wrapf(ht.ErrInternalServerErrorResponse, "code: %d, message: %s", code, http.StatusText(code))
+		}
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
 func encodeUpdatePoolResponse(response UpdatePoolRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *UpdatePoolAcceptedResponseHeaders:
@@ -1948,6 +2112,199 @@ func encodeUpdatePoolResponse(response UpdatePoolRes, w http.ResponseWriter, spa
 		return nil
 
 	case *UpdatePoolDefaultErrorStatusCodeWithHeaders:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		code := response.StatusCode
+		if code == 0 {
+			// Set default status code.
+			code = http.StatusOK
+		}
+		w.WriteHeader(code)
+		if st := http.StatusText(code); code >= http.StatusBadRequest {
+			span.SetStatus(codes.Error, st)
+		} else {
+			span.SetStatus(codes.Ok, st)
+		}
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		if code >= http.StatusInternalServerError {
+			return errors.Wrapf(ht.ErrInternalServerErrorResponse, "code: %d, message: %s", code, http.StatusText(code))
+		}
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeUpgradePoolResponse(response UpgradePoolRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *UpgradePoolAcceptedResponseHeaders:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(202)
+		span.SetStatus(codes.Ok, http.StatusText(202))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *UpgradePoolBadRequest:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(400)
+		span.SetStatus(codes.Error, http.StatusText(400))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *UpgradePoolNotFound:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *UpgradePoolConflict:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(409)
+		span.SetStatus(codes.Error, http.StatusText(409))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *UpgradePoolInternalServerError:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		// Encoding response headers.
+		{
+			h := uri.NewHeaderEncoder(w.Header())
+			// Encode "Opc-Request-Id" header.
+			{
+				cfg := uri.HeaderParameterEncodingConfig{
+					Name:    "Opc-Request-Id",
+					Explode: false,
+				}
+				if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+					return e.EncodeValue(conv.StringToString(response.OpcRequestID))
+				}); err != nil {
+					return errors.Wrap(err, "encode Opc-Request-Id header")
+				}
+			}
+		}
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := new(jx.Encoder)
+		response.Response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *UpgradePoolDefaultErrorStatusCodeWithHeaders:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		// Encoding response headers.
 		{

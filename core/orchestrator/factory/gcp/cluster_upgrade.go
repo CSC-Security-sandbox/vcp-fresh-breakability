@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -34,7 +35,7 @@ var (
 	determineTargetBuildImages = _determineTargetBuildImages
 	shouldSkipUpgrade          = _shouldSkipUpgrade
 	createUpgradeJobInDB       = _createUpgradeJobInDB
-	updateUpgradeJobStatus     = _updateUpgradeJobStatus
+	updateUpgradeJobStatus     = common.UpdateUpgradeJobStatus
 )
 
 const (
@@ -88,7 +89,7 @@ func _upgradeCluster(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	// Check if there's already an active upgrade job for this cluster
-	activeJob, err := CheckActiveUpgradeJob(ctx, se, params.ClusterID)
+	activeJob, err := common.CheckActiveUpgradeJob(ctx, se, params.ClusterID)
 	if err != nil {
 		logger.Error("Failed to check for active upgrade jobs", "clusterId", params.ClusterID, "error", err)
 		return nil, "", customerrors.NewUnavailableErr("Failed to check for active upgrade jobs")
@@ -286,7 +287,7 @@ func _createUpgradeJobInDB(ctx context.Context, se database.Storage, params *com
 		VSABuildImage:      vsaBuildImage,
 		MediatorBuildImage: mediatorBuildImage,
 		Status:             string(models.UpgradeStatusPending),
-		Metadata:           convertMetadataToJSONB(params.Metadata),
+		Metadata:           common.ConvertMetadataToJSONB(params.Metadata),
 		ForceUpgrade:       params.ForceUpgrade,
 	}
 
@@ -298,66 +299,9 @@ func _createUpgradeJobInDB(ctx context.Context, se database.Storage, params *com
 	return createdJob, nil
 }
 
-// CheckActiveUpgradeJob returns the active upgrade job if one exists for the given cluster (pool UUID).
-func CheckActiveUpgradeJob(ctx context.Context, se database.Storage, clusterID string) (*datamodel.ClusterUpgradeJob, error) {
-	jobs, err := se.GetClusterUpgradeJobsByClusterID(ctx, clusterID)
-	if err != nil {
-		return nil, err
-	}
-	for _, job := range jobs {
-		if job.Status == string(models.UpgradeStatusPending) || job.Status == string(models.UpgradeStatusInProgress) {
-			return job, nil
-		}
-	}
-	return nil, nil
-}
-
-// HasActiveClusterUpgrade returns true if the given cluster (pool UUID) has an active upgrade job (PENDING or IN_PROGRESS).
+// HasActiveClusterUpgrade delegates to the shared common helper.
 func HasActiveClusterUpgrade(ctx context.Context, se database.Storage, clusterID string) (bool, error) {
-	job, err := CheckActiveUpgradeJob(ctx, se, clusterID)
-	return job != nil, err
-}
-
-// _updateUpgradeJobStatus updates the status of an upgrade job
-func _updateUpgradeJobStatus(ctx context.Context, se database.Storage, jobUUID, status, errorMessage string) error {
-	upgradeJob, err := se.GetClusterUpgradeJobByUUID(ctx, jobUUID)
-	if err != nil {
-		return err
-	}
-
-	upgradeJob.Status = status
-	upgradeJob.UpdatedAt = time.Now()
-
-	if errorMessage != "" {
-		upgradeJob.ErrorDetails = &datamodel.UpgradeErrorDetails{
-			ErrorCode:    "UPGRADE_FAILED",
-			ErrorMessage: errorMessage,
-			ErrorType:    "UPGRADE_ERROR",
-			Retryable:    true,
-		}
-	}
-
-	if status == string(models.UpgradeStatusCompleted) {
-		now := time.Now()
-		upgradeJob.CompletedAt = &now
-	} else if status == string(models.UpgradeStatusInProgress) {
-		now := time.Now()
-		upgradeJob.StartedAt = &now
-	}
-
-	return se.UpdateClusterUpgradeJob(ctx, upgradeJob)
-}
-
-// convertMetadataToJSONB converts map[string]string to *datamodel.JSONB
-func convertMetadataToJSONB(metadata map[string]string) *datamodel.JSONB {
-	if metadata == nil {
-		return nil
-	}
-	result := make(datamodel.JSONB)
-	for k, v := range metadata {
-		result[k] = v
-	}
-	return &result
+	return common.HasActiveClusterUpgrade(ctx, se, clusterID)
 }
 
 // GetClusterUpgradeStatus retrieves the status of a cluster upgrade

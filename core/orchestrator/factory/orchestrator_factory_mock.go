@@ -9993,9 +9993,9 @@ func (_c *MockOrchestratorFactory_UpdateQuotaRuleInternal_Call) RunAndReturn(run
 	return _c
 }
 
-// UpdateRbacForPoolById provides a mock function with given fields: ctx, poolId
-func (_m *MockOrchestratorFactory) UpdateRbacForPoolById(ctx context.Context, poolId string) (string, error) {
-	ret := _m.Called(ctx, poolId)
+// UpdateRbacForPoolById provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateRbacForPoolById(ctx context.Context, params *common.RefreshRbacForPoolParams) (string, error) {
+	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateRbacForPoolById")
@@ -10003,17 +10003,17 @@ func (_m *MockOrchestratorFactory) UpdateRbacForPoolById(ctx context.Context, po
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
-		return rf(ctx, poolId)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RefreshRbacForPoolParams) (string, error)); ok {
+		return rf(ctx, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
-		r0 = rf(ctx, poolId)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RefreshRbacForPoolParams) string); ok {
+		r0 = rf(ctx, params)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, poolId)
+	if rf, ok := ret.Get(1).(func(context.Context, *common.RefreshRbacForPoolParams) error); ok {
+		r1 = rf(ctx, params)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -10028,14 +10028,14 @@ type MockOrchestratorFactory_UpdateRbacForPoolById_Call struct {
 
 // UpdateRbacForPoolById is a helper method to define mock.On call
 //   - ctx context.Context
-//   - poolId string
-func (_e *MockOrchestratorFactory_Expecter) UpdateRbacForPoolById(ctx interface{}, poolId interface{}) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
-	return &MockOrchestratorFactory_UpdateRbacForPoolById_Call{Call: _e.mock.On("UpdateRbacForPoolById", ctx, poolId)}
+//   - params *common.RefreshRbacForPoolParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateRbacForPoolById(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
+	return &MockOrchestratorFactory_UpdateRbacForPoolById_Call{Call: _e.mock.On("UpdateRbacForPoolById", ctx, params)}
 }
 
-func (_c *MockOrchestratorFactory_UpdateRbacForPoolById_Call) Run(run func(ctx context.Context, poolId string)) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
+func (_c *MockOrchestratorFactory_UpdateRbacForPoolById_Call) Run(run func(ctx context.Context, params *common.RefreshRbacForPoolParams)) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(*common.RefreshRbacForPoolParams))
 	})
 	return _c
 }
@@ -10045,7 +10045,7 @@ func (_c *MockOrchestratorFactory_UpdateRbacForPoolById_Call) Return(_a0 string,
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_UpdateRbacForPoolById_Call) RunAndReturn(run func(context.Context, string) (string, error)) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
+func (_c *MockOrchestratorFactory_UpdateRbacForPoolById_Call) RunAndReturn(run func(context.Context, *common.RefreshRbacForPoolParams) (string, error)) *MockOrchestratorFactory_UpdateRbacForPoolById_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -517,6 +517,28 @@ func (ca CommonActivities) GenerateVSASignedURLActivity(ctx context.Context, vsa
 	return signedURL, nil
 }
 
+// GenerateVSAOCIPARActivity generates a PAR URL for the VSA image.
+// vsaImagePath format: "/n/{namespace}/b/{bucket}/o/{objectName}"
+func (ca CommonActivities) GenerateVSAOCIPARActivity(ctx context.Context, vsaImagePath string) (string, error) {
+	logger := util.GetLogger(ctx)
+
+	ociService, err := hyperscaler2.GetOCIService(ctx)
+	if err != nil {
+		logger.Error("Failed to initialize OCI services for PAR generation", "error", err)
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err)
+	}
+
+	parURL, err := ociService.GenerateVSAPAR(ctx, vsaImagePath)
+	if err != nil {
+		logger.Error("Failed to generate OCI PAR for VSA image",
+			"vsaImagePath", vsaImagePath, "error", err)
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrOCIResourceFetchError, err)
+	}
+
+	logger.Info("Successfully generated OCI PAR for VSA image", "vsaImagePath", vsaImagePath)
+	return parURL, nil
+}
+
 // makeSubnetName generates a subnet name based on the project number, region and timestamp
 func _makeSubnetName(projectNumber string, isLargeCapacity bool) string {
 	timeNow := strconv.Itoa(int(time.Now().Unix()))

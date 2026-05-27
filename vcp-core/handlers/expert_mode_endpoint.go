@@ -125,7 +125,7 @@ func (h Handler) V1ExpertModeVolumeFlexCloneSplit(ctx context.Context, req *oasg
 
 // V1RefreshRbacForExpertModePoolById implements the RBAC refresh endpoint for a single pool by UUID
 func (h Handler) V1RefreshRbacForExpertModePoolById(ctx context.Context, params oasgenserver.V1RefreshRbacForExpertModePoolByIdParams) (oasgenserver.V1RefreshRbacForExpertModePoolByIdRes, error) {
-	jobID, err := h.Orchestrator.UpdateRbacForPoolById(ctx, params.PoolId)
+	jobID, err := h.Orchestrator.UpdateRbacForPoolById(ctx, &commonparams.RefreshRbacForPoolParams{PoolID: params.PoolId})
 	if err != nil {
 		if customerrors.IsBadRequestErr(err) {
 			return &oasgenserver.V1RefreshRbacForExpertModePoolByIdBadRequest{

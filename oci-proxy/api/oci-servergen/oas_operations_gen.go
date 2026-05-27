@@ -12,5 +12,7 @@ const (
 	DeleteSvmOperation       OperationName = "DeleteSvm"
 	GetHealthOperation       OperationName = "GetHealth"
 	GetWorkflowOperation     OperationName = "GetWorkflow"
+	RbacRefreshPoolOperation OperationName = "RbacRefreshPool"
 	UpdatePoolOperation      OperationName = "UpdatePool"
+	UpgradePoolOperation     OperationName = "UpgradePool"
 )

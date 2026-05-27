@@ -16732,6 +16732,566 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_DeleteFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "vault: conflict")
 }
 
+// ---------------------------------------------------------------------------
+// OCI mock helper for GetOnTapCredentialsForOCI tests.
+// GetSecretWithLatestVersion calls both vault (GetSecret for metadata) and
+// secrets (GetSecretBundle for value) clients, so both dispatchers are needed.
+// ---------------------------------------------------------------------------
+
+func newMockOCIServiceForGetSecret(t *testing.T, vaultDoFunc, secretsDoFunc func(*http.Request) (*http.Response, error)) *oci.OciServices {
+	t.Helper()
+	ctx := context.Background()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	der := digitalCert.MarshalPKCS1PrivateKey(key)
+	pemKey := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: der}))
+
+	configProvider := ocicommon.NewRawConfigurationProvider(
+		"ocid1.tenancy.oc1..test", "ocid1.user.oc1..test",
+		"us-ashburn-1", "aa:bb:cc:dd:ee:ff:00:11", pemKey, nil,
+	)
+
+	vaultCl, err := ocivault.NewVaultsClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+	if vaultDoFunc != nil {
+		vaultCl.HTTPClient = &ociTestHTTPDispatcher{doFunc: vaultDoFunc}
+	}
+
+	secretsCl, err := ocisecrets.NewSecretsClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+	if secretsDoFunc != nil {
+		secretsCl.HTTPClient = &ociTestHTTPDispatcher{doFunc: secretsDoFunc}
+	}
+
+	adminService := oci.NewAdminOCIService(vaultCl, secretsCl)
+
+	return &oci.OciServices{
+		Ctx:             ctx,
+		Logger:          util.GetLogger(ctx),
+		AdminOCIService: adminService,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestPoolActivity_GetOnTapCredentialsForOCI
+// ---------------------------------------------------------------------------
+
+func TestPoolActivity_GetOnTapCredentialsForOCI(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	externalSecret := func(ocid string) *datamodel.ExternalCredRef {
+		return &datamodel.ExternalCredRef{
+			Name:               "admin-secret",
+			ExternalIdentifier: ocid,
+			Version:            1,
+		}
+	}
+
+	t.Run("nil PoolCredentials returns error", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+		}
+
+		_, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "pool credentials are nil")
+	})
+
+	t.Run("default auth type returns plaintext password", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+				Password: "plain-text-password",
+			},
+		}
+
+		encodedValue, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.NoError(t, err)
+
+		var creds vlm.OntapCredentials
+		require.NoError(t, encodedValue.Get(&creds))
+		assert.Equal(t, "plain-text-password", creds.AdminPassword)
+	})
+
+	t.Run("unknown auth type returns plaintext password", func(t *testing.T) {
+		// Any auth type not matched by USER_CERTIFICATE or USERNAME_PWD_SEC_MGR
+		// must hit the default branch and use PoolCredentials.Password without
+		// consulting OCI Vault.
+		origGetPW := hyperscaler2.GetPasswordFromCacheOrOCIVault
+		defer func() { hyperscaler2.GetPasswordFromCacheOrOCIVault = origGetPW }()
+		hyperscaler2.GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+			t.Fatalf("OCI Vault must not be consulted for unknown auth types")
+			return "", nil
+		}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				// 99 is not any of the known auth-type constants (USERNAME_PWD=0,
+				// USERNAME_PWD_SEC_MGR=1, USER_CERTIFICATE=2) so the switch must
+				// fall to the default branch.
+				AuthType: 99,
+				Password: "fallback-pw",
+			},
+		}
+
+		encodedValue, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.NoError(t, err)
+
+		var creds vlm.OntapCredentials
+		require.NoError(t, encodedValue.Get(&creds))
+		assert.Equal(t, "fallback-pw", creds.AdminPassword)
+	})
+
+	t.Run("USER_CERTIFICATE falls through to vault fetch", func(t *testing.T) {
+		// USER_CERTIFICATE has no certificate-fetch logic for OCI yet and
+		// `fallthrough`s into the USERNAME_PWD_SEC_MGR branch. Cover that
+		// fallthrough explicitly so a future implementer can't drop it
+		// without a test failure.
+		const expectedPW = "cert-fallthrough-pw"
+		var capturedRef *datamodel.ExternalCredRef
+		origGetPW := hyperscaler2.GetPasswordFromCacheOrOCIVault
+		defer func() { hyperscaler2.GetPasswordFromCacheOrOCIVault = origGetPW }()
+		hyperscaler2.GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+			capturedRef = ref
+			return expectedPW, nil
+		}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		ref := externalSecret("ocid1.vaultsecret.oc1..cert")
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType:       env.USER_CERTIFICATE,
+				ExternalSecret: ref,
+			},
+		}
+
+		encodedValue, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.NoError(t, err)
+
+		var creds vlm.OntapCredentials
+		require.NoError(t, encodedValue.Get(&creds))
+		assert.Equal(t, expectedPW, creds.AdminPassword)
+		require.NotNil(t, capturedRef, "vault helper must be invoked due to fallthrough")
+		assert.Equal(t, ref.ExternalIdentifier, capturedRef.ExternalIdentifier)
+		assert.Equal(t, ref.Name, capturedRef.Name)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR nil ExternalSecret returns error", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD_SEC_MGR,
+			},
+		}
+
+		// hyperscaler.GetPasswordFromCacheOrOCIVault short-circuits when the
+		// external-cred ref is nil/empty with this exact message.
+		_, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "OCI vault reference is empty")
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR empty ExternalIdentifier returns error", func(t *testing.T) {
+		// With OCIVaultOCID set and the OCI service mocked, the empty
+		// ExternalIdentifier propagates to the OCI SDK which rejects it
+		// before any HTTP round-trip. _getPasswordForVSAClusterOCI re-wraps
+		// the SDK rejection with this prefix.
+		origVault := env.OCIVaultOCID
+		defer func() { env.OCIVaultOCID = origVault }()
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+		mockSvc := newMockOCIServiceForGetSecret(t, nil, nil)
+
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType:       env.USERNAME_PWD_SEC_MGR,
+				ExternalSecret: &datamodel.ExternalCredRef{Name: "some-name", ExternalIdentifier: ""},
+			},
+		}
+
+		_, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get secret for External Identifier")
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR GetOCIService failure returns retryable error", func(t *testing.T) {
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return nil, fmt.Errorf("OCI service init failure")
+		}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType:       env.USERNAME_PWD_SEC_MGR,
+				ExternalSecret: externalSecret("ocid1.vaultsecret.oc1..test"),
+			},
+		}
+
+		_, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.Error(t, err)
+
+		var appErr *temporal.ApplicationError
+		require.ErrorAs(t, err, &appErr)
+		assert.False(t, appErr.NonRetryable(), "GetOCIService failure should be retryable")
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR GetSecretWithLatestVersion failure returns non-retryable error", func(t *testing.T) {
+		mockSvc := newMockOCIServiceForGetSecret(t,
+			func(req *http.Request) (*http.Response, error) {
+				return nil, fmt.Errorf("vault connection timeout")
+			},
+			nil,
+		)
+
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType:       env.USERNAME_PWD_SEC_MGR,
+				ExternalSecret: externalSecret("ocid1.vaultsecret.oc1..test"),
+			},
+		}
+
+		_, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.Error(t, err)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR secret in deletion state returns error", func(t *testing.T) {
+		// OCIVaultOCID must be set so _validateOCIVaultConfig(false) passes
+		// and the call actually reaches GetSecretWithLatestVersion.
+		origVault := env.OCIVaultOCID
+		defer func() { env.OCIVaultOCID = origVault }()
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+		mockSvc := newMockOCIServiceForGetSecret(t,
+			func(req *http.Request) (*http.Response, error) {
+				return ociMockJSONResponse(http.StatusOK, `{
+					"id":             "ocid1.vaultsecret.oc1..pending",
+					"secretName":     "deleted-secret",
+					"lifecycleState": "PENDING_DELETION",
+					"compartmentId":  "ocid1.compartment.oc1..test"
+				}`), nil
+			},
+			nil,
+		)
+
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:           "test-pool",
+			DeploymentName: "test-deploy",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType:       env.USERNAME_PWD_SEC_MGR,
+				ExternalSecret: externalSecret("ocid1.vaultsecret.oc1..pending"),
+			},
+		}
+
+		// GetSecretWithLatestVersion returns (nil, nil) for PENDING_DELETION,
+		// which _getPasswordForVSAClusterOCI converts into this error.
+		_, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get secret for External Identifier")
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR success returns credentials from vault", func(t *testing.T) {
+		// OCIVaultOCID must be set so _validateOCIVaultConfig(false) passes.
+		origVault := env.OCIVaultOCID
+		defer func() { env.OCIVaultOCID = origVault }()
+		env.OCIVaultOCID = "ocid1.vault.oc1..test"
+
+		secretOCID := "ocid1.vaultsecret.oc1..testpw"
+		encodedPw := "c3VwZXItc2VjcmV0LXB3" // base64("super-secret-pw")
+
+		// Successful fetch populates the user-auth cache keyed by
+		// ExternalCredRef.Name; clear it so reruns and downstream tests
+		// observe a cache miss.
+		t.Cleanup(func() { commonparams.RemoveFromUserAuthCache("admin-secret") })
+
+		mockSvc := newMockOCIServiceForGetSecret(t,
+			func(req *http.Request) (*http.Response, error) {
+				return ociMockJSONResponse(http.StatusOK, fmt.Sprintf(`{
+					"id":             "%s",
+					"secretName":     "admin-secret",
+					"lifecycleState": "ACTIVE",
+					"compartmentId":  "ocid1.compartment.oc1..test"
+				}`, secretOCID)), nil
+			},
+			func(req *http.Request) (*http.Response, error) {
+				return ociMockJSONResponse(http.StatusOK, fmt.Sprintf(`{
+					"secretId":      "%s",
+					"versionNumber": 1,
+					"secretBundleContent": {
+						"contentType": "BASE64",
+						"content":     "%s"
+					}
+				}`, secretOCID, encodedPw)), nil
+			},
+		)
+
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetOnTapCredentialsForOCI)
+
+		pool := &datamodel.Pool{
+			Name:                   "test-pool",
+			DeploymentName:         "test-deploy",
+			PoolExternalIdentifier: "ocid1.pool.oc1..testpool",
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType:       env.USERNAME_PWD_SEC_MGR,
+				ExternalSecret: externalSecret(secretOCID),
+			},
+		}
+
+		encodedValue, err := testEnv.ExecuteActivity(act.GetOnTapCredentialsForOCI, pool)
+		require.NoError(t, err)
+
+		var creds vlm.OntapCredentials
+		require.NoError(t, encodedValue.Get(&creds))
+		assert.Equal(t, "super-secret-pw", creds.AdminPassword)
+	})
+}
+
+// ociServiceError implements the OCI common.ServiceError interface for tests.
+type ociServiceError struct {
+	statusCode int
+	code       string
+	message    string
+}
+
+func (e *ociServiceError) Error() string                 { return e.message }
+func (e *ociServiceError) GetHTTPStatusCode() int        { return e.statusCode }
+func (e *ociServiceError) GetMessage() string            { return e.message }
+func (e *ociServiceError) GetCode() string               { return e.code }
+func (e *ociServiceError) GetOpcRequestID() string       { return "test-opc-req-id" }
+
+// ---------------------------------------------------------------------------
+// TestPoolActivity_UpdateRbacInPoolWithURL
+// ---------------------------------------------------------------------------
+
+func TestPoolActivity_UpdateRbacInPoolWithURL(t *testing.T) {
+	t.Run("GetPoolByUUID failure returns error", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid-1").Return(nil, fmt.Errorf("db connection lost"))
+
+		act := &activities.PoolActivity{SE: mockStorage}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.UpdateRbacInPoolWithURL)
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}}
+		_, err := testEnv.ExecuteActivity(act.UpdateRbacInPoolWithURL, pool, "https://objectstorage.example.com/rbac.yaml", "sha256-abc")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db connection lost")
+	})
+
+	t.Run("empty rbacFileURL returns non-retryable error", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		latestPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"},
+			BuildInfo: &datamodel.PoolBuildInfo{VSABuildImage: "img-1"},
+		}
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid-2").Return(latestPool, nil)
+
+		act := &activities.PoolActivity{SE: mockStorage}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.UpdateRbacInPoolWithURL)
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}}
+		_, err := testEnv.ExecuteActivity(act.UpdateRbacInPoolWithURL, pool, "  ", "sha256-abc")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rbacFileURL is required")
+	})
+
+	t.Run("UpdatePoolFields failure returns error", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		latestPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"},
+			BuildInfo: &datamodel.PoolBuildInfo{VSABuildImage: "img-1"},
+		}
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid-3").Return(latestPool, nil)
+		mockStorage.EXPECT().UpdatePoolFields(mock.Anything, "pool-uuid-3", mock.Anything).Return(fmt.Errorf("db write failed"))
+
+		act := &activities.PoolActivity{SE: mockStorage}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.UpdateRbacInPoolWithURL)
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"}}
+		_, err := testEnv.ExecuteActivity(act.UpdateRbacInPoolWithURL, pool, "https://objectstorage.example.com/rbac.yaml", "sha256-abc")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db write failed")
+	})
+
+	t.Run("success with existing BuildInfo updates fields", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		latestPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-4"},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				VSABuildImage: "img-existing",
+				RbacFileHash:  "old-hash",
+				RbacFileUrl:   "https://old-url.com/rbac.yaml",
+			},
+		}
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid-4").Return(latestPool, nil)
+		mockStorage.EXPECT().UpdatePoolFields(mock.Anything, "pool-uuid-4", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			bi, ok := updates["build_info"].(*datamodel.PoolBuildInfo)
+			return ok && bi.RbacFileUrl == "https://new-par.example.com/rbac.yaml" &&
+				bi.RbacFileHash == "sha256-new" &&
+				bi.VSABuildImage == "img-existing"
+		})).Return(nil)
+
+		act := &activities.PoolActivity{SE: mockStorage}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.UpdateRbacInPoolWithURL)
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-4"}}
+		_, err := testEnv.ExecuteActivity(act.UpdateRbacInPoolWithURL, pool, "https://new-par.example.com/rbac.yaml", "sha256-new")
+		require.NoError(t, err)
+	})
+
+	t.Run("success with nil BuildInfo creates new BuildInfo", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		latestPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-5"},
+			BuildInfo: nil,
+		}
+		mockStorage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid-5").Return(latestPool, nil)
+		mockStorage.EXPECT().UpdatePoolFields(mock.Anything, "pool-uuid-5", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			bi, ok := updates["build_info"].(*datamodel.PoolBuildInfo)
+			return ok && bi.RbacFileUrl == "https://par.example.com/rbac.yaml" &&
+				bi.RbacFileHash == "sha256-fresh"
+		})).Return(nil)
+
+		act := &activities.PoolActivity{SE: mockStorage}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.UpdateRbacInPoolWithURL)
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-5"}}
+		_, err := testEnv.ExecuteActivity(act.UpdateRbacInPoolWithURL, pool, "https://par.example.com/rbac.yaml", "sha256-fresh")
+		require.NoError(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestCommonActivities_GenerateVSAOCIPARActivity
+// ---------------------------------------------------------------------------
+
+func TestCommonActivities_GenerateVSAOCIPARActivity(t *testing.T) {
+	t.Run("GetOCIService failure returns ErrOCIClientInitializationError", func(t *testing.T) {
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return nil, fmt.Errorf("workload identity auth failed")
+		}
+
+		mockStorage := database.NewMockStorage(t)
+		act := &activities.CommonActivities{SE: mockStorage}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GenerateVSAOCIPARActivity)
+
+		_, err := testEnv.ExecuteActivity(act.GenerateVSAOCIPARActivity, "/n/ns/b/bucket/o/image.tgz")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "workload identity auth failed")
+	})
+
+	t.Run("GenerateVSAPAR failure with nil AdminOCIService returns error", func(t *testing.T) {
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+		// AdminOCIService is nil → GenerateVSAPAR returns "OCI object storage client not initialized"
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return &oci.OciServices{
+				Ctx:    context.Background(),
+				Logger: util.GetLogger(context.Background()),
+			}, nil
+		}
+
+		mockStorage := database.NewMockStorage(t)
+		act := &activities.CommonActivities{SE: mockStorage}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GenerateVSAOCIPARActivity)
+
+		_, err := testEnv.ExecuteActivity(act.GenerateVSAOCIPARActivity, "/n/ns/b/bucket/o/image.tgz")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "OCI object storage client not initialized")
+	})
+}
+
 // withStubbedOCIVMRSLoaders swaps the package-level loader+selector
 // indirections in core/orchestrator/activities for the duration of the
 // test. Restored via t.Cleanup so parallel test files can't see the

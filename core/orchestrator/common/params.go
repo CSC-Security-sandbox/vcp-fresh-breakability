@@ -366,6 +366,11 @@ type UpgradeClusterParams struct {
 	MediatorBuildImage string            `json:"mediatorBuildImage"`     // Optional: Mediator build image to upgrade to (requires forceUpgrade=true)
 	ForceUpgrade       bool              `json:"forceUpgrade,omitempty"` // Required when specifying build images, or when upgrade gap > 1
 	Metadata           map[string]string `json:"metadata,omitempty"`
+	TargetOntapVersion string            `json:"targetOntapVersion,omitempty"` // OCI: explicit target ONTAP version (e.g. "9.20.0")
+	VSAImagePath       string            `json:"vsaImagePath,omitempty"`       // OCI: full Object Storage path e.g. /n/controlplane-nb/b/vsaimage/o/image-9-20-1P2.tgz
+	AccountName        string            `json:"accountName,omitempty"`        // OCI: tenancy OCID used to scope pool lookup
+	PoolOCID           string            `json:"poolOCID,omitempty"`           // OCI: pool OCID (used when ClusterID is the OCID, not the internal UUID)
+	SkipUpdateRBAC     bool              `json:"skipUpdateRBAC,omitempty"`     // OCI: when true, skip RBAC refresh after upgrade completes
 }
 
 type ListSnapshotsParams struct {
@@ -1232,4 +1237,13 @@ type V1betaUpdateDestinationQuotaRulesVCPParams struct {
 	LocationId     string
 	VolumeId       string
 	XCorrelationID *string
+}
+
+// RefreshRbacForPoolParams holds the inputs for the per-pool RBAC refresh.
+// RbacFileURL is optional; the workflow falls back to OCI_EXPERT_MODE_RBAC_FILE_URL.
+type RefreshRbacForPoolParams struct {
+	PoolOCID    string `json:"poolOCID"`
+	PoolID      string `json:"poolID"`
+	AccountName string `json:"accountName"`
+	RbacFileURL string `json:"rbacFileURL,omitempty"`
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -429,4 +430,188 @@ func TestConvertDatastorePoolToModel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckActiveUpgradeJob(t *testing.T) {
+	t.Run("ReturnsNilWhenNoJobs", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(ctx, "cluster-1").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+
+		result, err := CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("ReturnsNilWhenAllCompleted", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		jobs := []*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, Status: string(models.UpgradeStatusCompleted)},
+			{BaseModel: datamodel.BaseModel{UUID: "job-2"}, Status: string(models.UpgradeStatusFailed)},
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(ctx, "cluster-1").Return(jobs, nil)
+
+		result, err := CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("ReturnsPendingJob", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		jobs := []*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, Status: string(models.UpgradeStatusCompleted)},
+			{BaseModel: datamodel.BaseModel{UUID: "job-2"}, Status: string(models.UpgradeStatusPending)},
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(ctx, "cluster-1").Return(jobs, nil)
+
+		result, err := CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "job-2", result.UUID)
+	})
+
+	t.Run("ReturnsInProgressJob", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		jobs := []*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, Status: string(models.UpgradeStatusInProgress)},
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(ctx, "cluster-1").Return(jobs, nil)
+
+		result, err := CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "job-1", result.UUID)
+	})
+
+	t.Run("ReturnsErrorOnStorageFailure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(ctx, "cluster-1").Return(nil, errors.New("db error"))
+
+		result, err := CheckActiveUpgradeJob(ctx, mockStorage, "cluster-1")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestHasActiveClusterUpgrade(t *testing.T) {
+	t.Run("ReturnsFalseWhenNoActiveJob", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(ctx, "cluster-1").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+
+		has, err := HasActiveClusterUpgrade(ctx, mockStorage, "cluster-1")
+		assert.NoError(t, err)
+		assert.False(t, has)
+	})
+
+	t.Run("ReturnsTrueWhenActiveJobExists", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		jobs := []*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, Status: string(models.UpgradeStatusInProgress)},
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(ctx, "cluster-1").Return(jobs, nil)
+
+		has, err := HasActiveClusterUpgrade(ctx, mockStorage, "cluster-1")
+		assert.NoError(t, err)
+		assert.True(t, has)
+	})
+}
+
+func TestUpdateUpgradeJobStatus(t *testing.T) {
+	t.Run("SetsErrorDetailsWhenMessageProvided", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		upgradeJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "job-1"},
+			Status:    string(models.UpgradeStatusPending),
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobByUUID(ctx, "job-1").Return(upgradeJob, nil)
+		mockStorage.EXPECT().UpdateClusterUpgradeJob(ctx, mock.AnythingOfType("*datamodel.ClusterUpgradeJob")).Return(nil)
+
+		err := UpdateUpgradeJobStatus(ctx, mockStorage, "job-1", string(models.UpgradeStatusFailed), "workflow crashed")
+		assert.NoError(t, err)
+		assert.Equal(t, string(models.UpgradeStatusFailed), upgradeJob.Status)
+		assert.NotNil(t, upgradeJob.ErrorDetails)
+		assert.Equal(t, "workflow crashed", upgradeJob.ErrorDetails.ErrorMessage)
+	})
+
+	t.Run("SetsCompletedAtForCompletedStatus", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		upgradeJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "job-1"},
+			Status:    string(models.UpgradeStatusInProgress),
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobByUUID(ctx, "job-1").Return(upgradeJob, nil)
+		mockStorage.EXPECT().UpdateClusterUpgradeJob(ctx, mock.AnythingOfType("*datamodel.ClusterUpgradeJob")).Return(nil)
+
+		err := UpdateUpgradeJobStatus(ctx, mockStorage, "job-1", string(models.UpgradeStatusCompleted), "")
+		assert.NoError(t, err)
+		assert.Equal(t, string(models.UpgradeStatusCompleted), upgradeJob.Status)
+		assert.NotNil(t, upgradeJob.CompletedAt)
+		assert.Nil(t, upgradeJob.ErrorDetails)
+	})
+
+	t.Run("SetsStartedAtForInProgressStatus", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		upgradeJob := &datamodel.ClusterUpgradeJob{
+			BaseModel: datamodel.BaseModel{UUID: "job-1"},
+			Status:    string(models.UpgradeStatusPending),
+		}
+		mockStorage.EXPECT().GetClusterUpgradeJobByUUID(ctx, "job-1").Return(upgradeJob, nil)
+		mockStorage.EXPECT().UpdateClusterUpgradeJob(ctx, mock.AnythingOfType("*datamodel.ClusterUpgradeJob")).Return(nil)
+
+		err := UpdateUpgradeJobStatus(ctx, mockStorage, "job-1", string(models.UpgradeStatusInProgress), "")
+		assert.NoError(t, err)
+		assert.Equal(t, string(models.UpgradeStatusInProgress), upgradeJob.Status)
+		assert.NotNil(t, upgradeJob.StartedAt)
+	})
+
+	t.Run("ReturnsErrorWhenJobNotFound", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+
+		mockStorage.EXPECT().GetClusterUpgradeJobByUUID(ctx, "missing").Return(nil, gorm.ErrRecordNotFound)
+
+		err := UpdateUpgradeJobStatus(ctx, mockStorage, "missing", string(models.UpgradeStatusFailed), "")
+		assert.Error(t, err)
+	})
+}
+
+func TestConvertMetadataToJSONB(t *testing.T) {
+	t.Run("ReturnsNilForNilInput", func(t *testing.T) {
+		result := ConvertMetadataToJSONB(nil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("ReturnsEmptyJSONBForEmptyMap", func(t *testing.T) {
+		result := ConvertMetadataToJSONB(map[string]string{})
+		assert.NotNil(t, result)
+		assert.Empty(t, *result)
+	})
+
+	t.Run("ConvertsEntries", func(t *testing.T) {
+		input := map[string]string{"env": "staging", "team": "storage"}
+		result := ConvertMetadataToJSONB(input)
+		assert.NotNil(t, result)
+		assert.Len(t, *result, 2)
+		assert.Equal(t, "staging", (*result)["env"])
+		assert.Equal(t, "storage", (*result)["team"])
+	})
 }

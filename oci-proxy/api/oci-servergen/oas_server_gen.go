@@ -53,6 +53,15 @@ type Handler interface {
 	//
 	// GET /v1beta/workRequests/{workRequestId}
 	GetWorkflow(ctx context.Context, params GetWorkflowParams) (GetWorkflowRes, error)
+	// RbacRefreshPool implements rbacRefreshPool operation.
+	//
+	// Applies the RBAC definition file to the pool's ONTAP cluster. When
+	// rbacFilePath is provided it is used directly; otherwise the service
+	// resolves the path from its environment configuration.
+	// The operation is asynchronous. Use the returned workflowId to poll for completion.
+	//
+	// POST /v1beta/pools/{poolOCID}/rbacRefresh
+	RbacRefreshPool(ctx context.Context, req OptRbacRefreshRequest, params RbacRefreshPoolParams) (RbacRefreshPoolRes, error)
 	// UpdatePool implements updatePool operation.
 	//
 	// Updates an existing storage pool's capacity and/or throughput. The operation
@@ -60,6 +69,14 @@ type Handler interface {
 	//
 	// PUT /v1beta/pools/{poolOCID}
 	UpdatePool(ctx context.Context, req *UpdatePoolRequest, params UpdatePoolParams) (UpdatePoolRes, error)
+	// UpgradePool implements upgradePool operation.
+	//
+	// Upgrades the ONTAP software on the pool's underlying VSA cluster to the
+	// specified target version using the provided image path.
+	// The operation is asynchronous. Use the returned workflowId to poll for completion.
+	//
+	// POST /v1beta/pools/{poolOCID}/upgrade
+	UpgradePool(ctx context.Context, req *UpgradePoolRequest, params UpgradePoolParams) (UpgradePoolRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

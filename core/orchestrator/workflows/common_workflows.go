@@ -38,6 +38,11 @@ const (
 	StatusQueryName            = "status"
 	RestoreStartToCloseTimeout = 6 * 24 * time.Hour // 6 days
 	pollDBJobWaitTimeSecond    = 30
+
+	RbacActivityStartToClose   = 3 * time.Minute
+	RbacActivityInitialBackoff = 5 * time.Second
+	RbacActivityMaxInterval    = 2 * time.Minute
+	RbacActivityMaxAttempts    = 3
 	initialPollInterval        = 5 * time.Second
 	maxPollInterval            = 15 * time.Minute
 )

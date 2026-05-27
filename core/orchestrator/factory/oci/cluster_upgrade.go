@@ -1,0 +1,159 @@
+package oci
+
+import (
+	"context"
+	"errors"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
+	ociworkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/oci"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/client"
+	"gorm.io/gorm"
+)
+
+// UpgradeCluster validates pool state and dispatches an async Temporal upgrade workflow.
+func (o *OCIOrchestrator) UpgradeCluster(ctx context.Context, params *commonparams.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error) {
+	return upgradeCluster(ctx, o.storage, o.temporal, params)
+}
+
+// upgradeCluster resolves pool by OCID, validates state, and starts the upgrade workflow.
+func upgradeCluster(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error) {
+	logger := util.GetLogger(ctx)
+
+	pool, err := getPoolByOCID(ctx, se, params.PoolOCID, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	clusterID := pool.UUID
+
+	if pool.State != models.LifeCycleStateREADY && pool.State != models.LifeCycleStateDisabled {
+		logger.Warn("Cluster is not in a valid state for upgrade", "clusterId", clusterID, "currentState", pool.State)
+		return nil, "", customerrors.NewBadRequestErr("Cluster must be in READY or DISABLED state for upgrade. Current state: " + pool.State)
+	}
+
+	currentVersion := env.CurrentOntapVersionDetails
+	if pool.BuildInfo != nil && pool.BuildInfo.OntapVersion != "" {
+		currentVersion = pool.BuildInfo.OntapVersion
+	}
+
+	activeJob, err := common.CheckActiveUpgradeJob(ctx, se, clusterID)
+	if err != nil {
+		logger.Error("Failed to check for active upgrade jobs", "clusterId", clusterID, "error", err)
+		return nil, "", customerrors.NewUnavailableErr("Failed to check for active upgrade jobs")
+	}
+	if activeJob != nil {
+		logger.Warn("Cluster already has an active upgrade job",
+			"clusterId", clusterID,
+			"activeJobId", activeJob.UUID,
+			"activeStatus", activeJob.Status)
+		return nil, "", customerrors.NewConflictErr("Cluster already has an active upgrade job: " + activeJob.UUID)
+	}
+
+	jobUUID := utils.RandomUUID()
+	upgradeJob, err := createUpgradeJobInDB(ctx, se, params, pool, params.TargetOntapVersion, jobUUID, params.VSAImagePath)
+	if err != nil {
+		logger.Error("Failed to create upgrade job in database", "clusterId", clusterID, "error", err)
+		return nil, "", customerrors.NewUnavailableErr("Failed to create upgrade job")
+	}
+
+	workflowID := utils.RandomUUID()
+	workflowParams := &ociworkflows.OCIClusterUpgradeWorkflowParams{
+		JobID:          jobUUID,
+		ClusterID:      clusterID,
+		AccountName:    params.AccountName,
+		Pool:           pool,
+		TargetVersion:  params.TargetOntapVersion,
+		CurrentVersion: currentVersion,
+		VSAImagePath:   params.VSAImagePath,
+		ForceUpgrade:   params.ForceUpgrade,
+		SkipUpdateRBAC: params.SkipUpdateRBAC,
+	}
+
+	workflowOptions := client.StartWorkflowOptions{
+		ID:        workflowID,
+		TaskQueue: workflowengine.BackgroundTaskQueue,
+	}
+	_, err = temporal.ExecuteWorkflow(ctx, workflowOptions, ociworkflows.OCIClusterUpgradeWorkflow, workflowParams)
+	if err != nil {
+		logger.Error("Failed to start upgrade workflow", "clusterId", clusterID, "error", err)
+		if updateErr := common.UpdateUpgradeJobStatus(ctx, se, jobUUID, string(models.UpgradeStatusFailed), "Failed to start upgrade workflow: "+err.Error()); updateErr != nil {
+			logger.Error("Failed to update job status after workflow start failure", "clusterId", clusterID, "jobUUID", jobUUID, "error", updateErr)
+		}
+		return nil, "", customerrors.NewUnavailableErr("Failed to start upgrade workflow")
+	}
+
+	logger.Info("Started upgrade workflow", "clusterId", clusterID, "workflowID", workflowID,
+		"targetVersion", params.TargetOntapVersion, "vsaImagePath", params.VSAImagePath)
+
+	return &models.ClusterUpgradeResponse{
+		ClusterID: clusterID,
+		Status:    models.UpgradeStatusInProgress,
+		JobID:     upgradeJob.UUID,
+		CreatedAt: upgradeJob.CreatedAt,
+		UpdatedAt: upgradeJob.UpdatedAt,
+	}, workflowID, nil
+}
+
+// getPoolByOCID resolves a pool by its OCID scoped to the given account.
+func getPoolByOCID(ctx context.Context, se database.Storage, poolOCID, accountName string) (*datamodel.Pool, error) {
+	logger := util.GetLogger(ctx)
+
+	if poolOCID == "" || accountName == "" {
+		return nil, customerrors.NewBadRequestErr("PoolOCID and AccountName are required")
+	}
+
+	account, err := common.GetAccount(ctx, se, accountName)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+			return nil, customerrors.NewNotFoundErr("account", &accountName)
+		}
+		logger.Error("Failed to get account", "accountName", accountName, "error", err)
+		return nil, err
+	}
+
+	conditions := [][]interface{}{
+		{"pool_external_identifier = ?", poolOCID},
+		{"account_id = ?", account.ID},
+	}
+	poolView, err := se.GetPoolByName(ctx, conditions)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+			return nil, customerrors.NewNotFoundErr("pool", &poolOCID)
+		}
+		return nil, err
+	}
+	return database.ConvertPoolViewToPool(poolView), nil
+}
+
+// createUpgradeJobInDB creates a new ClusterUpgradeJob record in the database with the initial PENDING status.
+func createUpgradeJobInDB(ctx context.Context, se database.Storage, params *commonparams.UpgradeClusterParams, pool *datamodel.Pool, targetVersion, jobUUID, vsaImagePath string) (*datamodel.ClusterUpgradeJob, error) {
+	currentVersion := "unknown"
+	if pool.BuildInfo != nil && pool.BuildInfo.OntapVersion != "" {
+		currentVersion = pool.BuildInfo.OntapVersion
+	}
+
+	upgradeJob := &datamodel.ClusterUpgradeJob{
+		BaseModel: datamodel.BaseModel{
+			UUID: jobUUID,
+		},
+		ClusterID:      pool.UUID,
+		PoolID:         pool.UUID,
+		TargetVersion:  targetVersion,
+		CurrentVersion: currentVersion,
+		VSABuildImage:  vsaImagePath,
+		Status:         string(models.UpgradeStatusPending),
+		Metadata:       common.ConvertMetadataToJSONB(params.Metadata),
+		ForceUpgrade:   params.ForceUpgrade,
+	}
+
+	return se.CreateClusterUpgradeJob(ctx, upgradeJob)
+}

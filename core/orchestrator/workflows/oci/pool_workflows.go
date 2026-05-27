@@ -365,6 +365,10 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 			return nil, workflows.ConvertToVSAError(
 				vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("OCI admin password config is required when OCI_EXPERT_MODE_PASSWORD env var is not set")))
 		}
+		pool.PoolCredentials.ExpertModeSecret = &datamodel.ExternalCredRef{
+			ExternalIdentifier: params.OciAdminPassword.Ocid,
+			Version:            params.OciAdminPassword.Version,
+		}
 		expertModeConfig := &vlm.OntapCredentials{}
 		err = workflow.ExecuteActivity(ctx, poolActivity.GetExpertModeCredentialsForOCI, pool, params.OciAdminPassword).Get(ctx, &expertModeConfig)
 		if err != nil {
@@ -412,6 +416,17 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	emitStage(ctx, wfCreatePool, queueCustomer, stageSaveNodeDetails, resultSuccess)
+
+	// Persist the OCI ExternalSecret / ExternalCertificate references
+	// onto the pool_credentials JSONB column
+	if pool.PoolCredentials.ExternalSecret != nil || pool.PoolCredentials.ExternalCertificate != nil || pool.PoolCredentials.ExpertModeSecret != nil {
+		if err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatePoolFields, pool.UUID, map[string]interface{}{
+			"pool_credentials": pool.PoolCredentials,
+		}).Get(dbHbCtx, nil); err != nil {
+			logger.Errorf("Failed to persist pool credentials for pool %q: %v", pool.UUID, err)
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
 
 	// Mark pool as ready and persist VLM config for future workflows.
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.CreatedPool, pool, &createVSAClusterDeploymentResponse.VLMConfig).Get(dbHbCtx, nil)

@@ -216,6 +216,8 @@ var DeletePasswordForVSAClusterOCI = _deletePasswordForVSAClusterOCI
 
 var GetPasswordForVSACluster = _getPasswordForVSACluster
 
+var GetPasswordForVSAClusterOCI = _getPasswordForVSAClusterOCI
+
 var GetPasswordFromCacheOrSecretManager = _getPasswordFromCacheOrSecretManager
 
 var GetPasswordFromCacheOrOCIVault = _getPasswordFromCacheOrOCIVault
@@ -622,6 +624,19 @@ func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) 
 	return password, nil
 }
 
+// _getPasswordForVSAClusterOCI retrieves the password for a VSA cluster from OCI Vault using the secret OCID.
+func _getPasswordForVSAClusterOCI(ctx context.Context, secretID string) (*oci.OCICustomSecret, error) {
+	ociService, err := GetOCIService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	secret, err := ociService.GetSecretWithLatestVersion(secretID)
+	if err != nil || secret == nil || secret.Value == "" {
+		return nil, fmt.Errorf("failed to get secret for External Identifier: %s, err: %v", secretID, err)
+	}
+	return secret, nil
+}
+
 // _getPasswordFromCacheOrOCIVault Cache is keyed by the OCI secret Name;
 // on miss it fetches the latest version from OCI Vault.
 func _getPasswordFromCacheOrOCIVault(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
@@ -639,7 +654,7 @@ func _getPasswordFromCacheOrOCIVault(ctx context.Context, ref *datamodel.Externa
 		ociService.Logger.Errorf("OCI vault config invalid for secretName %s: %v", ref.Name, err)
 		return "", err
 	}
-	secret, err := ociService.GetSecretByName(ref.Name, env.OCIVaultOCID)
+	secret, err := GetPasswordForVSAClusterOCI(ctx, ref.ExternalIdentifier)
 	if err != nil {
 		return "", err
 	}

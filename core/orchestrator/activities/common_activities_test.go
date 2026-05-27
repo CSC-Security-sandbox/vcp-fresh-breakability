@@ -22,6 +22,7 @@ import (
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hgoogle "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -3164,5 +3165,42 @@ func TestGetExternalPeerRolePrivileges(t *testing.T) {
 		privileges1 = append(privileges1, &vsa.RolePrivilege{Path: "test"})
 		assert.Equal(tt, originalLen1+1, len(privileges1))
 		assert.Equal(tt, originalLen2, len(privileges2)) // Second slice unchanged
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestGenerateVSAOCIPARActivity
+// ---------------------------------------------------------------------------
+
+func TestGenerateVSAOCIPARActivity(t *testing.T) {
+	ca := CommonActivities{}
+
+	t.Run("GetOCIService fails", func(t *testing.T) {
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return nil, errors.New("oci init failure")
+		}
+
+		url, err := ca.GenerateVSAOCIPARActivity(context.Background(), "/n/ns/b/bkt/o/img.tgz")
+		assert.Error(t, err)
+		assert.Empty(t, url)
+	})
+
+	t.Run("GenerateVSAPAR fails", func(t *testing.T) {
+		origGetOCIService := hyperscaler2.GetOCIService
+		defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return &oci.OciServices{
+				Ctx:             ctx,
+				AdminOCIService: &oci.AdminOCIService{},
+			}, nil
+		}
+
+		url, err := ca.GenerateVSAOCIPARActivity(context.Background(), "invalid-path")
+		assert.Error(t, err)
+		assert.Empty(t, url)
 	})
 }

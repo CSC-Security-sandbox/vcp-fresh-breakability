@@ -1805,6 +1805,52 @@ func (o OptOCIOCIDVersionRef) Or(d OCIOCIDVersionRef) OCIOCIDVersionRef {
 	return d
 }
 
+// NewOptRbacRefreshRequest returns new OptRbacRefreshRequest with value set to v.
+func NewOptRbacRefreshRequest(v RbacRefreshRequest) OptRbacRefreshRequest {
+	return OptRbacRefreshRequest{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptRbacRefreshRequest is optional RbacRefreshRequest.
+type OptRbacRefreshRequest struct {
+	Value RbacRefreshRequest
+	Set   bool
+}
+
+// IsSet returns true if OptRbacRefreshRequest was set.
+func (o OptRbacRefreshRequest) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptRbacRefreshRequest) Reset() {
+	var v RbacRefreshRequest
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptRbacRefreshRequest) SetTo(v RbacRefreshRequest) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptRbacRefreshRequest) Get() (v RbacRefreshRequest, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptRbacRefreshRequest) Or(d RbacRefreshRequest) RbacRefreshRequest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -2053,6 +2099,142 @@ func (s *PoolOperationErrorResponseHeaders) SetOpcRequestID(val string) {
 // SetResponse sets the value of Response.
 func (s *PoolOperationErrorResponseHeaders) SetResponse(val PoolOperationErrorResponse) {
 	s.Response = val
+}
+
+// Ref: #/components/schemas/RbacRefreshAcceptedResponse
+type RbacRefreshAcceptedResponse struct {
+	// Current workflow status for the RBAC refresh operation.
+	Status string `json:"status"`
+	// Workflow identifier used to poll operation status.
+	WorkflowId string `json:"workflowId"`
+	// Pool OCID for the requested pool.
+	PoolOCID string `json:"poolOCID"`
+}
+
+// GetStatus returns the value of Status.
+func (s *RbacRefreshAcceptedResponse) GetStatus() string {
+	return s.Status
+}
+
+// GetWorkflowId returns the value of WorkflowId.
+func (s *RbacRefreshAcceptedResponse) GetWorkflowId() string {
+	return s.WorkflowId
+}
+
+// GetPoolOCID returns the value of PoolOCID.
+func (s *RbacRefreshAcceptedResponse) GetPoolOCID() string {
+	return s.PoolOCID
+}
+
+// SetStatus sets the value of Status.
+func (s *RbacRefreshAcceptedResponse) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetWorkflowId sets the value of WorkflowId.
+func (s *RbacRefreshAcceptedResponse) SetWorkflowId(val string) {
+	s.WorkflowId = val
+}
+
+// SetPoolOCID sets the value of PoolOCID.
+func (s *RbacRefreshAcceptedResponse) SetPoolOCID(val string) {
+	s.PoolOCID = val
+}
+
+// RbacRefreshAcceptedResponseHeaders wraps RbacRefreshAcceptedResponse with response headers.
+type RbacRefreshAcceptedResponseHeaders struct {
+	OpcRequestID string
+	Response     RbacRefreshAcceptedResponse
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *RbacRefreshAcceptedResponseHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *RbacRefreshAcceptedResponseHeaders) GetResponse() RbacRefreshAcceptedResponse {
+	return s.Response
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *RbacRefreshAcceptedResponseHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *RbacRefreshAcceptedResponseHeaders) SetResponse(val RbacRefreshAcceptedResponse) {
+	s.Response = val
+}
+
+func (*RbacRefreshAcceptedResponseHeaders) rbacRefreshPoolRes() {}
+
+type RbacRefreshPoolBadRequest PoolOperationErrorResponseHeaders
+
+func (*RbacRefreshPoolBadRequest) rbacRefreshPoolRes() {}
+
+// RbacRefreshPoolDefaultErrorStatusCodeWithHeaders wraps PoolOperationErrorResponse with status code and response headers.
+type RbacRefreshPoolDefaultErrorStatusCodeWithHeaders struct {
+	StatusCode   int
+	OpcRequestID string
+	Response     PoolOperationErrorResponse
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *RbacRefreshPoolDefaultErrorStatusCodeWithHeaders) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *RbacRefreshPoolDefaultErrorStatusCodeWithHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *RbacRefreshPoolDefaultErrorStatusCodeWithHeaders) GetResponse() PoolOperationErrorResponse {
+	return s.Response
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *RbacRefreshPoolDefaultErrorStatusCodeWithHeaders) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *RbacRefreshPoolDefaultErrorStatusCodeWithHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *RbacRefreshPoolDefaultErrorStatusCodeWithHeaders) SetResponse(val PoolOperationErrorResponse) {
+	s.Response = val
+}
+
+func (*RbacRefreshPoolDefaultErrorStatusCodeWithHeaders) rbacRefreshPoolRes() {}
+
+type RbacRefreshPoolInternalServerError PoolOperationErrorResponseHeaders
+
+func (*RbacRefreshPoolInternalServerError) rbacRefreshPoolRes() {}
+
+type RbacRefreshPoolNotFound PoolOperationErrorResponseHeaders
+
+func (*RbacRefreshPoolNotFound) rbacRefreshPoolRes() {}
+
+// Ref: #/components/schemas/RbacRefreshRequest
+type RbacRefreshRequest struct {
+	// When provided, the service uses this path to fetch the RBAC file.
+	// When omitted or null, the service fetch the path from the environment variable if set.
+	RbacFilePath OptString `json:"rbacFilePath"`
+}
+
+// GetRbacFilePath returns the value of RbacFilePath.
+func (s *RbacRefreshRequest) GetRbacFilePath() OptString {
+	return s.RbacFilePath
+}
+
+// SetRbacFilePath sets the value of RbacFilePath.
+func (s *RbacRefreshRequest) SetRbacFilePath(val OptString) {
+	s.RbacFilePath = val
 }
 
 // StandardError400Headers wraps Error with response headers.
@@ -2725,6 +2907,185 @@ func (s *UpdatePoolRequestSecurityAttributes) init() UpdatePoolRequestSecurityAt
 type UpdatePoolUnauthorized PoolOperationErrorResponseHeaders
 
 func (*UpdatePoolUnauthorized) updatePoolRes() {}
+
+// Ref: #/components/schemas/UpgradePoolAcceptedResponse
+type UpgradePoolAcceptedResponse struct {
+	// Current workflow status for the upgrade operation.
+	Status string `json:"status"`
+	// Workflow identifier used to poll operation status.
+	WorkflowId string `json:"workflowId"`
+	// Pool OCID for the requested pool.
+	PoolOCID string `json:"poolOCID"`
+}
+
+// GetStatus returns the value of Status.
+func (s *UpgradePoolAcceptedResponse) GetStatus() string {
+	return s.Status
+}
+
+// GetWorkflowId returns the value of WorkflowId.
+func (s *UpgradePoolAcceptedResponse) GetWorkflowId() string {
+	return s.WorkflowId
+}
+
+// GetPoolOCID returns the value of PoolOCID.
+func (s *UpgradePoolAcceptedResponse) GetPoolOCID() string {
+	return s.PoolOCID
+}
+
+// SetStatus sets the value of Status.
+func (s *UpgradePoolAcceptedResponse) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetWorkflowId sets the value of WorkflowId.
+func (s *UpgradePoolAcceptedResponse) SetWorkflowId(val string) {
+	s.WorkflowId = val
+}
+
+// SetPoolOCID sets the value of PoolOCID.
+func (s *UpgradePoolAcceptedResponse) SetPoolOCID(val string) {
+	s.PoolOCID = val
+}
+
+// UpgradePoolAcceptedResponseHeaders wraps UpgradePoolAcceptedResponse with response headers.
+type UpgradePoolAcceptedResponseHeaders struct {
+	OpcRequestID string
+	Response     UpgradePoolAcceptedResponse
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *UpgradePoolAcceptedResponseHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *UpgradePoolAcceptedResponseHeaders) GetResponse() UpgradePoolAcceptedResponse {
+	return s.Response
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *UpgradePoolAcceptedResponseHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *UpgradePoolAcceptedResponseHeaders) SetResponse(val UpgradePoolAcceptedResponse) {
+	s.Response = val
+}
+
+func (*UpgradePoolAcceptedResponseHeaders) upgradePoolRes() {}
+
+type UpgradePoolBadRequest PoolOperationErrorResponseHeaders
+
+func (*UpgradePoolBadRequest) upgradePoolRes() {}
+
+type UpgradePoolConflict PoolOperationErrorResponseHeaders
+
+func (*UpgradePoolConflict) upgradePoolRes() {}
+
+// UpgradePoolDefaultErrorStatusCodeWithHeaders wraps PoolOperationErrorResponse with status code and response headers.
+type UpgradePoolDefaultErrorStatusCodeWithHeaders struct {
+	StatusCode   int
+	OpcRequestID string
+	Response     PoolOperationErrorResponse
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *UpgradePoolDefaultErrorStatusCodeWithHeaders) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// GetOpcRequestID returns the value of OpcRequestID.
+func (s *UpgradePoolDefaultErrorStatusCodeWithHeaders) GetOpcRequestID() string {
+	return s.OpcRequestID
+}
+
+// GetResponse returns the value of Response.
+func (s *UpgradePoolDefaultErrorStatusCodeWithHeaders) GetResponse() PoolOperationErrorResponse {
+	return s.Response
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *UpgradePoolDefaultErrorStatusCodeWithHeaders) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+// SetOpcRequestID sets the value of OpcRequestID.
+func (s *UpgradePoolDefaultErrorStatusCodeWithHeaders) SetOpcRequestID(val string) {
+	s.OpcRequestID = val
+}
+
+// SetResponse sets the value of Response.
+func (s *UpgradePoolDefaultErrorStatusCodeWithHeaders) SetResponse(val PoolOperationErrorResponse) {
+	s.Response = val
+}
+
+func (*UpgradePoolDefaultErrorStatusCodeWithHeaders) upgradePoolRes() {}
+
+type UpgradePoolInternalServerError PoolOperationErrorResponseHeaders
+
+func (*UpgradePoolInternalServerError) upgradePoolRes() {}
+
+type UpgradePoolNotFound PoolOperationErrorResponseHeaders
+
+func (*UpgradePoolNotFound) upgradePoolRes() {}
+
+// Ref: #/components/schemas/UpgradePoolRequest
+type UpgradePoolRequest struct {
+	// Target ONTAP version (e.g. "9.20.0").
+	TargetOntapVersion string `json:"targetOntapVersion"`
+	// Full OCI Object Storage path to the ONTAP .tgz upgrade image
+	// in the format /n/{namespace}/b/{bucket}/o/{objectName}
+	// (e.g. "/n/controlplane-nb/b/vsaimage/o/image-9-20-1P2.tgz").
+	VsaImagePath string `json:"vsaImagePath"`
+	// When true, proceed with the upgrade even if the pool's current
+	// build info already matches the target images. Default false.
+	ForceUpgrade OptBool `json:"forceUpgrade"`
+	// When true, skip the RBAC refresh after the upgrade completes.
+	// Default false (RBAC refresh runs by default).
+	SkipUpdateRBAC OptBool `json:"skipUpdateRBAC"`
+}
+
+// GetTargetOntapVersion returns the value of TargetOntapVersion.
+func (s *UpgradePoolRequest) GetTargetOntapVersion() string {
+	return s.TargetOntapVersion
+}
+
+// GetVsaImagePath returns the value of VsaImagePath.
+func (s *UpgradePoolRequest) GetVsaImagePath() string {
+	return s.VsaImagePath
+}
+
+// GetForceUpgrade returns the value of ForceUpgrade.
+func (s *UpgradePoolRequest) GetForceUpgrade() OptBool {
+	return s.ForceUpgrade
+}
+
+// GetSkipUpdateRBAC returns the value of SkipUpdateRBAC.
+func (s *UpgradePoolRequest) GetSkipUpdateRBAC() OptBool {
+	return s.SkipUpdateRBAC
+}
+
+// SetTargetOntapVersion sets the value of TargetOntapVersion.
+func (s *UpgradePoolRequest) SetTargetOntapVersion(val string) {
+	s.TargetOntapVersion = val
+}
+
+// SetVsaImagePath sets the value of VsaImagePath.
+func (s *UpgradePoolRequest) SetVsaImagePath(val string) {
+	s.VsaImagePath = val
+}
+
+// SetForceUpgrade sets the value of ForceUpgrade.
+func (s *UpgradePoolRequest) SetForceUpgrade(val OptBool) {
+	s.ForceUpgrade = val
+}
+
+// SetSkipUpdateRBAC sets the value of SkipUpdateRBAC.
+func (s *UpgradePoolRequest) SetSkipUpdateRBAC(val OptBool) {
+	s.SkipUpdateRBAC = val
+}
 
 // Present when the workflow failed or timed out.
 // Ref: #/components/schemas/WorkflowStatusError

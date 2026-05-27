@@ -8,8 +8,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	ociworkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/oci"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
 )
 
@@ -635,31 +640,6 @@ func (o *OCIOrchestrator) UpdateActiveDirectory(ctx context.Context, params *com
 	return nil, "", utilserrors.NewNotImplementedYetErr()
 }
 
-func (o *OCIOrchestrator) UpgradeCluster(ctx context.Context, params *commonparams.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error) {
-	// TODO implement me
-	return nil, "", utilserrors.NewNotImplementedYetErr()
-}
-
-func (o *OCIOrchestrator) GetClusterUpgradeStatus(ctx context.Context, jobUUID string) (*models.UpgradeProgress, error) {
-	return nil, utilserrors.NewNotImplementedYetErr()
-}
-
-func (o *OCIOrchestrator) HasActiveClusterUpgrade(ctx context.Context, clusterID string) (bool, error) {
-	return false, utilserrors.NewNotImplementedYetErr()
-}
-
-func (o *OCIOrchestrator) ListAvailableVersions(ctx context.Context) (*models.ListAvailableVersionsResponse, error) {
-	return nil, utilserrors.NewNotImplementedYetErr()
-}
-
-func (o *OCIOrchestrator) CreateImageVersion(ctx context.Context, ontapVersion, vsaImagePath, vsaName, mediatorName string, isActive bool) (*datamodel.ImageVersion, error) {
-	return nil, utilserrors.NewNotImplementedYetErr()
-}
-
-func (o *OCIOrchestrator) DeleteImageVersion(ctx context.Context, ontapVersion string) error {
-	return utilserrors.NewNotImplementedYetErr()
-}
-
 func (o *OCIOrchestrator) GetActiveDirectory(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
@@ -686,6 +666,26 @@ func (o *OCIOrchestrator) GetSDEActiveDirectory(ctx context.Context, getADParams
 
 func (o *OCIOrchestrator) DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error) {
 	return "", utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) GetClusterUpgradeStatus(ctx context.Context, jobUUID string) (*models.UpgradeProgress, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) HasActiveClusterUpgrade(ctx context.Context, clusterID string) (bool, error) {
+	return false, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) ListAvailableVersions(ctx context.Context) (*models.ListAvailableVersionsResponse, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) CreateImageVersion(ctx context.Context, ontapVersion, vsaImagePath, vsaName, mediatorName string, isActive bool) (*datamodel.ImageVersion, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) DeleteImageVersion(ctx context.Context, ontapVersion string) error {
+	return utilserrors.NewNotImplementedYetErr()
 }
 
 func (o *OCIOrchestrator) GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
@@ -716,8 +716,40 @@ func (o *OCIOrchestrator) UpdateRbacForPools(ctx context.Context) (string, error
 	return "", utilserrors.NewNotImplementedYetErr()
 }
 
-func (o *OCIOrchestrator) UpdateRbacForPoolById(ctx context.Context, poolId string) (string, error) {
-	return "", utilserrors.NewNotImplementedYetErr()
+// UpdateRbacForPoolById resolves the pool by OCID and dispatches the OCI RBAC refresh workflow.
+func (o *OCIOrchestrator) UpdateRbacForPoolById(ctx context.Context, params *commonparams.RefreshRbacForPoolParams) (string, error) {
+	logger := util.GetLogger(ctx)
+
+	pool, err := getPoolByOCID(ctx, o.storage, params.PoolOCID, params.AccountName)
+	if err != nil {
+		return "", err
+	}
+
+	wfParams := &commonparams.RefreshRbacForPoolParams{
+		PoolOCID:    params.PoolOCID,
+		PoolID:      pool.UUID,
+		AccountName: params.AccountName,
+		RbacFileURL: params.RbacFileURL,
+	}
+
+	workflowID := utils.RandomUUID()
+	workflowExecutor := workflows.NewWorkflowExecutor(o.temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		workflowID,
+		workflowengine.BackgroundTaskQueue,
+		ociworkflows.OCIRefreshRbacForPoolWorkflow,
+		nil,
+		wfParams,
+		pool,
+	)
+	if err != nil {
+		logger.Error("RBAC refresh workflow dispatch failed", "workflowID", workflowID, "poolOCID", params.PoolOCID, "error", err)
+		return "", fmt.Errorf("failed to dispatch RBAC refresh workflow for pool %s: %w", params.PoolOCID, err)
+	}
+
+	logger.Info("RBAC refresh workflow dispatched", "workflowID", workflowID, "poolOCID", params.PoolOCID, "poolUUID", pool.UUID)
+	return workflowID, nil
 }
 
 func (o *OCIOrchestrator) GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string, locationId string) ([]*models.ExpertModeVolumeBackupConfig, error) {

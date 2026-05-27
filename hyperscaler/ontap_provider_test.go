@@ -2674,6 +2674,7 @@ func Test_GetPasswordFromCacheOrOCIVault_ValidateConfigFails(t *testing.T) {
 
 func Test_GetPasswordFromCacheOrOCIVault_VaultFetchSuccess(t *testing.T) {
 	const cacheKey = "test-cache-vaultfetch-success-secret"
+	const secretOCID = "ocid1.vaultsecret.oc1..found"
 
 	origVault := env.OCIVaultOCID
 	defer func() {
@@ -2688,34 +2689,31 @@ func Test_GetPasswordFromCacheOrOCIVault_VaultFetchSuccess(t *testing.T) {
 		return nil, false // cache miss — fall through to OCI Vault
 	}
 
-	encodedPW := base64.StdEncoding.EncodeToString([]byte("vault-fetched-pw"))
-	secretsDispatcher := &mockOCIHTTPDispatcher{
-		doFunc: func(req *http.Request) (*http.Response, error) {
-			return mockOCIJSONResponse(http.StatusOK, `{
-				"secretId":      "ocid1.vaultsecret.oc1..found",
-				"versionNumber": 1,
-				"secretBundleContent": {
-					"contentType": "BASE64",
-					"content":     "`+encodedPW+`"
-				}
-			}`), nil
-		},
-	}
-
 	origGetOCI := GetOCIService
 	defer func() { GetOCIService = origGetOCI }()
 	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
-		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
-		return &svc, nil
+		return &oci2.OciServices{Ctx: ctx, Logger: log.NewLogger()}, nil
 	}
 
-	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey})
+	origGetPW := GetPasswordForVSAClusterOCI
+	defer func() { GetPasswordForVSAClusterOCI = origGetPW }()
+	GetPasswordForVSAClusterOCI = func(ctx context.Context, secretID string) (*oci2.OCICustomSecret, error) {
+		return &oci2.OCICustomSecret{
+			Ocid:    secretID,
+			Name:    cacheKey,
+			Value:   "vault-fetched-pw",
+			Version: 1,
+		}, nil
+	}
+
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey, ExternalIdentifier: secretOCID})
 	assert.NoError(t, err)
 	assert.Equal(t, "vault-fetched-pw", pw)
 }
 
 func Test_GetPasswordFromCacheOrOCIVault_SecretNotFound(t *testing.T) {
 	const cacheKey = "test-cache-secretnotfound-secret"
+	const secretOCID = "ocid1.vaultsecret.oc1..missing"
 
 	origVault := env.OCIVaultOCID
 	defer func() { env.OCIVaultOCID = origVault }()
@@ -2727,23 +2725,188 @@ func Test_GetPasswordFromCacheOrOCIVault_SecretNotFound(t *testing.T) {
 		return nil, false
 	}
 
-	// 404 → GetSecretByName returns nil, nil → "empty or not found" error
-	secretsDispatcher := &mockOCIHTTPDispatcher{
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		return &oci2.OciServices{Ctx: ctx, Logger: log.NewLogger()}, nil
+	}
+
+	// Secret not found → underlying fetch returns (nil, nil) so the caller
+	// produces the "empty or not found" error.
+	origGetPW := GetPasswordForVSAClusterOCI
+	defer func() { GetPasswordForVSAClusterOCI = origGetPW }()
+	GetPasswordForVSAClusterOCI = func(ctx context.Context, secretID string) (*oci2.OCICustomSecret, error) {
+		return nil, nil
+	}
+
+	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey, ExternalIdentifier: secretOCID})
+	assert.Empty(t, pw)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty or not found")
+}
+
+// ---------------------------------------------------------------------------
+// _getPasswordForVSAClusterOCI
+//
+// _getPasswordForVSAClusterOCI is the OCI counterpart of GetPasswordForVSACluster:
+// it resolves the OCI service, fetches the latest version of the secret bundle
+// for the supplied OCID, and treats nil/empty-value results as failures so the
+// caller never sees a partially-populated *OCICustomSecret.
+// ---------------------------------------------------------------------------
+
+func Test_GetPasswordForVSAClusterOCI_GetOCIServiceFails(t *testing.T) {
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		return nil, fmt.Errorf("oci client init failed")
+	}
+
+	secret, err := _getPasswordForVSAClusterOCI(context.Background(), "ocid1.vaultsecret.oc1..anything")
+	assert.Nil(t, secret)
+	require.Error(t, err)
+	// The OCI service init error is returned unwrapped.
+	assert.Contains(t, err.Error(), "oci client init failed")
+	assert.NotContains(t, err.Error(), "failed to get secret for External Identifier")
+}
+
+func Test_GetPasswordForVSAClusterOCI_VaultGetSecretFails(t *testing.T) {
+	const secretOCID = "ocid1.vaultsecret.oc1..unreachable"
+
+	// vault.GetSecret (metadata fetch) returns a transport-level error. This
+	// is wrapped by GetSecretWithLatestVersion as ErrOCIResourceFetchError and
+	// then re-wrapped here as "failed to get secret for External Identifier".
+	vaultDispatcher := &mockOCIHTTPDispatcher{
 		doFunc: func(req *http.Request) (*http.Response, error) {
-			return nil, &mockOCIServiceError{statusCode: http.StatusNotFound, code: "NotAuthorizedOrNotFound", message: "not found"}
+			return nil, fmt.Errorf("vault connection timeout")
 		},
 	}
 
 	origGetOCI := GetOCIService
 	defer func() { GetOCIService = origGetOCI }()
 	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
-		svc := newTestOciServicesForHyperscaler(t, nil, secretsDispatcher)
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
 		return &svc, nil
 	}
 
-	pw, err := _getPasswordFromCacheOrOCIVault(context.Background(), &datamodel.ExternalCredRef{Name: cacheKey})
-	assert.Empty(t, pw)
+	secret, err := _getPasswordForVSAClusterOCI(context.Background(), secretOCID)
+	assert.Nil(t, secret)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "empty or not found")
+	assert.Contains(t, err.Error(), "failed to get secret for External Identifier")
+	assert.Contains(t, err.Error(), secretOCID)
+}
+
+func Test_GetPasswordForVSAClusterOCI_SecretInDeletionState(t *testing.T) {
+	const secretOCID = "ocid1.vaultsecret.oc1..pending"
+
+	// GetSecretWithLatestVersion treats PENDING_DELETION as (nil, nil); the
+	// caller must convert that into an error so we never hand a non-existent
+	// password back to ONTAP.
+	vaultDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return mockOCIJSONResponse(http.StatusOK, `{
+				"id":             "`+secretOCID+`",
+				"secretName":     "pending-secret",
+				"lifecycleState": "PENDING_DELETION"
+			}`), nil
+		},
+	}
+
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, nil)
+		return &svc, nil
+	}
+
+	secret, err := _getPasswordForVSAClusterOCI(context.Background(), secretOCID)
+	assert.Nil(t, secret)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get secret for External Identifier")
+	assert.Contains(t, err.Error(), secretOCID)
+}
+
+func Test_GetPasswordForVSAClusterOCI_EmptySecretValue(t *testing.T) {
+	const secretOCID = "ocid1.vaultsecret.oc1..emptyvalue"
+
+	// vault metadata fetch reports ACTIVE so we proceed to the bundle fetch.
+	vaultDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return mockOCIJSONResponse(http.StatusOK, `{
+				"id":             "`+secretOCID+`",
+				"secretName":     "empty-secret",
+				"lifecycleState": "ACTIVE"
+			}`), nil
+		},
+	}
+	// Bundle returns ACTIVE+base64("") so secret.Value ends up empty after
+	// decoding. The empty-value guard must turn this into the same "failed
+	// to get secret" error as a missing secret.
+	encodedEmpty := base64.StdEncoding.EncodeToString([]byte(""))
+	secretsDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return mockOCIJSONResponse(http.StatusOK, `{
+				"secretId":      "`+secretOCID+`",
+				"versionNumber": 1,
+				"secretBundleContent": {
+					"contentType": "BASE64",
+					"content":     "`+encodedEmpty+`"
+				}
+			}`), nil
+		},
+	}
+
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
+		return &svc, nil
+	}
+
+	secret, err := _getPasswordForVSAClusterOCI(context.Background(), secretOCID)
+	assert.Nil(t, secret)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get secret for External Identifier")
+}
+
+func Test_GetPasswordForVSAClusterOCI_Success(t *testing.T) {
+	const secretOCID = "ocid1.vaultsecret.oc1..happy"
+	const expectedPW = "happy-path-pw"
+
+	vaultDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return mockOCIJSONResponse(http.StatusOK, `{
+				"id":             "`+secretOCID+`",
+				"secretName":     "happy-secret",
+				"lifecycleState": "ACTIVE"
+			}`), nil
+		},
+	}
+	encodedPW := base64.StdEncoding.EncodeToString([]byte(expectedPW))
+	secretsDispatcher := &mockOCIHTTPDispatcher{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return mockOCIJSONResponse(http.StatusOK, `{
+				"secretId":      "`+secretOCID+`",
+				"versionNumber": 7,
+				"secretBundleContent": {
+					"contentType": "BASE64",
+					"content":     "`+encodedPW+`"
+				}
+			}`), nil
+		},
+	}
+
+	origGetOCI := GetOCIService
+	defer func() { GetOCIService = origGetOCI }()
+	GetOCIService = func(ctx context.Context) (*oci2.OciServices, error) {
+		svc := newTestOciServicesForHyperscaler(t, vaultDispatcher, secretsDispatcher)
+		return &svc, nil
+	}
+
+	secret, err := _getPasswordForVSAClusterOCI(context.Background(), secretOCID)
+	require.NoError(t, err)
+	require.NotNil(t, secret)
+	assert.Equal(t, expectedPW, secret.Value)
+	assert.Equal(t, int64(7), secret.Version)
+	assert.Equal(t, secretOCID, secret.Ocid)
 }
 

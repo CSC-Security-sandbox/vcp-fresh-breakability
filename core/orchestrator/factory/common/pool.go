@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -241,4 +242,68 @@ func ConvertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 	}
 
 	return poolRes
+}
+
+// CheckActiveUpgradeJob returns the active upgrade job for a cluster, or nil
+// if none is in PENDING / IN_PROGRESS state.
+func CheckActiveUpgradeJob(ctx context.Context, se database.Storage, clusterID string) (*datamodel.ClusterUpgradeJob, error) {
+	jobs, err := se.GetClusterUpgradeJobsByClusterID(ctx, clusterID)
+	if err != nil {
+		return nil, err
+	}
+	for _, job := range jobs {
+		if job.Status == string(models.UpgradeStatusPending) || job.Status == string(models.UpgradeStatusInProgress) {
+			return job, nil
+		}
+	}
+	return nil, nil
+}
+
+// HasActiveClusterUpgrade returns true if the given cluster (pool UUID) has an
+// active upgrade job (PENDING or IN_PROGRESS).
+func HasActiveClusterUpgrade(ctx context.Context, se database.Storage, clusterID string) (bool, error) {
+	job, err := CheckActiveUpgradeJob(ctx, se, clusterID)
+	return job != nil, err
+}
+
+// UpdateUpgradeJobStatus updates the status of an upgrade job.
+func UpdateUpgradeJobStatus(ctx context.Context, se database.Storage, jobUUID, status, errorMessage string) error {
+	upgradeJob, err := se.GetClusterUpgradeJobByUUID(ctx, jobUUID)
+	if err != nil {
+		return err
+	}
+
+	upgradeJob.Status = status
+	upgradeJob.UpdatedAt = time.Now()
+
+	if errorMessage != "" {
+		upgradeJob.ErrorDetails = &datamodel.UpgradeErrorDetails{
+			ErrorCode:    "UPGRADE_FAILED",
+			ErrorMessage: errorMessage,
+			ErrorType:    "UPGRADE_ERROR",
+			Retryable:    true,
+		}
+	}
+
+	if status == string(models.UpgradeStatusCompleted) {
+		now := time.Now()
+		upgradeJob.CompletedAt = &now
+	} else if status == string(models.UpgradeStatusInProgress) {
+		now := time.Now()
+		upgradeJob.StartedAt = &now
+	}
+
+	return se.UpdateClusterUpgradeJob(ctx, upgradeJob)
+}
+
+// ConvertMetadataToJSONB converts map[string]string to *datamodel.JSONB.
+func ConvertMetadataToJSONB(metadata map[string]string) *datamodel.JSONB {
+	if metadata == nil {
+		return nil
+	}
+	result := make(datamodel.JSONB)
+	for k, v := range metadata {
+		result[k] = v
+	}
+	return &result
 }
