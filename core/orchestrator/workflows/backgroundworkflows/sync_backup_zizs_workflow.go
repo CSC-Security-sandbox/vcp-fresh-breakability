@@ -98,6 +98,15 @@ func (wf *syncBackupZizsWorkflow) Run(ctx workflow.Context, args ...interface{})
 
 		// Process each bucket detail
 		for _, bucketDetail := range backupVault.BucketDetails {
+			if bucketDetail == nil {
+				wf.Logger.Warnf("Bucket details entry is nil for backup vault %s, skipping", backupVault.UUID)
+				continue
+			}
+			if bucketDetail.BucketName == "" {
+				wf.Logger.Warnf("Bucket name is empty in bucket details for tenant project: %s in backup vault %s, skipping", bucketDetail.TenantProjectNumber, backupVault.UUID)
+				continue
+			}
+
 			wf.Logger.Infof("Processing bucket %s for backup vault %s", bucketDetail.BucketName, backupVault.UUID)
 
 			var updatedBucketDetails *datamodel.BucketDetails

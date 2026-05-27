@@ -74,7 +74,7 @@ func (a *SyncBackupZiZsActivity) UpdateBackupVault(ctx context.Context, backupVa
 	logger.Infof("Updating backup vault %s with synced ZiZs information", backupVault.UUID)
 
 	// Call the storage engine to update the backup vault
-	err := a.SE.UpdateBackupVault(ctx, backupVault)
+	err := a.SE.UpdateBackupVaultBucketDetails(ctx, backupVault)
 	if err != nil {
 		logger.Errorf("Failed to update backup vault %s: %v", backupVault.UUID, err)
 		return fmt.Errorf("failed to update backup vault %s: %w", backupVault.UUID, err)

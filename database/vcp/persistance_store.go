@@ -1177,8 +1177,8 @@ func (s *PersistenceStore) CreateBackupVaultEntryInVCP(ctx context.Context, back
 	return s.dataStore.CreateBackupVaultEntryInVCP(ctx, backupVault)
 }
 
-func (s *PersistenceStore) UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error {
-	return s.dataStore.UpdateBackupVault(ctx, backupVault)
+func (s *PersistenceStore) UpdateBackupVaultBucketDetails(ctx context.Context, backupVault *datamodel.BackupVault) error {
+	return s.dataStore.UpdateBackupVaultBucketDetails(ctx, backupVault)
 }
 
 func (s *PersistenceStore) IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {

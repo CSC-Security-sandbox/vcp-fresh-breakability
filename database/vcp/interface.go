@@ -282,7 +282,7 @@ type (
 		GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, accountID int64) (*datamodel.BackupVault, error)
 		GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error)
 		CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
-		UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error
+		UpdateBackupVaultBucketDetails(ctx context.Context, backupVault *datamodel.BackupVault) error
 		GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error)
 		GetBackupVaultById(ctx context.Context, backupVaultId int64) (*datamodel.BackupVault, error)
 		UpdateBackupVaultState(ctx context.Context, bv *datamodel.BackupVault, state, stateDetails string) (*datamodel.BackupVault, error)

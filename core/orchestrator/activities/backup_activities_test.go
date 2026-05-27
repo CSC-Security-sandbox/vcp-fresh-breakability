@@ -12554,9 +12554,9 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 		// Second call: in UpdateBackupVaultWithBucketDetails
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil).Twice()
 
-		// Mock UpdateBackupVault - called in UpdateBackupVaultWithBucketDetails
-		// UpdateBackupVault returns only error, not (*datamodel.BackupVault, error)
-		mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+		// Mock UpdateBackupVaultBucketDetails - called in UpdateBackupVaultWithBucketDetails
+		// UpdateBackupVaultBucketDetails returns only error, not (*datamodel.BackupVault, error)
+		mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
 
 		// Mock GetExpertModeVolumeByUUID - called at the end to attach backup vault
 		expertModeVolume := &datamodel.ExpertModeVolumes{
@@ -12775,8 +12775,8 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 		// Mock GetBackupVaultByUUIDndOwnerID - called multiple times
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil).Twice()
 
-		// Mock UpdateBackupVault
-		mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+		// Mock UpdateBackupVaultBucketDetails
+		mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
 
 		// Note: GetExpertModeVolumeByUUID and UpdateExpertModeVolume won't be called
 		// if CheckOrCreateRemoteBackupVaultInVCP fails (which it will due to missing env vars)
@@ -12897,8 +12897,8 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 		// 2. Inside UpdateBackupVaultWithBucketDetails
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil).Twice()
 
-		// Mock UpdateBackupVault - called in UpdateBackupVaultWithBucketDetails
-		mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+		// Mock UpdateBackupVaultBucketDetails - called in UpdateBackupVaultWithBucketDetails
+		mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
 
 		// Mock GetGCPService
 		originalGetGCPService := hyperscaler.GetGCPService
@@ -12953,8 +12953,8 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 			}, nil
 		}
 
-		// Mock UpdateBackupVault
-		mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+		// Mock UpdateBackupVaultBucketDetails
+		mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
 
 		result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
 
@@ -13685,7 +13685,7 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_NilPoolForCrossProjectPermissio
 	// Mock UpdateBackupVaultWithBucketDetails
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", mock.Anything, mock.Anything, mock.Anything).Return(existingBackupVault, nil).Maybe()
 	mockStorage.On("GetBackupVault", ctx, backupVaultUUID).Return(existingBackupVault, nil).Maybe()
-	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil).Maybe()
+	mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil).Maybe()
 
 	// Mock CheckBackupVaultExistsInVCP (used by CheckOrCreateRemoteBackupVaultInVCP)
 	originalCheckBackupVaultExistsInVCP := CheckBackupVaultExistsInVCP
@@ -13772,7 +13772,7 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_SuccessfulCrossProjectPermissio
 
 	// Mock UpdateBackupVaultWithBucketDetails (via storage calls)
 	mockStorage.On("GetBackupVault", ctx, backupVaultUUID).Return(existingBackupVault, nil).Maybe()
-	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil).Maybe()
+	mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil).Maybe()
 
 	// Mock CheckBackupVaultExistsInVCP (used by CheckOrCreateRemoteBackupVaultInVCP) → nil (no remote vault)
 	originalCheckBackupVaultExistsInVCP := CheckBackupVaultExistsInVCP
@@ -15020,8 +15020,8 @@ func TestGetVolumeProtocolsFromOntapActivity_ErrorCodes(t *testing.T) {
 	makeState := func(vol *datamodel.Volume) *BackupActivitiesContext {
 		return &BackupActivitiesContext{
 			BackupWorkflowInit: &BackupWorkflowInput{
-				Backup:  &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}},
-				Volume:  vol,
+				Backup: &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}},
+				Volume: vol,
 			},
 			Node: &models.Node{},
 		}
@@ -15151,7 +15151,7 @@ func TestGetVolumesAndConstituentCountActivity_ErrorCodes(t *testing.T) {
 		return &BackupActivitiesContext{
 			BackupWorkflowInit: &BackupWorkflowInput{
 				Volume: &datamodel.Volume{
-					Name: "vol-em",
+					Name:             "vol-em",
 					VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "ext-uuid-2"},
 					Svm:              &datamodel.Svm{Name: "svm-1"},
 				},
@@ -15264,8 +15264,8 @@ func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		act := BackupActivity{SE: mockStorage}
 		vol := &datamodel.Volume{
-			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
-			Account:          account, AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
 			VolumeAttributes: nil, // deliberately absent
 		}
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).
@@ -15285,8 +15285,8 @@ func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		act := BackupActivity{SE: mockStorage}
 		vol := &datamodel.Volume{
-			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
-			Account:          account, AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
 			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
 		}
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).
@@ -15317,8 +15317,8 @@ func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		act := BackupActivity{SE: mockStorage}
 		vol := &datamodel.Volume{
-			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
-			Account:          account, AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
 			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
 		}
 		gcbdrVault := &datamodel.BackupVault{
@@ -15344,8 +15344,8 @@ func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		act := BackupActivity{SE: mockStorage}
 		vol := &datamodel.Volume{
-			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
-			Account:          account, AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
 			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
 		}
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).
@@ -15401,14 +15401,14 @@ func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
 			SourceRegionName: &sameRegion,
 		}
 		vol := &datamodel.Volume{
-			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
-			Account:          account, AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
 			Pool:             nil, // deliberately nil
 			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
 		}
 		// First call: initial vault fetch; Second call: inside UpdateBackupVaultWithBucketDetails.
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(xrVault, nil).Twice()
-		mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+		mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
 
 		origGCP := hyperscaler.GetGCPService
 		defer func() { hyperscaler.GetGCPService = origGCP }()
@@ -15457,8 +15457,8 @@ func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
 			},
 		}
 		vol := &datamodel.Volume{
-			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
-			Account:          account, AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
 			Pool:             nil, // deliberately nil
 			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
 		}
@@ -15483,8 +15483,8 @@ func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		act := BackupActivity{SE: mockStorage}
 		vol := &datamodel.Volume{
-			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
-			Account:          account, AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
 			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
 		}
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(plainVault(), nil)
@@ -15521,8 +15521,8 @@ func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		act := BackupActivity{SE: mockStorage}
 		vol := &datamodel.Volume{
-			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
-			Account:          account, AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
 			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
 		}
 		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(plainVault(), nil)

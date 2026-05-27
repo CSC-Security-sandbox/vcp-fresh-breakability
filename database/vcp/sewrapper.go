@@ -3423,12 +3423,12 @@ func (re *retryEngine) CreateBackupVaultEntryInVCP(ctx context.Context, bv *data
 	return var0, err
 }
 
-func (re *retryEngine) UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error {
+func (re *retryEngine) UpdateBackupVaultBucketDetails(ctx context.Context, backupVault *datamodel.BackupVault) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		err = re.dataStore.UpdateBackupVault(ctx, backupVault)
+		err = re.dataStore.UpdateBackupVaultBucketDetails(ctx, backupVault)
 		if err != nil {
-			re.logError("UpdateBackupVault", err)
+			re.logError("UpdateBackupVaultBucketDetails", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

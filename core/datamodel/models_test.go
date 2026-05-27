@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJSONB_Scan(t *testing.T) {
@@ -1470,5 +1471,107 @@ func TestJobAttributes_Value(t *testing.T) {
 		err = result.Scan(val)
 		assert.NoError(t, err)
 		assert.Equal(t, ja, result)
+	})
+}
+
+func TestMergeBucketDetails(t *testing.T) {
+	t.Run("empty incoming returns current unchanged", func(t *testing.T) {
+		current := BucketDetailsArray{
+			{BucketName: "b1", SatisfiesPzi: true},
+		}
+		got := current.UpdateBucketDetails(nil)
+		assert.Equal(t, current, got)
+	})
+
+	t.Run("append new bucket by name", func(t *testing.T) {
+		current := BucketDetailsArray{
+			{BucketName: "b1", VendorSubnetID: "s1"},
+		}
+		incoming := BucketDetailsArray{
+			{BucketName: "b2", VendorSubnetID: "s2"},
+		}
+		got := current.UpdateBucketDetails(incoming)
+		require.Len(t, got, 2)
+		assert.Equal(t, "b1", got[0].BucketName)
+		assert.Equal(t, "b2", got[1].BucketName)
+	})
+
+	t.Run("patch ZiZs on existing bucket retains others", func(t *testing.T) {
+		current := BucketDetailsArray{
+			{BucketName: "b1", SatisfiesPzi: false, SatisfiesPzs: false},
+			{BucketName: "b2", SatisfiesPzi: true, SatisfiesPzs: true},
+		}
+		incoming := BucketDetailsArray{
+			{BucketName: "b1", SatisfiesPzi: true, SatisfiesPzs: true},
+		}
+		got := current.UpdateBucketDetails(incoming)
+		require.Len(t, got, 2)
+		assert.True(t, got[0].SatisfiesPzi)
+		assert.True(t, got[0].SatisfiesPzs)
+		assert.Equal(t, "b2", got[1].BucketName)
+		assert.True(t, got[1].SatisfiesPzi)
+	})
+
+	t.Run("stale partial incoming preserves DB-only bucket", func(t *testing.T) {
+		current := BucketDetailsArray{
+			{BucketName: "b1"},
+			{BucketName: "b2"},
+			{BucketName: "b3"},
+		}
+		incoming := BucketDetailsArray{
+			{BucketName: "b1", SatisfiesPzi: true},
+			{BucketName: "b2", SatisfiesPzs: true},
+		}
+		got := current.UpdateBucketDetails(incoming)
+		require.Len(t, got, 3)
+		assert.Equal(t, "b3", got[2].BucketName)
+	})
+
+	t.Run("empty string fields do not clear existing", func(t *testing.T) {
+		current := BucketDetailsArray{
+			{
+				BucketName:          "b1",
+				ServiceAccountName:  "sa-1",
+				TenantProjectNumber: "tp-1",
+				VendorSubnetID:      "s1",
+			},
+		}
+		incoming := BucketDetailsArray{
+			{BucketName: "b1", SatisfiesPzi: true},
+		}
+		got := current.UpdateBucketDetails(incoming)
+		require.Len(t, got, 1)
+		assert.Equal(t, "sa-1", got[0].ServiceAccountName)
+		assert.Equal(t, "tp-1", got[0].TenantProjectNumber)
+		assert.Equal(t, "s1", got[0].VendorSubnetID)
+		assert.True(t, got[0].SatisfiesPzi)
+	})
+
+	t.Run("skip nil and blank bucket name in incoming", func(t *testing.T) {
+		current := BucketDetailsArray{
+			{BucketName: "b1"},
+		}
+		incoming := BucketDetailsArray{
+			nil,
+			{BucketName: ""},
+			{BucketName: "b2"},
+		}
+		got := current.UpdateBucketDetails(incoming)
+		require.Len(t, got, 2)
+		assert.Equal(t, "b2", got[1].BucketName)
+	})
+
+	t.Run("patch and append in one incoming", func(t *testing.T) {
+		current := BucketDetailsArray{
+			{BucketName: "b1", SatisfiesPzi: false},
+		}
+		incoming := BucketDetailsArray{
+			{BucketName: "b1", SatisfiesPzi: true},
+			{BucketName: "b2"},
+		}
+		got := current.UpdateBucketDetails(incoming)
+		require.Len(t, got, 2)
+		assert.True(t, got[0].SatisfiesPzi)
+		assert.Equal(t, "b2", got[1].BucketName)
 	})
 }

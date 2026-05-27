@@ -2135,8 +2135,8 @@ func TestUpdateVolumeDetails_Success(t *testing.T) {
 	env.RegisterActivity(activity.UpdateVolumeDetails)
 
 	volume := &datamodel.Volume{
-		BaseModel:          datamodel.BaseModel{UUID: "vol-uuid-1"},
-		VolumeAttributes:   &datamodel.VolumeAttributes{},
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid-1"},
+		VolumeAttributes: &datamodel.VolumeAttributes{},
 	}
 	volCreateResponse := &vsa.ProviderResponse{ExternalUUID: "uuid-123"}
 
@@ -2876,7 +2876,7 @@ func TestUpdateBackupVaultWithBucketDetails_Success(t *testing.T) {
 		},
 	}
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(backupVault, nil)
-	mockStorage.On("UpdateBackupVault", ctx, backupVault).Return(nil)
+	mockStorage.On("UpdateBackupVaultBucketDetails", ctx, backupVault).Return(nil)
 
 	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
 
@@ -2914,7 +2914,7 @@ func TestUpdateBackupVaultWithBucketDetails_Failure_UpdateError(t *testing.T) {
 
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(backupVault, nil)
 	expectedError := errors.New("failed to update backup vault")
-	mockStorage.On("UpdateBackupVault", ctx, backupVault).Return(expectedError)
+	mockStorage.On("UpdateBackupVaultBucketDetails", ctx, backupVault).Return(expectedError)
 
 	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
 
@@ -7537,7 +7537,7 @@ func TestConvertCommonToDatamodel_Success(t *testing.T) {
 	}, nil)
 
 	// Mock UpdateBackupVault
-	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+	mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
 
 	// Act
 	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, commonBucket)
@@ -16031,7 +16031,7 @@ func TestUpdateBackupVaultWithBucketDetails_GCBDR_ReplacesBucketDetails(t *testi
 	}
 
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(existingVault, nil)
-	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+	mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
 
 	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
 	assert.NoError(t, err)
@@ -16279,7 +16279,7 @@ func TestUpdateBackupVaultWithBucketDetails_GCBDRDisabled_SkipsFallback(t *testi
 		},
 	}
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(existingVault, nil)
-	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+	mockStorage.On("UpdateBackupVaultBucketDetails", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
 
 	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
 	assert.NoError(t, err)
@@ -16397,7 +16397,7 @@ func TestUpdateBackupVaultWithBucketDetails_FallbackRejectsNonGCBDRVault(t *test
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 	mockStorage.AssertExpectations(t)
-	mockStorage.AssertNotCalled(t, "UpdateBackupVault", mock.Anything, mock.Anything)
+	mockStorage.AssertNotCalled(t, "UpdateBackupVaultBucketDetails", mock.Anything, mock.Anything)
 }
 
 // =============================================================================

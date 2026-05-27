@@ -1176,7 +1176,7 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 		existingBackupVault.BucketDetails = append(existingBackupVault.BucketDetails, newBucketDetail)
 	}
 
-	err = se.UpdateBackupVault(ctx, existingBackupVault)
+	err = se.UpdateBackupVaultBucketDetails(ctx, existingBackupVault)
 	if err != nil {
 		return err
 	}

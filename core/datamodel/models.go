@@ -978,6 +978,10 @@ type BucketDetails struct {
 	SatisfiesPzs        bool   `json:"satisfies_pzs"`
 }
 
+func (b *BucketDetails) IsValid() bool {
+	return b != nil && b.BucketName != ""
+}
+
 type BucketDetailsArray []*BucketDetails
 
 func (b *BucketDetailsArray) Scan(value interface{}) error {
@@ -990,6 +994,45 @@ func (b *BucketDetailsArray) Scan(value interface{}) error {
 
 func (b BucketDetailsArray) Value() (driver.Value, error) {
 	return json.Marshal(b)
+}
+
+func (b BucketDetailsArray) UpdateBucketDetails(updatedBucketDetails BucketDetailsArray) BucketDetailsArray {
+	if b == nil || len(updatedBucketDetails) == 0 {
+		return b
+	}
+
+	merged := make(map[string]*BucketDetails)
+	order := make([]string, 0, len(b)+len(updatedBucketDetails))
+
+	for _, bucketDetail := range b {
+		if !bucketDetail.IsValid() {
+			continue
+		}
+		if _, exists := merged[bucketDetail.BucketName]; exists {
+			continue
+		}
+		merged[bucketDetail.BucketName] = bucketDetail
+		order = append(order, bucketDetail.BucketName)
+	}
+
+	for _, bucketDetail := range updatedBucketDetails {
+		if !bucketDetail.IsValid() {
+			continue
+		}
+		if existing, ok := merged[bucketDetail.BucketName]; ok {
+			existing.SatisfiesPzi = bucketDetail.SatisfiesPzi
+			existing.SatisfiesPzs = bucketDetail.SatisfiesPzs
+			continue
+		}
+		merged[bucketDetail.BucketName] = bucketDetail
+		order = append(order, bucketDetail.BucketName)
+	}
+
+	out := make(BucketDetailsArray, 0, len(order))
+	for _, bucketName := range order {
+		out = append(out, merged[bucketName])
+	}
+	return out
 }
 
 type ImmutableAttributes struct {

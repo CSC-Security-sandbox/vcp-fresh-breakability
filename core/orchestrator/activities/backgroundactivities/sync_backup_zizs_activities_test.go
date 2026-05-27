@@ -195,7 +195,7 @@ func TestSyncZiZsActivity_UpdateBackupVault(t *testing.T) {
 			Name:      "test-vault",
 		}
 
-		mockSE.On("UpdateBackupVault", ctx, backupVault).Return(nil).Once()
+		mockSE.On("UpdateBackupVaultBucketDetails", ctx, backupVault).Return(nil).Once()
 
 		err := activity.UpdateBackupVault(ctx, backupVault)
 
@@ -225,7 +225,7 @@ func TestSyncZiZsActivity_UpdateBackupVault(t *testing.T) {
 			Name:      "test-vault",
 		}
 
-		mockSE.On("UpdateBackupVault", ctx, backupVault).Return(errors.New("database update error")).Once()
+		mockSE.On("UpdateBackupVaultBucketDetails", ctx, backupVault).Return(errors.New("database update error")).Once()
 
 		err := activity.UpdateBackupVault(ctx, backupVault)
 
@@ -296,7 +296,7 @@ func TestSyncZiZsActivity_CompleteFlow(t *testing.T) {
 		}
 
 		// Test UpdateBackupVault
-		mockSE.On("UpdateBackupVault", ctx, backupVault).Return(nil).Once()
+		mockSE.On("UpdateBackupVaultBucketDetails", ctx, backupVault).Return(nil).Once()
 
 		err := activity.UpdateBackupVault(ctx, backupVault)
 		assert.NoError(t, err)

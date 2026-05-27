@@ -13,6 +13,7 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -230,7 +231,7 @@ func (d *DataStoreRepository) CreateBackupVaultEntryInVCP(ctx context.Context, b
 	return backupVaultDetails, nil
 }
 
-func (d *DataStoreRepository) UpdateBackupVault(ctx context.Context, bv *datamodel.BackupVault) error {
+func (d *DataStoreRepository) UpdateBackupVaultBucketDetails(ctx context.Context, updatedBv *datamodel.BackupVault) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -239,15 +240,21 @@ func (d *DataStoreRepository) UpdateBackupVault(ctx context.Context, bv *datamod
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	dbBv, err := getBackupVaultWithDetails(tx, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: bv.UUID}})
+	var existingBv datamodel.BackupVault
+	err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("uuid = ?", updatedBv.UUID).
+		First(&existingBv).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.NewNotFoundErr("backup vault", &updatedBv.UUID)
+		}
 		return err
 	}
 
-	dbBv.UpdatedAt = time.Now()
-	dbBv.BucketDetails = bv.BucketDetails
+	existingBv.UpdatedAt = time.Now()
+	existingBv.BucketDetails = existingBv.BucketDetails.UpdateBucketDetails(updatedBv.BucketDetails)
 
-	if err = tx.Save(dbBv).Error; err != nil {
+	if err = tx.Save(&existingBv).Error; err != nil {
 		return err
 	}
 	return nil

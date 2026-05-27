@@ -19463,12 +19463,12 @@ func (_c *MockStorage_UpdateBackupState_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
-// UpdateBackupVault provides a mock function with given fields: ctx, backupVault
-func (_m *MockStorage) UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error {
+// UpdateBackupVaultBucketDetails provides a mock function with given fields: ctx, backupVault
+func (_m *MockStorage) UpdateBackupVaultBucketDetails(ctx context.Context, backupVault *datamodel.BackupVault) error {
 	ret := _m.Called(ctx, backupVault)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateBackupVault")
+		panic("no return value specified for UpdateBackupVaultBucketDetails")
 	}
 
 	var r0 error
@@ -19481,31 +19481,31 @@ func (_m *MockStorage) UpdateBackupVault(ctx context.Context, backupVault *datam
 	return r0
 }
 
-// MockStorage_UpdateBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupVault'
-type MockStorage_UpdateBackupVault_Call struct {
+// MockStorage_UpdateBackupVaultBucketDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupVaultBucketDetails'
+type MockStorage_UpdateBackupVaultBucketDetails_Call struct {
 	*mock.Call
 }
 
-// UpdateBackupVault is a helper method to define mock.On call
+// UpdateBackupVaultBucketDetails is a helper method to define mock.On call
 //   - ctx context.Context
 //   - backupVault *datamodel.BackupVault
-func (_e *MockStorage_Expecter) UpdateBackupVault(ctx interface{}, backupVault interface{}) *MockStorage_UpdateBackupVault_Call {
-	return &MockStorage_UpdateBackupVault_Call{Call: _e.mock.On("UpdateBackupVault", ctx, backupVault)}
+func (_e *MockStorage_Expecter) UpdateBackupVaultBucketDetails(ctx interface{}, backupVault interface{}) *MockStorage_UpdateBackupVaultBucketDetails_Call {
+	return &MockStorage_UpdateBackupVaultBucketDetails_Call{Call: _e.mock.On("UpdateBackupVaultBucketDetails", ctx, backupVault)}
 }
 
-func (_c *MockStorage_UpdateBackupVault_Call) Run(run func(ctx context.Context, backupVault *datamodel.BackupVault)) *MockStorage_UpdateBackupVault_Call {
+func (_c *MockStorage_UpdateBackupVaultBucketDetails_Call) Run(run func(ctx context.Context, backupVault *datamodel.BackupVault)) *MockStorage_UpdateBackupVaultBucketDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*datamodel.BackupVault))
 	})
 	return _c
 }
 
-func (_c *MockStorage_UpdateBackupVault_Call) Return(_a0 error) *MockStorage_UpdateBackupVault_Call {
+func (_c *MockStorage_UpdateBackupVaultBucketDetails_Call) Return(_a0 error) *MockStorage_UpdateBackupVaultBucketDetails_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockStorage_UpdateBackupVault_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault) error) *MockStorage_UpdateBackupVault_Call {
+func (_c *MockStorage_UpdateBackupVaultBucketDetails_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault) error) *MockStorage_UpdateBackupVaultBucketDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }
