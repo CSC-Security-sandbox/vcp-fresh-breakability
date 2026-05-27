@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
@@ -40,6 +41,18 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 		return &gcpgenserver.V1betaCreateBackupPolicyBadRequest{
 			Code:    parsingErr.Code,
 			Message: parsingErr.Message,
+		}, nil
+	}
+	if err := h.Orchestrator.PersistAccountTrialMetadataIfSet(ctx, params.ProjectNumber, newTrialModeParamsFromOpt(req.TrialMode)); err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaCreateBackupPolicyBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
 		}, nil
 	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
@@ -81,6 +94,12 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 		createParams := convertCreateRequestToCreateBackupPolicyParams(req, params.LocationId, params.ProjectNumber)
 		createdBackupPolicy, err := h.Orchestrator.CreateBackupPolicy(ctx, createParams)
 		if err != nil {
+			if errors.IsUserInputValidationErr(err) {
+				return &gcpgenserver.V1betaCreateBackupPolicyBadRequest{
+					Code:    400,
+					Message: err.Error(),
+				}, nil
+			}
 			if errors.IsConflictErr(err) {
 				logger.Infof("Backup policy already exists in VCP")
 				// Try to get the existing policy
@@ -143,7 +162,7 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 		}, nil
 	}
 
-	// Call SDE to create backup policy
+	// Call SDE to create backup policy.
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	backupPolicyParams := createBackupPolicyParams(req, params)

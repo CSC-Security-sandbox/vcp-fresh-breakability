@@ -80,6 +80,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), "existing-policy", "1234567890").
 			Return(&coremodels.BackupPolicy{
 				ResourceID:       "existing-policy",
@@ -121,6 +122,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 		backupPolicyName := "backup-policy"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
 
@@ -221,6 +223,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 		backupPolicyName := "backup-policy"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
 
@@ -306,6 +309,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 		backupPolicyName := "backup-policy"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
@@ -385,6 +389,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 		backupPolicyName := "backup-policy"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
@@ -463,6 +468,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 		backupPolicyName := "backup-policy"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
@@ -541,6 +547,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 		backupPolicyName := "backup-policy"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
@@ -619,6 +626,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 		backupPolicyName := "backup-policy"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
@@ -697,6 +705,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		}
 		backupPolicyName := "backup-policy"
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
@@ -786,6 +795,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 	t.Run("WhenCreateBackupPolicySuccessWithUseVCPRegionDoneTrue", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
@@ -848,6 +858,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 	t.Run("WhenCreateBackupPolicySuccessWithUseVCPRegionAndPartialOptionalFields", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
@@ -906,6 +917,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 	t.Run("WhenCreateBackupPolicySuccessWithPartialOptionalFieldsSync", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
@@ -964,6 +976,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 	t.Run("WhenCreateBackupPolicyConflictWithUseVCPRegion", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
@@ -1020,6 +1033,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 	t.Run("WhenCreateBackupPolicyConflictGetExistingFails", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
@@ -1065,6 +1079,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 	t.Run("WhenCreateBackupPolicyFailsWithNonConflictError", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
@@ -1108,6 +1123,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 	t.Run("WhenGetBackupPolicyByNameReturnsNonNotFoundError", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
@@ -1149,6 +1165,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 	t.Run("WhenDescribeBackupPolicyListVolumeCountFails", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
 			LocationId:     "test-location",
@@ -1207,6 +1224,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(&coremodels.BackupPolicy{ResourceID: "test-backup-policy-id", BackupPolicyUUID: "test-backup-policy-id"}, nil)
@@ -1262,6 +1280,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, fmt.Errorf("unexpected error"))
@@ -1305,6 +1324,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
@@ -1351,6 +1371,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
@@ -1398,6 +1419,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
@@ -1445,6 +1467,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
@@ -1492,6 +1515,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
@@ -1534,6 +1558,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
@@ -1581,6 +1606,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
@@ -1628,6 +1654,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
 			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
@@ -1654,6 +1681,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 			BackupPolicyUUID: "test-backup-policy-id",
 		}
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		mockOrchestrator.EXPECT().
@@ -1686,6 +1714,7 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 			BackupPolicyUUID: "test-backup-policy-id",
 		}
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		mockOrchestrator.EXPECT().
@@ -2075,6 +2104,7 @@ func TestV1betaDescribeBackupPolicy(t *testing.T) {
 	t.Run("WhenDescribeBackupPolicySuccessWithUseVCPRegionEnabled", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
 			LocationId:     "test-location",
@@ -2128,6 +2158,7 @@ func TestV1betaDescribeBackupPolicy(t *testing.T) {
 	t.Run("WhenDescribeBackupPolicyNotFoundWithUseVCPRegionEnabled", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
 			LocationId:     "test-location",
@@ -2161,6 +2192,7 @@ func TestV1betaDescribeBackupPolicy(t *testing.T) {
 	t.Run("WhenDescribeBackupPolicyFailsToGetVolumeCount", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
 			LocationId:     "test-location",
@@ -2211,6 +2243,7 @@ func TestV1betaDescribeBackupPolicy(t *testing.T) {
 	t.Run("WhenDescribeBackupPolicyFailsWithUseVCPRegionEnabled", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
 			LocationId:     "test-location",
@@ -3751,6 +3784,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 			State:            "active",
 		}
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		var backupPolicyIds []string
 		mockOrchestrator.EXPECT().
 			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, backupPolicyIds).
@@ -3841,6 +3875,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 			V1betaListBackupPolicies(mock.Anything).
 			Return(mockResponse, nil)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		var backupPolicyIds []string
 		mockOrchestrator.EXPECT().
 			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, backupPolicyIds).
@@ -3895,6 +3930,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 			V1betaListBackupPolicies(mock.Anything).
 			Return(mockResponse, nil)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		vcpBackupPolicyVolumeCount := make(map[string]int64)
 		var backupPolicyIds []string
 		vcpBackupPolicies := make(map[string]*coremodels.BackupPolicy)
@@ -4191,6 +4227,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 	t.Run("WhenListBackupPoliciesSuccessWithUseVCPRegionEnabled", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaListBackupPoliciesParams{
 			LocationId:     "test-location",
@@ -4257,6 +4294,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 	t.Run("WhenListBackupPoliciesSuccessWithNilDescriptionAndEmptyState", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaListBackupPoliciesParams{
 			LocationId:     "test-location",
@@ -4316,6 +4354,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 	t.Run("WhenListBackupPoliciesFailsWithUseVCPRegionEnabled", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaListBackupPoliciesParams{
 			LocationId:     "test-location",
@@ -4476,6 +4515,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			State:            "active",
 		}
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
 			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
@@ -4575,6 +4615,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		}
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		mockOrchestrator.EXPECT().
 			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
 			Return(nil, nil, fmt.Errorf("failed to get multiple backup policy volume count"))
@@ -4628,6 +4669,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			V1betaGetMultipleBackupPolicies(mock.Anything).
 			Return(mockResponse, nil)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		vcpBackupPolicyVolumeCount := make(map[string]int64)
 		vcpBackupPolicies := make(map[string]*coremodels.BackupPolicy)
 		mockOrchestrator.EXPECT().
@@ -5003,6 +5045,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 	t.Run("WhenGetMultipleBackupPoliciesSuccessWithUseVCPRegionEnabled", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
 			LocationId:     "test-location",
@@ -5073,6 +5116,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 	t.Run("WhenGetMultipleBackupPoliciesSkipsNonExistentWithUseVCPRegionEnabled", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
 			LocationId:     "test-location",
@@ -5132,6 +5176,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 	t.Run("WhenGetMultipleBackupPoliciesFailsWithUseVCPRegionEnabled", func(t *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
 			LocationId:     "test-location",
@@ -5267,6 +5312,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Success - No backup vaults associated", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5281,6 +5327,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Success - Single backup vault with valid immutable settings", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5300,6 +5347,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Success - Multiple backup vaults with valid settings", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5320,6 +5368,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Success - Skip validation when backup vault has no immutable attributes", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5340,6 +5389,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Success - Skip validation when backup vault has nil retention duration", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5359,6 +5409,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Error - GetBackupVaultUUIDsFromBackupPolicyUUID fails", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5376,6 +5427,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Error - GetMultipleBackupVaults fails", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5395,6 +5447,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Error - Backup vault in updating state", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5418,6 +5471,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Error - Backup policy validation fails", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		// Create params with daily backup limit that violates immutable settings
 		updateParams := &commonparams.UpdateBackupPolicyParams{
@@ -5444,6 +5498,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Error - Multiple backup vaults with one in updating state", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5465,6 +5520,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Error - Multiple backup vaults with validation failure on second vault", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		// Create params that will pass validation for first vault but fail for second
 		updateParams := &commonparams.UpdateBackupPolicyParams{
@@ -5496,6 +5552,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 	// Null pointer handling tests
 	t.Run("Null pointer handling - Nil backup policy", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		updateParams := createUpdateParams("account-1")
 
 		// This should not cause panic, but should handle gracefully
@@ -5514,6 +5571,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Null pointer handling - Nil update params", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 
 		// This should not cause panic, but should handle gracefully
@@ -5532,6 +5590,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Edge case - Empty backup policy UUID", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("")
 		updateParams := createUpdateParams("account-1")
 
@@ -5546,6 +5605,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Edge case - Empty account name", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("")
 
@@ -5560,6 +5620,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Edge case - Empty backup vault UUID returned", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5577,6 +5638,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Edge case - Backup vault with empty backup vault ID", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5597,6 +5659,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Edge case - Negative retention duration", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5616,6 +5679,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Mixed scenario - Some vaults with immutable settings, some without", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("policy-1")
 		updateParams := createUpdateParams("account-1")
 
@@ -5642,6 +5706,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Customer journey - Large scale validation", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("enterprise-policy-1")
 		// Update params for enterprise-scale with high retention requirements
 		updateParams := &commonparams.UpdateBackupPolicyParams{
@@ -5676,6 +5741,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Customer journey - Migration scenario with different lifecycle states", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 		backupPolicy := createBackupPolicy("migration-policy")
 		// Use higher backup limits for 90-day retention period
 		updateParams := &commonparams.UpdateBackupPolicyParams{
@@ -5706,6 +5772,7 @@ func Test_performBackupVaultValidation(t *testing.T) {
 
 	t.Run("Customer journey - Disaster recovery scenario with backup policy changes", func(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		stubPersistAccountTrialMetadataForCreate(mockOrchestrator)
 
 		// Simulate disaster recovery where backup policy limits need to be increased
 		backupPolicy := &coremodels.BackupPolicy{

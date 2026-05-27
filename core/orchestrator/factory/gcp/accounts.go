@@ -7,6 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -81,6 +82,14 @@ func (o *GCPOrchestrator) GetAccount(ctx context.Context, accountName string) (*
 	return account, nil
 }
 
+func (o *GCPOrchestrator) PersistAccountTrialMetadataIfSet(ctx context.Context, accountName string, trial *commonparams.TrialModeParams) error {
+	account, err := getOrCreateAccount(ctx, o.storage, accountName)
+	if err != nil {
+		return err
+	}
+	return persistAccountTrialMetadataIfSet(ctx, o.storage, account, trial)
+}
+
 // Return an account with filtering of account UUID.
 func _getAccountFromUUID(ctx context.Context, se database.Storage, accountUUID string) (*datamodel.Account, error) {
 	account, err := se.GetAccountByUUID(ctx, accountUUID)
@@ -88,6 +97,38 @@ func _getAccountFromUUID(ctx context.Context, se database.Storage, accountUUID s
 		return nil, err
 	}
 	return account, nil
+}
+
+// validateTrialModeParams returns an error when trialMode is present but invalid.
+func validateTrialModeParams(trial *commonparams.TrialModeParams) error {
+	if trial == nil {
+		return nil
+	}
+	if trial.Start == nil || trial.End == nil {
+		return customerrors.NewUserInputValidationErr("trialMode startTime and endTime must be set when trialMode is provided")
+	}
+	if trial.Start.IsZero() || trial.End.IsZero() {
+		return customerrors.NewUserInputValidationErr("trialMode startTime and endTime must be set when trialMode is provided")
+	}
+	if !trial.Start.Before(*trial.End) {
+		return customerrors.NewUserInputValidationErr("trialMode startTime must be before endTime")
+	}
+	return nil
+}
+
+// persistAccountTrialMetadataIfSet validates trialMode then writes trial window to account_metadata.
+func persistAccountTrialMetadataIfSet(ctx context.Context, se database.Storage, account *datamodel.Account, trial *commonparams.TrialModeParams) error {
+	if trial == nil {
+		return nil
+	}
+	if err := validateTrialModeParams(trial); err != nil {
+		return err
+	}
+
+	return se.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{
+		StartTime: trial.Start,
+		EndTime:   trial.End,
+	})
 }
 
 // getAccountName safely gets the account name, returning empty string if account is nil

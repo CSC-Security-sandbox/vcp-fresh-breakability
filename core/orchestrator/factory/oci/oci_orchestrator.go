@@ -552,6 +552,10 @@ func (o *OCIOrchestrator) GetAccount(ctx context.Context, accountName string) (*
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) PersistAccountTrialMetadataIfSet(ctx context.Context, accountName string, trial *commonparams.TrialModeParams) error {
+	return utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) UpdateResourceState(ctx context.Context, params *commonparams.UpdateResourceStateParams) (string, error) {
 	return "", utilserrors.NewNotImplementedYetErr()
 }

@@ -31,18 +31,18 @@ import (
 )
 
 var (
-	createActiveDirectory        = _createActiveDirectory
-	updateActiveDirectory        = _updateActiveDirectory
-	getActiveDirectory           = _getActiveDirectory
-	getActiveDirectoryVcp        = _getActiveDirectoryVCP
-	getActiveDirectorySde        = _getActiveDirectorySDE
-	listActiveDirectories        = _listActiveDirectories
-	getMultipleActiveDirectories    = _getMultipleActiveDirectories
-	batchListActiveDirectories     = _batchListActiveDirectories
-	batchListActiveDirectoriesSde  = _batchListActiveDirectoriesSDE
-	deleteActiveDirectory          = _deleteActiveDirectory
-	checkIfDomainUpdateAllowed   = _checkIfDomainUpdateAllowed
-	validateMultiADConstraints   = _validateMultiADConstraints
+	createActiveDirectory         = _createActiveDirectory
+	updateActiveDirectory         = _updateActiveDirectory
+	getActiveDirectory            = _getActiveDirectory
+	getActiveDirectoryVcp         = _getActiveDirectoryVCP
+	getActiveDirectorySde         = _getActiveDirectorySDE
+	listActiveDirectories         = _listActiveDirectories
+	getMultipleActiveDirectories  = _getMultipleActiveDirectories
+	batchListActiveDirectories    = _batchListActiveDirectories
+	batchListActiveDirectoriesSde = _batchListActiveDirectoriesSDE
+	deleteActiveDirectory         = _deleteActiveDirectory
+	checkIfDomainUpdateAllowed    = _checkIfDomainUpdateAllowed
+	validateMultiADConstraints    = _validateMultiADConstraints
 )
 
 const (
@@ -80,6 +80,11 @@ func _createActiveDirectory(
 
 	account, err := getOrCreateAccount(ctx, se, params.AccountId)
 	if err != nil {
+		return nil, "", err
+	}
+
+	if err = persistAccountTrialMetadataIfSet(ctx, se, account, params.TrialMode); err != nil {
+		logger.Error("Failed to update account trial metadata", "accountUUID", account.UUID, "error", err)
 		return nil, "", err
 	}
 

@@ -2,10 +2,12 @@ package database
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -748,5 +750,291 @@ func TestUpdateAccountVolumeRefreshTimestamp(t *testing.T) {
 		if vsaerrors.As(err, &customErr) {
 			assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, customErr.TrackingID, "Expected database read error code since GetAccountByUUID fails first")
 		}
+	})
+}
+
+func TestAccountMetadataTrialModeJSONShape(t *testing.T) {
+	start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
+	end := start.Add(30 * 24 * time.Hour)
+	meta := datamodel.AccountMetadata{
+		VolumeRefreshWorkflowLastCompletionAt: time.Date(2024, 8, 1, 15, 30, 0, 0, time.UTC),
+		TrialMode: &datamodel.AccountTrialMode{
+			StartTime: &start,
+			EndTime:   &end,
+		},
+	}
+
+	b, err := json.Marshal(meta)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), `"trialMode"`)
+	assert.Contains(t, string(b), `"startTime"`)
+	assert.Contains(t, string(b), `"endTime"`)
+	assert.NotContains(t, string(b), `"trialStart"`)
+}
+
+func TestUpdateAccountTrialMetadata(t *testing.T) {
+	trialWindow := func(dayOffset int) (time.Time, time.Time) {
+		start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC).Add(time.Duration(dayOffset) * 24 * time.Hour)
+		end := start.Add(30 * 24 * time.Hour)
+		return start, end
+	}
+
+	t.Run("WhenNoPriorMetadata_MultipleTrialUpdatesThenVolumeRefresh_SubsequentTrialRetainsVolumeRefresh", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		accountUUID := "trial-metadata-no-prior-uuid"
+		account := &datamodel.Account{
+			BaseModel:       datamodel.BaseModel{UUID: accountUUID},
+			Name:            "trial_metadata_no_prior",
+			AccountMetadata: nil,
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+		start1, end1 := trialWindow(0)
+		err = store.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start1, EndTime: &end1})
+		assert.NoError(tt, err)
+
+		start2, end2 := trialWindow(10)
+		account, err = store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		err = store.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start2, EndTime: &end2})
+		assert.NoError(tt, err)
+
+		afterTrialOnly, err := store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, afterTrialOnly.AccountMetadata)
+		require.NotNil(tt, afterTrialOnly.AccountMetadata.TrialMode)
+		assert.WithinDuration(tt, start2, *afterTrialOnly.AccountMetadata.TrialMode.StartTime, time.Second)
+		assert.WithinDuration(tt, end2, *afterTrialOnly.AccountMetadata.TrialMode.EndTime, time.Second)
+
+		volumeRefreshTime := time.Date(2024, 8, 1, 15, 30, 0, 0, time.UTC)
+		err = store.UpdateAccountVolumeRefreshTimestamp(ctx, accountUUID, volumeRefreshTime)
+		assert.NoError(tt, err)
+
+		start3, end3 := trialWindow(20)
+		account, err = store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		err = store.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start3, EndTime: &end3})
+		assert.NoError(tt, err)
+
+		final, err := store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, final.AccountMetadata)
+		require.NotNil(tt, final.AccountMetadata.TrialMode)
+		assert.WithinDuration(tt, start3, *final.AccountMetadata.TrialMode.StartTime, time.Second)
+		assert.WithinDuration(tt, end3, *final.AccountMetadata.TrialMode.EndTime, time.Second)
+		assert.WithinDuration(tt, volumeRefreshTime, final.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt, time.Second)
+	})
+
+	t.Run("WhenVolumeRefreshExists_MultipleTrialUpdatesRetainVolumeRefresh", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		volumeRefreshTime := time.Date(2024, 3, 1, 12, 0, 0, 0, time.UTC)
+		accountUUID := "trial-metadata-with-volume-refresh-uuid"
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: accountUUID},
+			Name:      "trial_metadata_with_volume_refresh",
+			AccountMetadata: &datamodel.AccountMetadata{
+				VolumeRefreshWorkflowLastCompletionAt: volumeRefreshTime,
+			},
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+		for _, dayOffset := range []int{0, 5, 15} {
+			start, end := trialWindow(dayOffset)
+			account, err = store.GetAccountByUUID(ctx, accountUUID)
+			assert.NoError(tt, err)
+			err = store.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end})
+			assert.NoError(tt, err)
+
+			updated, err := store.GetAccountByUUID(ctx, accountUUID)
+			assert.NoError(tt, err)
+			assert.NotNil(tt, updated.AccountMetadata)
+			require.NotNil(tt, updated.AccountMetadata.TrialMode)
+			assert.WithinDuration(tt, start, *updated.AccountMetadata.TrialMode.StartTime, time.Second)
+			assert.WithinDuration(tt, end, *updated.AccountMetadata.TrialMode.EndTime, time.Second)
+			assert.WithinDuration(
+				tt,
+				volumeRefreshTime,
+				updated.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt,
+				time.Second,
+				"trial update must not change volumeRefreshWorkflowLastCompletionAt",
+			)
+		}
+	})
+
+	t.Run("WhenVolumeRefreshExists_InterleavedTrialAndVolumeRefreshUpdates", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		initialVolumeRefresh := time.Date(2023, 1, 10, 9, 0, 0, 0, time.UTC)
+		accountUUID := "trial-metadata-interleaved-uuid"
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: accountUUID},
+			Name:      "trial_metadata_interleaved",
+			AccountMetadata: &datamodel.AccountMetadata{
+				VolumeRefreshWorkflowLastCompletionAt: initialVolumeRefresh,
+			},
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+		start1, end1 := trialWindow(0)
+		err = store.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start1, EndTime: &end1})
+		assert.NoError(tt, err)
+
+		updatedVolumeRefresh := time.Date(2024, 6, 20, 18, 45, 0, 0, time.UTC)
+		err = store.UpdateAccountVolumeRefreshTimestamp(ctx, accountUUID, updatedVolumeRefresh)
+		assert.NoError(tt, err)
+
+		start2, end2 := trialWindow(7)
+		account, err = store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		err = store.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start2, EndTime: &end2})
+		assert.NoError(tt, err)
+
+		start3, end3 := trialWindow(14)
+		account, err = store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		err = store.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start3, EndTime: &end3})
+		assert.NoError(tt, err)
+
+		final, err := store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, final.AccountMetadata)
+		require.NotNil(tt, final.AccountMetadata.TrialMode)
+		assert.WithinDuration(tt, start3, *final.AccountMetadata.TrialMode.StartTime, time.Second)
+		assert.WithinDuration(tt, end3, *final.AccountMetadata.TrialMode.EndTime, time.Second)
+		assert.WithinDuration(tt, updatedVolumeRefresh, final.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt, time.Second)
+		assert.NotEqual(tt, initialVolumeRefresh, final.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt)
+	})
+
+	t.Run("OmittedSecondUpdateDoesNotClearExistingTrialMode", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		accountUUID := "trial-retain-omit-second-uuid"
+		account := &datamodel.Account{
+			BaseModel:       datamodel.BaseModel{UUID: accountUUID},
+			Name:            "trial_retain_omit_second",
+			AccountMetadata: nil,
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+		start, end := trialWindow(0)
+		err = store.UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end})
+		assert.NoError(tt, err)
+
+		afterFirst, err := store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		require.NotNil(tt, afterFirst.AccountMetadata)
+		require.NotNil(tt, afterFirst.AccountMetadata.TrialMode)
+		assert.WithinDuration(tt, start, *afterFirst.AccountMetadata.TrialMode.StartTime, time.Second)
+		assert.WithinDuration(tt, end, *afterFirst.AccountMetadata.TrialMode.EndTime, time.Second)
+
+		// No second UpdateAccountTrialMetadata call (omitted trialMode on a later create skips persist).
+		afterOmit, err := store.GetAccountByUUID(ctx, accountUUID)
+		assert.NoError(tt, err)
+		require.NotNil(tt, afterOmit.AccountMetadata)
+		require.NotNil(tt, afterOmit.AccountMetadata.TrialMode)
+		assert.WithinDuration(tt, start, *afterOmit.AccountMetadata.TrialMode.StartTime, time.Second)
+		assert.WithinDuration(tt, end, *afterOmit.AccountMetadata.TrialMode.EndTime, time.Second)
+	})
+
+	t.Run("WhenTrialIsNil_ReturnsNilWithoutUpdating", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+
+		err = store.UpdateAccountTrialMetadata(context.Background(), &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "any-uuid"},
+		}, nil)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenAccountIsNil_ReturnsAccountNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		start, end := trialWindow(0)
+
+		err = store.UpdateAccountTrialMetadata(context.Background(), nil, &datamodel.AccountTrialMode{
+			StartTime: &start,
+			EndTime:   &end,
+		})
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenAccountUUIDEmpty_ReturnsAccountNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		store := NewDataStoreRepository(gormwrapper.New(db))
+		start, end := trialWindow(0)
+
+		err = store.UpdateAccountTrialMetadata(context.Background(), &datamodel.Account{
+			Name: "no-uuid",
+		}, &datamodel.AccountTrialMode{
+			StartTime: &start,
+			EndTime:   &end,
+		})
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenDatabaseUpdateFails_ReturnsError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		accountUUID := "trial-metadata-db-error-uuid"
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: accountUUID},
+			Name:      "trial_metadata_db_error",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		account, err = store.GetAccountByUUID(context.Background(), accountUUID)
+		assert.NoError(tt, err)
+
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		assert.NoError(tt, sqlDB.Close())
+
+		start, end := trialWindow(0)
+		err = store.UpdateAccountTrialMetadata(context.Background(), account, &datamodel.AccountTrialMode{
+			StartTime: &start,
+			EndTime:   &end,
+		})
+		assert.Error(tt, err)
 	})
 }

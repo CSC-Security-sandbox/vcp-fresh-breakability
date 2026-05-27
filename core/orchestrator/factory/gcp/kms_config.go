@@ -78,6 +78,11 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		return nil, "", err
 	}
 
+	if err = persistAccountTrialMetadataIfSet(ctx, se, account, params.TrialMode); err != nil {
+		logger.Error("Failed to update account trial metadata", "accountUUID", account.UUID, "error", err)
+		return nil, "", err
+	}
+
 	var kmsConfig *datamodel.KmsConfig = nil
 	var createdJob *datamodel.Job = nil
 

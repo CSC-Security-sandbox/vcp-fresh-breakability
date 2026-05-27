@@ -391,6 +391,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 					return errResp, nil
 				}
 			}
+			createKmsConfigParams.TrialMode = newTrialModeParamsFromOpt(req.TrialMode)
 
 			kmsConfig, operationID, err := h.Orchestrator.CreateKmsConfig(ctx, createKmsConfigParams)
 			if err != nil {
@@ -604,6 +605,11 @@ func categorizeCreateKmsConfigOrchestratorErrors(err error) (gcpgenserver.V1beta
 	case goErrors.As(err, &badRequestErr):
 		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
 			Message: badRequestErr.Error(),
+			Code:    http.StatusBadRequest,
+		}, nil
+	case errors.IsUserInputValidationErr(err):
+		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
+			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}, nil
 	default:

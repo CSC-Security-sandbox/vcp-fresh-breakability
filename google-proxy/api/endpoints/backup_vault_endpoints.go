@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/go-faster/jx"
@@ -282,6 +283,18 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 	if req.BackupRegion.IsSet() {
 		backupRegion = &req.BackupRegion.Value
 	}
+	if err := h.Orchestrator.PersistAccountTrialMetadataIfSet(ctx, params.ProjectNumber, newTrialModeParamsFromOpt(req.TrialMode)); err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}, nil
+	}
 	// Check if the BackupVault already exists
 	existingBackupVault, err := h.Orchestrator.GetBackupVaultByNameAndOwnerID(ctx, req.ResourceId.Value, params.ProjectNumber)
 	if err == nil && existingBackupVault != nil {
@@ -313,6 +326,12 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		createParams := buildCreateBackupVaultParams(req, params, backupRegion)
 		vault, err := h.Orchestrator.CreateBackupVault(ctx, createParams)
 		if err != nil {
+			if errors.IsUserInputValidationErr(err) {
+				return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+					Code:    400,
+					Message: err.Error(),
+				}, nil
+			}
 			logger.Error("Failed to create backup vault", "error", err)
 			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
 				Code:    500,
@@ -334,7 +353,7 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
-	// not exists in VCP, Call SDE for Creating
+	// not exists in VCP, Call SDE for Creating.
 	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)

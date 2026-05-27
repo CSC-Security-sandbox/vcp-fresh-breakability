@@ -219,6 +219,9 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		}
 		createPoolParams.Labels = jsonbLabels
 	}
+
+	createPoolParams.TrialMode = newTrialModeParamsFromOpt(req.TrialMode)
+
 	created, operationID, err := h.Orchestrator.CreatePool(ctx, createPoolParams)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) {
@@ -1264,6 +1267,7 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 			Message: "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering",
 		}
 	}
+
 	return nil
 }
 

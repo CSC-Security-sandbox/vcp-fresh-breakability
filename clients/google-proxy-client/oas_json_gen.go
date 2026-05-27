@@ -650,9 +650,15 @@ func (s *ActiveDirectoryV1beta) encodeFields(e *jx.Encoder) {
 			s.Description.Encode(e)
 		}
 	}
+	{
+		if s.TrialMode.Set {
+			e.FieldStart("trialMode")
+			s.TrialMode.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfActiveDirectoryV1beta = [24]string{
+var jsonFieldsNameOfActiveDirectoryV1beta = [25]string{
 	0:  "activeDirectoryId",
 	1:  "username",
 	2:  "resourceId",
@@ -677,6 +683,7 @@ var jsonFieldsNameOfActiveDirectoryV1beta = [24]string{
 	21: "administrators",
 	22: "aesEncryption",
 	23: "description",
+	24: "trialMode",
 }
 
 // Decode decodes ActiveDirectoryV1beta from json.
@@ -684,7 +691,7 @@ func (s *ActiveDirectoryV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode ActiveDirectoryV1beta to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -968,6 +975,16 @@ func (s *ActiveDirectoryV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"description\"")
 			}
+		case "trialMode":
+			if err := func() error {
+				s.TrialMode.Reset()
+				if err := s.TrialMode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trialMode\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -977,8 +994,9 @@ func (s *ActiveDirectoryV1beta) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b01111110,
+		0b00000000,
 		0b00000000,
 		0b00000000,
 	} {
@@ -1844,15 +1862,22 @@ func (s *BackupPolicyCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.Enabled.Encode(e)
 		}
 	}
+	{
+		if s.TrialMode.Set {
+			e.FieldStart("trialMode")
+			s.TrialMode.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupPolicyCreateV1beta = [6]string{
+var jsonFieldsNameOfBackupPolicyCreateV1beta = [7]string{
 	0: "resourceId",
 	1: "description",
 	2: "dailyBackupLimit",
 	3: "weeklyBackupLimit",
 	4: "monthlyBackupLimit",
 	5: "enabled",
+	6: "trialMode",
 }
 
 // Decode decodes BackupPolicyCreateV1beta from json.
@@ -1926,6 +1951,16 @@ func (s *BackupPolicyCreateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "trialMode":
+			if err := func() error {
+				s.TrialMode.Reset()
+				if err := s.TrialMode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trialMode\"")
 			}
 		default:
 			return d.Skip()
@@ -4077,9 +4112,15 @@ func (s *BackupVaultCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.CrossProjectVault.Encode(e)
 		}
 	}
+	{
+		if s.TrialMode.Set {
+			e.FieldStart("trialMode")
+			s.TrialMode.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupVaultCreateV1beta = [8]string{
+var jsonFieldsNameOfBackupVaultCreateV1beta = [9]string{
 	0: "resourceId",
 	1: "description",
 	2: "backupRegion",
@@ -4088,6 +4129,7 @@ var jsonFieldsNameOfBackupVaultCreateV1beta = [8]string{
 	5: "backupsPrimaryKeyVersion",
 	6: "tenantProject",
 	7: "crossProjectVault",
+	8: "trialMode",
 }
 
 // Decode decodes BackupVaultCreateV1beta from json.
@@ -4177,6 +4219,16 @@ func (s *BackupVaultCreateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"crossProjectVault\"")
+			}
+		case "trialMode":
+			if err := func() error {
+				s.TrialMode.Reset()
+				if err := s.TrialMode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trialMode\"")
 			}
 		default:
 			return d.Skip()
@@ -18124,9 +18176,15 @@ func (s *HostGroupV1beta) encodeFields(e *jx.Encoder) {
 		e.FieldStart("osType")
 		s.OsType.Encode(e)
 	}
+	{
+		if s.TrialMode.Set {
+			e.FieldStart("trialMode")
+			s.TrialMode.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfHostGroupV1beta = [11]string{
+var jsonFieldsNameOfHostGroupV1beta = [12]string{
 	0:  "hostGroupId",
 	1:  "resourceId",
 	2:  "description",
@@ -18138,6 +18196,7 @@ var jsonFieldsNameOfHostGroupV1beta = [11]string{
 	8:  "type",
 	9:  "hosts",
 	10: "osType",
+	11: "trialMode",
 }
 
 // Decode decodes HostGroupV1beta from json.
@@ -18270,6 +18329,16 @@ func (s *HostGroupV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"osType\"")
+			}
+		case "trialMode":
+			if err := func() error {
+				s.TrialMode.Reset()
+				if err := s.TrialMode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trialMode\"")
 			}
 		default:
 			return d.Skip()
@@ -22362,9 +22431,15 @@ func (s *KmsConfigV1beta) encodeFields(e *jx.Encoder) {
 			s.ResourceId.Encode(e)
 		}
 	}
+	{
+		if s.TrialMode.Set {
+			e.FieldStart("trialMode")
+			s.TrialMode.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfKmsConfigV1beta = [11]string{
+var jsonFieldsNameOfKmsConfigV1beta = [12]string{
 	0:  "uuid",
 	1:  "serviceAccountEmail",
 	2:  "keyFullPath",
@@ -22376,6 +22451,7 @@ var jsonFieldsNameOfKmsConfigV1beta = [11]string{
 	8:  "deletedTime",
 	9:  "instructions",
 	10: "resourceId",
+	11: "trialMode",
 }
 
 // Decode decodes KmsConfigV1beta from json.
@@ -22498,6 +22574,16 @@ func (s *KmsConfigV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "trialMode":
+			if err := func() error {
+				s.TrialMode.Reset()
+				if err := s.TrialMode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trialMode\"")
 			}
 		default:
 			return d.Skip()
@@ -29543,6 +29629,39 @@ func (s *OptTransferStatsV1beta) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes TrialModeV1beta as json.
+func (o OptTrialModeV1beta) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes TrialModeV1beta from json.
+func (o *OptTrialModeV1beta) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptTrialModeV1beta to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptTrialModeV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptTrialModeV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaDeleteVolumeReq as json.
 func (o OptV1betaDeleteVolumeReq) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -31042,6 +31161,12 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.TrialMode.Set {
+			e.FieldStart("trialMode")
+			s.TrialMode.Encode(e)
+		}
+	}
+	{
 		if s.ClusterName.Set {
 			e.FieldStart("clusterName")
 			s.ClusterName.Encode(e)
@@ -31065,7 +31190,7 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [48]string{
+var jsonFieldsNameOfPoolInternalV1beta = [49]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -31111,9 +31236,10 @@ var jsonFieldsNameOfPoolInternalV1beta = [48]string{
 	42: "hotTierConsumption",
 	43: "coldTierConsumption",
 	44: "mode",
-	45: "clusterName",
-	46: "interclusterLifs",
-	47: "hasActiveClusterUpgrade",
+	45: "trialMode",
+	46: "clusterName",
+	47: "interclusterLifs",
+	48: "hasActiveClusterUpgrade",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -31121,7 +31247,7 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode PoolInternalV1beta to nil")
 	}
-	var requiredBitSet [6]uint8
+	var requiredBitSet [7]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -31582,6 +31708,16 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
+		case "trialMode":
+			if err := func() error {
+				s.TrialMode.Reset()
+				if err := s.TrialMode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trialMode\"")
+			}
 		case "clusterName":
 			if err := func() error {
 				s.ClusterName.Reset()
@@ -31630,9 +31766,10 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [6]uint8{
+	for i, mask := range [7]uint8{
 		0b11010000,
 		0b00000010,
+		0b00000000,
 		0b00000000,
 		0b00000000,
 		0b00000000,
@@ -32638,9 +32775,15 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 			s.Mode.Encode(e)
 		}
 	}
+	{
+		if s.TrialMode.Set {
+			e.FieldStart("trialMode")
+			s.TrialMode.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfPoolV1beta = [45]string{
+var jsonFieldsNameOfPoolV1beta = [46]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -32686,6 +32829,7 @@ var jsonFieldsNameOfPoolV1beta = [45]string{
 	42: "hotTierConsumption",
 	43: "coldTierConsumption",
 	44: "mode",
+	45: "trialMode",
 }
 
 // Decode decodes PoolV1beta from json.
@@ -33153,6 +33297,16 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"mode\"")
+			}
+		case "trialMode":
+			if err := func() error {
+				s.TrialMode.Reset()
+				if err := s.TrialMode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trialMode\"")
 			}
 		default:
 			return d.Skip()
@@ -38631,6 +38785,119 @@ func (s *TransferStatsV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *TransferStatsV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *TrialModeV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *TrialModeV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("startTime")
+		json.EncodeDateTime(e, s.StartTime)
+	}
+	{
+		e.FieldStart("endTime")
+		json.EncodeDateTime(e, s.EndTime)
+	}
+}
+
+var jsonFieldsNameOfTrialModeV1beta = [2]string{
+	0: "startTime",
+	1: "endTime",
+}
+
+// Decode decodes TrialModeV1beta from json.
+func (s *TrialModeV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TrialModeV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "startTime":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.StartTime = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"startTime\"")
+			}
+		case "endTime":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.EndTime = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"endTime\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode TrialModeV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfTrialModeV1beta) {
+					name = jsonFieldsNameOfTrialModeV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *TrialModeV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TrialModeV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

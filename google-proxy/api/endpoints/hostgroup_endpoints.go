@@ -77,12 +77,19 @@ func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 
 	osType, _ := req.OsType.MarshalText()
 	createParams.OSType = string(osType)
+	createParams.TrialMode = newTrialModeParamsFromOpt(req.TrialMode)
 
 	hostGroups, err := h.Orchestrator.CreateHostGroup(ctx, createParams)
 	if err != nil {
 		if customerrors.IsConflictErr(err) {
 			return &gcpgenserver.V1betaCreateHostGroupConflict{
 				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+		if customerrors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaCreateHostGroupBadRequest{
+				Code:    400,
 				Message: err.Error(),
 			}, nil
 		}

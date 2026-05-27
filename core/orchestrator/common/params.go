@@ -23,6 +23,13 @@ const (
 	HttpStatusNotImplemented      = 501
 )
 
+// TrialModeParams is optional trial window from the API trialMode object (VCP create flows only).
+// Nil on the parent params means the request omitted trialMode; when non-nil, Start and End should both be set.
+type TrialModeParams struct {
+	Start *time.Time
+	End   *time.Time
+}
+
 // CreatePoolParams describes parameters supplied to CreatingPool
 type CreatePoolParams struct {
 	AccountName             string
@@ -55,6 +62,8 @@ type CreatePoolParams struct {
 	Mode                    string
 	XCorrelationID          string
 	ADExistsInVCP           bool
+	// TrialMode is set when the pool create request includes trialMode (GCP; optional).
+	TrialMode *TrialModeParams
 	// OCI-specific fields (only fields that don't map to existing GCP fields)
 	// Note: CompartmentId maps to AccountName (for OCI, AccountName is the compartment OCID)
 	CustomerSubnet    string // OCI subnet OCID for the customer data path - OCI has separate customer subnet
@@ -533,6 +542,8 @@ type CreateBackupVaultParams struct {
 	BackupRetentionPolicy    BackupRetentionPolicyParams
 	KmsConfigResourcePath    *string
 	BackupsPrimaryKeyVersion *string
+	// TrialMode is set when the create request includes trialMode (optional). Same shape as pool create.
+	TrialMode *TrialModeParams
 }
 
 type DeleteBackupPolicyParams struct {
@@ -613,6 +624,8 @@ type CreateBackupPolicyParams struct {
 	DailyBackupLimit   *int64
 	WeeklyBackupLimit  *int64
 	MonthlyBackupLimit *int64
+	// TrialMode is set when the create request includes trialMode (optional).
+	TrialMode *TrialModeParams
 }
 
 type UpdateBackupPolicyParams struct {
@@ -774,6 +787,7 @@ type CreateHostGroupParams struct {
 	Hosts         []string
 	OSType        string
 	AccountName   string
+	TrialMode     *TrialModeParams
 }
 
 type SnapshotsInternalDeleteParams struct {
@@ -900,6 +914,8 @@ type CreateActiveDirectoryParams struct {
 	Administrators             []string `json:"administrators" validate:"Administrators"`
 	AesEncryption              bool
 	Description                string
+	// TrialMode is set when the create request includes trialMode (optional); same validation as pool create.
+	TrialMode *TrialModeParams
 }
 
 type UpdateActiveDirectoryParams struct {

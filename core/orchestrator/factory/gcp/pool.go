@@ -78,6 +78,12 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", err
 	}
 
+	// TODO: check error code
+	if err = persistAccountTrialMetadataIfSet(ctx, se, account, params.TrialMode); err != nil {
+		logger.Error("Failed to update account trial metadata", "accountUUID", account.UUID, "error", err)
+		return nil, "", err
+	}
+
 	// GCP-specific credential setup function
 	setupGCPCredentials := func(poolObj *datamodel.Pool, params *commonparams.CreatePoolParams, accountName string) {
 		userName := utils.GenerateUniqueUsername(poolObj.DeploymentName)

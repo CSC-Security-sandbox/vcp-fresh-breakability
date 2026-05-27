@@ -18305,6 +18305,54 @@ func (_c *MockDataStore_UpdateAccountStateForHandleResource_Call) RunAndReturn(r
 	return _c
 }
 
+// UpdateAccountTrialMetadata provides a mock function with given fields: ctx, account, trial
+func (_m *MockDataStore) UpdateAccountTrialMetadata(ctx context.Context, account *datamodel.Account, trial *datamodel.AccountTrialMode) error {
+	ret := _m.Called(ctx, account, trial)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAccountTrialMetadata")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Account, *datamodel.AccountTrialMode) error); ok {
+		r0 = rf(ctx, account, trial)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateAccountTrialMetadata_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAccountTrialMetadata'
+type MockDataStore_UpdateAccountTrialMetadata_Call struct {
+	*mock.Call
+}
+
+// UpdateAccountTrialMetadata is a helper method to define mock.On call
+//   - ctx context.Context
+//   - account *datamodel.Account
+//   - trial *datamodel.AccountTrialMode
+func (_e *MockDataStore_Expecter) UpdateAccountTrialMetadata(ctx interface{}, account interface{}, trial interface{}) *MockDataStore_UpdateAccountTrialMetadata_Call {
+	return &MockDataStore_UpdateAccountTrialMetadata_Call{Call: _e.mock.On("UpdateAccountTrialMetadata", ctx, account, trial)}
+}
+
+func (_c *MockDataStore_UpdateAccountTrialMetadata_Call) Run(run func(ctx context.Context, account *datamodel.Account, trial *datamodel.AccountTrialMode)) *MockDataStore_UpdateAccountTrialMetadata_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Account), args[2].(*datamodel.AccountTrialMode))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAccountTrialMetadata_Call) Return(_a0 error) *MockDataStore_UpdateAccountTrialMetadata_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAccountTrialMetadata_Call) RunAndReturn(run func(context.Context, *datamodel.Account, *datamodel.AccountTrialMode) error) *MockDataStore_UpdateAccountTrialMetadata_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateAccountVolumeRefreshTimestamp provides a mock function with given fields: ctx, accountUUID, completionTime
 func (_m *MockDataStore) UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error {
 	ret := _m.Called(ctx, accountUUID, completionTime)

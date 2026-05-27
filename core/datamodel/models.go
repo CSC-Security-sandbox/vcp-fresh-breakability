@@ -561,7 +561,44 @@ type Account struct {
 }
 
 type AccountMetadata struct {
-	VolumeRefreshWorkflowLastCompletionAt time.Time `json:"volumeRefreshWorkflowLastCompletionAt"`
+	VolumeRefreshWorkflowLastCompletionAt time.Time         `json:"volumeRefreshWorkflowLastCompletionAt"`
+	TrialMode                             *AccountTrialMode `json:"trialMode,omitempty"`
+}
+
+// AccountTrialMode is the trial window stored under account_metadata.trialMode (API-aligned JSON).
+type AccountTrialMode struct {
+	StartTime  *time.Time `json:"startTime,omitempty"`
+	EndTime    *time.Time `json:"endTime,omitempty"`
+	ExitReason *string    `json:"exitReason,omitempty"`
+}
+
+// ApplyTo merges trial fields into meta.TrialMode.
+// Nil StartTime, EndTime, or ExitReason clears that field within trialMode. Other metadata keys are preserved.
+func (m *AccountTrialMode) ApplyTo(meta *AccountMetadata) {
+	if m == nil || meta == nil {
+		return
+	}
+	if meta.TrialMode == nil {
+		meta.TrialMode = &AccountTrialMode{}
+	}
+	if m.StartTime != nil {
+		t := *m.StartTime
+		meta.TrialMode.StartTime = &t
+	} else {
+		meta.TrialMode.StartTime = nil
+	}
+	if m.EndTime != nil {
+		t := *m.EndTime
+		meta.TrialMode.EndTime = &t
+	} else {
+		meta.TrialMode.EndTime = nil
+	}
+	if m.ExitReason != nil {
+		s := *m.ExitReason
+		meta.TrialMode.ExitReason = &s
+	} else {
+		meta.TrialMode.ExitReason = nil
+	}
 }
 
 // Scan method for AccountMetadata to handle JSONB data

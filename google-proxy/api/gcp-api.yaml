@@ -10933,6 +10933,8 @@ components:
                 The operating system type indicates the type of host operating system used by all of the hosts in the HostGroup.
                 All hosts in a HostGroup must be of the same operating system type.
             - $ref: '#/components/schemas/OSType_v1beta'
+        trialMode:
+          $ref: '#/components/schemas/TrialMode_v1beta'
     HostGroupUpdate_v1beta:
       title: HostGroup
       type: object
@@ -11053,6 +11055,28 @@ components:
             (flexgroup) or a regular volume (flexvol)
           nullable: true
           x-omitempty: false
+    TrialMode_v1beta:
+      title: TrialMode
+      type: object
+      description: >-
+        Optional consumer-project trial window. Same shape for pool create, backup
+        vault create (including GCBDR vault host project), Active Directory create,
+        backup policy create, KMS configuration create, and host group create.
+        Omitted when not in trial; when set, startTime and endTime are required.
+      required:
+        - startTime
+        - endTime
+      properties:
+        startTime:
+          type: string
+          format: date-time
+          description: Trial start (RFC 3339).
+          example: "2025-05-14T11:00:00Z"
+        endTime:
+          type: string
+          format: date-time
+          description: Trial end (RFC 3339).
+          example: "2025-06-13T11:00:00Z"
     Pool_v1beta:
       title: Pool
       required:
@@ -11403,6 +11427,8 @@ components:
           description: Flag indicating if the pool supports expert mode
           default: DEFAULT
           example: DEFAULT
+        trialMode:
+          $ref: '#/components/schemas/TrialMode_v1beta'
     Volume_v1beta:
       title: Volume v1beta model definition
       required:
@@ -14520,6 +14546,8 @@ components:
           pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
           maxLength: 63
           x-nullable: true
+        trialMode:
+          $ref: '#/components/schemas/TrialMode_v1beta'
     KmsConfigPreMigrate_v1beta:
       type: object
       title: KmsConfig
@@ -14785,6 +14813,8 @@ components:
                 use.
               example: true
               default: true
+            trialMode:
+              $ref: '#/components/schemas/TrialMode_v1beta'
     BackupPolicyDetails_v1beta:
       type: object
       title: Backup policy Details response
@@ -15914,6 +15944,8 @@ components:
           example: My active directory description
           x-nullable: true
           maxLength: 2048
+        trialMode:
+          $ref: '#/components/schemas/TrialMode_v1beta'
     ActiveDirectoryUpdate_v1beta:
       type: object
       title: ActiveDirectoryUpdate
@@ -16543,6 +16575,8 @@ components:
           type: boolean
           description: When true, creates a cross-project vault with CrossProject service type.
           x-nullable: true
+        trialMode:
+          $ref: '#/components/schemas/TrialMode_v1beta'
     BackupVaultUpdate_v1beta:
       title: BackupVaultUpdateRequest
       type: object

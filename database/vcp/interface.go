@@ -153,6 +153,10 @@ type (
 		ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error)
 		UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error
 		UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error
+		// UpdateAccountTrialMetadata merges trial fields into account_metadata JSONB.
+		// account must be the row to update; AccountMetadata on account is the merge base (nil is treated as empty).
+		// Nil fields on trial clear that metadata key; nil trial is a no-op.
+		UpdateAccountTrialMetadata(ctx context.Context, account *datamodel.Account, trial *datamodel.AccountTrialMode) error
 
 		CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
 		DeleteJob(ctx context.Context, id, errorDetails string) error

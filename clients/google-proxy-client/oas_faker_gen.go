@@ -276,6 +276,11 @@ func (s *ActiveDirectoryV1beta) SetFake() {
 			s.Description.SetFake()
 		}
 	}
+	{
+		{
+			s.TrialMode.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -444,6 +449,11 @@ func (s *BackupPolicyCreateV1beta) SetFake() {
 	{
 		{
 			s.Enabled.SetFake()
+		}
+	}
+	{
+		{
+			s.TrialMode.SetFake()
 		}
 	}
 }
@@ -913,6 +923,11 @@ func (s *BackupVaultCreateV1beta) SetFake() {
 	{
 		{
 			s.CrossProjectVault.SetFake()
+		}
+	}
+	{
+		{
+			s.TrialMode.SetFake()
 		}
 	}
 }
@@ -3929,6 +3944,11 @@ func (s *HostGroupV1beta) SetFake() {
 			s.OsType.SetFake()
 		}
 	}
+	{
+		{
+			s.TrialMode.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -4861,6 +4881,11 @@ func (s *KmsConfigV1beta) SetFake() {
 	{
 		{
 			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.TrialMode.SetFake()
 		}
 	}
 }
@@ -6224,6 +6249,15 @@ func (s *OptTransferStatsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptTrialModeV1beta) SetFake() {
+	var elem TrialModeV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptV1betaDeleteVolumeReq) SetFake() {
 	var elem V1betaDeleteVolumeReq
 	{
@@ -6744,6 +6778,11 @@ func (s *PoolInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.TrialMode.SetFake()
+		}
+	}
+	{
+		{
 			s.ClusterName.SetFake()
 		}
 	}
@@ -7121,6 +7160,11 @@ func (s *PoolV1beta) SetFake() {
 	{
 		{
 			s.Mode.SetFake()
+		}
+	}
+	{
+		{
+			s.TrialMode.SetFake()
 		}
 	}
 }
@@ -8112,6 +8156,20 @@ func (s *TransferStatsV1beta) SetFake() {
 	{
 		{
 			s.LagTime.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *TrialModeV1beta) SetFake() {
+	{
+		{
+			s.StartTime = time.Now()
+		}
+	}
+	{
+		{
+			s.EndTime = time.Now()
 		}
 	}
 }

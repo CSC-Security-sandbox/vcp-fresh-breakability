@@ -18,6 +18,7 @@ type CreateKmsConfigParams struct {
 	OperationUri        string
 	OperationDone       bool
 	SdeJobUUID          string
+	TrialMode           *TrialModeParams
 }
 
 // GetKmsConfigParams describes parameters supplied to CreateKmsConfigActivity

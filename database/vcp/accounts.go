@@ -177,3 +177,27 @@ func (d *DataStoreRepository) UpdateAccountVolumeRefreshTimestamp(ctx context.Co
 
 	return nil
 }
+
+// UpdateAccountTrialMetadata updates trial-related fields in account_metadata.
+func (d *DataStoreRepository) UpdateAccountTrialMetadata(ctx context.Context, account *datamodel.Account, trial *datamodel.AccountTrialMode) error {
+	if trial == nil {
+		return nil
+	}
+	if account == nil || account.UUID == "" {
+		return vsaerrors.NewVCPError(vsaerrors.ErrAccountNotFound, customerrors.NewNotFoundErr("account", nil))
+	}
+
+	db := d.db.GORM().WithContext(ctx)
+
+	if account.AccountMetadata == nil {
+		account.AccountMetadata = &datamodel.AccountMetadata{}
+	}
+
+	trial.ApplyTo(account.AccountMetadata)
+
+	err := db.Model(&datamodel.Account{}).Where("uuid = ?", account.UUID).Update("account_metadata", account.AccountMetadata).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
+}

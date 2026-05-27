@@ -306,7 +306,8 @@ type ActiveDirectoryV1beta struct {
 	// If enabled, AES encryption will be enabled for SMB communication.
 	AesEncryption OptBool `json:"aesEncryption"`
 	// Description of the Active Directory.
-	Description OptString `json:"description"`
+	Description OptString          `json:"description"`
+	TrialMode   OptTrialModeV1beta `json:"trialMode"`
 }
 
 // GetActiveDirectoryId returns the value of ActiveDirectoryId.
@@ -429,6 +430,11 @@ func (s *ActiveDirectoryV1beta) GetDescription() OptString {
 	return s.Description
 }
 
+// GetTrialMode returns the value of TrialMode.
+func (s *ActiveDirectoryV1beta) GetTrialMode() OptTrialModeV1beta {
+	return s.TrialMode
+}
+
 // SetActiveDirectoryId sets the value of ActiveDirectoryId.
 func (s *ActiveDirectoryV1beta) SetActiveDirectoryId(val OptString) {
 	s.ActiveDirectoryId = val
@@ -547,6 +553,11 @@ func (s *ActiveDirectoryV1beta) SetAesEncryption(val OptBool) {
 // SetDescription sets the value of Description.
 func (s *ActiveDirectoryV1beta) SetDescription(val OptString) {
 	s.Description = val
+}
+
+// SetTrialMode sets the value of TrialMode.
+func (s *ActiveDirectoryV1beta) SetTrialMode(val OptTrialModeV1beta) {
+	s.TrialMode = val
 }
 
 func (*ActiveDirectoryV1beta) v1betaDescribeActiveDirectoryRes() {}
@@ -913,7 +924,8 @@ type BackupPolicyCreateV1beta struct {
 	// be greater than 1.
 	MonthlyBackupLimit OptInt `json:"monthlyBackupLimit"`
 	// If enabled, backup policy will be available for any volume to use.
-	Enabled OptBool `json:"enabled"`
+	Enabled   OptBool            `json:"enabled"`
+	TrialMode OptTrialModeV1beta `json:"trialMode"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -946,6 +958,11 @@ func (s *BackupPolicyCreateV1beta) GetEnabled() OptBool {
 	return s.Enabled
 }
 
+// GetTrialMode returns the value of TrialMode.
+func (s *BackupPolicyCreateV1beta) GetTrialMode() OptTrialModeV1beta {
+	return s.TrialMode
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *BackupPolicyCreateV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -974,6 +991,11 @@ func (s *BackupPolicyCreateV1beta) SetMonthlyBackupLimit(val OptInt) {
 // SetEnabled sets the value of Enabled.
 func (s *BackupPolicyCreateV1beta) SetEnabled(val OptBool) {
 	s.Enabled = val
+}
+
+// SetTrialMode sets the value of TrialMode.
+func (s *BackupPolicyCreateV1beta) SetTrialMode(val OptTrialModeV1beta) {
+	s.TrialMode = val
 }
 
 // Merged schema.
@@ -2131,7 +2153,8 @@ type BackupVaultCreateV1beta struct {
 	// service type and only in VCP.
 	TenantProject OptString `json:"tenantProject"`
 	// When true, creates a cross-project vault with CrossProject service type.
-	CrossProjectVault OptBool `json:"crossProjectVault"`
+	CrossProjectVault OptBool            `json:"crossProjectVault"`
+	TrialMode         OptTrialModeV1beta `json:"trialMode"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -2174,6 +2197,11 @@ func (s *BackupVaultCreateV1beta) GetCrossProjectVault() OptBool {
 	return s.CrossProjectVault
 }
 
+// GetTrialMode returns the value of TrialMode.
+func (s *BackupVaultCreateV1beta) GetTrialMode() OptTrialModeV1beta {
+	return s.TrialMode
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *BackupVaultCreateV1beta) SetResourceId(val OptString) {
 	s.ResourceId = val
@@ -2212,6 +2240,11 @@ func (s *BackupVaultCreateV1beta) SetTenantProject(val OptString) {
 // SetCrossProjectVault sets the value of CrossProjectVault.
 func (s *BackupVaultCreateV1beta) SetCrossProjectVault(val OptBool) {
 	s.CrossProjectVault = val
+}
+
+// SetTrialMode sets the value of TrialMode.
+func (s *BackupVaultCreateV1beta) SetTrialMode(val OptTrialModeV1beta) {
+	s.TrialMode = val
 }
 
 // Ref: #/components/schemas/BackupVaultInternalUpdate_v1beta
@@ -10918,8 +10951,9 @@ type HostGroupV1beta struct {
 	// The type of initiators.
 	Type OptHostGroupV1betaType `json:"type"`
 	// List of iSCSI Qualified Names associated with this HostGroup.
-	Hosts  []string              `json:"hosts"`
-	OsType HostGroupV1betaOsType `json:"osType"`
+	Hosts     []string              `json:"hosts"`
+	OsType    HostGroupV1betaOsType `json:"osType"`
+	TrialMode OptTrialModeV1beta    `json:"trialMode"`
 }
 
 // GetHostGroupId returns the value of HostGroupId.
@@ -10977,6 +11011,11 @@ func (s *HostGroupV1beta) GetOsType() HostGroupV1betaOsType {
 	return s.OsType
 }
 
+// GetTrialMode returns the value of TrialMode.
+func (s *HostGroupV1beta) GetTrialMode() OptTrialModeV1beta {
+	return s.TrialMode
+}
+
 // SetHostGroupId sets the value of HostGroupId.
 func (s *HostGroupV1beta) SetHostGroupId(val OptString) {
 	s.HostGroupId = val
@@ -11030,6 +11069,11 @@ func (s *HostGroupV1beta) SetHosts(val []string) {
 // SetOsType sets the value of OsType.
 func (s *HostGroupV1beta) SetOsType(val HostGroupV1betaOsType) {
 	s.OsType = val
+}
+
+// SetTrialMode sets the value of TrialMode.
+func (s *HostGroupV1beta) SetTrialMode(val OptTrialModeV1beta) {
+	s.TrialMode = val
 }
 
 func (*HostGroupV1beta) v1betaDescribeHostGroupRes() {}
@@ -13711,7 +13755,8 @@ type KmsConfigV1beta struct {
 	// Instructions to provide the access to encryption key.
 	Instructions OptString `json:"instructions"`
 	// Resource Id for KMS configuration.
-	ResourceId OptString `json:"resourceId"`
+	ResourceId OptString          `json:"resourceId"`
+	TrialMode  OptTrialModeV1beta `json:"trialMode"`
 }
 
 // GetUUID returns the value of UUID.
@@ -13769,6 +13814,11 @@ func (s *KmsConfigV1beta) GetResourceId() OptString {
 	return s.ResourceId
 }
 
+// GetTrialMode returns the value of TrialMode.
+func (s *KmsConfigV1beta) GetTrialMode() OptTrialModeV1beta {
+	return s.TrialMode
+}
+
 // SetUUID sets the value of UUID.
 func (s *KmsConfigV1beta) SetUUID(val OptString) {
 	s.UUID = val
@@ -13822,6 +13872,11 @@ func (s *KmsConfigV1beta) SetInstructions(val OptString) {
 // SetResourceId sets the value of ResourceId.
 func (s *KmsConfigV1beta) SetResourceId(val OptString) {
 	s.ResourceId = val
+}
+
+// SetTrialMode sets the value of TrialMode.
+func (s *KmsConfigV1beta) SetTrialMode(val OptTrialModeV1beta) {
+	s.TrialMode = val
 }
 
 func (*KmsConfigV1beta) v1betaDescribeKmsConfigurationRes() {}
@@ -22823,6 +22878,52 @@ func (o OptTransferStatsV1beta) Or(d TransferStatsV1beta) TransferStatsV1beta {
 	return d
 }
 
+// NewOptTrialModeV1beta returns new OptTrialModeV1beta with value set to v.
+func NewOptTrialModeV1beta(v TrialModeV1beta) OptTrialModeV1beta {
+	return OptTrialModeV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptTrialModeV1beta is optional TrialModeV1beta.
+type OptTrialModeV1beta struct {
+	Value TrialModeV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptTrialModeV1beta was set.
+func (o OptTrialModeV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptTrialModeV1beta) Reset() {
+	var v TrialModeV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptTrialModeV1beta) SetTo(v TrialModeV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptTrialModeV1beta) Get() (v TrialModeV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptTrialModeV1beta) Or(d TrialModeV1beta) TrialModeV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptV1betaDeleteVolumeReq returns new OptV1betaDeleteVolumeReq with value set to v.
 func NewOptV1betaDeleteVolumeReq(v V1betaDeleteVolumeReq) OptV1betaDeleteVolumeReq {
 	return OptV1betaDeleteVolumeReq{
@@ -24327,7 +24428,8 @@ type PoolInternalV1beta struct {
 	// Total StoragePool Coldtier usages.
 	ColdTierConsumption OptNilInt64 `json:"coldTierConsumption"`
 	// Flag indicating if the pool supports expert mode.
-	Mode OptPoolInternalV1betaMode `json:"mode"`
+	Mode      OptPoolInternalV1betaMode `json:"mode"`
+	TrialMode OptTrialModeV1beta        `json:"trialMode"`
 	// The name of the cluster.
 	ClusterName OptString `json:"clusterName"`
 	// Intercluster Lifs.
@@ -24559,6 +24661,11 @@ func (s *PoolInternalV1beta) GetColdTierConsumption() OptNilInt64 {
 // GetMode returns the value of Mode.
 func (s *PoolInternalV1beta) GetMode() OptPoolInternalV1betaMode {
 	return s.Mode
+}
+
+// GetTrialMode returns the value of TrialMode.
+func (s *PoolInternalV1beta) GetTrialMode() OptTrialModeV1beta {
+	return s.TrialMode
 }
 
 // GetClusterName returns the value of ClusterName.
@@ -24799,6 +24906,11 @@ func (s *PoolInternalV1beta) SetColdTierConsumption(val OptNilInt64) {
 // SetMode sets the value of Mode.
 func (s *PoolInternalV1beta) SetMode(val OptPoolInternalV1betaMode) {
 	s.Mode = val
+}
+
+// SetTrialMode sets the value of TrialMode.
+func (s *PoolInternalV1beta) SetTrialMode(val OptTrialModeV1beta) {
+	s.TrialMode = val
 }
 
 // SetClusterName sets the value of ClusterName.
@@ -25429,7 +25541,8 @@ type PoolV1beta struct {
 	// Total StoragePool Coldtier usages.
 	ColdTierConsumption OptNilInt64 `json:"coldTierConsumption"`
 	// Flag indicating if the pool supports expert mode.
-	Mode OptPoolV1betaMode `json:"mode"`
+	Mode      OptPoolV1betaMode  `json:"mode"`
+	TrialMode OptTrialModeV1beta `json:"trialMode"`
 }
 
 // GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
@@ -25657,6 +25770,11 @@ func (s *PoolV1beta) GetMode() OptPoolV1betaMode {
 	return s.Mode
 }
 
+// GetTrialMode returns the value of TrialMode.
+func (s *PoolV1beta) GetTrialMode() OptTrialModeV1beta {
+	return s.TrialMode
+}
+
 // SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
 func (s *PoolV1beta) SetActiveDirectoryConfigId(val OptNilString) {
 	s.ActiveDirectoryConfigId = val
@@ -25880,6 +25998,11 @@ func (s *PoolV1beta) SetColdTierConsumption(val OptNilInt64) {
 // SetMode sets the value of Mode.
 func (s *PoolV1beta) SetMode(val OptPoolV1betaMode) {
 	s.Mode = val
+}
+
+// SetTrialMode sets the value of TrialMode.
+func (s *PoolV1beta) SetTrialMode(val OptTrialModeV1beta) {
+	s.TrialMode = val
 }
 
 func (*PoolV1beta) v1betaDescribePoolRes() {}
@@ -29503,6 +29626,39 @@ func (s *TransferStatsV1beta) SetProgressLastUpdated(val OptDateTime) {
 // SetLagTime sets the value of LagTime.
 func (s *TransferStatsV1beta) SetLagTime(val OptFloat64) {
 	s.LagTime = val
+}
+
+// Optional consumer-project trial window. Same shape for pool create, backup vault create (including
+// GCBDR vault host project), Active Directory create, backup policy create, KMS configuration create,
+//
+//	and host group create. Omitted when not in trial; when set, startTime and endTime are required.
+//
+// Ref: #/components/schemas/TrialMode_v1beta
+type TrialModeV1beta struct {
+	// Trial start (RFC 3339).
+	StartTime time.Time `json:"startTime"`
+	// Trial end (RFC 3339).
+	EndTime time.Time `json:"endTime"`
+}
+
+// GetStartTime returns the value of StartTime.
+func (s *TrialModeV1beta) GetStartTime() time.Time {
+	return s.StartTime
+}
+
+// GetEndTime returns the value of EndTime.
+func (s *TrialModeV1beta) GetEndTime() time.Time {
+	return s.EndTime
+}
+
+// SetStartTime sets the value of StartTime.
+func (s *TrialModeV1beta) SetStartTime(val time.Time) {
+	s.StartTime = val
+}
+
+// SetEndTime sets the value of EndTime.
+func (s *TrialModeV1beta) SetEndTime(val time.Time) {
+	s.EndTime = val
 }
 
 // Update destination quota rules response.

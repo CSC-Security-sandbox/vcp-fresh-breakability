@@ -60,6 +60,19 @@ func (h Handler) createActiveDirectorySyncViaCVP(
 ) (gcpgenserver.V1betaCreateActiveDirectoryRes, error) {
 	logger.Info("Creating Active Directory synchronously via CVP")
 
+	if err := h.Orchestrator.PersistAccountTrialMetadataIfSet(ctx, params.ProjectNumber, newTrialModeParamsFromOpt(req.TrialMode)); err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaCreateActiveDirectoryBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}, nil
+	}
+
 	// Build CVP request body
 	body := &models.ActiveDirectoryV1beta{
 		DNS:                        &req.DNS,
@@ -151,6 +164,8 @@ func (h Handler) createActiveDirectoryAsync(
 		Administrators:             req.Administrators,
 		AesEncryption:              req.AesEncryption.Value,
 	}
+
+	param.TrialMode = newTrialModeParamsFromOpt(req.TrialMode)
 
 	ad, jobUUID, err := h.Orchestrator.CreateActiveDirectory(ctx, &param)
 	if err != nil {

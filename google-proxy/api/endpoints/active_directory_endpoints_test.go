@@ -23,6 +23,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+// handlerForADSyncCVPTests returns a Handler with orchestrator mocked for trial persist on sync CVP create.
+func handlerForADSyncCVPTests(t *testing.T) Handler {
+	t.Helper()
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().PersistAccountTrialMetadataIfSet(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	return Handler{Orchestrator: mockOrchestrator}
+}
+
 func TestV1betaCreateActiveDirectory_Success(t *testing.T) {
 	// Set CVP_HOST to localhost:8009 to use CVS path
 	originalCVPHost := cvp.CVP_HOST
@@ -316,7 +324,7 @@ func TestV1betaCreateActiveDirectory_SyncModeEnabled(t *testing.T) {
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -490,7 +498,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPBadRequest(t *testing.T) {
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -543,7 +551,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPConflict(t *testing.T) {
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -593,7 +601,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPNilResponse(t *testing.T) {
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -646,7 +654,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPUnauthorized(t *testing.T) {
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -699,7 +707,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPForbidden(t *testing.T) {
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -752,7 +760,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPTooManyRequests(t *testing.T) {
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -800,7 +808,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPUnknownError(t *testing.T) {
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -849,7 +857,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPUnprocessableEntity(t *testing.
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -898,7 +906,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPInternalServerError(t *testing.
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -956,7 +964,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPResponseWithError(t *testing.T)
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",
@@ -1018,7 +1026,7 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPResponseWithResponseField(t *te
 		return *cvpClient
 	}
 
-	handler := Handler{}
+	handler := handlerForADSyncCVPTests(t)
 	req := &gcpgenserver.ActiveDirectoryV1beta{
 		Username:   "user",
 		ResourceId: "test-ad",

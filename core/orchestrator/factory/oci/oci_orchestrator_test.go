@@ -1559,6 +1559,18 @@ func TestOCIOrchestrator_GetAccount(t *testing.T) {
 	})
 }
 
+func TestOCIOrchestrator_PersistAccountTrialMetadataIfSet(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		err := orch.PersistAccountTrialMetadataIfSet(ctx, "account-name", nil)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+	})
+}
+
 func TestOCIOrchestrator_UpdateResourceState(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}

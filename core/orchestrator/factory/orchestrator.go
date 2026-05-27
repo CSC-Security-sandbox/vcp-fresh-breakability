@@ -134,6 +134,8 @@ type OrchestratorFactory interface {
 	GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, ownerID string) (*datamodel.BackupVault, error)
 
 	GetAccount(ctx context.Context, accountName string) (*datamodel.Account, error)
+	// PersistAccountTrialMetadataIfSet validates trialMode when set and merges into account_metadata (VCP DB).
+	PersistAccountTrialMetadataIfSet(ctx context.Context, accountName string, trial *commonparams.TrialModeParams) error
 	UpdateResourceState(ctx context.Context, params *commonparams.UpdateResourceStateParams) (string, error)
 	CreateBackup(ctx context.Context, params *commonparams.CreateBackupParams) (*models.Backup, string, error)
 	CreateBackupInternal(ctx context.Context, params *commonparams.CreateBackupParams) (*models.Backup, string, error)

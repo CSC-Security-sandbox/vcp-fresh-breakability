@@ -7784,6 +7784,54 @@ func (_c *MockOrchestratorFactory_PerformMountCheck_Call) RunAndReturn(run func(
 	return _c
 }
 
+// PersistAccountTrialMetadataIfSet provides a mock function with given fields: ctx, accountName, trial
+func (_m *MockOrchestratorFactory) PersistAccountTrialMetadataIfSet(ctx context.Context, accountName string, trial *common.TrialModeParams) error {
+	ret := _m.Called(ctx, accountName, trial)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PersistAccountTrialMetadataIfSet")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *common.TrialModeParams) error); ok {
+		r0 = rf(ctx, accountName, trial)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PersistAccountTrialMetadataIfSet'
+type MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call struct {
+	*mock.Call
+}
+
+// PersistAccountTrialMetadataIfSet is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountName string
+//   - trial *common.TrialModeParams
+func (_e *MockOrchestratorFactory_Expecter) PersistAccountTrialMetadataIfSet(ctx interface{}, accountName interface{}, trial interface{}) *MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call {
+	return &MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call{Call: _e.mock.On("PersistAccountTrialMetadataIfSet", ctx, accountName, trial)}
+}
+
+func (_c *MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call) Run(run func(ctx context.Context, accountName string, trial *common.TrialModeParams)) *MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*common.TrialModeParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call) Return(_a0 error) *MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call) RunAndReturn(run func(context.Context, string, *common.TrialModeParams) error) *MockOrchestratorFactory_PersistAccountTrialMetadataIfSet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReleaseVolumeReplication provides a mock function with given fields: ctx, replicationUUID
 func (_m *MockOrchestratorFactory) ReleaseVolumeReplication(ctx context.Context, replicationUUID string) (*models.VolumeReplication, *datamodel.Job, error) {
 	ret := _m.Called(ctx, replicationUUID)

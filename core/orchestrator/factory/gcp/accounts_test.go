@@ -3,8 +3,12 @@ package gcp
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -254,4 +258,108 @@ func TestGetAccountWithName(t *testing.T) {
 			tt.Errorf("Expected account name '%s', got %v", testAccount, account.Name)
 		}
 	})
+}
+
+func TestValidateTrialModeParams(t *testing.T) {
+	start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 6, 13, 11, 0, 0, 0, time.UTC)
+
+	t.Run("nil trial is valid", func(t *testing.T) {
+		assert.NoError(t, validateTrialModeParams(nil))
+	})
+
+	t.Run("valid window", func(t *testing.T) {
+		s, e := start, end
+		assert.NoError(t, validateTrialModeParams(&commonparams.TrialModeParams{Start: &s, End: &e}))
+	})
+
+	t.Run("missing start", func(t *testing.T) {
+		e := end
+		err := validateTrialModeParams(&commonparams.TrialModeParams{End: &e})
+		assert.True(t, errors.IsUserInputValidationErr(err))
+	})
+
+	t.Run("zero start time", func(t *testing.T) {
+		var zero time.Time
+		e := end
+		err := validateTrialModeParams(&commonparams.TrialModeParams{Start: &zero, End: &e})
+		assert.True(t, errors.IsUserInputValidationErr(err))
+	})
+
+	t.Run("end before start", func(t *testing.T) {
+		s, e := end, start
+		err := validateTrialModeParams(&commonparams.TrialModeParams{Start: &s, End: &e})
+		assert.True(t, errors.IsUserInputValidationErr(err))
+		assert.Contains(t, err.Error(), "trialMode startTime must be before endTime")
+	})
+}
+
+func TestPersistAccountTrialMetadataIfSet_PassesAccountToStorageWithoutRefetch(t *testing.T) {
+	ctx := context.Background()
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
+		Name:      "project-1",
+	}
+	defer stubGetOrCreateAccount(account)()
+
+	start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 6, 13, 11, 0, 0, 0, time.UTC)
+	s, e := start, end
+	trial := &commonparams.TrialModeParams{Start: &s, End: &e}
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.EXPECT().
+		UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end}).
+		Return(nil).
+		Once()
+	mockStorage.AssertNotCalled(t, "GetAccountByUUID", mock.Anything, mock.Anything)
+
+	o := &GCPOrchestrator{storage: mockStorage}
+	require.NoError(t, o.PersistAccountTrialMetadataIfSet(ctx, account.Name, trial))
+}
+
+func TestPersistAccountTrialMetadataIfSet_InvalidTrialDoesNotUpdateStorage(t *testing.T) {
+	ctx := context.Background()
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
+		Name:      "project-1",
+	}
+	defer stubGetOrCreateAccount(account)()
+
+	start := time.Date(2025, 6, 13, 11, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
+	s, e := start, end
+	trial := &commonparams.TrialModeParams{Start: &s, End: &e}
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.AssertNotCalled(t, "UpdateAccountTrialMetadata", mock.Anything, mock.Anything, mock.Anything)
+
+	o := &GCPOrchestrator{storage: mockStorage}
+	err := o.PersistAccountTrialMetadataIfSet(ctx, account.Name, trial)
+	require.Error(t, err)
+	assert.True(t, errors.IsUserInputValidationErr(err))
+}
+
+func TestPersistAccountTrialMetadataIfSet_OmittedTrialOnSecondCallDoesNotUpdate(t *testing.T) {
+	ctx := context.Background()
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
+		Name:      "project-1",
+	}
+	defer stubGetOrCreateAccount(account)()
+
+	start := time.Date(2025, 5, 14, 11, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 6, 13, 11, 0, 0, 0, time.UTC)
+	s, e := start, end
+	trial := &commonparams.TrialModeParams{Start: &s, End: &e}
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.EXPECT().
+		UpdateAccountTrialMetadata(ctx, account, &datamodel.AccountTrialMode{StartTime: &start, EndTime: &end}).
+		Return(nil).
+		Once()
+
+	o := &GCPOrchestrator{storage: mockStorage}
+	require.NoError(t, o.PersistAccountTrialMetadataIfSet(ctx, account.Name, trial))
+	require.NoError(t, o.PersistAccountTrialMetadataIfSet(ctx, account.Name, nil))
 }

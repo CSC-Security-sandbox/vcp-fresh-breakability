@@ -717,6 +717,10 @@ func (s *PersistenceStore) UpdateAccountVolumeRefreshTimestamp(ctx context.Conte
 	return s.dataStore.UpdateAccountVolumeRefreshTimestamp(ctx, accountUUID, completionTime)
 }
 
+func (s *PersistenceStore) UpdateAccountTrialMetadata(ctx context.Context, account *datamodel.Account, trial *datamodel.AccountTrialMode) error {
+	return s.dataStore.UpdateAccountTrialMetadata(ctx, account, trial)
+}
+
 func (s *PersistenceStore) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	return s.dataStore.CreateAccount(ctx, account)
 }

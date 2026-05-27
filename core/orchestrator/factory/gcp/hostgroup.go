@@ -49,8 +49,14 @@ func (o *GCPOrchestrator) CreateHostGroup(ctx context.Context, params *common.Cr
 }
 
 func _createHostGroup(ctx context.Context, storage database.Storage, params *common.CreateHostGroupParams) (*models.HostGroup, error) {
+	logger := util.GetLogger(ctx)
 	account, err := getOrCreateAccount(ctx, storage, params.AccountName)
 	if err != nil {
+		return nil, err
+	}
+
+	if err = persistAccountTrialMetadataIfSet(ctx, storage, account, params.TrialMode); err != nil {
+		logger.Error("Failed to update account trial metadata", "accountUUID", account.UUID, "error", err)
 		return nil, err
 	}
 
