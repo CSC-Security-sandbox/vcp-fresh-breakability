@@ -1398,7 +1398,7 @@ func TestVerifyVolumeOwnership_Persistence_Store(t *testing.T) {
 
 // Test case for IsBackupInCreatingStateByVolume
 func TestIsBackupInCreatingStateByVolume_Persistence_Store(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -1433,7 +1433,7 @@ func TestIsBackupInCreatingStateByVolume_Persistence_Store(t *testing.T) {
 }
 
 func TestCreateBackup_Persistence_Store(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -1447,7 +1447,7 @@ func TestCreateBackup_Persistence_Store(t *testing.T) {
 }
 
 func TestGetBackup_Persistence_Store(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -1479,7 +1479,7 @@ func TestGetBackup_Persistence_Store(t *testing.T) {
 }
 
 func TestGetBackupByExternalUUID_Persistence_Store(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -1532,7 +1532,7 @@ func TestGetBackupByExternalUUID_Persistence_Store(t *testing.T) {
 }
 
 func TestDeleteBackup_Persistence_Store(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -1553,7 +1553,7 @@ func TestDeleteBackup_Persistence_Store(t *testing.T) {
 }
 
 func TestUpdateBackupStateUpdatesStateSuccessfully_Persistence_Store(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -1584,7 +1584,7 @@ func TestUpdateBackupStateFailsForNonExistentBackup_Persistence_Store(t *testing
 }
 
 func TestFinishBackup_Persistence_Store(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -1603,7 +1603,7 @@ func TestFinishBackup_Persistence_Store(t *testing.T) {
 }
 
 func TestUpdateBackup_Persistence_Store(t *testing.T) {
-	logger := &log.MockLogger{}
+	logger := log.NewLogger()
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)

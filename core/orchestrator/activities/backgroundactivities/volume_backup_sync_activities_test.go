@@ -693,6 +693,32 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 			expectedError: false,
 		},
 		{
+			name: "Success - UpdateBackupChainHistory error is swallowed (does not fail activity)",
+			volumeBackup: &datamodel.VolumeLatestBackup{
+				Volume: &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+					Name:      "test-volume",
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: nillable.ToPointer(int64(512 * 1024 * 1024)),
+					},
+				},
+				LatestBackup: &datamodel.Backup{
+					BaseModel:  datamodel.BaseModel{UUID: "backup-uuid"},
+					Name:       "test-backup",
+					VolumeUUID: "volume-uuid",
+				},
+			},
+			logicalSize: int64(1024 * 1024 * 1024),
+			setupMock: func() {
+				s.mockStorage.On("UpdateBackupFields", s.ctx, "backup-uuid", mock.Anything).Return(nil)
+				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.Anything).Return(nil)
+				// Force ledger update to fail; the activity should still succeed because the error is swallowed.
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(1024*1024*1024)).Return(
+					errors.New("simulated chain history update failure"))
+			},
+			expectedError: false,
+		},
+		{
 			name: "Success - Expert mode backup with nil BackupConfig initialises it",
 			volumeBackup: &datamodel.VolumeLatestBackup{
 				ExpertModeVolume: &datamodel.ExpertModeVolumes{

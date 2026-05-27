@@ -193,11 +193,11 @@ func (a *VolumeBackupSyncActivity) UpdateBackupAndVolumeActivity(ctx context.Con
 	}
 	err = a.SE.UpdateBackupChainHistory(ctx, chainHistoryUUID, logicalSize)
 	if err != nil {
-		logger.Warnf("Failed to update backup chain history for volume %s: %v", volumeBackupName(volumeBackup), err)
+		logger.Warnf("Ledger: Failed to update backup chain history for volume %s: %v", volumeBackupName(volumeBackup), err)
 		// Don't fail the entire operation if history update fails
 	}
 
-	logger.Infof("Successfully updated logical size %d for volume %s and backup %s",
+	logger.Infof("Ledger: Successfully updated logical size %d for volume %s and backup %s",
 		logicalSize, volumeBackupName(volumeBackup), volumeBackup.LatestBackup.Name)
 
 	return nil

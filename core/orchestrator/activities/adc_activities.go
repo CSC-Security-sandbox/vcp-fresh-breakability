@@ -769,8 +769,10 @@ func (a *ADCActivity) FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity
 
 	err = a.SE.UpdateBackupChainHistory(ctx, volumeUUID, int64(totalLogicalSize))
 	if err != nil {
-		logger.Warnf("Failed to update backup chain history for volume %s: %v", volumeUUID, err)
+		logger.Warnf("Ledger: Failed to update backup chain history for volume %s: %v", volumeUUID, err)
 		// Don't fail the entire operation if history update fails (match UpdateLatestBackupLogicalSize behavior)
+	} else {
+		logger.Infof("Ledger: Successfully updated backup chain history for volume %s with size %d", volumeUUID, totalLogicalSize)
 	}
 
 	return nil

@@ -526,6 +526,48 @@ func TestCreateBackup_Errors(t *testing.T) {
 		assert.Equal(tt, "account-123", history.ConsumerID)
 		assert.Equal(tt, int64(0), history.Size) // Initial size is 0
 	})
+
+	// Covers the ledger warning paths in CreateBackup: when markPreviousBackupChainHistoryAsDeleted
+	// fails (line 169) and when createBackupChainHistoryEntry fails (lines 73 + 199). We drop the
+	// backup_chain_histories table after seeding the parent rows so both helper calls return errors;
+	// CreateBackup should still succeed because the history errors are intentionally swallowed.
+	t.Run("HandlesBackupChainHistoryTableMissing", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid"},
+			Name:      "test-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Drop the backup_chain_histories table to force errors in both
+		// markPreviousBackupChainHistoryAsDeleted and createBackupChainHistoryEntry.
+		err = store.db.GORM().Exec("DROP TABLE backup_chain_histories").Error
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			Name:          "test-backup-history-missing",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "volume-uuid-missing",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "test-volume",
+				AccountIdentifier: "account-123",
+			},
+		}
+
+		createdBackup, err := store.CreateBackup(context.Background(), backup)
+		assert.NoError(tt, err) // CreateBackup must succeed despite ledger history failures
+		assert.NotNil(tt, createdBackup)
+		assert.NotEmpty(tt, createdBackup.UUID)
+	})
 }
 
 func TestFinishBackup_BackupChainHistoryUpdate(t *testing.T) {
@@ -614,6 +656,52 @@ func TestFinishBackup_BackupChainHistoryUpdate(t *testing.T) {
 
 		_, err = store.FinishBackup(context.Background(), finishBackup)
 		assert.NoError(tt, err) // Should succeed even if history update is skipped
+	})
+
+	// Covers the ledger warning path in FinishBackup (line 542): the chain-history UPDATE fails
+	// because the table no longer exists, but FinishBackup must still succeed because the error
+	// is intentionally swallowed.
+	t.Run("HandlesBackupChainHistoryUpdateDBError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid"},
+			Name:      "test-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			Name:          "test-backup-finish-history-error",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "volume-uuid-finish-err",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "test-volume",
+				AccountIdentifier: "account-123",
+			},
+		}
+		createdBackup, err := store.CreateBackup(context.Background(), backup)
+		assert.NoError(tt, err)
+
+		// Drop the chain history table so FinishBackup's UPDATE on it fails while the backup row update succeeds.
+		err = store.db.GORM().Exec("DROP TABLE backup_chain_histories").Error
+		assert.NoError(tt, err)
+
+		finishBackup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 2048,
+		}
+
+		_, err = store.FinishBackup(context.Background(), finishBackup)
+		assert.NoError(tt, err) // FinishBackup must succeed despite the ledger update failing
 	})
 }
 
@@ -719,6 +807,57 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 		// This should fail because no AVAILABLE backup exists
 		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, int64(1024*1024*1024))
 		assert.Error(tt, err) // Should fail - no backup found
+	})
+
+	// Covers the ledger warning path in UpdateLatestBackupLogicalSize (line 1126): the underlying
+	// supersedePreviousBackupChainHistory call fails because the chain history table is missing,
+	// but the function must still return nil because the error is intentionally swallowed.
+	t.Run("HandlesSupersedeChainHistoryFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid"},
+			Name:      "test-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		volumeUUID := "volume-supersede-err"
+		backup := &datamodel.Backup{
+			Name:          "available-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    volumeUUID,
+			State:         models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "test-volume",
+				AccountIdentifier: "account-123",
+			},
+		}
+		createdBackup, err := store.CreateBackup(context.Background(), backup)
+		assert.NoError(tt, err)
+
+		// Make sure the backup is in AVAILABLE state so UpdateLatestBackupLogicalSize finds it.
+		finishBackup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+		_, err = store.FinishBackup(context.Background(), finishBackup)
+		assert.NoError(tt, err)
+
+		// Drop the chain history table so the supersede call inside UpdateLatestBackupLogicalSize fails.
+		err = store.db.GORM().Exec("DROP TABLE backup_chain_histories").Error
+		assert.NoError(tt, err)
+
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, int64(4096))
+		assert.NoError(tt, err) // Outer call must succeed despite the chain history failure
 	})
 }
 
