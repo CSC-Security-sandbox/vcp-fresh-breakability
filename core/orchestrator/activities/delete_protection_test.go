@@ -19,6 +19,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
+const expectedDeleteProtectionSANHostGroupMessage = "Cannot delete the volume because it is associated with one or more host groups. Detach it from all host groups and try again."
+
 func TestMergeRestrictedActionsFromExisting(t *testing.T) {
 	t.Run("copies when incoming empty and existing has DELETE", func(t *testing.T) {
 		incoming := &datamodel.VolumeAttributes{ExternalUUID: "ext-new"}
@@ -64,7 +66,7 @@ func TestCheckDeleteProtection_NoVolumeAttributes(t *testing.T) {
 
 func TestCheckDeleteProtection_NoDeleteRestriction_Skips(t *testing.T) {
 	tests := []struct {
-		name  string
+		name   string
 		volume *datamodel.Volume
 	}{
 		{
@@ -119,7 +121,7 @@ func TestCheckDeleteProtection_SANHostGroupWithoutDeleteRestriction_Denies(t *te
 		t,
 		CheckDeleteProtection(context.Background(), volume, nil, nil),
 		vsaerrors.ErrDeleteVolumeRestrictedAction,
-		"host group",
+		expectedDeleteProtectionSANHostGroupMessage,
 	)
 }
 
@@ -191,7 +193,7 @@ func TestCheckDeleteProtection_SANHostGroup(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			volume := &datamodel.Volume{Name: "san-vol", VolumeAttributes: tc.attrs}
-			assertDeleteProtectionDenied(t, CheckDeleteProtection(context.Background(), volume, nil, nil), vsaerrors.ErrDeleteVolumeRestrictedAction, "host group")
+			assertDeleteProtectionDenied(t, CheckDeleteProtection(context.Background(), volume, nil, nil), vsaerrors.ErrDeleteVolumeRestrictedAction, expectedDeleteProtectionSANHostGroupMessage)
 		})
 	}
 }

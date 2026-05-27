@@ -3583,7 +3583,7 @@ func parseRestrictedActionsFromRequest(restrictedActions []gcpgenserver.Restrict
 
 	for _, action := range restrictedActions {
 		if action == gcpgenserver.RestrictedActionsV1betaItemDELETE && utils.IsSMBOnlyProtocols(protocols) {
-			return nil, errors.NewUserInputValidationErr("DELETE restriction cannot be applied for SMB volumes")
+			return nil, errors.NewUserInputValidationErr("Delete protection is not supported for SMB volumes")
 		}
 	}
 

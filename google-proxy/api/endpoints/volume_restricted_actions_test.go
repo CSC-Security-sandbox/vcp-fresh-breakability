@@ -8,7 +8,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
+
+const deleteProtectionNotSupportedSMBMessage = "Delete protection is not supported for SMB volumes"
 
 func TestSetRestrictedActionsFromRequest(t *testing.T) {
 	t.Run("rejects DELETE for SMB when protocols are set", func(t *testing.T) {
@@ -17,7 +20,8 @@ func TestSetRestrictedActionsFromRequest(t *testing.T) {
 			gcpgenserver.RestrictedActionsV1betaItemDELETE,
 		}, &actions, []string{utils.ProtocolSMB})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "SMB")
+		assert.True(t, errors.IsUserInputValidationErr(err))
+		assert.Equal(t, deleteProtectionNotSupportedSMBMessage, err.Error())
 	})
 
 	t.Run("allows DELETE for NFS", func(t *testing.T) {
@@ -83,6 +87,8 @@ func TestParseRestrictedActionsFromRequest(t *testing.T) {
 			[]string{utils.ProtocolSMB},
 		)
 		require.Error(t, err)
+		assert.True(t, errors.IsUserInputValidationErr(err))
+		assert.Equal(t, deleteProtectionNotSupportedSMBMessage, err.Error())
 	})
 
 	t.Run("clear when only UNSPECIFIED", func(t *testing.T) {

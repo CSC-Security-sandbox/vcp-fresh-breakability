@@ -14,7 +14,7 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
-const deleteProtectionSANHostGroupMessage = "Cannot delete volume while a host group is attached to the LUN. Detach the host group and try again."
+const deleteProtectionSANHostGroupMessage = "Cannot delete the volume because it is associated with one or more host groups. Detach it from all host groups and try again."
 
 // CheckDeleteProtection enforces delete-protection rules before a volume delete proceeds.
 //
