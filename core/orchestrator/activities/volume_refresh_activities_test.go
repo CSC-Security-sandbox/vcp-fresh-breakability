@@ -10,11 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -184,10 +183,10 @@ func TestVolumeRefreshActivity_GetOntapVolumes_Success(t *testing.T) {
 	}
 
 	// Mock _getOntapRestProviderForPool indirectly by mocking hyperscaler functions
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -271,10 +270,10 @@ func TestVolumeRefreshActivity_GetOntapVolumes_GetVolumesError(t *testing.T) {
 	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return(nodes, nil)
 
 	// Mock hyperscaler function
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -916,10 +915,10 @@ func TestVolumeRefreshActivity_SyncUpdatedVolumesToDatabase_EmptyVols(t *testing
 
 // Test wrapper activity for testing _syncUpdatedVolumesToDatabase helper function
 type testSyncActivityWrapper struct {
-	SE                        database.Storage
-	DBVols                    map[string]*datamodel.Volume
+	SE                          database.Storage
+	DBVols                      map[string]*datamodel.Volume
 	ClonesSharedBytesResetUUIDs map[string]bool
-	ShouldError               bool
+	ShouldError                 bool
 }
 
 func (w *testSyncActivityWrapper) TestSyncActivity(ctx context.Context) error {
@@ -1041,10 +1040,10 @@ func Test_getOntapRestProviderForPool_Success(t *testing.T) {
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
 
 	// Mock hyperscaler function
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -1354,10 +1353,10 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneValidation_NilClo
 	}
 
 	dbVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
-		Pool:      pool,
-		ClonesSharedBytes: 100, // Volume is a clone
-		UsedBytes: 1024,        // Different from ONTAP value to ensure update
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:              pool,
+		ClonesSharedBytes: 100,  // Volume is a clone
+		UsedBytes:         1024, // Different from ONTAP value to ensure update
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
@@ -1421,10 +1420,10 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneValidation_NilPar
 	}
 
 	dbVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
-		Pool:      pool,
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:              pool,
 		ClonesSharedBytes: 100,
-		UsedBytes: 1024, // Different from ONTAP value to ensure update
+		UsedBytes:         1024, // Different from ONTAP value to ensure update
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
@@ -1490,10 +1489,10 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneValidation_NilPar
 	}
 
 	dbVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
-		Pool:      pool,
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:              pool,
 		ClonesSharedBytes: 100,
-		UsedBytes: 1024, // Different from ONTAP value to ensure update
+		UsedBytes:         1024, // Different from ONTAP value to ensure update
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
@@ -1569,13 +1568,13 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_Success(t *t
 	parentSnapshotUUID := "parent-snap-uuid"
 
 	dbVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
-		Pool:      pool,
-		AccountID: int64(1),
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:              pool,
+		AccountID:         int64(1),
 		ClonesSharedBytes: 100,
-		UsedBytes: 1024,
+		UsedBytes:         1024,
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-uuid",
+			ExternalUUID:    "external-uuid",
 			CloneParentInfo: nil, // Missing clone info
 		},
 	}
@@ -1659,11 +1658,11 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_ParentVolume
 	parentSnapshotName := "parent-snap"
 
 	dbVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
-		Pool:      pool,
-		AccountID: int64(1),
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:              pool,
+		AccountID:         int64(1),
 		ClonesSharedBytes: 100,
-		UsedBytes: 1024,
+		UsedBytes:         1024,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
@@ -1735,11 +1734,11 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_ParentSnapsh
 	parentVolumeUUID := "parent-vol-uuid"
 
 	dbVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
-		Pool:      pool,
-		AccountID: int64(1),
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:              pool,
+		AccountID:         int64(1),
 		ClonesSharedBytes: 100,
-		UsedBytes: 1024,
+		UsedBytes:         1024,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 		},
@@ -1819,11 +1818,11 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_UpdateExisti
 	oldParentSnapshotUUID := "parent-snap-uuid-old"
 
 	dbVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
-		Pool:      pool,
-		AccountID: int64(1),
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:              pool,
+		AccountID:         int64(1),
 		ClonesSharedBytes: 100,
-		UsedBytes: 1024,
+		UsedBytes:         1024,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-uuid",
 			CloneParentInfo: &datamodel.CloneParentInfo{
@@ -1964,7 +1963,7 @@ func Test_syncUpdatedVolumesToDatabase_WithCloneInfo_NilAttributes(t *testing.T)
 	}
 
 	existingVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+		BaseModel:        datamodel.BaseModel{UUID: "vol-1", ID: 1},
 		VolumeAttributes: nil, // No existing attributes
 	}
 
@@ -2116,8 +2115,8 @@ func Test_syncUpdatedVolumesToDatabase_ClonesSharedBytesReset_NoCloneInfo(t *tes
 	).Return(nil)
 
 	wrapper := &testSyncActivityWrapper{
-		SE:     mockStorage,
-		DBVols: dbVols,
+		SE:                          mockStorage,
+		DBVols:                      dbVols,
 		ClonesSharedBytesResetUUIDs: map[string]bool{"vol-1": true},
 	}
 	env.RegisterActivity(wrapper.TestSyncActivity)
@@ -2610,8 +2609,8 @@ func Test_syncUpdatedVolumesToDatabase_ClonesSharedBytesReset_WithCloneInfo(t *t
 	).Return(nil)
 
 	wrapper := &testSyncActivityWrapper{
-		SE:     mockStorage,
-		DBVols: dbVols,
+		SE:                          mockStorage,
+		DBVols:                      dbVols,
 		ClonesSharedBytesResetUUIDs: map[string]bool{"vol-1": true},
 	}
 	env.RegisterActivity(wrapper.TestSyncActivity)

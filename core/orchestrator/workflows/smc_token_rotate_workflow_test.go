@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -13,7 +14,6 @@ import (
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
-	"testing"
 )
 
 func TestWorkflowFailsIfLicenseIsEmpty(t *testing.T) {

@@ -6,10 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/testsuite"
@@ -305,7 +304,7 @@ func TestOCIRefreshRbacForPoolWorkflow_VaultCredentialResolution_Success(t *test
 	mockVlmClient := installMockVlmForRbac(t)
 
 	pool := defaultRbacPool()
-	pool.PoolCredentials.ExpertModeSecret = &models.ExternalCredRef{
+	pool.PoolCredentials.ExpertModeSecret = &datamodel.ExternalCredRef{
 		ExternalIdentifier: "ocid1.vaultsecret.oc1..expertpw",
 		Version:            2,
 	}
@@ -350,7 +349,7 @@ func TestOCIRefreshRbacForPoolWorkflow_VaultCredentialResolution_ActivityFails(t
 	installMockVlmForRbac(t)
 
 	pool := defaultRbacPool()
-	pool.PoolCredentials.ExpertModeSecret = &models.ExternalCredRef{
+	pool.PoolCredentials.ExpertModeSecret = &datamodel.ExternalCredRef{
 		ExternalIdentifier: "ocid1.vaultsecret.oc1..expertpw",
 		Version:            1,
 	}
@@ -378,7 +377,7 @@ func TestOCIRefreshRbacForPoolWorkflow_VaultCredentialResolution_EmptyPassword(t
 	installMockVlmForRbac(t)
 
 	pool := defaultRbacPool()
-	pool.PoolCredentials.ExpertModeSecret = &models.ExternalCredRef{
+	pool.PoolCredentials.ExpertModeSecret = &datamodel.ExternalCredRef{
 		ExternalIdentifier: "ocid1.vaultsecret.oc1..expertpw",
 		Version:            1,
 	}

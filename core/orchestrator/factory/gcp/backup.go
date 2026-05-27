@@ -8,15 +8,15 @@ import (
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -47,8 +47,8 @@ var (
 	hydrateCreatedBackupsToCCFE = _hydrateCreatedBackupsToCCFE
 
 	// Dependency injection hooks for unit tests.
-	getProviderByNode     = hyperscaler.GetProviderByNode
-	createNodeForProvider = hyperscaler.CreateNodeForProvider
+	getProviderByNode     = vsa.GetProviderByNode
+	createNodeForProvider = vsa.CreateNodeForProvider
 )
 
 // CreateBackup creates the specified backup and adds it to the list of backup belonging to the specified BackupVault
@@ -873,7 +873,7 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 					if nodeErr != nil {
 						return nodeErr
 					}
-					node := createNodeForProvider(hyperscaler.NodeProviderInput{
+					node := createNodeForProvider(vsa.NodeProviderInput{
 						Nodes:            dbNodes,
 						DeploymentName:   pool.DeploymentName,
 						OntapCredentials: pool.PoolCredentials,

@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
@@ -34,6 +33,7 @@ import (
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -530,7 +530,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateRbacForPoolsWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateRbacForSinglePoolWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateSinglePoolRbacChildWorkflow)
-  worker.RegisterWorkflow(backgroundworkflows.PollerRebalanceWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.PollerRebalanceWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SnapshotAndPlanWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CleanupEmptyLeasesWorkflow)
 

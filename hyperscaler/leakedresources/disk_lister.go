@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/diskscan"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	googlehyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"google.golang.org/api/compute/v1"
 )
 
@@ -14,7 +14,7 @@ import (
 // Compute API's aggregated list endpoint. It runs inside the worker pod
 // activity (whose GSA holds compute permissions).
 type DiskLister interface {
-	ListDisks(ctx context.Context, projectID string) ([]diskscan.GCEDiskItem, error)
+	ListDisks(ctx context.Context, projectID string) ([]hyperscalermodels.GCEDisk, error)
 }
 
 // buildGcpServiceForDiskLister mirrors the address-lister factory pattern
@@ -41,7 +41,7 @@ type gcpDiskLister struct {
 	svc computeServiceGetter
 }
 
-func (l *gcpDiskLister) ListDisks(ctx context.Context, projectID string) ([]diskscan.GCEDiskItem, error) {
+func (l *gcpDiskLister) ListDisks(ctx context.Context, projectID string) ([]hyperscalermodels.GCEDisk, error) {
 	if l == nil || l.svc == nil {
 		return nil, fmt.Errorf("disk lister not initialized")
 	}
@@ -50,7 +50,7 @@ func (l *gcpDiskLister) ListDisks(ctx context.Context, projectID string) ([]disk
 		return nil, err
 	}
 
-	var out []diskscan.GCEDiskItem
+	var out []hyperscalermodels.GCEDisk
 	err = computeSvc.Disks.AggregatedList(projectID).Pages(ctx, func(resp *compute.DiskAggregatedList) error {
 		for scopeKey, scopedList := range resp.Items {
 			// zoneFromScopeKey is shared in this package (instance_lister.go).
@@ -59,7 +59,7 @@ func (l *gcpDiskLister) ListDisks(ctx context.Context, projectID string) ([]disk
 				if d == nil {
 					continue
 				}
-				out = append(out, diskscan.GCEDiskItem{
+				out = append(out, hyperscalermodels.GCEDisk{
 					Project:           projectID,
 					Zone:              zone,
 					Name:              d.Name,

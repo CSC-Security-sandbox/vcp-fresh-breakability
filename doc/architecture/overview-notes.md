@@ -8,7 +8,7 @@
 - `worker`: Temporal worker registering workflows/activities; serves Prometheus `/metrics`.
 - `ontap-proxy`: Auth/rule-enforced passthrough to ONTAP REST; used by activities.
 - `telemetry`: Ingests VCP + telemetry DBs, processes metrics/billing, exposes API + `/metrics`.
-- Shared libs: `common` (config), `utils` (auth/middleware/env/errors), `clients` (ONTAP REST, CVP, GCP), `database` (Postgres + migrations), `workflow_engine/temporal` (Temporal client/config), `hyperscaler` (GCP provider), `core/models` + `core/datamodel`.
+- Shared libs: `common` (config), `utils` (auth/middleware/env/errors), `clients` (ONTAP REST, CVP, GCP), `database` (Postgres + migrations), `workflow_engine/temporal` (Temporal client/config), `hyperscaler` (GCP provider), `core/models` + `database/datamodel`.
 
 ## Request → Workflow Flow (Create Volume)
 1) `POST /v1beta/.../volumes` → `google-proxy/api/endpoints/volume_endpoint.go::V1betaCreateVolume`  

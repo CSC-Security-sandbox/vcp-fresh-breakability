@@ -4,10 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -211,8 +210,8 @@ func (d *DataStoreRepository) DeleteQuotaRule(ctx context.Context, uuid string) 
 	// Perform soft delete
 	now := time.Now()
 	quotaRule.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
-	quotaRule.State = models.LifeCycleStateDeleted
-	quotaRule.StateDetails = models.LifeCycleStateDeletedDetails
+	quotaRule.State = datamodel.LifeCycleStateDeleted
+	quotaRule.StateDetails = datamodel.LifeCycleStateDeletedDetails
 	quotaRule.UpdatedAt = now
 
 	err = tx.Save(&quotaRule).Error
@@ -268,8 +267,8 @@ func (d *DataStoreRepository) ReplaceDstQuotaRulesWithSrc(ctx context.Context, v
 		now := time.Now()
 		for i := range quotaRules {
 			quotaRules[i].DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
-			quotaRules[i].State = models.LifeCycleStateDeleted
-			quotaRules[i].StateDetails = models.LifeCycleStateDeletedDetails
+			quotaRules[i].State = datamodel.LifeCycleStateDeleted
+			quotaRules[i].StateDetails = datamodel.LifeCycleStateDeletedDetails
 			quotaRules[i].UpdatedAt = now
 		}
 
@@ -299,8 +298,8 @@ func (d *DataStoreRepository) ReplaceDstQuotaRulesWithSrc(ctx context.Context, v
 			quotaRule.UpdatedAt = now
 
 			// Set state to READY
-			quotaRule.State = models.LifeCycleStateREADY
-			quotaRule.StateDetails = models.LifeCycleStateReadyDetails
+			quotaRule.State = datamodel.LifeCycleStateREADY
+			quotaRule.StateDetails = datamodel.LifeCycleStateReadyDetails
 
 			// Create the quota rule entry
 			err = tx.Create(quotaRule).Error

@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -23,7 +22,7 @@ type OntapModeRestoreActivity struct {
 // Reuses the same logic as GetVolumesAndConstituentCountActivity in backup_activities.
 func (a OntapModeRestoreActivity) FetchConstituentCountForLargeVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node) (int32, error) {
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return 0, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get provider: %w", err))
 	}

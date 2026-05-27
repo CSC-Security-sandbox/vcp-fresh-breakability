@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -83,7 +83,7 @@ func (s *SplitVolumeArgs) PrepareWorkflowArgs(ctx context.Context, se database.S
 		return nil, fmt.Errorf("no nodes found for pool %s, cannot re-submit split workflow for volume %s", volume.Pool.UUID, volumeUUID)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:            dbNodes,
 		DeploymentName:   volume.Pool.DeploymentName,
 		OntapCredentials: volume.Pool.PoolCredentials,

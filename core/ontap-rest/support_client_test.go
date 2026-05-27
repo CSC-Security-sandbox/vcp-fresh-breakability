@@ -95,7 +95,7 @@ func TestEMSEventDestinationCreate_HTTP409(t *testing.T) {
 
 	// Test HTTP 409 (Conflict) - should be treated as idempotent
 	apiError := &runtime.APIError{
-		Code:    409,
+		Code:     409,
 		Response: nil,
 	}
 	mockAPI.On("EmsDestinationCreate", otParams, mock.Anything, mock.Anything).Return(nil, apiError)
@@ -309,7 +309,7 @@ func TestEMSEventDestinationModify_HTTP409(t *testing.T) {
 
 	// Test HTTP 409 (Conflict) - should be treated as idempotent
 	apiError := &runtime.APIError{
-		Code:    409,
+		Code:     409,
 		Response: nil,
 	}
 	mockAPI.On("EmsDestinationModify", otParams, mock.Anything, mock.Anything).Return(nil, apiError)
@@ -428,7 +428,7 @@ func TestEMSEventFilterCreate_HTTP409(t *testing.T) {
 
 	// Test HTTP 409 (Conflict) - should be treated as idempotent
 	apiError := &runtime.APIError{
-		Code:    409,
+		Code:     409,
 		Response: nil,
 	}
 	mockAPI.On("EmsFilterCreate", otParams, mock.Anything, mock.Anything).Return(nil, apiError)
@@ -642,7 +642,7 @@ func TestEMSEventFilterRuleAdd_HTTP409(t *testing.T) {
 
 	// Test HTTP 409 (Conflict) - should be treated as idempotent
 	apiError := &runtime.APIError{
-		Code:    409,
+		Code:     409,
 		Response: nil,
 	}
 	mockAPI.On("EmsFiltersRulesCreate", otParams, mock.Anything, mock.Anything).Return(nil, apiError)
@@ -980,8 +980,8 @@ func TestEMSEventFilterRulesGet_NoSeverities(t *testing.T) {
 		Payload: &models.EmsFilterRuleResponse{
 			EmsFilterRuleResponseInlineRecords: []*models.EmsFilterRuleResponseInlineRecordsInlineArrayItem{
 				{
-					Index:          &index1,
-					Type:           &type1,
+					Index:           &index1,
+					Type:            &type1,
 					MessageCriteria: nil,
 				},
 			},

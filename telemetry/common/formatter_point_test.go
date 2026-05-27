@@ -62,8 +62,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp,
-						Quantity:  100,
+						Timestamp:    timestamp,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -110,8 +110,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -142,13 +142,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -179,8 +179,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -226,8 +226,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: start,
-						Quantity:  100,
+						Timestamp:    start,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -258,8 +258,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -290,8 +290,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -303,8 +303,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -335,8 +335,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -382,8 +382,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: start,
-						Quantity:  100,
+						Timestamp:    start,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -416,13 +416,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp3,
-						Quantity:  300,
+						Timestamp:    timestamp3,
+						Quantity:     300,
 						TransferType: nil,
 					},
 				},
@@ -455,18 +455,18 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp3,
-						Quantity:  300,
+						Timestamp:    timestamp3,
+						Quantity:     300,
 						TransferType: nil,
 					},
 				},
@@ -499,13 +499,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -538,8 +538,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -570,13 +570,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: start,
-						Quantity:  100,
+						Timestamp:    start,
+						Quantity:     100,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp,
-						Quantity:  200,
+						Timestamp:    timestamp,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -609,8 +609,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -622,8 +622,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp3,
-						Quantity:  300,
+						Timestamp:    timestamp3,
+						Quantity:     300,
 						TransferType: nil,
 					},
 				},
@@ -656,13 +656,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -674,8 +674,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp3,
-						Quantity:  300,
+						Timestamp:    timestamp3,
+						Quantity:     300,
 						TransferType: nil,
 					},
 				},
@@ -708,13 +708,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -745,13 +745,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: start,
-						Quantity:  100,
+						Timestamp:    start,
+						Quantity:     100,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp,
-						Quantity:  200,
+						Timestamp:    timestamp,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -784,13 +784,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp3,
-						Quantity:  300,
+						Timestamp:    timestamp3,
+						Quantity:     300,
 						TransferType: nil,
 					},
 				},
@@ -823,8 +823,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -836,13 +836,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp3,
-						Quantity:  300,
+						Timestamp:    timestamp3,
+						Quantity:     300,
 						TransferType: nil,
 					},
 				},
@@ -875,8 +875,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -888,8 +888,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -922,8 +922,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp1,
-						Quantity:  100,
+						Timestamp:    timestamp1,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -935,8 +935,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -948,8 +948,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp3,
-						Quantity:  300,
+						Timestamp:    timestamp3,
+						Quantity:     300,
 						TransferType: nil,
 					},
 				},
@@ -982,8 +982,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -1017,8 +1017,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: timestamp2,
-						Quantity:  200,
+						Timestamp:    timestamp2,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -1045,8 +1045,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: start,
-						Quantity:  100,
+						Timestamp:    start,
+						Quantity:     100,
 						TransferType: nil,
 					},
 				},
@@ -1090,8 +1090,8 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: start,
-						Quantity:  200,
+						Timestamp:    start,
+						Quantity:     200,
 						TransferType: nil,
 					},
 				},
@@ -1123,13 +1123,13 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 				MeasuredType:     metadata.AllocatedSize,
 				DataPoints: []DataPoint{
 					{
-						Timestamp: start,
-						Quantity:  200,
+						Timestamp:    start,
+						Quantity:     200,
 						TransferType: nil,
 					},
 					{
-						Timestamp: timestamp2,
-						Quantity:  300,
+						Timestamp:    timestamp2,
+						Quantity:     300,
 						TransferType: nil,
 					},
 				},

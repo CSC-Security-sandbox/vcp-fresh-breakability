@@ -38,15 +38,15 @@ func connectWithRetry(storage interface{ Connect(bool) error }, isAdmin bool, lo
 			}
 			return nil
 		}
-		
+
 		lastErr = err
-		
+
 		// Calculate exponential backoff delay
 		delay := connectRetryBaseDelay * time.Duration(1<<uint(attempt))
 		if delay > connectRetryMaxDelay {
 			delay = connectRetryMaxDelay
 		}
-		
+
 		logger.Warn("Database connection failed, retrying",
 			"attempt", attempt+1,
 			"max_retries", connectRetryAttempts,
@@ -54,7 +54,7 @@ func connectWithRetry(storage interface{ Connect(bool) error }, isAdmin bool, lo
 			"retry_delay", delay.String())
 		time.Sleep(delay)
 	}
-	
+
 	return fmt.Errorf("failed to connect to database after %d attempts: %w", connectRetryAttempts, lastErr)
 }
 
@@ -202,7 +202,7 @@ func setupDatabase(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBConf
 			logger.Error("Failed to close VCP database connection", "error", err.Error())
 		}
 	}(storage)
-	
+
 	if err := storage.SetupDatabase(ctx); err != nil {
 		return err
 	}

@@ -6,16 +6,15 @@ import (
 	"strings"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	utilError "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -521,7 +520,7 @@ func (a *ReverseVolumeReplicationActivity) ReleaseReplicationOnOldSrc(ctx contex
 	logger.Debug("ReleaseReplicationOnOldSrc")
 
 	// Get provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		logger.Errorf("Failed to get provider from node: %v", err)
 		return nil, errors.WrapAsTemporalApplicationError(err)

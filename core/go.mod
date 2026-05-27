@@ -4,6 +4,7 @@ go 1.24.13
 
 require (
 	dario.cat/mergo v1.0.2
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/go-openapi/errors v0.22.1
 	github.com/go-openapi/runtime v0.28.0
 	github.com/go-openapi/strfmt v0.23.0
@@ -24,13 +25,14 @@ require (
 	go.opentelemetry.io/otel/metric v1.40.0
 	go.temporal.io/api v1.44.1
 	go.temporal.io/sdk v1.33.0
-	go.uber.org/multierr v1.11.0
+	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.46.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/net v0.48.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.19.0
 	google.golang.org/api v0.240.0
+	gorm.io/driver/postgres v1.5.11
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12
 	k8s.io/client-go v0.33.3
@@ -91,7 +93,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -102,6 +104,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
@@ -152,7 +155,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/postgres v1.5.11 // indirect
 	k8s.io/api v0.33.3 // indirect
 	k8s.io/apimachinery v0.33.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
@@ -164,4 +166,20 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
+require github.com/vcp-vsa-control-Plane/vsa-control-plane/database v0.0.0
+
+require github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler v0.0.0
+
+require github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core v0.0.0 // indirect
+
+require github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0
+
+replace github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core => ../vcp-core
+
+replace github.com/vcp-vsa-control-Plane/vsa-control-plane/database => ../database
+
+replace github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler => ../hyperscaler
+
 replace github.com/vcp-vsa-control-Plane/vsa-control-plane => ../
+
+replace github.com/vcp-vsa-control-Plane/vsa-control-plane/lib => ../lib

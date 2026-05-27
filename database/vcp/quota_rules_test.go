@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -39,7 +38,7 @@ func TestGetQuotaRulesByVolumeID(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(quotaRule1).Error()
 		assert.NoError(tt, err, "Failed to create quota rule 1")
@@ -54,7 +53,7 @@ func TestGetQuotaRulesByVolumeID(t *testing.T) {
 			DiskLimitInKib: 2097152,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(quotaRule2).Error()
 		assert.NoError(tt, err, "Failed to create quota rule 2")
@@ -137,7 +136,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 
 		createdQuotaRule, err := store.CreatingQuotaRule(context.Background(), quotaRule)
@@ -171,7 +170,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 2097152,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 
 		createdQuotaRule, err := store.CreatingQuotaRule(context.Background(), quotaRule)
@@ -198,7 +197,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 		createdQuotaRule1, err := store.CreatingQuotaRule(context.Background(), quotaRule1)
 		assert.NoError(tt, err, "Failed to create first quota rule")
@@ -211,7 +210,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 2097152,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID, // Same volume
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 		// Duplicate check is removed, so duplicates are now allowed
 		// (Database constraints may still prevent duplicates if they exist)
@@ -243,7 +242,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 		_, err = store.CreatingQuotaRule(context.Background(), quotaRule1)
 		assert.NoError(tt, err, "Failed to create first quota rule")
@@ -255,7 +254,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 2097152,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 		_, err = store.CreatingQuotaRule(context.Background(), quotaRule2)
 		assert.NoError(tt, err, "Expected no error for different quota target")
@@ -287,7 +286,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 
 		_, err = store.CreatingQuotaRule(context.Background(), quotaRule)
@@ -320,7 +319,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 
 		_, err = store.CreatingQuotaRule(context.Background(), quotaRule)
@@ -348,7 +347,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 
 		_, err = store.CreatingQuotaRule(context.Background(), quotaRule)
@@ -383,7 +382,7 @@ func TestUpdatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateUpdating,
+			State:          datamodel.LifeCycleStateUpdating,
 		}
 		err = store.db.Create(quotaRule).Error()
 		assert.NoError(tt, err, "Failed to create quota rule")
@@ -391,7 +390,7 @@ func TestUpdatingQuotaRule(t *testing.T) {
 		// Update fields
 		quotaRule.DiskLimitInKib = 2097152
 		quotaRule.Description = "Updated description"
-		quotaRule.State = models.LifeCycleStateREADY
+		quotaRule.State = datamodel.LifeCycleStateREADY
 
 		updatedQuotaRule, err := store.UpdatingQuotaRule(context.Background(), quotaRule)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
@@ -429,7 +428,7 @@ func TestUpdatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateUpdating,
+			State:          datamodel.LifeCycleStateUpdating,
 		}
 
 		_, err = store.UpdatingQuotaRule(context.Background(), quotaRule)
@@ -465,7 +464,7 @@ func TestUpdatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateUpdating,
+			State:          datamodel.LifeCycleStateUpdating,
 		}
 
 		_, err = store.UpdatingQuotaRule(context.Background(), quotaRule)
@@ -494,7 +493,7 @@ func TestUpdatingQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateUpdating,
+			State:          datamodel.LifeCycleStateUpdating,
 		}
 		err = store.db.Create(quotaRule).Error()
 		assert.NoError(tt, err, "Failed to create quota rule")
@@ -539,7 +538,7 @@ func TestUpdateQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateCreating,
+			State:          datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(quotaRule).Error()
 		assert.NoError(tt, err, "Failed to create quota rule")
@@ -547,13 +546,13 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Update fields - database layer just does CRUD, doesn't manage state transitions
 		quotaRule.DiskLimitInKib = 2097152
 		quotaRule.Description = "Updated description"
-		quotaRule.State = models.LifeCycleStateREADY
-		quotaRule.StateDetails = models.LifeCycleStateReadyDetails
+		quotaRule.State = datamodel.LifeCycleStateREADY
+		quotaRule.StateDetails = datamodel.LifeCycleStateReadyDetails
 
 		updatedQuotaRule, err := store.UpdateQuotaRule(context.Background(), quotaRule)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
-		assert.Equal(tt, models.LifeCycleStateREADY, updatedQuotaRule.State, "Expected state to be READY")
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, updatedQuotaRule.StateDetails, "Expected state details to match")
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, updatedQuotaRule.State, "Expected state to be READY")
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, updatedQuotaRule.StateDetails, "Expected state details to match")
 		assert.Equal(tt, int64(2097152), updatedQuotaRule.DiskLimitInKib, "Expected disk limit to be updated")
 		assert.Equal(tt, "Updated description", updatedQuotaRule.Description, "Expected description to be updated")
 	})
@@ -738,7 +737,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(quotaRule).Error()
 		assert.NoError(tt, err, "Failed to create quota rule")
@@ -753,8 +752,8 @@ func TestDeleteQuotaRule(t *testing.T) {
 		assert.NoError(tt, err, "Expected to find soft deleted quota rule")
 		assert.NotNil(tt, softDeletedQuotaRule.DeletedAt, "Expected DeletedAt to be set")
 		assert.True(tt, softDeletedQuotaRule.DeletedAt.Valid, "Expected DeletedAt to be valid")
-		assert.Equal(tt, models.LifeCycleStateDeleted, softDeletedQuotaRule.State, "Expected state to be DELETED")
-		assert.Equal(tt, models.LifeCycleStateDeletedDetails, softDeletedQuotaRule.StateDetails, "Expected state details to match")
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, softDeletedQuotaRule.State, "Expected state to be DELETED")
+		assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, softDeletedQuotaRule.StateDetails, "Expected state details to match")
 	})
 
 	t.Run("WhenQuotaRuleDoesNotExist", func(tt *testing.T) {
@@ -1237,7 +1236,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(dstQuotaRule1).Error()
 		assert.NoError(tt, err, "Failed to create destination quota rule 1")
@@ -1252,7 +1251,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 			DiskLimitInKib: 2097152,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(dstQuotaRule2).Error()
 		assert.NoError(tt, err, "Failed to create destination quota rule 2")
@@ -1289,8 +1288,8 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 		assert.NotEmpty(tt, createdQuotaRules[1].UUID, "Expected UUID to be generated")
 		assert.Equal(tt, volume.ID, createdQuotaRules[0].VolumeID, "Expected VolumeID to be set")
 		assert.Equal(tt, account.ID, createdQuotaRules[0].AccountID, "Expected AccountID to be set")
-		assert.Equal(tt, models.LifeCycleStateREADY, createdQuotaRules[0].State, "Expected state to be READY")
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, createdQuotaRules[0].StateDetails, "Expected state details to be Ready for use")
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, createdQuotaRules[0].State, "Expected state to be READY")
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, createdQuotaRules[0].StateDetails, "Expected state details to be Ready for use")
 
 		// Verify destination quota rules are soft deleted
 		var deletedRule1 datamodel.QuotaRule
@@ -1298,7 +1297,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 		assert.NoError(tt, err, "Expected to find soft deleted quota rule")
 		assert.NotNil(tt, deletedRule1.DeletedAt, "Expected DeletedAt to be set")
 		assert.True(tt, deletedRule1.DeletedAt.Valid, "Expected DeletedAt to be valid")
-		assert.Equal(tt, models.LifeCycleStateDeleted, deletedRule1.State, "Expected state to be DELETED")
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, deletedRule1.State, "Expected state to be DELETED")
 
 		// Verify source quota rules are created
 		var createdRule1 datamodel.QuotaRule
@@ -1331,7 +1330,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(dstQuotaRule).Error()
 		assert.NoError(tt, err, "Failed to create destination quota rule")
@@ -1438,7 +1437,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(dstQuotaRule).Error()
 		assert.NoError(tt, err, "Failed to create destination quota rule")
@@ -1481,7 +1480,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(existingQuotaRule).Error()
 		assert.NoError(tt, err, "Failed to create existing quota rule")
@@ -1577,7 +1576,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 				DiskLimitInKib: int64(1048576 * i),
 				AccountID:      account.ID,
 				VolumeID:       volume.ID,
-				State:          models.LifeCycleStateAvailable,
+				State:          datamodel.LifeCycleStateAvailable,
 			}
 			err = store.db.Create(dstQuotaRule).Error()
 			assert.NoError(tt, err, "Failed to create destination quota rule %d", i)
@@ -1630,8 +1629,8 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 			var rule datamodel.QuotaRule
 			err = store.db.Where("uuid = ?", createdRule.UUID).First(&rule).Error()
 			assert.NoError(tt, err, "Expected to find created quota rule")
-			assert.Equal(tt, models.LifeCycleStateREADY, rule.State, "Expected state to be READY")
-			assert.Equal(tt, models.LifeCycleStateReadyDetails, rule.StateDetails, "Expected state details to be Ready for use")
+			assert.Equal(tt, datamodel.LifeCycleStateREADY, rule.State, "Expected state to be READY")
+			assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, rule.StateDetails, "Expected state details to be Ready for use")
 		}
 	})
 
@@ -1658,7 +1657,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 			DiskLimitInKib: 1048576,
 			AccountID:      account.ID,
 			VolumeID:       volume.ID,
-			State:          models.LifeCycleStateAvailable,
+			State:          datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(dstQuotaRule).Error()
 		assert.NoError(tt, err, "Failed to create destination quota rule")
@@ -1666,7 +1665,7 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 		// Soft delete it
 		now := time.Now()
 		dstQuotaRule.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
-		dstQuotaRule.State = models.LifeCycleStateDeleted
+		dstQuotaRule.State = datamodel.LifeCycleStateDeleted
 		err = store.db.Save(dstQuotaRule).Error()
 		assert.NoError(tt, err, "Failed to soft delete quota rule")
 

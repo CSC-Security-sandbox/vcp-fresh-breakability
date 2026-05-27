@@ -14,10 +14,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -108,11 +108,11 @@ func minimalActiveDirectoryForHandlerResponse(adName string) *coremodels.ActiveD
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
-		AdName:   adName,
-		Username: "user",
-		Domain:   "domain",
-		DNS:      "dns",
-		NetBIOS:  "netbios",
+		AdName:                    adName,
+		Username:                  "user",
+		Domain:                    "domain",
+		DNS:                       "dns",
+		NetBIOS:                   "netbios",
 		ActiveDirectoryAttributes: &coremodels.ActiveDirectoryAttributes{},
 	}
 }
@@ -432,7 +432,7 @@ func TestV1betaCreateBackupPolicy_TrialMode(t *testing.T) {
 			return p.TrialMode == nil
 		})).Return(&coremodels.BackupPolicy{
 			BackupPolicyUUID: "uuid-1",
-			ResourceID:     "policy-1",
+			ResourceID:       "policy-1",
 		}, nil)
 		mockOrchestrator.EXPECT().ListBackupPoliciesAndVolumeCount(ctx, "1234567890", []string{"uuid-1"}).
 			Return(map[string]int64{"uuid-1": 0}, map[string]*coremodels.BackupPolicy{}, nil)

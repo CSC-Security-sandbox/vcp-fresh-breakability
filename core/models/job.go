@@ -3,21 +3,23 @@ package models
 import (
 	"database/sql"
 	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 )
 
-type JobState string
+type JobState = datamodel.JobState
 
 const (
-	JobsStateNEW                    JobState = "NEW"
-	JobsStatePROCESSING             JobState = "PROCESSING"
-	JobsStateERROR                  JobState = "ERROR"
-	JobsStateDONE                   JobState = "DONE"
-	JobsStateWaitForTemporal        JobState = "WAIT_FOR_TEMPORAL"
-	JobsStateCANCELLED              JobState = "CANCELLED"
+	JobsStateNEW                    JobState = datamodel.JobsStateNEW
+	JobsStatePROCESSING             JobState = datamodel.JobsStatePROCESSING
+	JobsStateERROR                  JobState = datamodel.JobsStateERROR
+	JobsStateDONE                   JobState = datamodel.JobsStateDONE
+	JobsStateWaitForTemporal        JobState = datamodel.JobsStateWaitForTemporal
+	JobsStateCANCELLED              JobState = datamodel.JobsStateCANCELLED
 	WaitForTemporalJobMaxRetryCount          = 5
 )
 
-type JobType string
+type JobType = datamodel.JobType
 
 // ResourceOperation represents the type of operation being performed on a resource
 type ResourceOperation string
@@ -49,108 +51,108 @@ const (
 )
 
 const (
-	JobTypeCreatePool      JobType = "CREATE_POOL"
-	JobTypeCreateLargePool JobType = "CREATE_LARGE_POOL"
-	JobTypeUpdatePool      JobType = "UPDATE_POOL"
-	JobTypeUpdateLargePool JobType = "UPDATE_LARGE_POOL"
-	JobTypeDeletePool      JobType = "DELETE_POOL"
-	JobTypeDeleteLargePool JobType = "DELETE_LARGE_POOL"
-	JobTypeCreateSvm       JobType = "CREATE_SVM"
-	JobTypeDeleteSvm       JobType = "DELETE_SVM"
+	JobTypeCreatePool      JobType = datamodel.JobTypeCreatePool
+	JobTypeCreateLargePool JobType = datamodel.JobTypeCreateLargePool
+	JobTypeUpdatePool      JobType = datamodel.JobTypeUpdatePool
+	JobTypeUpdateLargePool JobType = datamodel.JobTypeUpdateLargePool
+	JobTypeDeletePool      JobType = datamodel.JobTypeDeletePool
+	JobTypeDeleteLargePool JobType = datamodel.JobTypeDeleteLargePool
+	JobTypeCreateSvm       JobType = datamodel.JobTypeCreateSvm
+	JobTypeDeleteSvm       JobType = datamodel.JobTypeDeleteSvm
 
 	// We will use a single workflow for FC volume creation and it will handle creating/completing these jobs.
 	// These 3 jobs are used to keep consistency with PO workflow/expectations.
-	JobTypeFlexCacheCreateVolume     JobType = "FLEXCACHE_CREATE_VOLUME"
-	JobTypeFlexCacheEstablishPeering JobType = "FLEXCACHE_ESTABLISH_PEERING"
-	JobTypeFlexCacheInternalPeering  JobType = "FLEXCACHE_INTERNAL_PEERING"
-	JobTypeFlexCacheDeleteVolume     JobType = "FLEXCACHE_DELETE_VOLUME"
-	JobTypeFlexCachePrePopulate      JobType = "FLEXCACHE_PREPOPULATE"
+	JobTypeFlexCacheCreateVolume     JobType = datamodel.JobTypeFlexCacheCreateVolume
+	JobTypeFlexCacheEstablishPeering JobType = datamodel.JobTypeFlexCacheEstablishPeering
+	JobTypeFlexCacheInternalPeering  JobType = datamodel.JobTypeFlexCacheInternalPeering
+	JobTypeFlexCacheDeleteVolume     JobType = datamodel.JobTypeFlexCacheDeleteVolume
+	JobTypeFlexCachePrePopulate      JobType = datamodel.JobTypeFlexCachePrePopulate
 
-	JobTypeCreateVolume                             JobType = "CREATE_VOLUME"
-	JobTypeCreateLargeVolume                        JobType = "CREATE_LARGE_VOLUME"
-	JobTypeUpdateVolume                             JobType = "UPDATE_VOLUME"
-	JobTypeUpdateVolumeInReplication                JobType = "UPDATE_VOLUME_IN_REPLICATION"
-	JobTypeUpdateVolumePerformanceGroup             JobType = "UPDATE_VOLUME_PERFORMANCE_GROUP"
-	JobTypeDeleteVolumePerformanceGroup             JobType = "DELETE_VOLUME_PERFORMANCE_GROUP"
-	JobTypeRevertVolume                             JobType = "REVERT_VOLUME"
-	JobTypeDeleteVolume                             JobType = "DELETE_VOLUME"
-	JobTypeDeleteLargeVolume                        JobType = "DELETE_LARGE_VOLUME"
-	JobTypeCreateSnapshot                           JobType = "CREATE_SNAPSHOT"
-	JobTypeUpdateSnapshot                           JobType = "UPDATE_SNAPSHOT"
-	JobTypeDeleteSnapshot                           JobType = "DELETE_SNAPSHOT"
-	JobTypeCreateQuotaRule                          JobType = "CREATE_QUOTA_RULE"
-	JobTypeUpdateQuotaRule                          JobType = "UPDATE_QUOTA_RULE"
-	JobTypeDeleteQuotaRule                          JobType = "DELETE_QUOTA_RULE"
-	JobTypeRestoreBackup                            JobType = "RESTORE_BACKUP"
-	JobTypeRestoreFilesBackup                       JobType = "RESTORE_FILES_BACKUP"
-	JobTypeRestoreOntapModeBackup                   JobType = "RESTORE_ONTAP_MODE_BACKUP"
-	JobTypeAcceptClusterPeer                        JobType = "ACCEPT_CLUSTER_PEER"
-	JobTypeUpdateKmsConfig                          JobType = "UPDATE_KMS_CONFIG"
-	JobTypeCreateKmsConfig                          JobType = "CREATE_KMS_CONFIG"
-	JobTypeDeleteKmsConfig                          JobType = "DELETE_KMS_CONFIG"
-	JobTypeSdeKmsCreate                             JobType = "SDE_KMS_CREATE"
-	JobTypeMigrateKmsConfig                         JobType = "MIGRATE_KMS_CONFIG"
-	JobTypeRotateKmsConfig                          JobType = "ROTATE_KMS_CONFIG"
-	JobTypeCreateVolumeReplication                  JobType = "CREATE_VOLUME_REPLICATION"
-	JobTypeCreateVolumeReplicationInternal          JobType = "CREATE_VOLUME_REPLICATION_INTERNAL"
-	JobTypeDeleteVolumeReplicationInternal          JobType = "DELETE_VOLUME_REPLICATION_INTERNAL"
-	JobTypeUpdateVolumeReplicationInternal          JobType = "UPDATE_VOLUME_REPLICATION_INTERNAL"
-	JobTypeCreateBackupVault                        JobType = "CREATE_BACKUP_VAULT"
-	JobTypeDeleteVolumeReplication                  JobType = "DELETE_VOLUME_REPLICATION"
-	JobTypeUpdateVolumeReplication                  JobType = "UPDATE_VOLUME_REPLICATION"
-	JobTypeResumeVolumeReplication                  JobType = "RESUME_VOLUME_REPLICATION"
-	JobTypeResumeVolumeReplicationInternal          JobType = "RESUME_VOLUME_REPLICATION_INTERNAL"
-	JobTypeReverseVolumeReplicationInternal         JobType = "REVERSE_VOLUME_REPLICATION_INTERNAL"
-	JobTypeSyncVolumeReplication                    JobType = "SYNC_VOLUME_REPLICATION"
-	JobTypeReverseResumeVolumeReplication           JobType = "REVERSE_RESUME_VOLUME_REPLICATION"
-	JobTypeUpdateVolumeReplicationAttributes        JobType = "UPDATE_VOLUME_REPLICATION_ATTRIBUTES"
-	JobTypeStopVolumeReplication                    JobType = "STOP_VOLUME_REPLICATION"
-	JobTypeStopVolumeReplicationInternal            JobType = "STOP_VOLUME_REPLICATION_INTERNAL"
-	JobTypeRefreshVolumeReplicationInternal         JobType = "REFRESH_VOLUME_REPLICATION_INTERNAL"
-	JobTypeCreateBackup                             JobType = "CREATE_BACKUP"
-	JobTypeDeleteBackup                             JobType = "DELETE_BACKUP"
-	JobTypeUpdateHostGroup                          JobType = "UPDATE_HOSTGROUP"
-	JobTypeMountCheck                               JobType = "MOUNT_VOLUME_REPLICATION_INTERNAL"
-	JobTypeRefreshAdminJobSpecs                     JobType = "REFRESH_ADMIN_JOB_SPECS"
-	JobTypeStartProjectEventOffState                JobType = "START_PROJECT_EVENT_OFF_STATE"
-	JobTypeStartProjectEventOnState                 JobType = "START_PROJECT_EVENT_ON_STATE"
-	JobTypeFinishProjectEventDeleteState            JobType = "FINISH_PROJECT_EVENT_DELETE_STATE"
-	JobTypeReleaseVolumeReplicationInternal         JobType = "RELEASE_VOLUME_REPLICATION_INTERNAL"
-	JobTypeUpdateBackupVault                        JobType = "UPDATE_BACKUP_VAULT"
-	JobTypeDeleteSnapmirrorSnapshotsInternal        JobType = "DELETE_SM_SNAPSHOTS_INTERNAL"
-	JobTypeCreateSubnet                             JobType = "CREATE_SUBNET"
-	JobTypeDeleteSubnet                             JobType = "DELETE_SUBNET"
-	JobTypeCreateLargeSubnet                        JobType = "CREATE_LARGE_SUBNET"
-	JobTypeHandleResourceEvent                      JobType = "HANDLE_RESOURCE_EVENT"
-	JobTypeHandleResourceEventOffState              JobType = "HANDLE_RESOURCE_EVENT_OFF_STATE"
-	JobTypeHandleResourceEventOnState               JobType = "HANDLE_RESOURCE_EVENT_ON_STATE"
-	JobTypeHandleResourceEventDeleteState           JobType = "HANDLE_RESOURCE_EVENT_DELETE_STATE"
-	JobTypeDeleteBackupVault                        JobType = "DELETE_BACKUP_VAULT"
-	JobTypeInitCreateScheduledBackup                JobType = "INIT_CREATE_SCHEDULED_BACKUP"
-	JobTypeCreateScheduledBackup                    JobType = "CREATE_SCHEDULED_BACKUP"
-	JobTypeDeleteScheduledBackup                    JobType = "DELETE_SCHEDULED_BACKUP"
-	JobTypeRefreshVolumeFields                      JobType = "REFRESH_VOLUME_FIELDS"
-	JobTypeUpdateBackup                             JobType = "UPDATE_BACKUP"
-	JobTypeCreateBackupPolicy                       JobType = "CREATE_BACKUP_POLICY"
-	JobTypeUpdateBackupPolicy                       JobType = "UPDATE_BACKUP_POLICY"
-	JobTypeDeleteBackupPolicy                       JobType = "DELETE_BACKUP_POLICY"
-	JobTypeCreateActiveDirectory                    JobType = "CREATE_ACTIVE_DIRECTORY"
-	JobTypeUpdateActiveDirectory                    JobType = "UPDATE_ACTIVE_DIRECTORY"
-	JobTypeDeleteActiveDirectory                    JobType = "DELETE_ACTIVE_DIRECTORY"
-	JobTypeSplitVolume                              JobType = "SPLIT_CLONE_VOLUME"
-	JobTypeCreateHybridReplication                  JobType = "CREATE_HYBRID_REPLICATION"
-	JobTypeHybridReplicationDeleteVolume            JobType = "HYBRID_REPLICATION_DELETE_VOLUME"
-	JobTypeHybridReplicationEstablishPeering        JobType = "HYBRID_REPLICATION_ESTABLISH_PEERING"
-	JobTypeHybridReplicationInternalEstablish       JobType = "HYBRID_REPLICATION_INTERNAL_ESTABLISH"
-	JobTypeReverseHybridReplicationInternal         JobType = "HYBRID_REPLICATION_INTERNAL_REVERSE"
-	JobTypeReverseHybridReplicationFallbackInternal JobType = "HYBRID_REPLICATION_INTERNAL_REVERSE_FALLBACK"
-	JobTypeCreateExpertModeVolume                   JobType = "RECONCILE_EXPERT_MODE_VOLUME_CREATE"
-	JobTypeUpdateExpertModeVolume                   JobType = "RECONCILE_EXPERT_MODE_VOLUME_UPDATE"
-	JobTypeDeleteExpertModeVolume                   JobType = "RECONCILE_EXPERT_MODE_VOLUME_DELETE"
-	JobTypeExpertModeRbacRefresh                    JobType = "EXPERT_MODE_RBAC_REFRESH"
-	JobTypeExpertModeFlexCloneSplit                 JobType = "RECONCILE_EXPERT_MODE_VOLUME_FLEXCLONE_SPLIT"
-	JobTypeRotateCmekBackups                        JobType = "ROTATE_CMEK_BACKUPS"
-	JobTypeManageBackupConfigExpertModeVolume       JobType = "MANAGE_BACKUP_CONFIG_EXPERT_MODE_VOLUME"
+	JobTypeCreateVolume                             JobType = datamodel.JobTypeCreateVolume
+	JobTypeCreateLargeVolume                        JobType = datamodel.JobTypeCreateLargeVolume
+	JobTypeUpdateVolume                             JobType = datamodel.JobTypeUpdateVolume
+	JobTypeUpdateVolumeInReplication                JobType = datamodel.JobTypeUpdateVolumeInReplication
+	JobTypeUpdateVolumePerformanceGroup             JobType = datamodel.JobTypeUpdateVolumePerformanceGroup
+	JobTypeDeleteVolumePerformanceGroup             JobType = datamodel.JobTypeDeleteVolumePerformanceGroup
+	JobTypeRevertVolume                             JobType = datamodel.JobTypeRevertVolume
+	JobTypeDeleteVolume                             JobType = datamodel.JobTypeDeleteVolume
+	JobTypeDeleteLargeVolume                        JobType = datamodel.JobTypeDeleteLargeVolume
+	JobTypeCreateSnapshot                           JobType = datamodel.JobTypeCreateSnapshot
+	JobTypeUpdateSnapshot                           JobType = datamodel.JobTypeUpdateSnapshot
+	JobTypeDeleteSnapshot                           JobType = datamodel.JobTypeDeleteSnapshot
+	JobTypeCreateQuotaRule                          JobType = datamodel.JobTypeCreateQuotaRule
+	JobTypeUpdateQuotaRule                          JobType = datamodel.JobTypeUpdateQuotaRule
+	JobTypeDeleteQuotaRule                          JobType = datamodel.JobTypeDeleteQuotaRule
+	JobTypeRestoreBackup                            JobType = datamodel.JobTypeRestoreBackup
+	JobTypeRestoreFilesBackup                       JobType = datamodel.JobTypeRestoreFilesBackup
+	JobTypeRestoreOntapModeBackup                   JobType = datamodel.JobTypeRestoreOntapModeBackup
+	JobTypeAcceptClusterPeer                        JobType = datamodel.JobTypeAcceptClusterPeer
+	JobTypeUpdateKmsConfig                          JobType = datamodel.JobTypeUpdateKmsConfig
+	JobTypeCreateKmsConfig                          JobType = datamodel.JobTypeCreateKmsConfig
+	JobTypeDeleteKmsConfig                          JobType = datamodel.JobTypeDeleteKmsConfig
+	JobTypeSdeKmsCreate                             JobType = datamodel.JobTypeSdeKmsCreate
+	JobTypeMigrateKmsConfig                         JobType = datamodel.JobTypeMigrateKmsConfig
+	JobTypeRotateKmsConfig                          JobType = datamodel.JobTypeRotateKmsConfig
+	JobTypeCreateVolumeReplication                  JobType = datamodel.JobTypeCreateVolumeReplication
+	JobTypeCreateVolumeReplicationInternal          JobType = datamodel.JobTypeCreateVolumeReplicationInternal
+	JobTypeDeleteVolumeReplicationInternal          JobType = datamodel.JobTypeDeleteVolumeReplicationInternal
+	JobTypeUpdateVolumeReplicationInternal          JobType = datamodel.JobTypeUpdateVolumeReplicationInternal
+	JobTypeCreateBackupVault                        JobType = datamodel.JobTypeCreateBackupVault
+	JobTypeDeleteVolumeReplication                  JobType = datamodel.JobTypeDeleteVolumeReplication
+	JobTypeUpdateVolumeReplication                  JobType = datamodel.JobTypeUpdateVolumeReplication
+	JobTypeResumeVolumeReplication                  JobType = datamodel.JobTypeResumeVolumeReplication
+	JobTypeResumeVolumeReplicationInternal          JobType = datamodel.JobTypeResumeVolumeReplicationInternal
+	JobTypeReverseVolumeReplicationInternal         JobType = datamodel.JobTypeReverseVolumeReplicationInternal
+	JobTypeSyncVolumeReplication                    JobType = datamodel.JobTypeSyncVolumeReplication
+	JobTypeReverseResumeVolumeReplication           JobType = datamodel.JobTypeReverseResumeVolumeReplication
+	JobTypeUpdateVolumeReplicationAttributes        JobType = datamodel.JobTypeUpdateVolumeReplicationAttributes
+	JobTypeStopVolumeReplication                    JobType = datamodel.JobTypeStopVolumeReplication
+	JobTypeStopVolumeReplicationInternal            JobType = datamodel.JobTypeStopVolumeReplicationInternal
+	JobTypeRefreshVolumeReplicationInternal         JobType = datamodel.JobTypeRefreshVolumeReplicationInternal
+	JobTypeCreateBackup                             JobType = datamodel.JobTypeCreateBackup
+	JobTypeDeleteBackup                             JobType = datamodel.JobTypeDeleteBackup
+	JobTypeUpdateHostGroup                          JobType = datamodel.JobTypeUpdateHostGroup
+	JobTypeMountCheck                               JobType = datamodel.JobTypeMountCheck
+	JobTypeRefreshAdminJobSpecs                     JobType = datamodel.JobTypeRefreshAdminJobSpecs
+	JobTypeStartProjectEventOffState                JobType = datamodel.JobTypeStartProjectEventOffState
+	JobTypeStartProjectEventOnState                 JobType = datamodel.JobTypeStartProjectEventOnState
+	JobTypeFinishProjectEventDeleteState            JobType = datamodel.JobTypeFinishProjectEventDeleteState
+	JobTypeReleaseVolumeReplicationInternal         JobType = datamodel.JobTypeReleaseVolumeReplicationInternal
+	JobTypeUpdateBackupVault                        JobType = datamodel.JobTypeUpdateBackupVault
+	JobTypeDeleteSnapmirrorSnapshotsInternal        JobType = datamodel.JobTypeDeleteSnapmirrorSnapshotsInternal
+	JobTypeCreateSubnet                             JobType = datamodel.JobTypeCreateSubnet
+	JobTypeDeleteSubnet                             JobType = datamodel.JobTypeDeleteSubnet
+	JobTypeCreateLargeSubnet                        JobType = datamodel.JobTypeCreateLargeSubnet
+	JobTypeHandleResourceEvent                      JobType = datamodel.JobTypeHandleResourceEvent
+	JobTypeHandleResourceEventOffState              JobType = datamodel.JobTypeHandleResourceEventOffState
+	JobTypeHandleResourceEventOnState               JobType = datamodel.JobTypeHandleResourceEventOnState
+	JobTypeHandleResourceEventDeleteState           JobType = datamodel.JobTypeHandleResourceEventDeleteState
+	JobTypeDeleteBackupVault                        JobType = datamodel.JobTypeDeleteBackupVault
+	JobTypeInitCreateScheduledBackup                JobType = datamodel.JobTypeInitCreateScheduledBackup
+	JobTypeCreateScheduledBackup                    JobType = datamodel.JobTypeCreateScheduledBackup
+	JobTypeDeleteScheduledBackup                    JobType = datamodel.JobTypeDeleteScheduledBackup
+	JobTypeRefreshVolumeFields                      JobType = datamodel.JobTypeRefreshVolumeFields
+	JobTypeUpdateBackup                             JobType = datamodel.JobTypeUpdateBackup
+	JobTypeCreateBackupPolicy                       JobType = datamodel.JobTypeCreateBackupPolicy
+	JobTypeUpdateBackupPolicy                       JobType = datamodel.JobTypeUpdateBackupPolicy
+	JobTypeDeleteBackupPolicy                       JobType = datamodel.JobTypeDeleteBackupPolicy
+	JobTypeCreateActiveDirectory                    JobType = datamodel.JobTypeCreateActiveDirectory
+	JobTypeUpdateActiveDirectory                    JobType = datamodel.JobTypeUpdateActiveDirectory
+	JobTypeDeleteActiveDirectory                    JobType = datamodel.JobTypeDeleteActiveDirectory
+	JobTypeSplitVolume                              JobType = datamodel.JobTypeSplitVolume
+	JobTypeCreateHybridReplication                  JobType = datamodel.JobTypeCreateHybridReplication
+	JobTypeHybridReplicationDeleteVolume            JobType = datamodel.JobTypeHybridReplicationDeleteVolume
+	JobTypeHybridReplicationEstablishPeering        JobType = datamodel.JobTypeHybridReplicationEstablishPeering
+	JobTypeHybridReplicationInternalEstablish       JobType = datamodel.JobTypeHybridReplicationInternalEstablish
+	JobTypeReverseHybridReplicationInternal         JobType = datamodel.JobTypeReverseHybridReplicationInternal
+	JobTypeReverseHybridReplicationFallbackInternal JobType = datamodel.JobTypeReverseHybridReplicationFallbackInternal
+	JobTypeCreateExpertModeVolume                   JobType = datamodel.JobTypeCreateExpertModeVolume
+	JobTypeUpdateExpertModeVolume                   JobType = datamodel.JobTypeUpdateExpertModeVolume
+	JobTypeDeleteExpertModeVolume                   JobType = datamodel.JobTypeDeleteExpertModeVolume
+	JobTypeExpertModeRbacRefresh                    JobType = datamodel.JobTypeExpertModeRbacRefresh
+	JobTypeExpertModeFlexCloneSplit                 JobType = datamodel.JobTypeExpertModeFlexCloneSplit
+	JobTypeRotateCmekBackups                        JobType = datamodel.JobTypeRotateCmekBackups
+	JobTypeManageBackupConfigExpertModeVolume       JobType = datamodel.JobTypeManageBackupConfigExpertModeVolume
 )
 
 // GetResourceJobType returns the appropriate job type based on the resource type, operation, and pool category

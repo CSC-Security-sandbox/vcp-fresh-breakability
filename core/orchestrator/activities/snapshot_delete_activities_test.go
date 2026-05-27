@@ -7,12 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"go.temporal.io/sdk/testsuite"
 )
 
@@ -60,11 +59,11 @@ func TestDeleteSnapshot_Failure(t *testing.T) {
 func TestDeleteSnapshotInONTAP_Success(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -100,11 +99,11 @@ func TestDeleteSnapshotInONTAP_Success(t *testing.T) {
 
 func TestDeleteSnapshotInONTAP_Failure(t *testing.T) {
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -141,11 +140,11 @@ func TestDeleteSnapshotInONTAP_Failure(t *testing.T) {
 }
 
 func TestDeleteSnapshotInONTAP_GetproviderByNodeFailure(t *testing.T) {
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider by node")
 	}
 
@@ -178,11 +177,11 @@ func TestDeleteSnapshotInONTAP_GetproviderByNodeFailure(t *testing.T) {
 
 func TestDeleteSnapshotInONTAP_SnapshotInUse(t *testing.T) {
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 

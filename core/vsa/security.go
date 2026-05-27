@@ -17,19 +17,19 @@ func (rc *OntapRestProvider) InstallServerCertificate(params InstallServerCertif
 		rc.Logger.Errorf("Failed to get ONTAP client: %v", err)
 		return nil, err
 	}
-	
+
 	// Debug: Check if client and security client are properly initialized
 	if client == nil {
 		rc.Logger.Error("ONTAP client is nil")
 		return nil, fmt.Errorf("ONTAP client is nil")
 	}
-	
+
 	securityClient := client.Security()
 	if securityClient == nil {
 		rc.Logger.Error("Security client is nil")
 		return nil, fmt.Errorf("Security client is nil")
 	}
-	
+
 	rc.Logger.Debug("ONTAP client and security client initialized successfully")
 
 	// Prepare the certificate installation parameters
@@ -75,19 +75,19 @@ func (rc *OntapRestProvider) GetServerCertificates(params GetServerCertificatePa
 		rc.Logger.Errorf("Failed to get ONTAP client: %v", err)
 		return nil, err
 	}
-	
+
 	// Debug: Check if client and security client are properly initialized
 	if client == nil {
 		rc.Logger.Error("ONTAP client is nil")
 		return nil, fmt.Errorf("ONTAP client is nil")
 	}
-	
+
 	securityClient := client.Security()
 	if securityClient == nil {
 		rc.Logger.Error("Security client is nil")
 		return nil, fmt.Errorf("Security client is nil")
 	}
-	
+
 	rc.Logger.Debug("ONTAP client and security client initialized successfully")
 
 	// Prepare the certificate collection get parameters
@@ -123,20 +123,20 @@ func (rc *OntapRestProvider) GetServerCertificates(params GetServerCertificatePa
 func (rc *OntapRestProvider) ModifySSL(params ModifySSLParams) (*ModifySSLResponse, error) {
 	logger := rc.Logger
 	logger.Debugf("Starting SSL modify operation for SVM: %s", params.SvmName)
-	
+
 	// Get SSH client parameters from the provider
 	// Use default ONTAP username since ProviderDetails doesn't have Username field
 	// NOTE: ONTAP SSH always requires password authentication, even for certificate-based REST API auth
 	sshParams := ontapRest.SSHClientParams{
-		Host:       rc.Provider.IPAddress,
-		Username:   "admin", // Default ONTAP admin username
-		Password:   rc.Provider.Password,
-		AuthType:   0, // Always use password authentication for SSH (ONTAP requirement)
-		Timeout:    30 * time.Second,
+		Host:     rc.Provider.IPAddress,
+		Username: "admin", // Default ONTAP admin username
+		Password: rc.Provider.Password,
+		AuthType: 0, // Always use password authentication for SSH (ONTAP requirement)
+		Timeout:  30 * time.Second,
 	}
-	
+
 	logger.Debug("Using password authentication for SSH (ONTAP requirement)")
-	
+
 	// Create SSH client
 	sshClient, err := ontapRest.NewSSHClient(context.Background(), sshParams)
 	if err != nil {
@@ -151,19 +151,19 @@ func (rc *OntapRestProvider) ModifySSL(params ModifySSLParams) (*ModifySSLRespon
 			logger.Warnf("Failed to close SSH client: %v", closeErr)
 		}
 	}()
-	
+
 	// Construct the SSL modify command
-	command := fmt.Sprintf("security ssl modify -vserver %s -server-enabled %t", 
+	command := fmt.Sprintf("security ssl modify -vserver %s -server-enabled %t",
 		params.SvmName, params.ServerEnabled)
-	
+
 	if params.CA != "" {
 		command += fmt.Sprintf(" -ca %s", params.CA)
 	}
-	
+
 	if params.Serial != "" {
 		command += fmt.Sprintf(" -serial %s", params.Serial)
 	}
-	
+
 	// Execute the command
 	output, err := sshClient.ExecuteCommand(context.Background(), command)
 	if err != nil {
@@ -173,7 +173,7 @@ func (rc *OntapRestProvider) ModifySSL(params ModifySSLParams) (*ModifySSLRespon
 			Message: fmt.Sprintf("SSL modify command failed: %v", err),
 		}, err
 	}
-	
+
 	return &ModifySSLResponse{
 		Success: true,
 		Message: "SSL configuration modified successfully via SSH",

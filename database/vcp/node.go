@@ -5,9 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -54,8 +53,8 @@ func (d *DataStoreRepository) CreateNode(ctx context.Context, node *datamodel.No
 	err1 := tx.Where("name = ? and account_id = ?", node.Name, node.AccountID).First(&dbNode).Error
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
 		node.UUID = utils.RandomUUID()
-		node.State = models.LifeCycleStateREADY
-		node.StateDetails = models.LifeCycleStateAvailableDetails
+		node.State = datamodel.LifeCycleStateREADY
+		node.StateDetails = datamodel.LifeCycleStateAvailableDetails
 		node.CreatedAt = time.Now()
 		node.UpdatedAt = node.CreatedAt
 		err = tx.Create(node).Error
@@ -85,8 +84,8 @@ func (d *DataStoreRepository) DeleteNode(ctx context.Context, node *datamodel.No
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 	node.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	node.State = models.LifeCycleStateDeleted
-	node.StateDetails = models.LifeCycleStateDeletedDetails
+	node.State = datamodel.LifeCycleStateDeleted
+	node.StateDetails = datamodel.LifeCycleStateDeletedDetails
 	err = tx.Updates(node).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -104,7 +103,7 @@ func (d *DataStoreRepository) ErroredNode(ctx context.Context, node *datamodel.N
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 	node.UpdatedAt = time.Now()
-	node.State = models.LifeCycleStateError
+	node.State = datamodel.LifeCycleStateError
 	node.StateDetails = errMsg
 	err = tx.Updates(node).Error
 	if err != nil {
@@ -122,8 +121,8 @@ func (d *DataStoreRepository) DeletingNode(ctx context.Context, node *datamodel.
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
-	node.State = models.LifeCycleStateDeleting
-	node.StateDetails = models.LifeCycleStateDeletingDetails
+	node.State = datamodel.LifeCycleStateDeleting
+	node.StateDetails = datamodel.LifeCycleStateDeletingDetails
 	err = tx.Updates(node).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)

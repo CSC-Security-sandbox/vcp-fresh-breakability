@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
@@ -20,7 +20,7 @@ const (
 	AddressRangeStateDisabled = "DISABLED"
 	AddressRangeStateDeleted  = "DELETED"
 
-	AddressRangeLifTypeDataLIF        = "dataLIF"
+	AddressRangeLifTypeDataLIF         = "dataLIF"
 	AddressRangeLifTypeInterclusterLIF = "interclusterLIF"
 )
 
@@ -242,8 +242,8 @@ func (d *DataStoreRepository) ResetAddressRangesInUseToCreated(ctx context.Conte
 		Where("host_project_number = ? AND vpc_name = ? AND lif_type = ? AND address_range_state = ? AND deleted_at IS NULL",
 			hostProjectNumber, vpcName, AddressRangeLifTypeDataLIF, AddressRangeStateInUse).
 		Updates(map[string]interface{}{
-			"address_range_state":         AddressRangeStateCreated,
-			"address_range_state_details": AddressRangeStateCreated,
+			"address_range_state":          AddressRangeStateCreated,
+			"address_range_state_details":  AddressRangeStateCreated,
 			"route_aggregation_applied":    false,
 			"route_aggregation_applied_at": nil,
 			"updated_at":                   now,

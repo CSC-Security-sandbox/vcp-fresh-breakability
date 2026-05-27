@@ -2,9 +2,9 @@ package endpoints
 
 import (
 	"context"
-	"net/http"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
@@ -25,14 +25,14 @@ func (h Handler) V1ListEventRetentionPolicies(
 	if !snapLockOperationEnabled {
 		logger.Debug("V1ListEventRetentionPolicies: operation is disabled")
 		return &oasgenserver.V1ListEventRetentionPoliciesBadRequest{
-			Code: http.StatusBadRequest,
+			Code:    http.StatusBadRequest,
 			Message: "Event retention policy operation is disabled",
 		}, nil
 	}
 
 	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
 		return &oasgenserver.V1ListEventRetentionPoliciesForbidden{
-			Code: http.StatusForbidden,
+			Code:    http.StatusForbidden,
 			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}
@@ -103,14 +103,14 @@ func (h Handler) V1CreateEventRetentionPolicy(
 	if !snapLockOperationEnabled {
 		logger.Debug("V1CreateEventRetentionPolicy: operation is disabled")
 		return &oasgenserver.V1CreateEventRetentionPolicyBadRequest{
-			Code: http.StatusBadRequest,
+			Code:    http.StatusBadRequest,
 			Message: "Event retention policy operation is disabled",
 		}, nil
 	}
 
 	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
 		return &oasgenserver.V1CreateEventRetentionPolicyForbidden{
-			Code: http.StatusForbidden,
+			Code:    http.StatusForbidden,
 			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}
@@ -173,14 +173,14 @@ func (h Handler) V1GetEventRetentionPolicy(
 	if !snapLockOperationEnabled {
 		logger.Debug("V1GetEventRetentionPolicy: operation is disabled")
 		return &oasgenserver.V1GetEventRetentionPolicyBadRequest{
-			Code: http.StatusBadRequest,
+			Code:    http.StatusBadRequest,
 			Message: "Event retention policy operation is disabled",
 		}, nil
 	}
 
 	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
 		return &oasgenserver.V1GetEventRetentionPolicyForbidden{
-			Code: http.StatusForbidden,
+			Code:    http.StatusForbidden,
 			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}
@@ -255,14 +255,14 @@ func (h Handler) V1UpdateEventRetentionPolicy(
 	if !snapLockOperationEnabled {
 		logger.Debug("V1UpdateEventRetentionPolicy: operation is disabled")
 		return &oasgenserver.V1UpdateEventRetentionPolicyBadRequest{
-			Code: http.StatusBadRequest,
+			Code:    http.StatusBadRequest,
 			Message: "Event retention policy operation is disabled",
 		}, nil
 	}
 
 	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
 		return &oasgenserver.V1UpdateEventRetentionPolicyForbidden{
-			Code: http.StatusForbidden,
+			Code:    http.StatusForbidden,
 			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}
@@ -326,14 +326,14 @@ func (h Handler) V1DeleteEventRetentionPolicy(
 	if !snapLockOperationEnabled {
 		logger.Debug("V1DeleteEventRetentionPolicy: operation is disabled")
 		return &oasgenserver.V1DeleteEventRetentionPolicyBadRequest{
-			Code: http.StatusBadRequest,
+			Code:    http.StatusBadRequest,
 			Message: "Event retention policy operation is disabled",
 		}, nil
 	}
 
 	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
 		return &oasgenserver.V1DeleteEventRetentionPolicyForbidden{
-			Code: http.StatusForbidden,
+			Code:    http.StatusForbidden,
 			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}

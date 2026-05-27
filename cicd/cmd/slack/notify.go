@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
 var NotifyCommand = &cobra.Command{

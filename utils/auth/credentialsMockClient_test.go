@@ -1,16 +1,17 @@
 package auth
 
 import (
-	credentials2 "cloud.google.com/go/iam/credentials/apiv1/credentialspb"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"testing"
+
+	credentials2 "cloud.google.com/go/iam/credentials/apiv1/credentialspb"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSignJwt(t *testing.T) {

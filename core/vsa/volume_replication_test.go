@@ -13,9 +13,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -585,7 +585,7 @@ func TestCreateVsaVolumeReplication(t *testing.T) {
 	dstVolumeUUID := "dst-uuid"
 	volumeReplicationCreateParams := CreateVolumeReplicationParams{
 		VolumeReplication: &VolumeReplication{
-			Volume: &Volume{ExternalUUID: dstVolumeUUID},
+			Volume:                &Volume{ExternalUUID: dstVolumeUUID},
 			ReplicationPolicy:     "MirrorAllSnapshots",
 			ReplicationSchedule:   VolumeReplicationScheduleDaily,
 			SourceSVMName:         "srcsvm",

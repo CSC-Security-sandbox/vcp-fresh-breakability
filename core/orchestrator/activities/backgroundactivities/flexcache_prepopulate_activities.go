@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -84,13 +84,13 @@ func (a *FlexCachePrepopulateActivity) PollPrepopulateJobStatus(
 				errors.New("no nodes found for the pool")))
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:            nodes,
 		DeploymentName:   volume.Pool.DeploymentName,
 		OntapCredentials: volume.Pool.PoolCredentials,
 	})
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to get provider for node: %v", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)

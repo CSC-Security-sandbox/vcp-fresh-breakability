@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -266,9 +266,9 @@ func Test_convertDatastoreBackupVaultToModel_CrossRegionDestinationVaultWhenCRLo
 func Test_convertDatastoreBackupVaultToModel_TenantProject(t *testing.T) {
 	t.Run("CrossProjectVault_PopulatesTenantProjectFromBucketDetails", func(tt *testing.T) {
 		bv := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
-			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
-			Name:      "bv",
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:        "bv",
 			ServiceType: models.ServiceTypeCrossProject,
 			BucketDetails: datamodel.BucketDetailsArray{
 				&datamodel.BucketDetails{TenantProjectNumber: "596181058421"},
@@ -281,9 +281,9 @@ func Test_convertDatastoreBackupVaultToModel_TenantProject(t *testing.T) {
 
 	t.Run("NonCrossProjectVault_TenantProjectIsNil", func(tt *testing.T) {
 		bv := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
-			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
-			Name:      "bv",
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:        "bv",
 			ServiceType: models.ServiceTypeGCNV,
 			BucketDetails: datamodel.BucketDetailsArray{
 				&datamodel.BucketDetails{TenantProjectNumber: "596181058421"},

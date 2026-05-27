@@ -2,13 +2,14 @@ package backgroundworkflows
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/vmscan"
 	"go.temporal.io/sdk/testsuite"
-	"testing"
 )
 
 func TestScanGCEInstancesWorkflow_Success(t *testing.T) {

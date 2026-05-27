@@ -185,8 +185,8 @@ func TestNewSSHClient(t *testing.T) {
 		client, err := NewSSHClient(ctx, params)
 		if err == nil {
 			if err := client.Close(); err != nil {
-			tt.Errorf("Failed to close client: %v", err)
-		}
+				tt.Errorf("Failed to close client: %v", err)
+			}
 		}
 		// Connection will fail, but password auth should be configured
 		// Error should be about connection, not password
@@ -281,13 +281,13 @@ func setupTestSSHServer(t *testing.T) (string, func()) {
 				return
 			}
 			go func() {
-			_, chans, reqs, err := ssh.NewServerConn(conn, config)
-			if err != nil {
-				if closeErr := conn.Close(); closeErr != nil {
-					// Ignore close error in test cleanup
+				_, chans, reqs, err := ssh.NewServerConn(conn, config)
+				if err != nil {
+					if closeErr := conn.Close(); closeErr != nil {
+						// Ignore close error in test cleanup
+					}
+					return
 				}
-				return
-			}
 				go ssh.DiscardRequests(reqs)
 				for newChannel := range chans {
 					if newChannel.ChannelType() != "session" {
@@ -312,7 +312,7 @@ func setupTestSSHServer(t *testing.T) (string, func()) {
 								if err := ssh.Unmarshal(req.Payload, &payload); err != nil {
 									// Ignore unmarshal error in test
 								}
-								
+
 								// For ExecuteCommandWithInput, session.Start() uses exec with pipes
 								// Handle stdin/stdout/stderr separately
 								go func() {
@@ -911,7 +911,7 @@ func TestSSHClient_ExecuteCommand(t *testing.T) {
 
 		// Give server time to start - wait for it to be ready
 		time.Sleep(200 * time.Millisecond)
-		
+
 		// Try to connect to verify server is up
 		for i := 0; i < 10; i++ {
 			conn, err := net.DialTimeout("tcp", address, 100*time.Millisecond)
@@ -1229,7 +1229,7 @@ func TestSSHClient_ExecuteCommandWithInput(t *testing.T) {
 		if os.Getenv("TEST_SSH_TIMEOUT") == "" {
 			tt.Skip("Skipping timeout test (set TEST_SSH_TIMEOUT=1 to enable)")
 		}
-		
+
 		address, cleanup := setupTestSSHServerWithError(tt, "timeout")
 		defer cleanup()
 
@@ -1267,11 +1267,11 @@ func TestSSHClient_ExecuteCommandWithInput(t *testing.T) {
 		// Use a context with timeout to prevent the test itself from hanging
 		testCtx, cancel := context.WithTimeout(ctx, 35*time.Second)
 		defer cancel()
-		
+
 		start := time.Now()
 		output, err := client.ExecuteCommandWithInput(testCtx, "test command", "input")
 		duration := time.Since(start)
-		
+
 		// Verify timeout occurred (should take ~30 seconds)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "SSH command with input timed out")
@@ -1323,5 +1323,3 @@ func TestSSHClient_Close(t *testing.T) {
 // TestSSHClient_ExecuteCommandWithInput, and TestSSHClient_Close attempt to use
 // setupTestSSHServer, but they may skip if the server setup fails.
 // For full coverage of these methods, integration tests with a real SSH server are recommended.
-
-

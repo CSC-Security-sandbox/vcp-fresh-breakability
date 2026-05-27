@@ -2,9 +2,10 @@ package leakedresources
 
 import (
 	"context"
+	"strings"
+
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
-	"strings"
 )
 
 // localComputeServiceGetter constructs a *compute.Service that talks to a

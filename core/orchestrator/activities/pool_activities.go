@@ -17,8 +17,6 @@ import (
 	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -27,10 +25,12 @@ import (
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	vmrs_oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -354,7 +354,7 @@ func getPasswordFromPoolCredentials(ctx context.Context, poolCredentials *datamo
 	password := poolCredentials.Password
 	if poolCredentials.AuthType == env.USERNAME_PWD_SEC_MGR || poolCredentials.AuthType == env.USER_CERTIFICATE {
 		if poolCredentials.SecretID != "" {
-			secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, poolCredentials.SecretID)
+			secret, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, poolCredentials.SecretID)
 			if err != nil {
 				return "", fmt.Errorf("failed to get password from secret manager: %w", err)
 			}
@@ -410,7 +410,7 @@ func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.
 	}
 
 	activity.RecordHeartbeat(ctx, "Getting ONTAP provider")
-	provider, err := hyperscaler2.GetProviderByNode(ctx, &nodeCopy)
+	provider, err := vsa.GetProviderByNode(ctx, &nodeCopy)
 	if err != nil {
 		logger.Errorf("SetWaflMaxVolCloneHier failed to get provider: %v", err)
 		return nil
@@ -971,7 +971,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	case env.USER_CERTIFICATE:
 		activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating and creating certificate for ONTAP credentials - pool Name: %s, deployment: %s, consumer project: %s", pool.Name, pool.DeploymentName, consumerProject))
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
-		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.DeploymentName, pool.PoolCredentials.Username, pool.PoolCredentials, EnableServerAuthInCSR)
+		certificate, err := vsa.GenerateAndCreateCertificateForVSACluster(gcpService, pool.DeploymentName, pool.PoolCredentials.Username, pool.PoolCredentials, EnableServerAuthInCSR)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -980,7 +980,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating password for ONTAP credentials in Secret Manager - pool Name: %s, deployment: %s, consumer project: %s", pool.Name, pool.DeploymentName, consumerProject))
-		secret, err := hyperscaler2.GeneratePasswordForVSACluster(gcpService, pool.PoolCredentials.SecretID)
+		secret, err := vsa.GeneratePasswordForVSACluster(gcpService, pool.PoolCredentials.SecretID)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1028,7 +1028,7 @@ func (j *PoolActivity) CreateOnTapCredentialsForOCI(ctx context.Context, pool *d
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating password for ONTAP credentials in OCI Vault - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
 		secretName := ociOntapAdminSecretName(pool)
-		secret, err := hyperscaler2.GeneratePasswordForVSAClusterOCI(*ociService, secretName)
+		secret, err := vsa.GeneratePasswordForVSAClusterOCI(*ociService, secretName)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1071,7 +1071,7 @@ func (j *PoolActivity) DeleteOnTapCredentialsForOCI(ctx context.Context, pool *d
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, "Deleting password from Vault")
 		secretName := ociOntapAdminSecretName(pool)
-		if err := hyperscaler2.DeletePasswordForVSAClusterOCI(*ociService, secretName); err != nil {
+		if err := vsa.DeletePasswordForVSAClusterOCI(*ociService, secretName); err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		activity.RecordHeartbeat(ctx, "Password deleted successfully from Vault")
@@ -1153,7 +1153,7 @@ func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *da
 			expertPoolCredentials.CaURI = pool.PoolCredentials.CaURI
 		}
 		// Generate and create certificate for expert mode, that has only client auth in CSR - server auth is not needed for expert mode. Hence, passing EnableServerAuthInCSRForExpMode as false
-		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, clusterName, username, expertPoolCredentials, EnableServerAuthInCSRForExpMode)
+		certificate, err := vsa.GenerateAndCreateCertificateForVSACluster(gcpService, clusterName, username, expertPoolCredentials, EnableServerAuthInCSRForExpMode)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1162,7 +1162,7 @@ func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *da
 		activity.RecordHeartbeat(ctx, "Certificate generated and created successfully")
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, "Generating password for expert mode credentials in Secret Manager")
-		secret, err := hyperscaler2.GeneratePasswordForVSACluster(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
+		secret, err := vsa.GeneratePasswordForVSACluster(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1196,7 +1196,7 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 	case env.USER_CERTIFICATE:
 		activity.RecordHeartbeat(ctx, "Revoking certificate and deleting from Secret Manager")
 		// Revoke the certificates and delete the private key from secret manager and cache then fallthrough to delete the password from secret manager and cache
-		err = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.PoolCredentials)
+		err = vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.PoolCredentials)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1204,7 +1204,7 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, "Deleting password from Secret Manager")
-		err = hyperscaler2.DeletePasswordFromCacheAndSecretManager(gcpService, pool.PoolCredentials.SecretID)
+		err = vsa.DeletePasswordFromCacheAndSecretManager(gcpService, pool.PoolCredentials.SecretID)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1238,14 +1238,14 @@ func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *da
 		if pool.PoolCredentials != nil {
 			expertPoolCredentials.CaURI = pool.PoolCredentials.CaURI
 		}
-		err = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, expertPoolCredentials)
+		err = vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, expertPoolCredentials)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		activity.RecordHeartbeat(ctx, "certificate revoked and deleted successfully")
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, "Deleting password from Secret Manager for expert mode")
-		err = hyperscaler2.DeletePasswordFromCacheAndSecretManager(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
+		err = vsa.DeletePasswordFromCacheAndSecretManager(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1628,7 +1628,7 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 
 func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (*string, error) {
 	activity.RecordHeartbeat(ctx, "Starting GetOntapVersion activity")
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -2193,7 +2193,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 			activity.RecordHeartbeat(ctx, fmt.Sprintf("Creating DNS records for HA pair %d - cluster: %s", i+1, clusterName))
 			IpaddressVm1 := details.VM1.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
 			haPairNode1 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+1, clusterName, env.VsaDeployedDnsName)
-			record1, err := hyperscaler2.GetOrCreateCloudDNSRecord(gcpService, haPairNode1, IpaddressVm1)
+			record1, err := vsa.GetOrCreateCloudDNSRecord(gcpService, haPairNode1, IpaddressVm1)
 			if err != nil {
 				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err))
 			}
@@ -2201,7 +2201,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 
 			IpaddressVm2 := details.VM2.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
 			haPairNode2 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+2, clusterName, env.VsaDeployedDnsName)
-			record2, err := hyperscaler2.GetOrCreateCloudDNSRecord(gcpService, haPairNode2, IpaddressVm2)
+			record2, err := vsa.GetOrCreateCloudDNSRecord(gcpService, haPairNode2, IpaddressVm2)
 			if err != nil {
 				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err))
 			}
@@ -2223,7 +2223,7 @@ func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[st
 			// Record heartbeat before deleting DNS record to track progress
 			activity.RecordHeartbeat(ctx, fmt.Sprintf("Deleting DNS record for host: %s", host))
 			// Check if the node is already deleted
-			err = hyperscaler2.DeleteCloudDNSRecord(gcpService, host)
+			err = vsa.DeleteCloudDNSRecord(gcpService, host)
 			if err != nil {
 				util.GetLogger(ctx).Errorf("Failed to delete DNS record for host %s: %v", host, err)
 				return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -2300,7 +2300,7 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		ExternalCertificate: pool.PoolCredentials.ExternalCertificate,
 	}
 
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -2498,14 +2498,14 @@ func (j *PoolActivity) DeleteAllPoolVPGs(ctx context.Context, pool *datamodel.Po
 
 	var provider vsa.Provider
 	if len(dbNodes) > 0 {
-		node := hyperscaler2.CreateNodeForProvider(hyperscaler2.NodeProviderInput{
+		node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 			Nodes:            dbNodes,
 			DeploymentName:   pool.DeploymentName,
 			OntapCredentials: pool.PoolCredentials,
 		})
 		if node != nil {
 			var providerErr error
-			provider, providerErr = hyperscaler2.GetProviderByNode(ctx, node)
+			provider, providerErr = vsa.GetProviderByNode(ctx, node)
 			if providerErr != nil {
 				logger.Warn("Failed to get ONTAP provider, will skip QoS cleanup", "error", providerErr)
 			}
@@ -3098,7 +3098,7 @@ func fetchOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.Onta
 	credentials := &vlm.OntapCredentials{}
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
-		certificate, err := hyperscaler2.GetCertificateFromCacheOrSecretManager(ctx, pool.PoolCredentials)
+		certificate, err := vsa.GetCertificateFromCacheOrSecretManager(ctx, pool.PoolCredentials)
 		if err != nil {
 			return nil, err
 		}
@@ -3108,7 +3108,7 @@ func fetchOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.Onta
 		credentials.Certificate.InterMediateCertificate = certificate.InterMediateCertificates
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
-		secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
+		secret, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
 		if err != nil {
 			return nil, err
 		}
@@ -3131,7 +3131,7 @@ func fetchOnTapCredentialsForOCI(ctx context.Context, pool *datamodel.Pool) (*vl
 		// TODO: add env.USER_CERTIFICATE case when certificate-based auth is supported for OCI
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
-		secret, err := hyperscaler2.GetPasswordFromCacheOrOCIVault(ctx, pool.PoolCredentials.ExternalSecret)
+		secret, err := vsa.GetPasswordFromCacheOrOCIVault(ctx, pool.PoolCredentials.ExternalSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -3156,7 +3156,7 @@ func fetchExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm
 		if pool.PoolCredentials != nil {
 			expertPoolCredentials.CaURI = pool.PoolCredentials.CaURI
 		}
-		certificate, err := hyperscaler2.GetCertificateFromCacheOrSecretManager(ctx, expertPoolCredentials)
+		certificate, err := vsa.GetCertificateFromCacheOrSecretManager(ctx, expertPoolCredentials)
 		if err != nil {
 			return nil, err
 		}
@@ -3165,7 +3165,7 @@ func fetchExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm
 		credentials.Certificate.PrivateKey = certificate.PrivateKey
 		credentials.Certificate.InterMediateCertificate = certificate.InterMediateCertificates
 	case env.USERNAME_PWD_SEC_MGR:
-		secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
+		secret, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
 		if err != nil {
 			return nil, err
 		}

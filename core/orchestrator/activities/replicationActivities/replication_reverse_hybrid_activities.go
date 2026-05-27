@@ -7,15 +7,14 @@ import (
 	"strings"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -97,7 +96,7 @@ func (a *ReverseHybridReplicationActivity) CheckClusterPeerHealthForHybridRevers
 	result.ClusterPeeringRow = clusterPeering
 
 	// Get provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		logger.Errorf("Failed to get provider from node: %v", err)
 		return nil, errors.WrapAsTemporalApplicationError(errors.NewVCPError(errors.ErrClusterPeerNotFound, fmt.Errorf("cluster peer not found in provider: %v", err)))
@@ -137,7 +136,7 @@ func (a *ReverseHybridReplicationActivity) UpdateRbacRoleForHybridReverse(ctx co
 	}
 
 	// Get provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		logger.Errorf("Failed to get provider from node: %v", err)
 		return nil, errors.WrapAsTemporalApplicationError(err)
@@ -313,7 +312,7 @@ func (a *ReverseHybridReplicationActivity) ListSnapmirrorDestinationsForHybridRe
 	}
 
 	// Get provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		logger.Errorf("Failed to get provider from node: %v", err)
 		return nil, errors.WrapAsTemporalApplicationError(err)
@@ -490,7 +489,7 @@ func (a *ReverseHybridReplicationActivity) GetNodeProviderForHybridReverse(ctx c
 		return nil, errors.NewVCPError(errors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %d", result.DbVolReplication.Volume.PoolID))
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:            nodes,
 		DeploymentName:   result.DbVolReplication.Volume.Pool.DeploymentName,
 		OntapCredentials: result.DbVolReplication.Volume.Pool.PoolCredentials,

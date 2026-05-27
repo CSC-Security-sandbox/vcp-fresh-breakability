@@ -16,10 +16,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaCoreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -3768,21 +3768,21 @@ func TestV1betaGetMultipleKmsConfigs_SdeOverlapMerge(t *testing.T) {
 	kmsConfigs := []*datamodel.KmsConfig{
 		{
 			BaseModel: datamodel.BaseModel{UUID: uuidVCPError, DeletedAt: nil},
-			Name: "kms-err", ResourceID: "res-vcp-err", ServiceAccountID: &saID,
+			Name:      "kms-err", ResourceID: "res-vcp-err", ServiceAccountID: &saID,
 			State: vsaCoreModels.LifeCycleStateError, StateDetails: "vcp-only-error-detail",
 			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{UUID: uuidVCPInUse, DeletedAt: nil},
-			Name: "kms-inuse", ResourceID: "res-vcp-inuse", ServiceAccountID: &saID,
+			Name:      "kms-inuse", ResourceID: "res-vcp-inuse", ServiceAccountID: &saID,
 			State: vsaCoreModels.LifeCycleStateInUse, StateDetails: "db-in-use-details",
 			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
 		},
 		{
 			BaseModel: datamodel.BaseModel{UUID: uuidVCPReady, DeletedAt: nil},
-			Name: "kms-ready", ResourceID: "res-vcp-ready", ServiceAccountID: &saID,
+			Name:      "kms-ready", ResourceID: "res-vcp-ready", ServiceAccountID: &saID,
 			State: vsaCoreModels.LifeCycleStateREADY, StateDetails: vsaCoreModels.LifeCycleStateReadyDetails,
 			KeyRing: "kr", KeyRingLocation: "us-east4", KeyName: "kn", KeyProjectID: "kp", CustomerProjectID: "cp",
 			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sde@example.com"},
@@ -3827,9 +3827,9 @@ func TestV1betaGetMultipleKmsConfigs_SdeOverlapMerge(t *testing.T) {
 
 	handler := Handler{Orchestrator: orchInstance}
 	params := gcpgenserver.V1betaGetMultipleKmsConfigsParams{
-		LocationId:       "us-east4",
-		ProjectNumber:    "12345",
-		XCorrelationID:   gcpgenserver.NewOptString("corr-id"),
+		LocationId:     "us-east4",
+		ProjectNumber:  "12345",
+		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
 	}
 	req := &gcpgenserver.KmsConfigIdListV1beta{
 		KmsConfigIds: []string{uuidVCPError, uuidVCPInUse, uuidVCPReady},

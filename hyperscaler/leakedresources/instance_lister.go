@@ -3,18 +3,19 @@ package leakedresources
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/vmscan"
+	"strings"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	googlehyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"google.golang.org/api/compute/v1"
-	"strings"
 )
 
 // InstanceLister lists GCE instances across every zone in a project using the
 // Compute API's aggregated list endpoint. It runs inside the worker pod
 // activity (whose GSA holds compute permissions).
 type InstanceLister interface {
-	ListInstances(ctx context.Context, projectID string) ([]vmscan.GCEInstanceItem, error)
+	ListInstances(ctx context.Context, projectID string) ([]hyperscalermodels.GCEInstance, error)
 }
 
 // buildGcpServiceForInstanceLister mirrors the address-lister factory pattern
@@ -49,7 +50,7 @@ type gcpInstanceLister struct {
 	svc computeServiceGetter
 }
 
-func (l *gcpInstanceLister) ListInstances(ctx context.Context, projectID string) ([]vmscan.GCEInstanceItem, error) {
+func (l *gcpInstanceLister) ListInstances(ctx context.Context, projectID string) ([]hyperscalermodels.GCEInstance, error) {
 	if l == nil || l.svc == nil {
 		return nil, fmt.Errorf("instance lister not initialized")
 	}
@@ -58,7 +59,7 @@ func (l *gcpInstanceLister) ListInstances(ctx context.Context, projectID string)
 		return nil, err
 	}
 
-	var out []vmscan.GCEInstanceItem
+	var out []hyperscalermodels.GCEInstance
 	err = computeSvc.Instances.AggregatedList(projectID).Pages(ctx, func(resp *compute.InstanceAggregatedList) error {
 		for scopeKey, scopedList := range resp.Items {
 			zone := zoneFromScopeKey(scopeKey)
@@ -66,7 +67,7 @@ func (l *gcpInstanceLister) ListInstances(ctx context.Context, projectID string)
 				if vm == nil {
 					continue
 				}
-				out = append(out, vmscan.GCEInstanceItem{
+				out = append(out, hyperscalermodels.GCEInstance{
 					Project:           projectID,
 					Zone:              zone,
 					Name:              vm.Name,

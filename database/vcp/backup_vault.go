@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -37,8 +36,8 @@ func (d *DataStoreRepository) DeleteBackupVaultInVCP(ctx context.Context, backup
 	}
 
 	dbBackupVault.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	dbBackupVault.LifeCycleState = models.LifeCycleStateDeleted
-	dbBackupVault.LifeCycleStateDetails = models.LifeCycleStateDeletedDetails
+	dbBackupVault.LifeCycleState = datamodel.LifeCycleStateDeleted
+	dbBackupVault.LifeCycleStateDetails = datamodel.LifeCycleStateDeletedDetails
 	err = tx.Save(dbBackupVault).Error
 	if err != nil {
 		return nil, err
@@ -316,8 +315,8 @@ func (d *DataStoreRepository) CreatingBackupVault(ctx context.Context, bv *datam
 	err1 := tx.Where("name = ?", bv.Name).Where("account_id = ?", bv.AccountID).First(&dbBackupVault).Error
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
 		bv.UUID = utils.RandomUUID()
-		bv.LifeCycleState = models.LifeCycleStateCreating
-		bv.LifeCycleStateDetails = models.LifeCycleStateCreatingDetails
+		bv.LifeCycleState = datamodel.LifeCycleStateCreating
+		bv.LifeCycleStateDetails = datamodel.LifeCycleStateCreatingDetails
 		bv.CreatedAt = time.Now()
 		bv.UpdatedAt = bv.CreatedAt
 		err = tx.Create(&bv).Error
@@ -403,7 +402,7 @@ func (d *DataStoreRepository) GetCmekRotationJobStatuses(ctx context.Context, st
 
 	err := db.Model(&datamodel.Job{}).
 		Select(selectClause).
-		Where("type = ? AND updated_at >= ? AND updated_at <= ? AND deleted_at IS NULL", models.JobTypeRotateCmekBackups, startTime, endTime).
+		Where("type = ? AND updated_at >= ? AND updated_at <= ? AND deleted_at IS NULL", datamodel.JobTypeRotateCmekBackups, startTime, endTime).
 		Where(resourceUUIDFilter + " AND resource_name IS NOT NULL AND resource_name != '' AND (job_attributes->>'location') IS NOT NULL AND (job_attributes->'kms_attributes'->>'new_kms_key_url') IS NOT NULL AND (job_attributes->'kms_attributes'->>'account_identifier') IS NOT NULL").
 		Order("updated_at").
 		Limit(limit).

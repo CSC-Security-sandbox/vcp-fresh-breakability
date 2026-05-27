@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
@@ -113,8 +112,8 @@ func deleteActiveDirectory(db *gorm.DB, uuid string) error {
 	}
 
 	// Update the state to Deleted before soft deleting
-	ad.State = models.LifeCycleStateDeleted
-	ad.StateDetails = models.LifeCycleStateDeletedDetails
+	ad.State = datamodel.LifeCycleStateDeleted
+	ad.StateDetails = datamodel.LifeCycleStateDeletedDetails
 	ad.Username = ""
 	ad.CredentialPath = ""
 	ad.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}

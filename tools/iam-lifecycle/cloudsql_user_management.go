@@ -81,10 +81,10 @@ func createCloudSQLIAMUserWithRetry(ctx context.Context, service *sqladmin.Servi
 			lastErr = err
 			if attempt < maxRetries {
 				backoff := time.Duration(attempt*attempt) * time.Second // 1s, 4s, 9s
-				slog.Warn("retryable error creating IAM user, retrying", 
-					"user", iamUser, 
-					"attempt", attempt, 
-					"max_retries", maxRetries, 
+				slog.Warn("retryable error creating IAM user, retrying",
+					"user", iamUser,
+					"attempt", attempt,
+					"max_retries", maxRetries,
 					"backoff", backoff,
 					"error", err)
 				time.Sleep(backoff)
@@ -120,7 +120,7 @@ func isRetryableAPIError(err error) bool {
 		return false
 	}
 	errMsg := err.Error()
-	
+
 	// Retryable HTTP status codes
 	retryableErrors := []string{
 		"429", // Too Many Requests (rate limit)
@@ -134,7 +134,7 @@ func isRetryableAPIError(err error) bool {
 		"temporarily unavailable",
 		"timeout",
 	}
-	
+
 	for _, retryable := range retryableErrors {
 		if strings.Contains(errMsg, retryable) {
 			return true

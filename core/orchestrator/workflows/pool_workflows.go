@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
@@ -17,10 +15,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -486,7 +486,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:            dbNodes,
 		DeploymentName:   pool.DeploymentName,
 		OntapCredentials: pool.PoolCredentials,
@@ -1146,7 +1146,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:            dbNodes,
 		DeploymentName:   pool.DeploymentName,
 		OntapCredentials: pool.PoolCredentials,
@@ -2478,7 +2478,7 @@ func runPoolQosTypeTransitionAutoToManual(
 		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
 		return ConvertToVSAError(err)
 	}
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:            dbNodes,
 		DeploymentName:   pool.DeploymentName,
 		OntapCredentials: pool.PoolCredentials,
@@ -2602,7 +2602,7 @@ func runPoolQosTypeTransitionManualToAuto(
 		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
 		return ConvertToVSAError(err)
 	}
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:            dbNodes,
 		DeploymentName:   pool.DeploymentName,
 		OntapCredentials: pool.PoolCredentials,

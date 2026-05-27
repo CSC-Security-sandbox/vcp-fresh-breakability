@@ -9,14 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -997,12 +996,12 @@ func Test_UpdateRQuotaOnSvm(t *testing.T) {
 		node := &models.Node{}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1021,12 +1020,12 @@ func Test_UpdateRQuotaOnSvm(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1046,12 +1045,12 @@ func Test_UpdateRQuotaOnSvm(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1069,12 +1068,12 @@ func Test_UpdateRQuotaOnSvm(t *testing.T) {
 		node := &models.Node{}
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -1093,12 +1092,12 @@ func Test_UpdateRQuotaOnSvm(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		expectedError := errors.New("failed to modify rquota")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1136,12 +1135,12 @@ func Test_HandleDefaultQuotaRuleUpdate(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1176,12 +1175,12 @@ func Test_HandleDefaultQuotaRuleUpdate(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1218,12 +1217,12 @@ func Test_HandleDefaultQuotaRuleUpdate(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1250,12 +1249,12 @@ func Test_HandleDefaultQuotaRuleUpdate(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1283,12 +1282,12 @@ func Test_HandleDefaultQuotaRuleUpdate(t *testing.T) {
 		diskLimitInKibs := int64(1048576)
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -1318,12 +1317,12 @@ func Test_HandleDefaultQuotaRuleUpdate(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1358,12 +1357,12 @@ func Test_HandleDefaultQuotaRuleUpdate(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1399,12 +1398,12 @@ func Test_HandleDefaultQuotaRuleUpdate(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1451,12 +1450,12 @@ func Test_CreateQuotaRuleOnONTAP(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1494,12 +1493,12 @@ func Test_CreateQuotaRuleOnONTAP(t *testing.T) {
 		quotaRule := &datamodel.QuotaRule{}
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -1523,12 +1522,12 @@ func Test_CreateQuotaRuleOnONTAP(t *testing.T) {
 		quotaRule := &datamodel.QuotaRule{}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1555,12 +1554,12 @@ func Test_CreateQuotaRuleOnONTAP(t *testing.T) {
 		quotaRule := &datamodel.QuotaRule{}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1594,12 +1593,12 @@ func Test_CreateQuotaRuleOnONTAP(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		expectedError := errors.New("failed to create quota rule")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1636,12 +1635,12 @@ func Test_CreateQuotaRuleOnONTAP(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1680,12 +1679,12 @@ func Test_GetQuotaStatus(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1715,12 +1714,12 @@ func Test_GetQuotaStatus(t *testing.T) {
 		}
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -1743,12 +1742,12 @@ func Test_GetQuotaStatus(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1774,12 +1773,12 @@ func Test_GetQuotaStatus(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		expectedError := errors.New("failed to get quota status")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1807,12 +1806,12 @@ func Test_GetQuotaStatus(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1853,12 +1852,12 @@ func Test_QuotaReinitialization(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1890,12 +1889,12 @@ func Test_QuotaReinitialization(t *testing.T) {
 		}
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -1920,12 +1919,12 @@ func Test_QuotaReinitialization(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1952,12 +1951,12 @@ func Test_QuotaReinitialization(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1991,12 +1990,12 @@ func Test_QuotaReinitialization(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2040,12 +2039,12 @@ func Test_HandleQuotaEnableDisable(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2074,12 +2073,12 @@ func Test_HandleQuotaEnableDisable(t *testing.T) {
 		}
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -2102,12 +2101,12 @@ func Test_HandleQuotaEnableDisable(t *testing.T) {
 		}
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2136,12 +2135,12 @@ func Test_HandleQuotaEnableDisable(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		expectedError := errors.New("failed to enable quota")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2855,12 +2854,12 @@ func Test_HandleDefaultQuotaRuleUpdate_QuotaTypeMismatch(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2911,12 +2910,12 @@ func Test_HandleDefaultQuotaRuleUpdate_QuotaTypeMismatch(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -3917,12 +3916,12 @@ func Test_GetOntapQuotaUUID(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -3949,12 +3948,12 @@ func Test_GetOntapQuotaUUID(t *testing.T) {
 		target := "1000"
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -3980,12 +3979,12 @@ func Test_GetOntapQuotaUUID(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4014,12 +4013,12 @@ func Test_GetOntapQuotaUUID(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4051,12 +4050,12 @@ func Test_GetOntapQuotaUUID(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4091,12 +4090,12 @@ func Test_GetOntapQuotaUUID(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4133,12 +4132,12 @@ func Test_GetOntapQuotaUUID(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4167,12 +4166,12 @@ func Test_UpdateQuotaRulesOnOntap(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4198,12 +4197,12 @@ func Test_UpdateQuotaRulesOnOntap(t *testing.T) {
 		diskLimitInKibs := int64(2097152)
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -4223,12 +4222,12 @@ func Test_UpdateQuotaRulesOnOntap(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4250,12 +4249,12 @@ func Test_UpdateQuotaRulesOnOntap(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4281,12 +4280,12 @@ func Test_UpdateQuotaRulesOnOntap(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4319,12 +4318,12 @@ func Test_RevertQuotaRulesOnSource(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4350,12 +4349,12 @@ func Test_RevertQuotaRulesOnSource(t *testing.T) {
 		originalDiskLimitInKib := int64(1048576)
 		expectedError := errors.New("failed to create provider")
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -4375,12 +4374,12 @@ func Test_RevertQuotaRulesOnSource(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4402,12 +4401,12 @@ func Test_RevertQuotaRulesOnSource(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -6787,12 +6786,12 @@ func TestDeleteQuotaRuleOnOntap(t *testing.T) {
 	t.Run("WhenDeleteQuotaRuleOnOntapSucceeds", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -6811,13 +6810,13 @@ func TestDeleteQuotaRuleOnOntap(t *testing.T) {
 	})
 
 	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		expectedError := errors.New("failed to create provider")
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -6830,12 +6829,12 @@ func TestDeleteQuotaRuleOnOntap(t *testing.T) {
 	t.Run("WhenDeleteQuotaRuleFails", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -6852,12 +6851,12 @@ func TestDeleteQuotaRuleOnOntap(t *testing.T) {
 	t.Run("WhenDeleteQuotaRuleReturnsFailureStatus", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7507,12 +7506,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7557,12 +7556,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7609,12 +7608,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7661,12 +7660,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7713,12 +7712,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7757,12 +7756,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7812,12 +7811,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7867,12 +7866,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7908,12 +7907,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -7946,13 +7945,13 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 			},
 		}
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		expectedError := errors.New("failed to create provider")
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return nil, expectedError
 		}
 
@@ -7978,12 +7977,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -8010,12 +8009,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -8044,12 +8043,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -8081,12 +8080,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -8128,12 +8127,12 @@ func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

@@ -3,12 +3,11 @@ package replicationActivities
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -19,7 +18,7 @@ type InternalVolumeReplicationDeleteActivity struct {
 
 func (a *InternalVolumeReplicationDeleteActivity) DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node, isCleanup bool) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -39,7 +38,7 @@ func (a *InternalVolumeReplicationDeleteActivity) DeleteVolumeReplication(ctx co
 
 func (a *InternalVolumeReplicationDeleteActivity) CleanupReplicationAfterReverse(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}

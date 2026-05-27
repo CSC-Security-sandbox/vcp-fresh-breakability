@@ -8,10 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -54,12 +53,12 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 
 		if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
 			// This is volume restore case
-			volume.State = models.LifeCycleStateRestoring
-			volume.StateDetails = models.LifeCycleStateRestoringDetails
+			volume.State = datamodel.LifeCycleStateRestoring
+			volume.StateDetails = datamodel.LifeCycleStateRestoringDetails
 		} else if volume.State == "" {
 			// Normal volume creation case
-			volume.State = models.LifeCycleStateCreating
-			volume.StateDetails = models.LifeCycleStateCreatingDetails
+			volume.State = datamodel.LifeCycleStateCreating
+			volume.StateDetails = datamodel.LifeCycleStateCreatingDetails
 		}
 		volume.CreatedAt = time.Now()
 		volume.UpdatedAt = volume.CreatedAt
@@ -155,8 +154,8 @@ func (d *DataStoreRepository) RevertedVolume(ctx context.Context, volume *datamo
 		return nil, err
 	}
 
-	volume.State = models.LifeCycleStateREADY
-	volume.StateDetails = models.LifeCycleStateAvailableDetails
+	volume.State = datamodel.LifeCycleStateREADY
+	volume.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	err = tx.Unscoped().Save(volume).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -183,7 +182,7 @@ func revertDeleteSnapshots(ctx context.Context, db *gorm.DB, volumeID int64, sna
 	result := db.Exec(
 		"UPDATE snapshots SET deleted_at = CURRENT_TIMESTAMP, state = ?, state_details = ? "+
 			"WHERE volume_id = ? AND created_at > (SELECT created_at FROM snapshots WHERE uuid = ?)",
-		models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails,
+		datamodel.LifeCycleStateDeleted, datamodel.LifeCycleStateDeletedDetails,
 		volumeID, snapshotID,
 	)
 	if result.Error != nil {
@@ -413,8 +412,8 @@ func (d *DataStoreRepository) DeleteVolumeAndChildResources(ctx context.Context,
 			BaseModel: datamodel.BaseModel{
 				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
 			},
-			State:        models.LifeCycleStateDeleted,
-			StateDetails: models.LifeCycleStateDeletedDetails,
+			State:        datamodel.LifeCycleStateDeleted,
+			StateDetails: datamodel.LifeCycleStateDeletedDetails,
 		}).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -459,7 +458,7 @@ func _deleteVolume(db *gorm.DB, volumeUUID string) (*datamodel.Volume, error) {
 	// Prepare updates map
 	updates := map[string]interface{}{
 		"deleted_at":    &gorm.DeletedAt{Time: time.Now(), Valid: true},
-		"state":         models.LifeCycleStateDeleted,
+		"state":         datamodel.LifeCycleStateDeleted,
 		"state_details": "",
 	}
 
@@ -476,7 +475,7 @@ func _deleteVolume(db *gorm.DB, volumeUUID string) (*datamodel.Volume, error) {
 
 	// Update the in-memory struct to reflect the changes
 	volume.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	volume.State = models.LifeCycleStateDeleted
+	volume.State = datamodel.LifeCycleStateDeleted
 	volume.StateDetails = ""
 	if needsVPGDereference {
 		volume.VolumePerformanceGroupID = sql.NullInt64{Valid: false}
@@ -937,10 +936,10 @@ func getActivePrepopulateJobs(db *gorm.DB) ([]*datamodel.Job, error) {
 	var jobs []*datamodel.Job
 
 	err := db.
-		Where("type = ?", models.JobTypeFlexCachePrePopulate).
+		Where("type = ?", datamodel.JobTypeFlexCachePrePopulate).
 		Where("state IN ?", []string{
-			string(models.JobsStateNEW),
-			string(models.JobsStatePROCESSING),
+			string(datamodel.JobsStateNEW),
+			string(datamodel.JobsStatePROCESSING),
 		}).
 		Order("created_at ASC"). // Process oldest jobs first
 		Find(&jobs).Error

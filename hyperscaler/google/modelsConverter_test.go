@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/dns/v1"
@@ -422,7 +422,7 @@ func Test_getFirewallAllowedRulesGCP(t *testing.T) {
 
 		assert.Equal(tt, expected, result, "Expected result to match the allowedPortRules")
 	})
-	
+
 	t.Run("WhenAllowedPortRulesHasPortRanges", func(tt *testing.T) {
 		allowedPortRules := []string{"tcp", "111", "635", "2049", "4045", "udp", "111", "4046", "63001-65000"}
 		result := getFirewallAllowedRulesGCP(allowedPortRules)

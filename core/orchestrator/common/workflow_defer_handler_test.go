@@ -30,7 +30,7 @@ func TestExecuteDeferredCleanup_NoErrorAndNotCancelled_ReturnsEarly(t *testing.T
 		cancelled: false,
 	}
 	rollbackManager := NewRollbackManager()
-	
+
 	// Add an activity that should not be called
 	// Note: This is a workflow function that will be executed via workflow.ExecuteActivity
 	// We don't register it as an activity because it's not a real activity function

@@ -26,7 +26,7 @@ var UnitTestCmd = &cobra.Command{
 
 // workspaceModules lists every module participating in go.work. Keep this in
 // sync with go.work and the WORKSPACE_MODULES variable in the root Makefile.
-var workspaceModules = []string{".", "cicd", "core"}
+var workspaceModules = []string{".", "cicd", "core", "database", "hyperscaler", "lib", "vcp-core"}
 
 const coverageFile = "coverage.out"
 const excludeFile = "./cicd/cmd/unit-test/exclude-from-code-coverage"

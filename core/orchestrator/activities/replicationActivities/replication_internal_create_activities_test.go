@@ -6,12 +6,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -35,10 +34,10 @@ func TestSafeRecordHeartbeat_DoesNotPanicOutsideActivityContext(t *testing.T) {
 func TestCreateVolumeReplicationInternal(t *testing.T) {
 	t.Run("WhenGetProviderByNodeError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("get provider error")
 		}
 
@@ -71,10 +70,10 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 	})
 	t.Run("WhenError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -108,10 +107,10 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

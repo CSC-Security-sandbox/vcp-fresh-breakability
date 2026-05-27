@@ -250,10 +250,10 @@ func runPlanForPR(prNumber int, ticket string) error {
 	var existingPlan *planner.Plan
 	var planExists bool
 	var planExpired bool
-	
+
 	if existingPlanFile != nil {
 		logger.Info("Checking existing plan validity...\n")
-		
+
 		// Fetch the actual file content
 		fileContent, err := ghClient.GetPRFile(ctx, owner, repo, pr.HeadBranch, planFilename)
 		if err == nil && fileContent != nil {
@@ -262,7 +262,7 @@ func runPlanForPR(prNumber int, ticket string) error {
 			var existingPlanData planner.Plan
 			if err := parseFirstJSON([]byte(fileContent.Content), &existingPlanData); err == nil {
 				existingPlan = &existingPlanData
-				
+
 				// Check if SQL has changed by comparing file hash
 				currentFileHash := computeFileHash(content)
 				if existingPlan.Source.FileHash != currentFileHash {
@@ -281,7 +281,7 @@ func runPlanForPR(prNumber int, ticket string) error {
 					logger.Info(fmt.Sprintf("Found valid existing plan (expires at %s)\n", existingPlan.ExpiresAt.Format(time.RFC3339)))
 					logger.Info(fmt.Sprintf("SQL unchanged (hash: %s)\n", currentFileHash[:12]))
 					logger.Info("")
-					
+
 					// Use existing plan
 					printBox("USING EXISTING PLAN FROM PR")
 					logger.Info("")
@@ -294,7 +294,7 @@ func runPlanForPR(prNumber int, ticket string) error {
 					logger.Info("Next steps:\n")
 					logger.Info("  1. Get the PR reviewed, approved, and merged\n")
 					logger.Info(fmt.Sprintf("  2. Run: safesql apply --pr %d\n", prNumber))
-					
+
 					return nil
 				}
 			}
@@ -308,7 +308,7 @@ func runPlanForPR(prNumber int, ticket string) error {
 
 	// Create commit suggestion for the plan
 	logger.Info("")
-	
+
 	planJSON, err := json.MarshalIndent(plan, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal plan: %w", err)
@@ -316,13 +316,13 @@ func runPlanForPR(prNumber int, ticket string) error {
 
 	var reviewMessage string
 	var actionMessage string
-	
+
 	// Check if SQL changed
 	sqlChanged := false
 	if existingPlan != nil && existingPlan.Source.FileHash != plan.Source.FileHash {
 		sqlChanged = true
 	}
-	
+
 	if planExists && sqlChanged {
 		// SQL changed - need new plan
 		logger.Info("Creating commit suggestion to UPDATE plan (SQL changed)...\n")

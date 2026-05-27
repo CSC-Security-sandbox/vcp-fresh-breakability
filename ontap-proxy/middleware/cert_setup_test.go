@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalergoogle "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
@@ -222,7 +223,7 @@ func TestEnsureCertificateOrPassword_ErrorCases(t *testing.T) {
 	})
 
 	t.Run("WhenPasswordFetchFails_ShouldReturnError", func(t *testing.T) {
-		hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", assert.AnError
 		}
 		defer restoreMocks()

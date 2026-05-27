@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -27,8 +26,8 @@ func TestUpdateServiceAccountEmailAndKey(t *testing.T) {
 			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid"},
 			ServiceAccountEmail:            "old@email.com",
 			ServiceAccountPasswordLocation: "old-location",
-			State:                          models.AccountStateDisabled,
-			StateDetails:                   models.LifeCycleStateCreatingDetails,
+			State:                          datamodel.AccountStateDisabled,
+			StateDetails:                   datamodel.LifeCycleStateCreatingDetails,
 		}
 		err = store.db.Create(sa).Error()
 		assert.NoError(t, err)
@@ -37,8 +36,8 @@ func TestUpdateServiceAccountEmailAndKey(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "new@email.com", result.ServiceAccountEmail)
 		assert.NotEqual(t, "old-location", result.ServiceAccountPasswordLocation)
-		assert.Equal(t, models.AccountStateDisabled, result.State)
-		assert.Equal(t, models.LifeCycleStateCreatingDetails, result.StateDetails)
+		assert.Equal(t, datamodel.AccountStateDisabled, result.State)
+		assert.Equal(t, datamodel.LifeCycleStateCreatingDetails, result.StateDetails)
 	})
 	t.Run("UpdateServiceAccountEmailAndKeyReturnsErrorIfAccountNotFound", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -123,7 +122,7 @@ func TestDeleteServiceAccount(t *testing.T) {
 		sa := &datamodel.ServiceAccount{
 			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
 			ServiceAccountEmail: "test@email.com",
-			State:               models.AccountStateEnabled,
+			State:               datamodel.AccountStateEnabled,
 			StateDetails:        "active",
 		}
 		err = store.db.Create(sa).Error()
@@ -135,8 +134,8 @@ func TestDeleteServiceAccount(t *testing.T) {
 		var updated datamodel.ServiceAccount
 		err = store.db.Where("uuid = ?", "sa-uuid").First(&updated).Error()
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateDisabled, updated.State)
-		assert.Equal(tt, models.LifeCycleStateDisabledDetails, updated.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDisabled, updated.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDisabledDetails, updated.StateDetails)
 	})
 }
 

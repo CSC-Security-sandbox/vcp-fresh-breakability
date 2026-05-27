@@ -10,8 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	vcputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -1064,15 +1063,15 @@ func TestUpdatingBackupVaultState(tt *testing.T) {
 			Name:                  "test_backup_vault",
 			AccountID:             account.ID,
 			Account:               account,
-			LifeCycleState:        models.LifeCycleStateAvailable,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.db.Create(backupVault).Error()
 		if err != nil {
 			t.Fatalf("Failed to create backup vault: %v", err)
 		}
 
-		bv, err := store.UpdateBackupVaultState(context.Background(), backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+		bv, err := store.UpdateBackupVaultState(context.Background(), backupVault, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails)
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -1081,8 +1080,8 @@ func TestUpdatingBackupVaultState(tt *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to retrieve updated backup vault: %v", err)
 		}
-		assert.Equal(t, models.LifeCycleStateUpdating, result.LifeCycleState)
-		assert.Equal(t, models.LifeCycleStateUpdatingDetails, result.LifeCycleStateDetails)
+		assert.Equal(t, datamodel.LifeCycleStateUpdating, result.LifeCycleState)
+		assert.Equal(t, datamodel.LifeCycleStateUpdatingDetails, result.LifeCycleStateDetails)
 		assert.NotNil(t, bv)
 	})
 }
@@ -1234,8 +1233,8 @@ func TestDeletesBackupVaultSuccessfully(tt *testing.T) {
 		Name:                  "test_backup_vault",
 		AccountID:             account.ID,
 		Account:               account,
-		LifeCycleState:        models.LifeCycleStateAvailable,
-		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		LifeCycleState:        datamodel.LifeCycleStateAvailable,
+		LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 	}
 	err = store.db.Create(backupVault).Error()
 	assert.NoError(tt, err)
@@ -1243,8 +1242,8 @@ func TestDeletesBackupVaultSuccessfully(tt *testing.T) {
 	deletedVault, err := store.DeleteBackupVaultInVCP(context.Background(), backupVault.UUID)
 	assert.NoError(tt, err)
 	assert.NotNil(tt, deletedVault)
-	assert.Equal(tt, models.LifeCycleStateDeleted, deletedVault.LifeCycleState)
-	assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedVault.LifeCycleStateDetails)
+	assert.Equal(tt, datamodel.LifeCycleStateDeleted, deletedVault.LifeCycleState)
+	assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, deletedVault.LifeCycleStateDetails)
 	assert.NotNil(tt, deletedVault.DeletedAt)
 }
 
@@ -1284,8 +1283,8 @@ func TestReturnsErrorWhenTransactionFails(tt *testing.T) {
 		Name:                  "test_backup_vault",
 		AccountID:             account.ID,
 		Account:               account,
-		LifeCycleState:        models.LifeCycleStateAvailable,
-		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		LifeCycleState:        datamodel.LifeCycleStateAvailable,
+		LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 	}
 	err = store.db.Create(backupVault).Error()
 	assert.NoError(tt, err)
@@ -1323,22 +1322,22 @@ func TestRestoreDeletedBackupVaultSuccessfully(tt *testing.T) {
 		Name:                  "test_backup_vault",
 		AccountID:             account.ID,
 		Account:               account,
-		LifeCycleState:        models.LifeCycleStateAvailable,
-		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		LifeCycleState:        datamodel.LifeCycleStateAvailable,
+		LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 	}
 	err = store.db.Create(backupVault).Error()
 	assert.NoError(tt, err)
 
 	deletedVault, err := store.DeleteBackupVaultInVCP(context.Background(), backupVault.UUID)
 	assert.NoError(tt, err)
-	assert.Equal(tt, models.LifeCycleStateDeleted, deletedVault.LifeCycleState)
+	assert.Equal(tt, datamodel.LifeCycleStateDeleted, deletedVault.LifeCycleState)
 	assert.NotNil(tt, deletedVault.DeletedAt)
 
-	restoredVault, err := store.RestoreDeletedBackupVault(context.Background(), backupVault.UUID, account.ID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+	restoredVault, err := store.RestoreDeletedBackupVault(context.Background(), backupVault.UUID, account.ID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 	assert.NoError(tt, err)
 	assert.NotNil(tt, restoredVault)
-	assert.Equal(tt, models.LifeCycleStateREADY, restoredVault.LifeCycleState)
-	assert.Equal(tt, models.LifeCycleStateAvailableDetails, restoredVault.LifeCycleStateDetails)
+	assert.Equal(tt, datamodel.LifeCycleStateREADY, restoredVault.LifeCycleState)
+	assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, restoredVault.LifeCycleStateDetails)
 	assert.Nil(tt, restoredVault.DeletedAt)
 	assert.Equal(tt, account.Name, restoredVault.Account.Name)
 }
@@ -1353,7 +1352,7 @@ func TestRestoreDeletedBackupVaultNotFound(tt *testing.T) {
 	err = ClearInMemoryDB(store.db.GORM())
 	assert.NoError(tt, err)
 
-	_, err = store.RestoreDeletedBackupVault(context.Background(), "non-existent-uuid", int64(999), models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+	_, err = store.RestoreDeletedBackupVault(context.Background(), "non-existent-uuid", int64(999), datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 	assert.Error(tt, err)
 }
 
@@ -1373,7 +1372,7 @@ func TestRestoreDeletedBackupVaultTransactionFails(tt *testing.T) {
 		return nil, errors.New("mock transaction failure")
 	}
 
-	_, err = store.RestoreDeletedBackupVault(context.Background(), "any-uuid", int64(1), models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+	_, err = store.RestoreDeletedBackupVault(context.Background(), "any-uuid", int64(1), datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 	assert.Error(tt, err)
 	assert.Equal(tt, "mock transaction failure", err.Error())
 }
@@ -1408,8 +1407,8 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID(t *testing.T) {
 			AccountID:             account.ID,
 			Account:               account,
 			ExternalUUID:          &externalUUID,
-			LifeCycleState:        models.LifeCycleStateAvailable,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.db.Create(backupVault).Error()
 		if err != nil {

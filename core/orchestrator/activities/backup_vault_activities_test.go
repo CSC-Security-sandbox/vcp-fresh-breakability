@@ -14,14 +14,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/metricsinterface"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	retryutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
@@ -2557,7 +2557,7 @@ func TestDeleteGCPBucketsForVault(t *testing.T) {
 			AccountID: 1,
 		}
 
-		// Mock hyperscaler.GetGCPService failure
+		// Mock hyperscaler2.GetGCPService failure
 		originalGetGCPService := hyperscaler2.GetGCPService
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("GCP service initialization failed")
@@ -2583,7 +2583,7 @@ func TestDeleteGCPBucketsForVault(t *testing.T) {
 			},
 		}
 
-		// Mock hyperscaler.GetGCPService success
+		// Mock hyperscaler2.GetGCPService success
 		originalGetGCPService := hyperscaler2.GetGCPService
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
@@ -2604,7 +2604,7 @@ func TestDeleteGCPBucketsForVault(t *testing.T) {
 			BucketDetails: datamodel.BucketDetailsArray{}, // No bucket details
 		}
 
-		// Mock hyperscaler.GetGCPService success
+		// Mock hyperscaler2.GetGCPService success
 		originalGetGCPService := hyperscaler2.GetGCPService
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
@@ -2632,7 +2632,7 @@ func TestDeleteGCPBucketsForVault(t *testing.T) {
 			},
 		}
 
-		// Mock hyperscaler.GetGCPService success
+		// Mock hyperscaler2.GetGCPService success
 		originalGetGCPService := hyperscaler2.GetGCPService
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
@@ -2673,7 +2673,7 @@ func TestDeleteGCPBucketsForVault(t *testing.T) {
 			},
 		}
 
-		// Mock hyperscaler.GetGCPService to return a GCP service that will panic
+		// Mock hyperscaler2.GetGCPService to return a GCP service that will panic
 		originalGetGCPService := hyperscaler2.GetGCPService
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
@@ -2714,7 +2714,7 @@ func TestDeleteGCPBucketsForVault(t *testing.T) {
 			},
 		}
 
-		// Mock hyperscaler.GetGCPService to return a GCP service that will panic
+		// Mock hyperscaler2.GetGCPService to return a GCP service that will panic
 		originalGetGCPService := hyperscaler2.GetGCPService
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil

@@ -5,9 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -53,8 +52,8 @@ func (d *DataStoreRepository) CreateHostGroup(ctx context.Context, hostGroup *da
 		hostGroup.CreatedAt = time.Now()
 		hostGroup.UpdatedAt = hostGroup.CreatedAt
 
-		hostGroup.State = models.LifeCycleStateREADY
-		hostGroup.StateDetails = models.LifeCycleStateAvailableDetails
+		hostGroup.State = datamodel.LifeCycleStateREADY
+		hostGroup.StateDetails = datamodel.LifeCycleStateAvailableDetails
 		err := tx.Create(&hostGroup).Error
 		if err != nil {
 			return nil, err
@@ -123,7 +122,7 @@ func _deleteHostGroup(ctx context.Context, db *gorm.DB, hostGroupUUID string, ac
 	}
 
 	err = tx.Model(&hostGroup).Updates(datamodel.HostGroup{
-		State:        models.LifeCycleStateDeleted,
+		State:        datamodel.LifeCycleStateDeleted,
 		StateDetails: "",
 		BaseModel: datamodel.BaseModel{
 			DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},

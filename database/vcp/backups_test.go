@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -102,7 +102,7 @@ func TestCreateBackup(t *testing.T) {
 		result, err := store.CreateBackup(context.Background(), backup)
 		assert.NoError(tt, err)
 		assert.Equal(tt, backup.Name, result.Name)
-		assert.Equal(tt, models.LifeCycleStateCreating, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, result.State)
 	})
 
 	t.Run("ReturnsErrorWhenBackupAlreadyExists", func(tt *testing.T) {
@@ -273,7 +273,7 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
 			VolumeUUID: volumeUUID,
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -288,7 +288,7 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		result, err := store.DeleteBackup(context.Background(), backup.UUID)
 		assert.NoError(tt, err)
 		assert.Equal(tt, backup.UUID, result.UUID)
-		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, result.State)
 
 		// Verify backup chain history is now marked as deleted
 		var historyAfterDeletion datamodel.BackupChainHistory
@@ -326,12 +326,12 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		backup1 := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-1-uuid"},
 			VolumeUUID: volumeUUID,
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		backup2 := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-2-uuid"},
 			VolumeUUID: volumeUUID,
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup1).Error()
 		assert.NoError(tt, err)
@@ -342,7 +342,7 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		result, err := store.DeleteBackup(context.Background(), backup1.UUID)
 		assert.NoError(tt, err)
 		assert.Equal(tt, backup1.UUID, result.UUID)
-		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, result.State)
 
 		// Verify backup chain history is still NOT deleted
 		var historyAfterDeletion datamodel.BackupChainHistory
@@ -365,7 +365,7 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
 			VolumeUUID: "test-volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -374,7 +374,7 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		result, err := store.DeleteBackup(context.Background(), backup.UUID)
 		assert.NoError(tt, err)
 		assert.Equal(tt, backup.UUID, result.UUID)
-		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, result.State)
 	})
 
 	t.Run("HandlesBackupCountQueryError", func(tt *testing.T) {
@@ -391,7 +391,7 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
 			VolumeUUID: "test-volume-uuid",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -435,7 +435,7 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
 			VolumeUUID: volumeUUID,
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -448,7 +448,7 @@ func TestDeleteBackup_BackupChainHistory(t *testing.T) {
 		result, err := store.DeleteBackup(context.Background(), backup.UUID)
 		assert.NoError(tt, err) // Should not fail even if history update fails
 		assert.Equal(tt, backup.UUID, result.UUID)
-		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, result.State)
 	})
 }
 
@@ -607,7 +607,7 @@ func TestFinishBackup_BackupChainHistoryUpdate(t *testing.T) {
 		logicalSize := int64(1024 * 1024 * 1024) // 1GB
 		finishBackup := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: logicalSize,
 		}
 
@@ -651,7 +651,7 @@ func TestFinishBackup_BackupChainHistoryUpdate(t *testing.T) {
 		// Finish backup - should succeed even without updating backup chain history
 		finishBackup := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 
@@ -697,7 +697,7 @@ func TestFinishBackup_BackupChainHistoryUpdate(t *testing.T) {
 
 		finishBackup := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 2048,
 		}
 
@@ -767,7 +767,7 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 		// Finish the backup to make it AVAILABLE
 		finishBackup := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024 * 1024 * 1024, // 1GB initial size
 		}
 		_, err = store.FinishBackup(context.Background(), finishBackup)
@@ -836,7 +836,7 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 			Name:          "available-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    volumeUUID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        "test-volume",
 				AccountIdentifier: "account-123",
@@ -848,7 +848,7 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 		// Make sure the backup is in AVAILABLE state so UpdateLatestBackupLogicalSize finds it.
 		finishBackup := &datamodel.Backup{
 			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 		_, err = store.FinishBackup(context.Background(), finishBackup)
@@ -1165,7 +1165,7 @@ func TestUpdateBackupState_Errors(t *testing.T) {
 
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 		_, err = store.UpdateBackupState(context.Background(), backup)
 		assert.Error(tt, err)
@@ -1284,7 +1284,7 @@ func TestUpdateBackupState_EdgeCases(t *testing.T) {
 
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 
 		_, err = store.UpdateBackupState(context.Background(), backup)
@@ -1326,7 +1326,7 @@ func TestUpdateBackupDescriptionSetsStateToAvailable(t *testing.T) {
 			Name:          "test-backup",
 			Description:   "Original description",
 			BackupVaultID: 1,
-			State:         models.LifeCycleStateUpdating, // Using the correct internal updating state
+			State:         datamodel.LifeCycleStateUpdating, // Using the correct internal updating state
 			StateDetails:  "Updating backup",
 		}
 		err = store.db.Create(backup).Error()
@@ -1340,16 +1340,16 @@ func TestUpdateBackupDescriptionSetsStateToAvailable(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updatedBackup)
 		assert.Equal(tt, "Updated backup description", updatedBackup.Description)
-		assert.Equal(tt, models.LifeCycleStateAvailable, updatedBackup.State)
-		assert.Equal(tt, models.LifeCycleStateAvailableDetails, updatedBackup.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, updatedBackup.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, updatedBackup.StateDetails)
 
 		// Verify the backup state is persisted in database
 		var dbBackup datamodel.Backup
 		err = store.db.GORM().Where("uuid = ?", "test-backup-uuid").First(&dbBackup).Error
 		assert.NoError(tt, err)
 		assert.Equal(tt, "Updated backup description", dbBackup.Description)
-		assert.Equal(tt, models.LifeCycleStateAvailable, dbBackup.State)
-		assert.Equal(tt, models.LifeCycleStateAvailableDetails, dbBackup.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, dbBackup.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, dbBackup.StateDetails)
 	})
 }
 
@@ -1472,18 +1472,18 @@ func TestUpdateBackupState(t *testing.T) {
 
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid"},
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			StateDetails: "Creating backup",
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
 
-		backup.State = models.LifeCycleStateAvailable
+		backup.State = datamodel.LifeCycleStateAvailable
 		backup.StateDetails = "Backup available"
 
 		updatedBackup, err := store.UpdateBackupState(context.Background(), backup)
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateAvailable, updatedBackup.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, updatedBackup.State)
 		assert.Equal(tt, "Backup available", updatedBackup.StateDetails)
 	})
 
@@ -1499,7 +1499,7 @@ func TestUpdateBackupState(t *testing.T) {
 
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "non-existent-uuid"},
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			StateDetails: "Backup available",
 		}
 
@@ -1520,13 +1520,13 @@ func TestUpdateBackupState(t *testing.T) {
 
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid"},
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 			StateDetails: "Creating backup",
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
 
-		backup.State = models.LifeCycleStateAvailable
+		backup.State = datamodel.LifeCycleStateAvailable
 		backup.StateDetails = "Backup available"
 
 		// Simulate DB failure by closing the connection
@@ -1554,8 +1554,8 @@ func TestFinishBackup(t *testing.T) {
 			BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
 			Description:             "Initial description",
 			Attributes:              &datamodel.BackupAttributes{},
-			State:                   models.LifeCycleStateCreating,
-			StateDetails:            models.LifeCycleStateCreatingDetails,
+			State:                   datamodel.LifeCycleStateCreating,
+			StateDetails:            datamodel.LifeCycleStateCreatingDetails,
 			SizeInBytes:             1024,
 			LatestLogicalBackupSize: 1024,
 		}
@@ -1565,8 +1565,8 @@ func TestFinishBackup(t *testing.T) {
 		backup.Attributes = &datamodel.BackupAttributes{SnapshotID: "test-snapshot-id"}
 		finishedBackup, err := store.FinishBackup(context.Background(), backup)
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateAvailable, finishedBackup.State)
-		assert.Equal(tt, models.LifeCycleStateAvailableDetails, finishedBackup.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, finishedBackup.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, finishedBackup.StateDetails)
 		assert.Equal(tt, "Updated description", finishedBackup.Description)
 		assert.Equal(tt, backup.Attributes, finishedBackup.Attributes)
 		assert.Equal(tt, int64(1024), finishedBackup.SizeInBytes)
@@ -1607,8 +1607,8 @@ func TestFinishBackup(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid"},
 			Description:  "Initial description",
 			Attributes:   &datamodel.BackupAttributes{},
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -1641,8 +1641,8 @@ func TestIsLatestBackup(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
 			Name:         "test_backup",
 			Description:  "Test backup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			VolumeUUID:   "volume1",
 		}
 		err = store.db.Create(backup1).Error()
@@ -1652,8 +1652,8 @@ func TestIsLatestBackup(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
 			Name:         "test_backup",
 			Description:  "Test backup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			VolumeUUID:   "volume1",
 		}
 		err = store.db.Create(backup2).Error()
@@ -1677,8 +1677,8 @@ func TestIsLatestBackup(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
 			Name:         "test_backup",
 			Description:  "Test backup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			VolumeUUID:   "volume1",
 		}
 		err = store.db.Create(backup1).Error()
@@ -1688,8 +1688,8 @@ func TestIsLatestBackup(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
 			Name:         "test_backup",
 			Description:  "Test backup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			VolumeUUID:   "volume1",
 		}
 		err = store.db.Create(backup2).Error()
@@ -1714,8 +1714,8 @@ func TestIsLatestBackup(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
 			Name:         "test_backup_1",
 			Description:  "Test backup 1",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			VolumeUUID:   "volume1",
 		}
 		err = store.db.Create(backup1).Error()
@@ -1726,7 +1726,7 @@ func TestIsLatestBackup(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
 			Name:         "test_backup_2",
 			Description:  "Test backup 2",
-			State:        models.LifeCycleStateError,
+			State:        datamodel.LifeCycleStateError,
 			StateDetails: "Error in backup",
 			VolumeUUID:   "volume1",
 			Attributes: &datamodel.BackupAttributes{
@@ -1782,8 +1782,8 @@ func TestBackupCountByVolumeID(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
 			Name:         "test_backup",
 			Description:  "Test backup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			VolumeUUID:   "volume1",
 		}
 		err = store.db.Create(backup1).Error()
@@ -1793,8 +1793,8 @@ func TestBackupCountByVolumeID(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
 			Name:         "test_backup",
 			Description:  "Test backup",
-			State:        models.LifeCycleStateError,
-			StateDetails: models.LifeCycleStateCreationErrorDetails,
+			State:        datamodel.LifeCycleStateError,
+			StateDetails: datamodel.LifeCycleStateCreationErrorDetails,
 			VolumeUUID:   "volume1",
 		}
 		err = store.db.Create(backup2).Error()
@@ -2193,17 +2193,17 @@ func TestGetBackupCountByVolumeUUIDs(t *testing.T) {
 	backup1 := &datamodel.Backup{
 		BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-1"},
 		VolumeUUID: "volume-uuid-1",
-		State:      models.LifeCycleStateAvailable,
+		State:      datamodel.LifeCycleStateAvailable,
 	}
 	backup2 := &datamodel.Backup{
 		BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-2"},
 		VolumeUUID: "volume-uuid-1",
-		State:      models.LifeCycleStateAvailable,
+		State:      datamodel.LifeCycleStateAvailable,
 	}
 	backup3 := &datamodel.Backup{
 		BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-3"},
 		VolumeUUID: "volume-uuid-2",
-		State:      models.LifeCycleStateAvailable,
+		State:      datamodel.LifeCycleStateAvailable,
 	}
 	err = store.db.Create(backup1).Error()
 	assert.NoError(t, err)
@@ -2259,11 +2259,11 @@ func TestGetBackupCountByVolumeAndVault(t *testing.T) {
 
 	// Create backups: volume1 has 2 in vault1, 1 in vault2; volume2 has 1 in vault1
 	backups := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b5"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateDeleted},
+		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b5"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateDeleted},
 	}
 	for _, b := range backups {
 		err = store.db.Create(b).Error()
@@ -2327,21 +2327,21 @@ func TestGetBackupCountByVolumeVaultAndEndpoint(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "b1"},
 			VolumeUUID:    "vol-1",
 			BackupVaultID: vault1.ID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes:    &datamodel.BackupAttributes{EndpointUUID: epA},
 		},
 		{
 			BaseModel:     datamodel.BaseModel{UUID: "b2"},
 			VolumeUUID:    "vol-1",
 			BackupVaultID: vault1.ID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes:    &datamodel.BackupAttributes{EndpointUUID: epA},
 		},
 		{
 			BaseModel:     datamodel.BaseModel{UUID: "b3"},
 			VolumeUUID:    "vol-1",
 			BackupVaultID: vault1.ID,
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			Attributes:    &datamodel.BackupAttributes{EndpointUUID: epB},
 		},
 	}
@@ -2371,7 +2371,7 @@ func TestGetBackupCountByVolumeVaultAndEndpoint(t *testing.T) {
 		BaseModel:     datamodel.BaseModel{UUID: "b-no-ep"},
 		VolumeUUID:    "vol-1",
 		BackupVaultID: vault1.ID,
-		State:         models.LifeCycleStateAvailable,
+		State:         datamodel.LifeCycleStateAvailable,
 		Attributes:    &datamodel.BackupAttributes{BucketName: "b"},
 	}).Error()
 	assert.NoError(t, err)
@@ -2379,7 +2379,7 @@ func TestGetBackupCountByVolumeVaultAndEndpoint(t *testing.T) {
 		BaseModel:     datamodel.BaseModel{UUID: "b-empty-ep"},
 		VolumeUUID:    "vol-1",
 		BackupVaultID: vault1.ID,
-		State:         models.LifeCycleStateAvailable,
+		State:         datamodel.LifeCycleStateAvailable,
 		Attributes:    &datamodel.BackupAttributes{EndpointUUID: "   "},
 	}).Error()
 	assert.NoError(t, err)
@@ -2408,29 +2408,29 @@ func TestIsLatestBackupInVaultAndInEndpoint(t *testing.T) {
 	// vault2 has b4 on epA — must not influence vault1 results.
 	now := time.Now()
 	b1 := &datamodel.Backup{
-		BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1, CreatedAt: now.Add(-3 * time.Hour)},
-		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		BaseModel:  datamodel.BaseModel{UUID: "b1", ID: 1, CreatedAt: now.Add(-3 * time.Hour)},
+		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 		Attributes: &datamodel.BackupAttributes{EndpointUUID: epA},
 	}
 	b2 := &datamodel.Backup{
-		BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2, CreatedAt: now.Add(-1 * time.Hour)},
-		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		BaseModel:  datamodel.BaseModel{UUID: "b2", ID: 2, CreatedAt: now.Add(-1 * time.Hour)},
+		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 		Attributes: &datamodel.BackupAttributes{EndpointUUID: epA},
 	}
 	b3 := &datamodel.Backup{
-		BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3, CreatedAt: now.Add(-2 * time.Hour)},
-		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		BaseModel:  datamodel.BaseModel{UUID: "b3", ID: 3, CreatedAt: now.Add(-2 * time.Hour)},
+		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 		Attributes: &datamodel.BackupAttributes{EndpointUUID: epB},
 	}
 	b4 := &datamodel.Backup{
-		BaseModel: datamodel.BaseModel{UUID: "b4", ID: 4, CreatedAt: now},
-		VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable,
+		BaseModel:  datamodel.BaseModel{UUID: "b4", ID: 4, CreatedAt: now},
+		VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: datamodel.LifeCycleStateAvailable,
 		Attributes: &datamodel.BackupAttributes{EndpointUUID: epA},
 	}
 	// Error state without delete_initiated must be excluded.
 	b5 := &datamodel.Backup{
-		BaseModel: datamodel.BaseModel{UUID: "b5", ID: 5, CreatedAt: now.Add(time.Hour)},
-		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateError,
+		BaseModel:  datamodel.BaseModel{UUID: "b5", ID: 5, CreatedAt: now.Add(time.Hour)},
+		VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateError,
 		Attributes: &datamodel.BackupAttributes{EndpointUUID: epA, DeleteInitiated: false},
 	}
 	for _, b := range []*datamodel.Backup{b1, b2, b3, b4, b5} {
@@ -2466,13 +2466,13 @@ func TestIsLatestBackupInVaultAndInEndpoint(t *testing.T) {
 	t.Run("EmptyEndpointMatchesMissingOrBlank", func(t *testing.T) {
 		// Insert two backups with no/blank endpoint, plus one with a real endpoint to confirm isolation.
 		require.NoError(t, store.db.Create(&datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "b-no-ep", ID: 10, CreatedAt: now.Add(-30 * time.Minute)},
-			VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			BaseModel:  datamodel.BaseModel{UUID: "b-no-ep", ID: 10, CreatedAt: now.Add(-30 * time.Minute)},
+			VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{BucketName: "bk"},
 		}).Error())
 		require.NoError(t, store.db.Create(&datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "b-blank-ep", ID: 11, CreatedAt: now.Add(-15 * time.Minute)},
-			VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			BaseModel:  datamodel.BaseModel{UUID: "b-blank-ep", ID: 11, CreatedAt: now.Add(-15 * time.Minute)},
+			VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{EndpointUUID: "   "},
 		}).Error())
 
@@ -2515,12 +2515,12 @@ func TestBackupCountByVolumeIDVaultAndEndpoint(t *testing.T) {
 	// Two on vault1+epA (one available, one error → only available counts), one on vault1+epB,
 	// and rows with missing/blank endpoint that the empty-endpoint query must pick up.
 	rows := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
-		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
-		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateError, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
-		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epB}},
-		{BaseModel: datamodel.BaseModel{UUID: "b-no-ep"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{BucketName: "bk"}},
-		{BaseModel: datamodel.BaseModel{UUID: "b-blank-ep"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: "  "}},
+		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
+		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
+		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateError, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}},
+		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epB}},
+		{BaseModel: datamodel.BaseModel{UUID: "b-no-ep"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{BucketName: "bk"}},
+		{BaseModel: datamodel.BaseModel{UUID: "b-blank-ep"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: "  "}},
 	}
 	for _, r := range rows {
 		require.NoError(t, store.db.Create(r).Error())
@@ -2602,9 +2602,9 @@ func TestGetLatestBackupByVolumeAndVault(t *testing.T) {
 	require.NoError(t, store.db.Create(vault2).Error())
 
 	// vol-1 vault1: two backups, latest by id is b2
-	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
-	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
-	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable}
+	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable}
+	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable}
+	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: datamodel.LifeCycleStateAvailable}
 	require.NoError(t, store.db.Create(b1).Error())
 	require.NoError(t, store.db.Create(b2).Error())
 	require.NoError(t, store.db.Create(b3).Error())
@@ -2636,9 +2636,9 @@ func TestGetLatestBackupsPerVaultByVolumeUUID(t *testing.T) {
 	require.NoError(t, store.db.Create(vault1).Error())
 	require.NoError(t, store.db.Create(vault2).Error())
 
-	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
-	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
-	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable}
+	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable}
+	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable}
+	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: datamodel.LifeCycleStateAvailable}
 	require.NoError(t, store.db.Create(b1).Error())
 	require.NoError(t, store.db.Create(b2).Error())
 	require.NoError(t, store.db.Create(b3).Error())
@@ -2691,10 +2691,10 @@ func TestGetDistinctBackupVaultIDsByVolumeUUID(t *testing.T) {
 	assert.NoError(t, err)
 
 	backups := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateDeleted},
+		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateDeleted},
 	}
 	for _, b := range backups {
 		err = store.db.Create(b).Error()
@@ -2733,12 +2733,12 @@ func TestGetDistinctBackupVaultServiceTypes_forVolume_viaVaultIDs(t *testing.T) 
 	vault1 := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-1"},
 		Name:        "vault-1",
-		ServiceType: models.ServiceTypeGCNV,
+		ServiceType: datamodel.ServiceTypeGCNV,
 	}
 	vault2 := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-2"},
 		Name:        "vault-2",
-		ServiceType: models.ServiceTypeCrossProject,
+		ServiceType: datamodel.ServiceTypeCrossProject,
 	}
 	err = store.db.Create(vault1).Error()
 	assert.NoError(t, err)
@@ -2746,10 +2746,10 @@ func TestGetDistinctBackupVaultServiceTypes_forVolume_viaVaultIDs(t *testing.T) 
 	assert.NoError(t, err)
 
 	backups := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateDeleted},
+		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateDeleted},
 	}
 	for _, b := range backups {
 		err = store.db.Create(b).Error()
@@ -2760,13 +2760,13 @@ func TestGetDistinctBackupVaultServiceTypes_forVolume_viaVaultIDs(t *testing.T) 
 	assert.NoError(t, err)
 	types, err := store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), ids)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []string{models.ServiceTypeGCNV, models.ServiceTypeCrossProject}, types)
+	assert.ElementsMatch(t, []string{datamodel.ServiceTypeGCNV, datamodel.ServiceTypeCrossProject}, types)
 
 	ids, err = store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-2")
 	assert.NoError(t, err)
 	types, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), ids)
 	assert.NoError(t, err)
-	assert.Equal(t, []string{models.ServiceTypeGCNV}, types)
+	assert.Equal(t, []string{datamodel.ServiceTypeGCNV}, types)
 
 	ids, err = store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-none")
 	assert.NoError(t, err)
@@ -2800,19 +2800,19 @@ func TestGetDistinctBackupVaultServiceTypesByVaultIDs(t *testing.T) {
 	vault1 := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{UUID: "bv-ref-1"},
 		Name:        "vault-a",
-		ServiceType: models.ServiceTypeGCNV,
+		ServiceType: datamodel.ServiceTypeGCNV,
 	}
 	vault2 := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{UUID: "bv-ref-2"},
 		Name:        "vault-b",
-		ServiceType: models.ServiceTypeCrossProject,
+		ServiceType: datamodel.ServiceTypeCrossProject,
 	}
 	assert.NoError(t, store.db.Create(vault1).Error())
 	assert.NoError(t, store.db.Create(vault2).Error())
 
 	types, err := store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), []int64{vault1.ID, vault2.ID})
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []string{models.ServiceTypeGCNV, models.ServiceTypeCrossProject}, types)
+	assert.ElementsMatch(t, []string{datamodel.ServiceTypeGCNV, datamodel.ServiceTypeCrossProject}, types)
 
 	types, err = store.GetDistinctBackupVaultServiceTypesByVaultIDs(context.Background(), nil)
 	assert.NoError(t, err)
@@ -3040,7 +3040,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 				CreatedAt: time.Now().Add(-2 * time.Hour), // 2 hours ago
 			},
 			VolumeUUID: "volume-uuid-1",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		backup2 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
@@ -3048,7 +3048,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago
 			},
 			VolumeUUID: "volume-uuid-1",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		backup3 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
@@ -3056,7 +3056,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 				CreatedAt: time.Now().Add(-30 * time.Minute), // 30 minutes ago (highest ID)
 			},
 			VolumeUUID: "volume-uuid-1",
-			State:      models.LifeCycleStateDeleting, // Different state
+			State:      datamodel.LifeCycleStateDeleting, // Different state
 		}
 
 		err = store.db.Create(backup1).Error()
@@ -3089,7 +3089,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 				CreatedAt: time.Now().Add(-2 * time.Hour), // 2 hours ago
 			},
 			VolumeUUID: "volume-uuid-1",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 		backup2 := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
@@ -3097,7 +3097,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (highest ID)
 			},
 			VolumeUUID: "volume-uuid-1",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 
 		err = store.db.Create(backup1).Error()
@@ -3164,7 +3164,7 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			VolumeUUID: "volume-uuid-1",
-			State:      models.LifeCycleStateAvailable,
+			State:      datamodel.LifeCycleStateAvailable,
 		}
 
 		err = store.db.Create(backup).Error()
@@ -3198,11 +3198,11 @@ func TestIsLatestBackupAnyStateInVault(t *testing.T) {
 		// Vault1: backup1 (older), backup2 (latest in vault1)
 		backup1 := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().Add(-2 * time.Hour)},
-			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 		}
 		backup2 := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-2", CreatedAt: time.Now().Add(-1 * time.Hour)},
-			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup1).Error()
 		assert.NoError(tt, err)
@@ -3230,11 +3230,11 @@ func TestIsLatestBackupAnyStateInVault(t *testing.T) {
 
 		backup1 := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().Add(-2 * time.Hour)},
-			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 		}
 		backup2 := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-2", CreatedAt: time.Now().Add(-1 * time.Hour)},
-			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup1).Error()
 		assert.NoError(tt, err)
@@ -3284,11 +3284,11 @@ func TestIsLatestBackupAnyStateInVault(t *testing.T) {
 
 		backupV1 := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-v1", CreatedAt: time.Now().Add(-1 * time.Hour)},
-			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: datamodel.LifeCycleStateAvailable,
 		}
 		backupV2 := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "backup-v2", CreatedAt: time.Now().Add(-30 * time.Minute)},
-			VolumeUUID: "volume-uuid-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable,
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault2.ID, State: datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backupV1).Error()
 		assert.NoError(tt, err)
@@ -3327,7 +3327,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now().Add(-2 * time.Hour), // 2 hours ago
 			},
 			VolumeUUID:              "volume-uuid-1",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 		backup2 := &datamodel.Backup{
@@ -3336,7 +3336,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (latest by ID)
 			},
 			VolumeUUID:              "volume-uuid-1",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 2048,
 		}
 
@@ -3395,7 +3395,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			VolumeUUID:              "volume-uuid-1",
-			State:                   models.LifeCycleStateDeleting, // Not available
+			State:                   datamodel.LifeCycleStateDeleting, // Not available
 			LatestLogicalBackupSize: 1024,
 		}
 
@@ -3439,7 +3439,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			VolumeUUID:              "volume-uuid-1",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 		err = store.db.Create(backup).Error()
@@ -3476,7 +3476,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			VolumeUUID:              "volume-uuid-1",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 		err = store.db.Create(backup).Error()
@@ -3509,7 +3509,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now().Add(-3 * time.Hour), // 3 hours ago
 			},
 			VolumeUUID:              "volume-uuid-1",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 		backup2 := &datamodel.Backup{
@@ -3518,7 +3518,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now().Add(-2 * time.Hour), // 2 hours ago
 			},
 			VolumeUUID:              "volume-uuid-1",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 2048,
 		}
 		backup3 := &datamodel.Backup{
@@ -3527,7 +3527,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now().Add(-1 * time.Hour), // 1 hour ago (latest by ID)
 			},
 			VolumeUUID:              "volume-uuid-1",
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 3072,
 		}
 
@@ -3596,7 +3596,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			VolumeUUID:              volumeUUID,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 		err = store.db.Create(backup).Error()
@@ -3663,7 +3663,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			VolumeUUID:              volumeUUID,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 		err = store.db.Create(backup).Error()
@@ -3721,7 +3721,7 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 				CreatedAt: time.Now(),
 			},
 			VolumeUUID:              volumeUUID,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			LatestLogicalBackupSize: 1024,
 		}
 		err = store.db.Create(backup).Error()
@@ -3992,51 +3992,51 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					panic(err)
 				}
 
-			// Create volumes — DataProtection.BackupVaultID must match the vault UUID
-			// so the current-vault JOIN in GetLatestBackupsGroupedByVolumeUUID returns them.
-			volume1 := &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
-				Name:      "test-volume-1",
-				PoolID:    pool.ID,
-				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
-				DataProtection: &datamodel.DataProtection{
-					BackupVaultID: backupVault.UUID,
-				},
-			}
-			volume2 := &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
-				Name:      "test-volume-2",
-				PoolID:    pool.ID,
-				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
-				DataProtection: &datamodel.DataProtection{
-					BackupVaultID: backupVault.UUID,
-				},
-			}
-			err = store.db.Create(volume1).Error()
-			if err != nil {
-				panic(err)
-			}
-			err = store.db.Create(volume2).Error()
-			if err != nil {
-				panic(err)
-			}
+				// Create volumes — DataProtection.BackupVaultID must match the vault UUID
+				// so the current-vault JOIN in GetLatestBackupsGroupedByVolumeUUID returns them.
+				volume1 := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+					Name:      "test-volume-1",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     datamodel.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: backupVault.UUID,
+					},
+				}
+				volume2 := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
+					Name:      "test-volume-2",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     datamodel.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: backupVault.UUID,
+					},
+				}
+				err = store.db.Create(volume1).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(volume2).Error()
+				if err != nil {
+					panic(err)
+				}
 
-			// Create backups for volume1 (older backup first, then newer)
+				// Create backups for volume1 (older backup first, then newer)
 				backup1Old := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-1-old-uuid", CreatedAt: time.Now().Add(-2 * time.Hour)},
 					Name:          "backup-1-old",
 					VolumeUUID:    volume1.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 				backup1New := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-1-new-uuid", CreatedAt: time.Now().Add(-1 * time.Hour)},
 					Name:          "backup-1-new",
 					VolumeUUID:    volume1.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 
 				// Create backup for volume2
@@ -4045,7 +4045,7 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					Name:          "backup-2",
 					VolumeUUID:    volume2.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 
 				err = store.db.Create(backup1Old).Error()
@@ -4126,35 +4126,35 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					panic(err)
 				}
 
-			volume := &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-3"},
-				Name:      "test-volume-3",
-				PoolID:    pool.ID,
-				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
-				DataProtection: &datamodel.DataProtection{
-					BackupVaultID: backupVault.UUID,
-				},
-			}
-			err = store.db.Create(volume).Error()
-			if err != nil {
-				panic(err)
-			}
+				volume := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-3"},
+					Name:      "test-volume-3",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     datamodel.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: backupVault.UUID,
+					},
+				}
+				err = store.db.Create(volume).Error()
+				if err != nil {
+					panic(err)
+				}
 
-			// Create one available and one creating backup
+				// Create one available and one creating backup
 				backupAvailable := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-available-uuid"},
 					Name:          "backup-available",
 					VolumeUUID:    volume.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 				backupCreating := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-creating-uuid"},
 					Name:          "backup-creating",
 					VolumeUUID:    volume.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateCreating,
+					State:         datamodel.LifeCycleStateCreating,
 				}
 
 				err = store.db.Create(backupAvailable).Error()
@@ -4173,7 +4173,7 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 			verifyResults: func(t *testing.T, results []datamodel.Backup, expectedBackups []*datamodel.Backup) {
 				assert.Len(t, results, 1)
 				assert.Equal(t, "backup-available-uuid", results[0].UUID)
-				assert.Equal(t, models.LifeCycleStateAvailable, results[0].State)
+				assert.Equal(t, datamodel.LifeCycleStateAvailable, results[0].State)
 			},
 		},
 		{
@@ -4208,35 +4208,35 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 					panic(err)
 				}
 
-			volume := &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-4"},
-				Name:      "test-volume-4",
-				PoolID:    pool.ID,
-				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
-				DataProtection: &datamodel.DataProtection{
-					BackupVaultID: backupVault.UUID,
-				},
-			}
-			err = store.db.Create(volume).Error()
-			if err != nil {
-				panic(err)
-			}
+				volume := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-4"},
+					Name:      "test-volume-4",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     datamodel.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: backupVault.UUID,
+					},
+				}
+				err = store.db.Create(volume).Error()
+				if err != nil {
+					panic(err)
+				}
 
-			// Create one normal and one soft-deleted backup
+				// Create one normal and one soft-deleted backup
 				backupNormal := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-normal-uuid"},
 					Name:          "backup-normal",
 					VolumeUUID:    volume.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 				backupDeleted := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-deleted-uuid", DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}},
 					Name:          "backup-deleted",
 					VolumeUUID:    volume.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 
 				err = store.db.Create(backupNormal).Error()
@@ -4341,62 +4341,62 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					panic(err)
 				}
 
-			// Create volumes — DataProtection.BackupVaultID must match the vault UUID
-			// so the current-vault JOIN in GetLatestBackupsGroupedByVolumeUUID returns them.
-			volume1 := &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
-				Name:      "test-volume-1",
-				PoolID:    pool.ID,
-				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
-				DataProtection: &datamodel.DataProtection{
-					BackupVaultID: backupVault.UUID,
-				},
-			}
-			volume2 := &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
-				Name:      "test-volume-2",
-				PoolID:    pool.ID,
-				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
-				DataProtection: &datamodel.DataProtection{
-					BackupVaultID: backupVault.UUID,
-				},
-			}
-			err = store.db.Create(volume1).Error()
-			if err != nil {
-				panic(err)
-			}
-			err = store.db.Create(volume2).Error()
-			if err != nil {
-				panic(err)
-			}
+				// Create volumes — DataProtection.BackupVaultID must match the vault UUID
+				// so the current-vault JOIN in GetLatestBackupsGroupedByVolumeUUID returns them.
+				volume1 := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+					Name:      "test-volume-1",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     datamodel.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: backupVault.UUID,
+					},
+				}
+				volume2 := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-2"},
+					Name:      "test-volume-2",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     datamodel.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: backupVault.UUID,
+					},
+				}
+				err = store.db.Create(volume1).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(volume2).Error()
+				if err != nil {
+					panic(err)
+				}
 
-			// Create backups
-			backup1 := &datamodel.Backup{
-				BaseModel:     datamodel.BaseModel{UUID: "backup-1-uuid"},
-				Name:          "backup-1",
-				VolumeUUID:    volume1.UUID,
-				BackupVaultID: backupVault.ID,
-				State:         models.LifeCycleStateAvailable,
-			}
-			backup2 := &datamodel.Backup{
-				BaseModel:     datamodel.BaseModel{UUID: "backup-2-uuid"},
-				Name:          "backup-2",
-				VolumeUUID:    volume2.UUID,
-				BackupVaultID: backupVault.ID,
-				State:         models.LifeCycleStateAvailable,
-			}
-			err = store.db.Create(backup1).Error()
-			if err != nil {
-				panic(err)
-			}
-			err = store.db.Create(backup2).Error()
-			if err != nil {
-				panic(err)
-			}
+				// Create backups
+				backup1 := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-1-uuid"},
+					Name:          "backup-1",
+					VolumeUUID:    volume1.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         datamodel.LifeCycleStateAvailable,
+				}
+				backup2 := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-2-uuid"},
+					Name:          "backup-2",
+					VolumeUUID:    volume2.UUID,
+					BackupVaultID: backupVault.ID,
+					State:         datamodel.LifeCycleStateAvailable,
+				}
+				err = store.db.Create(backup1).Error()
+				if err != nil {
+					panic(err)
+				}
+				err = store.db.Create(backup2).Error()
+				if err != nil {
+					panic(err)
+				}
 
-			return []*datamodel.Volume{volume1, volume2}, []*datamodel.Backup{backup1, backup2}
+				return []*datamodel.Volume{volume1, volume2}, []*datamodel.Backup{backup1, backup2}
 			},
 			expectedCount: 2,
 			expectedError: false,
@@ -4455,7 +4455,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					Name:      "test-volume-no-backup",
 					PoolID:    pool.ID,
 					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				}
 				err = store.db.Create(volume).Error()
 				if err != nil {
@@ -4500,25 +4500,25 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					panic(err)
 				}
 
-			// Create ready and creating volumes — only the ready one needs DataProtection set
-			// because its backup must survive the current-vault JOIN filter.
-			volumeReady := &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-ready"},
-				Name:      "test-volume-ready",
-				PoolID:    pool.ID,
-				AccountID: account.ID,
-				State:     models.LifeCycleStateREADY,
-				DataProtection: &datamodel.DataProtection{
-					BackupVaultID: backupVault.UUID,
-				},
-			}
-			volumeCreating := &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-creating"},
-				Name:      "test-volume-creating",
-				PoolID:    pool.ID,
-				AccountID: account.ID,
-				State:     models.LifeCycleStateCreating,
-			}
+				// Create ready and creating volumes — only the ready one needs DataProtection set
+				// because its backup must survive the current-vault JOIN filter.
+				volumeReady := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-ready"},
+					Name:      "test-volume-ready",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     datamodel.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: backupVault.UUID,
+					},
+				}
+				volumeCreating := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-uuid-creating"},
+					Name:      "test-volume-creating",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     datamodel.LifeCycleStateCreating,
+				}
 				err = store.db.Create(volumeReady).Error()
 				if err != nil {
 					panic(err)
@@ -4534,14 +4534,14 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					Name:          "backup-ready",
 					VolumeUUID:    volumeReady.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 				backupCreating := &datamodel.Backup{
 					BaseModel:     datamodel.BaseModel{UUID: "backup-creating-uuid"},
 					Name:          "backup-creating",
 					VolumeUUID:    volumeCreating.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 				err = store.db.Create(backupReady).Error()
 				if err != nil {
@@ -4563,7 +4563,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 				volumeMapping, exists := results[volumes[0].ID]
 				assert.True(t, exists)
 				assert.Equal(t, volumes[0].UUID, volumeMapping.Volume.UUID)
-				assert.Equal(t, models.LifeCycleStateREADY, volumeMapping.Volume.State)
+				assert.Equal(t, datamodel.LifeCycleStateREADY, volumeMapping.Volume.State)
 			},
 		},
 		{
@@ -4607,7 +4607,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					BaseModel:    datamodel.BaseModel{UUID: "em-vol-uuid"},
 					Name:         "em-volume",
 					ExternalUUID: "em-external-uuid",
-					State:        models.LifeCycleStateREADY,
+					State:        datamodel.LifeCycleStateREADY,
 					PoolID:       pool.ID,
 					AccountID:    account.ID,
 				}
@@ -4621,7 +4621,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					Name:          "em-backup",
 					VolumeUUID:    expertVol.ExternalUUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 					Attributes:    &datamodel.BackupAttributes{IsExpertModeBackup: true},
 				}
 				err = store.db.Create(backup).Error()
@@ -4690,7 +4690,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					Name:      "mix-volume",
 					PoolID:    pool.ID,
 					AccountID: account.ID,
-					State:     models.LifeCycleStateREADY,
+					State:     datamodel.LifeCycleStateREADY,
 				}
 				err = store.db.Create(vol).Error()
 				if err != nil {
@@ -4702,7 +4702,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					Name:          "mix-reg-backup",
 					VolumeUUID:    vol.UUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 				}
 				err = store.db.Create(regBackup).Error()
 				if err != nil {
@@ -4714,7 +4714,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					BaseModel:    datamodel.BaseModel{UUID: "mix-em-vol-uuid"},
 					Name:         "mix-em-volume",
 					ExternalUUID: "mix-em-external-uuid",
-					State:        models.LifeCycleStateREADY,
+					State:        datamodel.LifeCycleStateREADY,
 					PoolID:       pool.ID,
 					AccountID:    account.ID,
 				}
@@ -4728,7 +4728,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					Name:          "mix-em-backup",
 					VolumeUUID:    expertVol.ExternalUUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 					Attributes:    &datamodel.BackupAttributes{IsExpertModeBackup: true},
 				}
 				err = store.db.Create(emBackup).Error()
@@ -4799,7 +4799,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					BaseModel:    datamodel.BaseModel{UUID: "em-state-vol-uuid"},
 					Name:         "em-state-volume",
 					ExternalUUID: "em-state-external-uuid",
-					State:        models.LifeCycleStateCreating, // not READY
+					State:        datamodel.LifeCycleStateCreating, // not READY
 					PoolID:       pool.ID,
 					AccountID:    account.ID,
 				}
@@ -4813,7 +4813,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					Name:          "em-state-backup",
 					VolumeUUID:    expertVol.ExternalUUID,
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 					Attributes:    &datamodel.BackupAttributes{IsExpertModeBackup: true},
 				}
 				err = store.db.Create(backup).Error()
@@ -4844,7 +4844,7 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					Name:          "em-missing-backup",
 					VolumeUUID:    "non-existent-external-uuid",
 					BackupVaultID: backupVault.ID,
-					State:         models.LifeCycleStateAvailable,
+					State:         datamodel.LifeCycleStateAvailable,
 					Attributes:    &datamodel.BackupAttributes{IsExpertModeBackup: true},
 				}
 				err = store.db.Create(backup).Error()
@@ -4925,7 +4925,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-1",
 			VolumeUUID:              "volume-uuid-1",
 			LatestLogicalBackupSize: 1024,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			BackupVaultID:           backupVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "account-1",
@@ -4937,7 +4937,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-2",
 			VolumeUUID:              "volume-uuid-1",
 			LatestLogicalBackupSize: 2048,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			BackupVaultID:           backupVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "account-1",
@@ -4950,7 +4950,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-3",
 			VolumeUUID:              "volume-uuid-2",
 			LatestLogicalBackupSize: 4096,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			BackupVaultID:           backupVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "account-2",
@@ -4963,7 +4963,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-4",
 			VolumeUUID:              "volume-uuid-3",
 			LatestLogicalBackupSize: 8192,
-			State:                   models.LifeCycleStateCreating,
+			State:                   datamodel.LifeCycleStateCreating,
 			BackupVaultID:           backupVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "account-3",
@@ -5042,7 +5042,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-1",
 			VolumeUUID:              "volume-uuid-1",
 			LatestLogicalBackupSize: 1024,
-			State:                   models.LifeCycleStateCreating,
+			State:                   datamodel.LifeCycleStateCreating,
 			BackupVaultID:           backupVault.ID,
 		}
 		err = store.db.Create(backup).Error()
@@ -5100,7 +5100,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-1",
 			VolumeUUID:              "volume-uuid-1",
 			LatestLogicalBackupSize: 1024,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			BackupVaultID:           backupVault.ID,
 		}
 		backup2 := &datamodel.Backup{
@@ -5108,7 +5108,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-2",
 			VolumeUUID:              "volume-uuid-1",
 			LatestLogicalBackupSize: 2048,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			BackupVaultID:           backupVault.ID,
 		}
 		backup3 := &datamodel.Backup{
@@ -5116,7 +5116,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-3",
 			VolumeUUID:              "volume-uuid-1",
 			LatestLogicalBackupSize: 4096,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			BackupVaultID:           backupVault.ID,
 		}
 
@@ -5163,7 +5163,7 @@ func TestGetBackupMetrics(t *testing.T) {
 			Name:                    "backup-1",
 			VolumeUUID:              "volume-uuid-1",
 			LatestLogicalBackupSize: 1024,
-			State:                   models.LifeCycleStateAvailable,
+			State:                   datamodel.LifeCycleStateAvailable,
 			BackupVaultID:           backupVault.ID,
 			Attributes:              nil, // Nil attributes
 		}
@@ -5212,7 +5212,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		backup1 := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "agg-backup-1"},
 			VolumeUUID:    "vol-uuid-agg-1",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: backupVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "acct-agg",
@@ -5222,7 +5222,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		backup2 := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "agg-backup-2"},
 			VolumeUUID:    "vol-uuid-agg-1",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: backupVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "acct-agg",
@@ -5287,7 +5287,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 			b := &datamodel.Backup{
 				BaseModel:     datamodel.BaseModel{UUID: "page-backup-" + string(rune('a'+i))},
 				VolumeUUID:    "page-vol-" + string(rune('a'+i)),
-				State:         models.LifeCycleStateAvailable,
+				State:         datamodel.LifeCycleStateAvailable,
 				BackupVaultID: backupVault.ID,
 				Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct"},
 			}
@@ -5327,7 +5327,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "del-backup-1"},
 			VolumeUUID:    "del-vol-1",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: backupVault.ID,
 			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-del"},
 		}
@@ -5366,7 +5366,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "region-backup-1"},
 			VolumeUUID:    "region-vol-1",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: backupVault.ID,
 			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-region"},
 		}
@@ -5406,7 +5406,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "no-region-backup-1"},
 			VolumeUUID:    "no-region-vol-1",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: backupVault.ID,
 			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-no-region"},
 		}
@@ -5453,14 +5453,14 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		backup1 := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "multi-backup-1"},
 			VolumeUUID:    "multi-vol-1",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: vault1.ID,
 			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-multi"},
 		}
 		backup2 := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "multi-backup-2"},
 			VolumeUUID:    "multi-vol-2",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: vault2.ID,
 			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-multi"},
 		}
@@ -5519,7 +5519,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:     datamodel.BaseModel{UUID: "in-region-backup-1"},
 			VolumeUUID:    "in-region-vol-1",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 			BackupVaultID: inRegionVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "1088371202435",
@@ -6472,7 +6472,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6507,7 +6507,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6542,7 +6542,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateDeleting,
+			State:         datamodel.LifeCycleStateDeleting,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6577,7 +6577,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6613,7 +6613,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6649,7 +6649,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup-1",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup1).Error()
 		assert.NoError(tt, err)
@@ -6659,7 +6659,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup-2",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateDeleting,
+			State:         datamodel.LifeCycleStateDeleting,
 		}
 		err = store.db.Create(backup2).Error()
 		assert.NoError(tt, err)
@@ -6694,7 +6694,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup-1",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup1).Error()
 		assert.NoError(tt, err)
@@ -6704,7 +6704,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup-2",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateDeleting,
+			State:         datamodel.LifeCycleStateDeleting,
 		}
 		err = store.db.Create(backup2).Error()
 		assert.NoError(tt, err)
@@ -6756,7 +6756,7 @@ func TestAreBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6811,7 +6811,7 @@ func TestGetEarliestCreatingBackupTime(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6843,7 +6843,7 @@ func TestGetEarliestCreatingBackupTime(t *testing.T) {
 			Name:          "backup-older",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(b1).Error()
 		assert.NoError(tt, err)
@@ -6853,7 +6853,7 @@ func TestGetEarliestCreatingBackupTime(t *testing.T) {
 			Name:          "backup-newer",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(b2).Error()
 		assert.NoError(tt, err)
@@ -6892,7 +6892,7 @@ func TestGetEarliestCreatingBackupTime(t *testing.T) {
 			Name:          "backup-ready",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(ready).Error()
 		assert.NoError(tt, err)
@@ -6928,7 +6928,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateAvailable,
+			State:         datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6963,7 +6963,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -6998,7 +6998,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateDeleting,
+			State:         datamodel.LifeCycleStateDeleting,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -7033,7 +7033,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -7069,7 +7069,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -7108,7 +7108,7 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 			Name:          "test-backup",
 			BackupVaultID: backupVault.ID,
 			VolumeUUID:    "test-volume-uuid",
-			State:         models.LifeCycleStateCreating,
+			State:         datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
@@ -8041,8 +8041,8 @@ func TestGetExpertModeBackupsByVolumeExternalUUID(t *testing.T) {
 	t.Run("ReturnsBackupsForVolume", func(tt *testing.T) {
 		store, vault := setupStoreAndVault(tt)
 
-		createBackup(tt, store, vault.ID, "ext-vol-1", "backup-1", models.LifeCycleStateREADY)
-		createBackup(tt, store, vault.ID, "ext-vol-1", "backup-2", models.LifeCycleStateCreating)
+		createBackup(tt, store, vault.ID, "ext-vol-1", "backup-1", datamodel.LifeCycleStateREADY)
+		createBackup(tt, store, vault.ID, "ext-vol-1", "backup-2", datamodel.LifeCycleStateCreating)
 
 		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-1")
 
@@ -8053,8 +8053,8 @@ func TestGetExpertModeBackupsByVolumeExternalUUID(t *testing.T) {
 	t.Run("ExcludesErrorStateBackups", func(tt *testing.T) {
 		store, vault := setupStoreAndVault(tt)
 
-		createBackup(tt, store, vault.ID, "ext-vol-2", "good-backup", models.LifeCycleStateREADY)
-		createBackup(tt, store, vault.ID, "ext-vol-2", "error-backup", models.LifeCycleStateError)
+		createBackup(tt, store, vault.ID, "ext-vol-2", "good-backup", datamodel.LifeCycleStateREADY)
+		createBackup(tt, store, vault.ID, "ext-vol-2", "error-backup", datamodel.LifeCycleStateError)
 
 		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-2")
 
@@ -8070,7 +8070,7 @@ func TestGetExpertModeBackupsByVolumeExternalUUID(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "oldest-uuid", CreatedAt: time.Now().Add(-2 * time.Hour)},
 			Name:          "oldest",
 			VolumeUUID:    "ext-vol-3",
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			BackupVaultID: vault.ID,
 		}
 		err := store.db.Create(b1).Error()
@@ -8080,7 +8080,7 @@ func TestGetExpertModeBackupsByVolumeExternalUUID(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "newest-uuid", CreatedAt: time.Now()},
 			Name:          "newest",
 			VolumeUUID:    "ext-vol-3",
-			State:         models.LifeCycleStateREADY,
+			State:         datamodel.LifeCycleStateREADY,
 			BackupVaultID: vault.ID,
 		}
 		err = store.db.Create(b2).Error()
@@ -8097,8 +8097,8 @@ func TestGetExpertModeBackupsByVolumeExternalUUID(t *testing.T) {
 	t.Run("DoesNotReturnBackupsFromOtherVolumes", func(tt *testing.T) {
 		store, vault := setupStoreAndVault(tt)
 
-		createBackup(tt, store, vault.ID, "ext-vol-4", "my-backup", models.LifeCycleStateREADY)
-		createBackup(tt, store, vault.ID, "ext-vol-other", "other-backup", models.LifeCycleStateREADY)
+		createBackup(tt, store, vault.ID, "ext-vol-4", "my-backup", datamodel.LifeCycleStateREADY)
+		createBackup(tt, store, vault.ID, "ext-vol-other", "other-backup", datamodel.LifeCycleStateREADY)
 
 		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-4")
 
@@ -8119,8 +8119,8 @@ func TestGetExpertModeBackupsByVolumeExternalUUID(t *testing.T) {
 	t.Run("ReturnsEmptyWhenAllBackupsAreError", func(tt *testing.T) {
 		store, vault := setupStoreAndVault(tt)
 
-		createBackup(tt, store, vault.ID, "ext-vol-5", "err-1", models.LifeCycleStateError)
-		createBackup(tt, store, vault.ID, "ext-vol-5", "err-2", models.LifeCycleStateError)
+		createBackup(tt, store, vault.ID, "ext-vol-5", "err-1", datamodel.LifeCycleStateError)
+		createBackup(tt, store, vault.ID, "ext-vol-5", "err-2", datamodel.LifeCycleStateError)
 
 		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-5")
 
@@ -8538,13 +8538,13 @@ func TestFinishBackup_BackupChainHistory_GCBDR(t *testing.T) {
 		sizeA := int64(100)
 		sizeB := int64(200)
 		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
-			BaseModel: datamodel.BaseModel{UUID: "hist-finish-A"},
+			BaseModel:    datamodel.BaseModel{UUID: "hist-finish-A"},
 			ResourceName: "vol", Size: sizeA, ResourceUUID: volumeUUID,
 			EndpointUUID: &epA,
 		}).Error())
 		// History row for ep-B (must not be touched).
 		require.NoError(tt, store.db.Create(&datamodel.BackupChainHistory{
-			BaseModel: datamodel.BaseModel{UUID: "hist-finish-B"},
+			BaseModel:    datamodel.BaseModel{UUID: "hist-finish-B"},
 			ResourceName: "vol", Size: sizeB, ResourceUUID: volumeUUID,
 			EndpointUUID: &epB,
 		}).Error())
@@ -8892,16 +8892,16 @@ func TestGetBackupChainMetrics(t *testing.T) {
 		// Two available backups for the same (volume, vault, endpoint) chain — only latest (higher ID) returned.
 		older := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-older", CreatedAt: time.Now().Add(-2 * time.Hour)},
-			Name: "chain-older", BackupVaultID: vault.ID,
+			Name:      "chain-older", BackupVaultID: vault.ID,
 			VolumeUUID: "vol-chain-1", State: models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-chain-1"},
+			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-chain-1"},
 			LatestLogicalBackupSize: int64(100),
 		}
 		newer := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-newer", CreatedAt: time.Now().Add(-1 * time.Hour)},
-			Name: "chain-newer", BackupVaultID: vault.ID,
+			Name:      "chain-newer", BackupVaultID: vault.ID,
 			VolumeUUID: "vol-chain-1", State: models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-chain-1"},
+			Attributes:              &datamodel.BackupAttributes{EndpointUUID: "ep-chain-1"},
 			LatestLogicalBackupSize: int64(200),
 		}
 		require.NoError(tt, store.db.Create(older).Error())
@@ -8927,13 +8927,13 @@ func TestGetBackupChainMetrics(t *testing.T) {
 
 		bkpA := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-ep-A"},
-			Name: "chain-ep-A", BackupVaultID: vault.ID,
+			Name:      "chain-ep-A", BackupVaultID: vault.ID,
 			VolumeUUID: "vol-chain-2", State: models.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-A"},
 		}
 		bkpB := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-ep-B"},
-			Name: "chain-ep-B", BackupVaultID: vault.ID,
+			Name:      "chain-ep-B", BackupVaultID: vault.ID,
 			VolumeUUID: "vol-chain-2", State: models.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{EndpointUUID: "ep-B"},
 		}
@@ -8957,7 +8957,7 @@ func TestGetBackupChainMetrics(t *testing.T) {
 
 		creating := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "chain-creating"},
-			Name: "chain-creating", BackupVaultID: vault.ID,
+			Name:      "chain-creating", BackupVaultID: vault.ID,
 			VolumeUUID: "vol-chain-3", State: models.LifeCycleStateCreating,
 		}
 		require.NoError(tt, store.db.Create(creating).Error())
@@ -9029,11 +9029,11 @@ func TestGetLatestBackupsGroupedByVolumeUUID_GCBDR(t *testing.T) {
 
 		oldVault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "old-vault-grouped"},
-			Name: "old-vault", AccountID: acct.ID,
+			Name:      "old-vault", AccountID: acct.ID,
 		}
 		newVault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "new-vault-grouped"},
-			Name: "new-vault", AccountID: acct.ID,
+			Name:      "new-vault", AccountID: acct.ID,
 		}
 		require.NoError(tt, store.db.Create(oldVault).Error())
 		require.NoError(tt, store.db.Create(newVault).Error())
@@ -9120,7 +9120,7 @@ func Test_shouldSkipBackupChainHistory_NilConfig(t *testing.T) {
 func Test_shouldSkipBackupChainHistory_CrossRegionBillingDisabled(t *testing.T) {
 	config := &common.TelemetryConfig{
 		EnableCrossRegionBackupBillingMetrics: false,
-		EnableFilesBackupBilling:             true,
+		EnableFilesBackupBilling:              true,
 	}
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{UUID: "b-1"},
@@ -9135,8 +9135,8 @@ func Test_shouldSkipBackupChainHistory_CrossRegionBillingDisabled(t *testing.T) 
 func Test_shouldSkipBackupChainHistory_CrossRegionBillingEnabled_NilRegion(t *testing.T) {
 	config := &common.TelemetryConfig{
 		EnableCrossRegionBackupBillingMetrics: true,
-		EnableFilesBackupBilling:             true,
-		RegionName:                           "us-central1",
+		EnableFilesBackupBilling:              true,
+		RegionName:                            "us-central1",
 	}
 	backup := &datamodel.Backup{
 		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
@@ -9154,8 +9154,8 @@ func Test_shouldSkipBackupChainHistory_CrossRegionBillingEnabled_SameRegion(t *t
 	region := "us-central1"
 	config := &common.TelemetryConfig{
 		EnableCrossRegionBackupBillingMetrics: true,
-		EnableFilesBackupBilling:             true,
-		RegionName:                           region,
+		EnableFilesBackupBilling:              true,
+		RegionName:                            region,
 	}
 	backup := &datamodel.Backup{
 		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
@@ -9173,8 +9173,8 @@ func Test_shouldSkipBackupChainHistory_CrossRegionBillingEnabled_DifferentRegion
 	region := "europe-west1"
 	config := &common.TelemetryConfig{
 		EnableCrossRegionBackupBillingMetrics: true,
-		EnableFilesBackupBilling:             true,
-		RegionName:                           "us-central1",
+		EnableFilesBackupBilling:              true,
+		RegionName:                            "us-central1",
 	}
 	backup := &datamodel.Backup{
 		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
@@ -9345,10 +9345,10 @@ func Test_shouldSkipBackupChainHistory_NilAttributes_FilesDisabled(t *testing.T)
 func Test_shouldSkipBackupChainHistory_NormalBackup_AllBillingEnabled(t *testing.T) {
 	config := &common.TelemetryConfig{
 		EnableCrossRegionBackupBillingMetrics: true,
-		EnableCmekBackupBilling:              true,
-		EnableGcbdrBackupBilling:             true,
-		EnableExpertModeBackupBilling:        true,
-		EnableFilesBackupBilling:             true,
+		EnableCmekBackupBilling:               true,
+		EnableGcbdrBackupBilling:              true,
+		EnableExpertModeBackupBilling:         true,
+		EnableFilesBackupBilling:              true,
 	}
 	backup := &datamodel.Backup{
 		BaseModel:  datamodel.BaseModel{UUID: "b-1"},
@@ -9365,4 +9365,3 @@ func Test_shouldSkipBackupChainHistory_NormalBackup_AllBillingEnabled(t *testing
 	result := shouldSkipBackupChainHistory(context.Background(), backup, config)
 	assert.False(t, result, "should NOT skip normal local backup with all billing enabled")
 }
-

@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 )
 
@@ -187,27 +188,25 @@ type HybridReplicationParameters struct {
 	HybridReplicationUserCommands []string
 }
 
-type HybridReplicationStatus string
+type HybridReplicationStatus = datamodel.HybridReplicationStatus
 
-var (
-	HybridReplicationStatusPendingClusterPeer  HybridReplicationStatus = "PENDING_CLUSTER_PEER"
-	HybridReplicationStatusPendingSVMPeer      HybridReplicationStatus = "PENDING_SVM_PEER"
-	HybridReplicationStatusSVMPeered           HybridReplicationStatus = "SVM_PEERED"
-	HybridReplicationStatusPeered              HybridReplicationStatus = "PEERED"
-	HybridReplicationStatusPendingRemoteResync HybridReplicationStatus = "PENDING_REMOTE_RESYNC"
-	HybridReplicationStatusExternalManaged     HybridReplicationStatus = "EXTERNALLY_MANAGED_REPLICATION"
+type ClusterPeeringStatus = datamodel.ClusterPeeringStatus
+
+const (
+	CvpClusterPeeringStatusCREATING              = datamodel.CvpClusterPeeringStatusCREATING
+	CvpClusterPeeringStatusPENDINGCLUSTERPEERING = datamodel.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
+	CvpClusterPeeringStatusPEERED                = datamodel.CvpClusterPeeringStatusPEERED
+	CvpClusterPeeringStatusDELETED               = datamodel.CvpClusterPeeringStatusDELETED
+	CvpClusterPeeringStatusERROR                 = datamodel.CvpClusterPeeringStatusERROR
 )
-
-type ClusterPeeringStatus string
-
-var (
-	CvpClusterPeeringStatusCREATING              ClusterPeeringStatus = "CREATING"
-	CvpClusterPeeringStatusPENDINGCLUSTERPEERING ClusterPeeringStatus = "PENDING_CLUSTER_PEERING"
-	CvpClusterPeeringStatusPEERED                ClusterPeeringStatus = "PEERED"
-	CvpClusterPeeringStatusDELETED               ClusterPeeringStatus = "DELETED"
-	CvpClusterPeeringStatusERROR                 ClusterPeeringStatus = "ERROR"
+const (
+	HybridReplicationStatusPendingClusterPeer  = datamodel.HybridReplicationStatusPendingClusterPeer
+	HybridReplicationStatusPendingSVMPeer      = datamodel.HybridReplicationStatusPendingSVMPeer
+	HybridReplicationStatusSVMPeered           = datamodel.HybridReplicationStatusSVMPeered
+	HybridReplicationStatusPeered              = datamodel.HybridReplicationStatusPeered
+	HybridReplicationStatusPendingRemoteResync = datamodel.HybridReplicationStatusPendingRemoteResync
+	HybridReplicationStatusExternalManaged     = datamodel.HybridReplicationStatusExternalManaged
 )
-
 const (
 	AuthenticationStateOk      string = "ok"
 	AuthenticationStateAbsent  string = "absent"

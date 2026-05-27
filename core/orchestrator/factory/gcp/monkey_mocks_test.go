@@ -10,7 +10,7 @@ import (
 
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 
-	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 

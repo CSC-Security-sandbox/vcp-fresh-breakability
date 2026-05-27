@@ -16,16 +16,16 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -51,9 +51,9 @@ type RollbackResources struct {
 
 var (
 	getGcpServiceForCerts                               = hyperscaler2.GetGCPService
-	generateAndCreateCertificateForVSACluster           = hyperscaler2.GenerateAndCreateCertificateForVSACluster
-	revokeCertificateAndDeleteFromCacheAndSecretManager = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager
-	getCertificateFromCacheOrSecretManager              = hyperscaler2.GetCertificateFromCacheOrSecretManager
+	generateAndCreateCertificateForVSACluster           = vsa.GenerateAndCreateCertificateForVSACluster
+	revokeCertificateAndDeleteFromCacheAndSecretManager = vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager
+	getCertificateFromCacheOrSecretManager              = vsa.GetCertificateFromCacheOrSecretManager
 	addToCertAuthCache                                  = common.AddToCertAuthCache
 	removeFromCertAuthCache                             = common.RemoveFromCertAuthCache
 	ConvertPoolViewToPool                               = database.ConvertPoolViewToPool
@@ -145,11 +145,11 @@ func (a *RotateVcpToVsaCertificateActivity) GetPoolContext(ctx context.Context, 
 // during rotation. Returns true if pool is in a valid state for rotation, false otherwise.
 func (a *RotateVcpToVsaCertificateActivity) checkPoolStateBeforeCriticalOperation(ctx context.Context, poolUUID string) (bool, error) {
 	logger := util.GetLogger(ctx)
-	
+
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("uuid", "=", poolUUID),
 	)
-	
+
 	poolViews, err := a.SE.ListPools(ctx, filter)
 	if err != nil {
 		logger.Warnf("Failed to re-check pool state for %s: %v", poolUUID, err)
@@ -157,19 +157,19 @@ func (a *RotateVcpToVsaCertificateActivity) checkPoolStateBeforeCriticalOperatio
 		// This is a safety measure - better to proceed than fail rotation unnecessarily
 		return true, nil
 	}
-	
+
 	if len(poolViews) == 0 {
 		logger.Warnf("Pool %s not found during state re-check, aborting operation", poolUUID)
 		return false, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool %s not found", poolUUID))
 	}
-	
+
 	pool := ConvertPoolViewToPool(poolViews[0])
-	
+
 	if pool.State == "CREATING" || pool.State == "DELETING" || pool.State == "UPGRADING" {
 		logger.Warnf("Pool %s is in %s state, aborting operation to avoid conflicts", poolUUID, pool.State)
 		return false, nil
 	}
-	
+
 	return true, nil
 }
 
@@ -745,7 +745,7 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSA(ctx context.
 	if password == "" && pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
 		common.RemoveFromUserAuthCache(pool.PoolCredentials.SecretID)
 
-		secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
+		secret, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
 		if err != nil {
 			logger.Errorf("Failed to get password from Secret Manager: %v", err)
 			return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
@@ -762,7 +762,7 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSA(ctx context.
 		logger.Warnf("Username is empty in pool credentials, using fallback: %s", username)
 	}
 
-	node := hyperscaler2.CreateNodeForProvider(hyperscaler2.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:          dbNodes,
 		DeploymentName: pool.DeploymentName,
 		OntapCredentials: &datamodel.PoolCredentials{
@@ -775,7 +775,7 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSA(ctx context.
 		},
 	})
 
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		errMsg := err.Error()
 		isTrulyExpired := strings.Contains(errMsg, "certificate has expired") ||
@@ -988,7 +988,7 @@ func (a *RotateVcpToVsaCertificateActivity) updateCertificateCache(ctx context.C
 	}
 
 	// Get the certificate and private key
-	certificateResponse, err := hyperscaler2.GetCertificateAndPrivateKeyByID(gcpService, env.CaPoolDeployedProjectID, env.SecretManagerProjectID, env.Region, env.CaPoolName, certificateID)
+	certificateResponse, err := vsa.GetCertificateAndPrivateKeyByID(gcpService, env.CaPoolDeployedProjectID, env.SecretManagerProjectID, env.Region, env.CaPoolName, certificateID)
 	if err != nil {
 		logger.Errorf("Failed to get certificate for cache update: %v", err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrCertificateCacheUpdateFailed, err)
@@ -1041,7 +1041,7 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 		logger.Debug("Clearing password cache to ensure fresh password fetch")
 		common.RemoveFromUserAuthCache(pool.PoolCredentials.SecretID)
 
-		secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
+		secret, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
 		if err != nil {
 			logger.Errorf("Failed to get password from Secret Manager: %v", err)
 			return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
@@ -1059,7 +1059,7 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 	}
 
 	// Create node for provider using password authentication (not certificate auth)
-	node := hyperscaler2.CreateNodeForProvider(hyperscaler2.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:          dbNodes,
 		DeploymentName: pool.DeploymentName,
 		OntapCredentials: &datamodel.PoolCredentials{
@@ -1072,7 +1072,7 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 		},
 	})
 	// Create VSA provider with password authentication
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to get VSA provider for expired certificate scenario: %v", err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterCreateError, err)
@@ -1462,7 +1462,7 @@ func (a *RotateVcpToVsaCertificateActivity) testCertificateConnectivity(ctx cont
 	// Note: Password is not required for certificate-based REST API connectivity testing.
 	// Password is only needed for SSH operations (like ModifySSL), not for REST API calls.
 	// The provider will use certificate authentication for REST API calls.
-	testNode := hyperscaler2.CreateNodeForProvider(hyperscaler2.NodeProviderInput{
+	testNode := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:          dbNodes,
 		DeploymentName: pool.DeploymentName,
 		OntapCredentials: &datamodel.PoolCredentials{
@@ -1478,7 +1478,7 @@ func (a *RotateVcpToVsaCertificateActivity) testCertificateConnectivity(ctx cont
 
 	common.RemoveFromCertAuthCache(certificateID)
 
-	testProvider, err := hyperscaler2.GetProviderByNode(ctx, testNode)
+	testProvider, err := vsa.GetProviderByNode(ctx, testNode)
 	if err != nil {
 		logger.Errorf("Failed to create VSA provider with certificate: %v", err)
 		return fmt.Errorf("failed to create VSA provider with certificate: %v", err)
@@ -1687,7 +1687,7 @@ func (a *RotateVcpToVsaCertificateActivity) removeCertificateFromVSA(ctx context
 	}
 
 	// Create node for provider
-	node := hyperscaler2.CreateNodeForProvider(hyperscaler2.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:          dbNodes,
 		DeploymentName: pool.DeploymentName,
 		OntapCredentials: &datamodel.PoolCredentials{
@@ -1701,7 +1701,7 @@ func (a *RotateVcpToVsaCertificateActivity) removeCertificateFromVSA(ctx context
 	})
 
 	// Get VSA provider
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to get VSA provider for certificate removal: %v", err)
 		return err
@@ -2063,13 +2063,13 @@ func (a *RotateVcpToVsaCertificateActivity) testPasswordConnectivity(ctx context
 
 		if passwordToTest == "" {
 			logger.Infof("Pool password is empty, fetching from Secret Manager with secret_id: %s", pool.PoolCredentials.SecretID)
-			secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
+			secret, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
 			if err != nil {
 				logger.Warnf("Failed to get current password from Secret Manager with secret_id: %v", err)
 
 				if pool.PoolCredentials.SecretIDNew != "" {
 					logger.Infof("Attempting to fetch password from secret_id_new as fallback: %s", pool.PoolCredentials.SecretIDNew)
-					secret, err = hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretIDNew)
+					secret, err = vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretIDNew)
 					if err != nil {
 						logger.Errorf("Failed to get current password from both secret_id and secret_id_new: %v", err)
 						return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, fmt.Errorf("failed to get current password from both secret_id and secret_id_new: %v", err))
@@ -2111,7 +2111,7 @@ func (a *RotateVcpToVsaCertificateActivity) testPasswordConnectivity(ctx context
 
 	// Create temporary node with PASSWORD-ONLY authentication
 	logger.Infof("Creating temporary node for password-only authentication test")
-	tempNode := hyperscaler2.CreateNodeForProvider(hyperscaler2.NodeProviderInput{
+	tempNode := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:          dbNodes,
 		DeploymentName: pool.DeploymentName,
 		OntapCredentials: &datamodel.PoolCredentials{
@@ -2125,7 +2125,7 @@ func (a *RotateVcpToVsaCertificateActivity) testPasswordConnectivity(ctx context
 	})
 	logger.Infof("Temporary node created with auth type: %d (USERNAME_PWD)", env.USERNAME_PWD)
 
-	provider, err := hyperscaler2.GetProviderByNode(ctx, tempNode)
+	provider, err := vsa.GetProviderByNode(ctx, tempNode)
 	if err != nil {
 		logger.Errorf("Failed to get VSA provider: %v", err)
 		return err
@@ -2158,7 +2158,7 @@ func (a *RotateVcpToVsaCertificateActivity) updateVSAPassword(ctx context.Contex
 	if currentPassword == "" {
 		// For any auth type, fetch password from the secretID field if pool password is empty
 		logger.Infof("Pool password is empty, fetching from Secret Manager with secret_id: %s", pool.PoolCredentials.SecretID)
-		secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
+		secret, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
 		if err != nil {
 			logger.Errorf("Failed to get current password from Secret Manager: %v", err)
 			return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
@@ -2550,7 +2550,7 @@ func (a *RotateVcpToVsaCertificateActivity) cleanupPreviousSecret(ctx context.Co
 	logger.Debugf("Cleaning up previous secret: %s", secretID)
 
 	// Delete from Secret Manager and cache
-	err := hyperscaler2.DeletePasswordFromCacheAndSecretManager(gcpService, secretID)
+	err := vsa.DeletePasswordFromCacheAndSecretManager(gcpService, secretID)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup previous secret %s: %w", secretID, err)
 	}
@@ -2591,7 +2591,7 @@ func (a *RotateVcpToVsaCertificateActivity) rollbackPasswordRotation(ctx context
 		currentPassword := resources.Pool.PoolCredentials.Password
 		if currentPassword == "" {
 			logger.Infof("Pool password is empty, fetching from Secret Manager with secret_id: %s", resources.Pool.PoolCredentials.SecretID)
-			secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, resources.Pool.PoolCredentials.SecretID)
+			secret, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, resources.Pool.PoolCredentials.SecretID)
 			if err != nil {
 				logger.Errorf("Failed to get current password for revert: %v", err)
 				logger.Warnf("Cannot revert ONTAP password (failed to get old password). Preserving GCP resources (secret_id_new: %s) for next rotation cycle.", resources.NewSecretID)

@@ -263,7 +263,7 @@ func TestGetPodIPForKubernetesLeaseHolder_EmptyHolder(t *testing.T) {
 	fakeCS := fake.NewSimpleClientset(
 		&coordinationv1.Lease{
 			ObjectMeta: metav1.ObjectMeta{Name: "harvest-lease-1", Namespace: "vcp"},
-			Spec:         coordinationv1.LeaseSpec{},
+			Spec:       coordinationv1.LeaseSpec{},
 		},
 	)
 	getKubernetesClientset = func() (kubernetes.Interface, error) {

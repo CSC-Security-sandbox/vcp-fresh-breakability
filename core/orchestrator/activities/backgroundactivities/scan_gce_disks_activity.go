@@ -5,6 +5,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/diskscan"
 	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -48,16 +49,17 @@ func (a *ScanGCEDisksActivity) ScanGCEDisks(ctx context.Context, in diskscan.Sca
 		default:
 		}
 
-		items, err := lister.ListDisks(ctx, project)
+		hsItems, err := lister.ListDisks(ctx, project)
 		if err != nil {
 			logger.Warnf("ScanGCEDisks activity: list disks failed project=%s: %v", project, err)
 			out.PartialFailures = append(out.PartialFailures, diskscan.ProjectFailure{
 				Project: project,
 				Error:   err.Error(),
 			})
-			out.Items = append(out.Items, items...)
+			out.Items = append(out.Items, toDiskscanItems(hsItems)...)
 			continue
 		}
+		items := toDiskscanItems(hsItems)
 		out.Items = append(out.Items, items...)
 		logger.Infof("ScanGCEDisks activity: project=%s disk_count=%d", project, len(items))
 	}
@@ -65,4 +67,27 @@ func (a *ScanGCEDisksActivity) ScanGCEDisks(ctx context.Context, in diskscan.Sca
 	logger.Infof("ScanGCEDisks activity finished: total_disks=%d partial_failures=%d",
 		len(out.Items), len(out.PartialFailures))
 	return out, nil
+}
+
+// toDiskscanItems converts the hyperscaler-leaf GCEDisk shape into the
+// workflow wire shape diskscan.GCEDiskItem. See toVmscanItems for rationale.
+func toDiskscanItems(in []hyperscalermodels.GCEDisk) []diskscan.GCEDiskItem {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]diskscan.GCEDiskItem, len(in))
+	for i, d := range in {
+		out[i] = diskscan.GCEDiskItem{
+			Project:           d.Project,
+			Zone:              d.Zone,
+			Name:              d.Name,
+			SelfLink:          d.SelfLink,
+			Status:            d.Status,
+			SizeGB:            d.SizeGB,
+			Type:              d.Type,
+			Labels:            d.Labels,
+			CreationTimestamp: d.CreationTimestamp,
+		}
+	}
+	return out
 }

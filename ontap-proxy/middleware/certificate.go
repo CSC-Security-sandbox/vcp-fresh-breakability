@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	ontapproxymodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
@@ -153,7 +154,7 @@ func getCertificateFromSecretManager(ctx context.Context, authData *ontapproxymo
 
 	region := env.Region
 
-	certificateResponse, err := hyperscaler.GetCertificateAndPrivateKeyByID(
+	certificateResponse, err := vsa.GetCertificateAndPrivateKeyByID(
 		gcpService,
 		caPoolDeployedProjectID,
 		env.SecretManagerProjectID,
@@ -180,7 +181,7 @@ func getCertificateFromSecretManager(ctx context.Context, authData *ontapproxymo
 func getPasswordFromSecretManager(ctx context.Context, secretID string, logger log.Logger) (string, error) {
 	logger.InfoContext(ctx, "Getting password from cache or secret manager", "secretID", secretID)
 
-	password, err := hyperscaler.GetPasswordFromCacheOrSecretManager(ctx, secretID)
+	password, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, secretID)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get password from secret manager", "error", err, "secretID", secretID)
 		return "", fmt.Errorf("failed to get password from secret manager: %w", err)

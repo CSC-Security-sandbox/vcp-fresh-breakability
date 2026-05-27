@@ -45,8 +45,8 @@ func TestParseInstanceConnName(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "invalid format - too many components",
-			connName:    "test-project:us-central1:test-instance:extra",
+			name:             "invalid format - too many components",
+			connName:         "test-project:us-central1:test-instance:extra",
 			expectedProject:  "test-project",
 			expectedInstance: "test-instance:extra",
 			expectError:      false, // SplitN with 3 will merge extra parts
@@ -187,7 +187,7 @@ func TestEnsureIAMDBUsers_NoInstanceConnName(t *testing.T) {
 	}
 
 	err := ensureIAMDBUsers(cfg)
-	
+
 	// Should return nil and log info message
 	assert.NoError(t, err)
 }
@@ -199,7 +199,7 @@ func TestEnsureIAMDBUsers_InvalidConnName(t *testing.T) {
 	}
 
 	err := ensureIAMDBUsers(cfg)
-	
+
 	// Should return error about invalid format
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid instance connection name")
@@ -208,7 +208,7 @@ func TestEnsureIAMDBUsers_InvalidConnName(t *testing.T) {
 func TestCreateCloudSQLIAMUser_AlreadyExists(t *testing.T) {
 	// Test that 409 conflict (user already exists) is handled gracefully
 	// This is a unit test for the error handling logic
-	
+
 	testCases := []struct {
 		name        string
 		errorMsg    string
@@ -235,10 +235,10 @@ func TestCreateCloudSQLIAMUser_AlreadyExists(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// We're testing the error handling logic, not actual API calls
 			err := errors.New(tc.errorMsg)
-			
+
 			// Check if this error would be handled gracefully
 			isConflict := contains(err.Error(), "409") || contains(err.Error(), "already exists")
-			
+
 			if tc.expectError {
 				assert.False(t, isConflict, "Should be treated as error")
 			} else {
@@ -273,7 +273,7 @@ func TestListCloudSQLUsers_MapConstruction(t *testing.T) {
 	// Test map construction logic for user lookup
 	users := []string{"user1", "user2", "user3"}
 	userMap := make(map[string]bool)
-	
+
 	for _, user := range users {
 		userMap[user] = true
 	}
@@ -283,7 +283,7 @@ func TestListCloudSQLUsers_MapConstruction(t *testing.T) {
 	assert.True(t, userMap["user2"])
 	assert.True(t, userMap["user3"])
 	assert.False(t, userMap["user4"])
-	
+
 	// Verify map size
 	assert.Equal(t, 3, len(userMap))
 }
@@ -291,7 +291,7 @@ func TestListCloudSQLUsers_MapConstruction(t *testing.T) {
 func TestIAMUserType(t *testing.T) {
 	// Verify the IAM user type constant
 	expectedType := "CLOUD_IAM_SERVICE_ACCOUNT"
-	
+
 	// This is what we expect to send to the API
 	assert.Equal(t, "CLOUD_IAM_SERVICE_ACCOUNT", expectedType)
 	assert.NotEqual(t, "CLOUD_IAM_USER", expectedType)
@@ -326,11 +326,11 @@ func TestConnectionNameParsing_RealExamples(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			project, instance, err := parseInstanceConnName(tt.connName)
-			
+
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedProject, project)
 			assert.Equal(t, tt.expectedInstance, instance)
-			
+
 			// Verify we can reconstruct parts
 			parts := splitConnName(tt.connName)
 			assert.Equal(t, 3, len(parts))
@@ -340,7 +340,6 @@ func TestConnectionNameParsing_RealExamples(t *testing.T) {
 		})
 	}
 }
-
 
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && findSubstring(s, substr)

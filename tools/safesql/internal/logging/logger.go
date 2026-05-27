@@ -38,13 +38,13 @@ type Entry struct {
 
 // Logger provides concurrent logging to multiple outputs.
 type Logger struct {
-	mu              sync.Mutex
-	stdoutWriter    io.Writer
-	journaldWriter  JournaldWriter
-	enableJournald  bool
+	mu               sync.Mutex
+	stdoutWriter     io.Writer
+	journaldWriter   JournaldWriter
+	enableJournald   bool
 	enableStructured bool
-	component       string
-	operator        string
+	component        string
+	operator         string
 }
 
 // Config configures the logger.

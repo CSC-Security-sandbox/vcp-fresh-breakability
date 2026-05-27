@@ -5,14 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -60,7 +60,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -70,34 +70,34 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceSvmName:      "source-svm",
-						SourceVolumeName:   "source-volume",
-						DestinationSvmName: "dest-svm",
+						SourceSvmName:         "source-svm",
+						SourceVolumeName:      "source-volume",
+						DestinationSvmName:    "dest-svm",
 						DestinationVolumeName: "dest-volume",
-						ReplicationSchedule: vsa.VolumeReplicationScheduleHourly,
+						ReplicationSchedule:   vsa.VolumeReplicationScheduleHourly,
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
 				SourceProjectNumber:      "123456789",
 				DestinationProjectNumber: "987654321",
-				XCorrelationID:          func() *string { s := "test-correlation-id"; return &s }(),
+				XCorrelationID:           func() *string { s := "test-correlation-id"; return &s }(),
 			},
 		}
 
 		reverseResult := &replication.ReverseHybridReplicationResult{
-			Event:            event,
-			DbVolReplication: event.ReplicationModel,
-			DstProjectNumber: &event.DestinationProjectNumber,
-			SrcProjectNumber: &event.SourceProjectNumber,
+			Event:                     event,
+			DbVolReplication:          event.ReplicationModel,
+			DstProjectNumber:          &event.DestinationProjectNumber,
+			SrcProjectNumber:          &event.SourceProjectNumber,
 			IsSrcForHybridReplication: false, // Default to false for poll workflow
 		}
 
 		pollJob := &datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
 			WorkflowID: "test-poll-workflow-id",
 		}
 
@@ -162,7 +162,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -172,37 +172,37 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceSvmName:      "source-svm",
-						SourceVolumeName:   "source-volume",
-						DestinationSvmName: "dest-svm",
+						SourceSvmName:         "source-svm",
+						SourceVolumeName:      "source-volume",
+						DestinationSvmName:    "dest-svm",
 						DestinationVolumeName: "dest-volume",
-						ReplicationSchedule: vsa.VolumeReplicationScheduleHourly,
-						DestinationLocation: "customer", // This makes IsSrcForHybridReplication return true
+						ReplicationSchedule:   vsa.VolumeReplicationScheduleHourly,
+						DestinationLocation:   "customer", // This makes IsSrcForHybridReplication return true
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 						HybridReplicationType: &reverseType,
 					},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
 				SourceProjectNumber:      "123456789",
 				DestinationProjectNumber: "987654321",
-				XCorrelationID:          func() *string { s := "test-correlation-id"; return &s }(),
+				XCorrelationID:           func() *string { s := "test-correlation-id"; return &s }(),
 			},
 		}
 
 		reverseResult := &replication.ReverseHybridReplicationResult{
-			Event:            event,
-			DbVolReplication: event.ReplicationModel,
-			DstProjectNumber: &event.DestinationProjectNumber,
-			SrcProjectNumber: &event.SourceProjectNumber,
+			Event:                     event,
+			DbVolReplication:          event.ReplicationModel,
+			DstProjectNumber:          &event.DestinationProjectNumber,
+			SrcProjectNumber:          &event.SourceProjectNumber,
 			IsSrcForHybridReplication: true, // This triggers fallback workflow
 		}
 
 		fallbackJob := &datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "test-fallback-job-uuid"},
+			BaseModel:  datamodel.BaseModel{UUID: "test-fallback-job-uuid"},
 			WorkflowID: "test-fallback-workflow-id",
 		}
 
@@ -314,7 +314,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -325,7 +325,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
@@ -390,7 +390,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -400,12 +400,12 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceSvmName:      "source-svm",
-						SourceVolumeName:   "source-volume",
+						SourceSvmName:    "source-svm",
+						SourceVolumeName: "source-volume",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
@@ -472,7 +472,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -482,15 +482,15 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceSvmName:      "source-svm",
-						SourceVolumeName:   "source-volume",
-						DestinationSvmName: "dest-svm",
+						SourceSvmName:         "source-svm",
+						SourceVolumeName:      "source-volume",
+						DestinationSvmName:    "dest-svm",
 						DestinationVolumeName: "dest-volume",
-						ReplicationSchedule: vsa.VolumeReplicationScheduleHourly,
+						ReplicationSchedule:   vsa.VolumeReplicationScheduleHourly,
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
@@ -559,7 +559,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -569,15 +569,15 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceSvmName:      "source-svm",
-						SourceVolumeName:   "source-volume",
-						DestinationSvmName: "dest-svm",
+						SourceSvmName:         "source-svm",
+						SourceVolumeName:      "source-volume",
+						DestinationSvmName:    "dest-svm",
 						DestinationVolumeName: "dest-volume",
-						ReplicationSchedule: vsa.VolumeReplicationScheduleHourly,
+						ReplicationSchedule:   vsa.VolumeReplicationScheduleHourly,
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
@@ -587,10 +587,10 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 		}
 
 		reverseResult := &replication.ReverseHybridReplicationResult{
-			Event:            event,
-			DbVolReplication: event.ReplicationModel,
-			DstProjectNumber: &event.DestinationProjectNumber,
-			SrcProjectNumber: &event.SourceProjectNumber,
+			Event:                         event,
+			DbVolReplication:              event.ReplicationModel,
+			DstProjectNumber:              &event.DestinationProjectNumber,
+			SrcProjectNumber:              &event.SourceProjectNumber,
 			HybridReplicationUserCommands: []string{"command1", "command2"},
 		}
 
@@ -649,7 +649,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -659,15 +659,15 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceSvmName:      "source-svm",
-						SourceVolumeName:   "source-volume",
-						DestinationSvmName: "dest-svm",
+						SourceSvmName:         "source-svm",
+						SourceVolumeName:      "source-volume",
+						DestinationSvmName:    "dest-svm",
 						DestinationVolumeName: "dest-volume",
-						ReplicationSchedule: vsa.VolumeReplicationScheduleHourly,
+						ReplicationSchedule:   vsa.VolumeReplicationScheduleHourly,
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
@@ -677,10 +677,10 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 		}
 
 		reverseResult := &replication.ReverseHybridReplicationResult{
-			Event:            event,
-			DbVolReplication: event.ReplicationModel,
-			DstProjectNumber: &event.DestinationProjectNumber,
-			SrcProjectNumber: &event.SourceProjectNumber,
+			Event:                         event,
+			DbVolReplication:              event.ReplicationModel,
+			DstProjectNumber:              &event.DestinationProjectNumber,
+			SrcProjectNumber:              &event.SourceProjectNumber,
 			HybridReplicationUserCommands: []string{"command1", "command2"},
 		}
 
@@ -741,7 +741,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -751,15 +751,15 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceSvmName:      "source-svm",
-						SourceVolumeName:   "source-volume",
-						DestinationSvmName: "dest-svm",
+						SourceSvmName:         "source-svm",
+						SourceVolumeName:      "source-volume",
+						DestinationSvmName:    "dest-svm",
 						DestinationVolumeName: "dest-volume",
-						ReplicationSchedule: vsa.VolumeReplicationScheduleHourly,
+						ReplicationSchedule:   vsa.VolumeReplicationScheduleHourly,
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
@@ -776,7 +776,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 		}
 
 		pollJob := &datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
 			WorkflowID: "test-poll-workflow-id",
 		}
 
@@ -839,7 +839,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
 						PoolID:    1,
 						Pool: &datamodel.Pool{
-							BaseModel: datamodel.BaseModel{ID: 1},
+							BaseModel:      datamodel.BaseModel{ID: 1},
 							DeploymentName: "test-deployment",
 							PoolCredentials: &datamodel.PoolCredentials{
 								Password:      "test-password",
@@ -849,37 +849,37 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceSvmName:      "source-svm",
-						SourceVolumeName:   "source-volume",
-						DestinationSvmName: "dest-svm",
+						SourceSvmName:         "source-svm",
+						SourceVolumeName:      "source-volume",
+						DestinationSvmName:    "dest-svm",
 						DestinationVolumeName: "dest-volume",
-						ReplicationSchedule: vsa.VolumeReplicationScheduleHourly,
-						DestinationLocation: "customer", // This makes IsSrcForHybridReplication return true
+						ReplicationSchedule:   vsa.VolumeReplicationScheduleHourly,
+						DestinationLocation:   "customer", // This makes IsSrcForHybridReplication return true
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 						HybridReplicationType: &reverseType,
 					},
 					ClusterPeer: &datamodel.ClusterPeerings{
-						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						BaseModel:     datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
 						OntapPeerUUID: "test-ontap-peer-uuid",
 					},
 				},
 				SourceProjectNumber:      "123456789",
 				DestinationProjectNumber: "987654321",
-				XCorrelationID:          func() *string { s := "test-correlation-id"; return &s }(),
+				XCorrelationID:           func() *string { s := "test-correlation-id"; return &s }(),
 			},
 		}
 
 		reverseResult := &replication.ReverseHybridReplicationResult{
-			Event:            event,
-			DbVolReplication: event.ReplicationModel,
-			DstProjectNumber: &event.DestinationProjectNumber,
-			SrcProjectNumber: &event.SourceProjectNumber,
+			Event:                     event,
+			DbVolReplication:          event.ReplicationModel,
+			DstProjectNumber:          &event.DestinationProjectNumber,
+			SrcProjectNumber:          &event.SourceProjectNumber,
 			IsSrcForHybridReplication: true, // This triggers fallback workflow
 		}
 
 		fallbackJob := &datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "test-fallback-job-uuid"},
+			BaseModel:  datamodel.BaseModel{UUID: "test-fallback-job-uuid"},
 			WorkflowID: "test-fallback-workflow-id",
 		}
 

@@ -1183,10 +1183,10 @@ func TestCounterDelta_CbsCrossRegionBackupTransferBytes_AdditionalScenarios(t *t
 		metrics := []datamodel2.HydratedMetrics{
 			{MetricTimestamp: now.Add(-25 * time.Minute), Quantity: 300000},
 			{MetricTimestamp: now.Add(-20 * time.Minute), Quantity: 500000},
-			{MetricTimestamp: now.Add(-15 * time.Minute), Quantity: 0},      // reset to 0
-			{MetricTimestamp: now.Add(-10 * time.Minute), Quantity: 0},      // flat at 0
-			{MetricTimestamp: now.Add(-5 * time.Minute), Quantity: 0},       // flat at 0
-			{MetricTimestamp: now, Quantity: 200000},                        // new backup starts
+			{MetricTimestamp: now.Add(-15 * time.Minute), Quantity: 0}, // reset to 0
+			{MetricTimestamp: now.Add(-10 * time.Minute), Quantity: 0}, // flat at 0
+			{MetricTimestamp: now.Add(-5 * time.Minute), Quantity: 0},  // flat at 0
+			{MetricTimestamp: now, Quantity: 200000},                   // new backup starts
 		}
 		got, lastVal := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CbsCrossRegionVolumeBackupTransferBytes, "cbs-zeros-then-increase")
 		// (500000-300000) + reset(0) + 0 + 0 + (200000-0) = 200000 + 0 + 0 + 0 + 200000 = 400000

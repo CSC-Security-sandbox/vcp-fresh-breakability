@@ -304,8 +304,8 @@ func TestLogRollback(t *testing.T) {
 	al := NewArtifactLogger(logger, tempDir)
 
 	rollbackData := map[string]interface{}{
-		"status":         "completed",
-		"rowsRestored":   42,
+		"status":        "completed",
+		"rowsRestored":  42,
 		"originalAudit": "audit-789",
 	}
 

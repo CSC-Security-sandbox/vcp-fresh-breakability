@@ -8,7 +8,7 @@ import (
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	client "go.temporal.io/sdk/client"
 
-	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 
 	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 

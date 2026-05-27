@@ -9,11 +9,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -418,13 +417,12 @@ func TestCreateJunctionPathForCifsShare_WithSMBShareProperties(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
-
 func TestGetOntapRestProvider_GetProviderByNodeError(t *testing.T) {
 	ctx := context.Background()
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("provider error")
 	}
 
@@ -434,10 +432,10 @@ func TestGetOntapRestProvider_GetProviderByNodeError(t *testing.T) {
 
 func TestGetOntapRestProvider_ProviderTypeMismatch(t *testing.T) {
 	ctx := context.Background()
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		// Return a mock provider that is not OntapRestProvider
 		return &vsa.MockProvider{}, nil
 	}

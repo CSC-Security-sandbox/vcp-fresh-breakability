@@ -9,13 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
@@ -301,14 +300,14 @@ func TestCheckDeleteProtection_NFSNotProvisioned_ReturnsInternalError(t *testing
 }
 
 func TestCheckDeleteProtection_NFSNotProvisioned_WithProvider_ReturnsInternalError(t *testing.T) {
-	orig := hyperscaler.GetProviderByNode
-	t.Cleanup(func() { hyperscaler.GetProviderByNode = orig })
+	orig := vsa.GetProviderByNode
+	t.Cleanup(func() { vsa.GetProviderByNode = orig })
 
 	fakeProvider := &deleteProtectionRESTProvider{
 		MockProvider: vsa.NewMockProvider(t),
 		restClient:   nil,
 	}
-	hyperscaler.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
 		return fakeProvider, nil
 	}
 
@@ -332,11 +331,11 @@ func TestCheckDeleteProtection_NFSProviderError_ReturnsInternalError(t *testing.
 	volume := nfsVolumeWithDeleteRestriction("ext-uuid", "svm-1")
 	node := &models.Node{Name: "node-1"}
 
-	orig := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
+	orig := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("provider unavailable")
 	}
-	t.Cleanup(func() { hyperscaler.GetProviderByNode = orig })
+	t.Cleanup(func() { vsa.GetProviderByNode = orig })
 
 	var deny *vsaerrors.CustomError
 	err := CheckDeleteProtection(context.Background(), volume, node, nil)
@@ -472,11 +471,11 @@ func patchDeleteProtectionProvider(t *testing.T, restClient ontap_rest.RESTClien
 		MockProvider: vsa.NewMockProvider(t),
 		restClient:   restClient,
 	}
-	orig := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
+	orig := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
 		return fakeProvider, nil
 	}
-	return func() { hyperscaler.GetProviderByNode = orig }
+	return func() { vsa.GetProviderByNode = orig }
 }
 
 type deleteProtectionRESTProvider struct {

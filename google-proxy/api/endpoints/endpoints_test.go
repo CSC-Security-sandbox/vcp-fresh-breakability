@@ -144,4 +144,3 @@ func TestGetHealth_ConcurrentAccess(t *testing.T) {
 		assert.True(tt, serverState.IsShuttingDown())
 	})
 }
-

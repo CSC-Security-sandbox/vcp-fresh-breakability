@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -68,7 +67,7 @@ func createTestSVMForExpertMode(t *testing.T, store *DataStoreRepository, poolID
 		PoolID:     poolID,
 		AccountID:  accountID,
 		SvmDetails: svmDetails,
-		State:      models.LifeCycleStateREADY,
+		State:      datamodel.LifeCycleStateREADY,
 	}
 	err := store.db.Create(svm).Error()
 	assert.NoError(t, err)
@@ -91,7 +90,7 @@ func TestCreateExpertModeVolume_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -105,7 +104,7 @@ func TestCreateExpertModeVolume_Success(t *testing.T) {
 	assert.Equal(t, expertModeVolume.AccountID, createdVolume.AccountID)
 	assert.Equal(t, expertModeVolume.SvmID, createdVolume.SvmID)
 	assert.Equal(t, expertModeVolume.Style, createdVolume.Style)
-	assert.Equal(t, models.LifeCycleStateCreating, createdVolume.State)
+	assert.Equal(t, datamodel.LifeCycleStateCreating, createdVolume.State)
 	assert.NotEmpty(t, createdVolume.ExternalUUID)
 }
 
@@ -129,7 +128,7 @@ func TestCreateExpertModeVolume_WithExistingUUID(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -159,7 +158,7 @@ func TestCreateExpertModeVolume_WithAllStyles(t *testing.T) {
 				SvmID:        svm.ID,
 				Style:        style,
 				ExternalUUID: utils.RandomUUID(),
-				State:        models.LifeCycleStateCreating,
+				State:        datamodel.LifeCycleStateCreating,
 			}
 
 			createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -188,7 +187,7 @@ func TestGetExpertModePoolUsedCapacity_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 	volume2 := &datamodel.ExpertModeVolumes{
 		Name:         "volume-2",
@@ -198,7 +197,7 @@ func TestGetExpertModePoolUsedCapacity_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexgroup",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 	volume3 := &datamodel.ExpertModeVolumes{
 		Name:         "volume-3",
@@ -208,7 +207,7 @@ func TestGetExpertModePoolUsedCapacity_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexcache",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 
 	_, err := store.CreateExpertModeVolume(ctx, volume1)
@@ -231,7 +230,7 @@ func TestGetExpertModePoolUsedCapacity_Success(t *testing.T) {
 		SvmID:        svm2.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 	_, err = store.CreateExpertModeVolume(ctx, volume4)
 	assert.NoError(t, err)
@@ -292,7 +291,7 @@ func TestGetExpertModePoolUsedCapacity_WithDeletedVolumes(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 	createdVolume, err := store.CreateExpertModeVolume(ctx, volume1)
 	assert.NoError(t, err)
@@ -319,14 +318,14 @@ func TestGetExpertModePoolUsedCapacity_SubtractsSharedBytes(t *testing.T) {
 	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
 
 	vol := &datamodel.ExpertModeVolumes{
-		Name:        "clone-volume-shared",
-		SizeInBytes: 1000,
-		PoolID:      pool.ID,
-		AccountID:   account.ID,
-		SvmID:       svm.ID,
-		Style:       "flexvol",
+		Name:         "clone-volume-shared",
+		SizeInBytes:  1000,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateAvailable,
+		State:        datamodel.LifeCycleStateAvailable,
 	}
 	created, err := store.CreateExpertModeVolume(ctx, vol)
 	assert.NoError(t, err)
@@ -359,7 +358,7 @@ func TestGetExpertModePoolUsedCapacity_EffectiveUsedFloorsAtZeroWhenSharedBytesE
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateAvailable,
+		State:        datamodel.LifeCycleStateAvailable,
 	}
 	created, err := store.CreateExpertModeVolume(ctx, v1)
 	assert.NoError(t, err)
@@ -392,7 +391,7 @@ func TestUpdateExpertModeVolumeFields_UpdatesSharedBytesColumn(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateAvailable,
+		State:        datamodel.LifeCycleStateAvailable,
 	}
 	created, err := store.CreateExpertModeVolume(ctx, vol)
 	assert.NoError(t, err)
@@ -424,7 +423,7 @@ func TestGetActiveExpertModeVolumesCountByAccountID(t *testing.T) {
 		SvmID:        svm1.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	volA2 := &datamodel.ExpertModeVolumes{
 		Name:         "acct1-vol-2",
@@ -434,7 +433,7 @@ func TestGetActiveExpertModeVolumesCountByAccountID(t *testing.T) {
 		SvmID:        svm1.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	volA3 := &datamodel.ExpertModeVolumes{
 		Name:         "acct1-vol-3",
@@ -444,7 +443,7 @@ func TestGetActiveExpertModeVolumesCountByAccountID(t *testing.T) {
 		SvmID:        svm1.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 
 	createdA1, err := store.CreateExpertModeVolume(ctx, volA1)
@@ -469,7 +468,7 @@ func TestGetActiveExpertModeVolumesCountByAccountID(t *testing.T) {
 		SvmID:        svm2.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	_, err = store.CreateExpertModeVolume(ctx, volB1)
 	assert.NoError(t, err)
@@ -501,7 +500,7 @@ func TestCreateExpertModeVolume_ForeignKeyConstraint(t *testing.T) {
 		SvmID:        99999, // Non-existent SVM
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -531,7 +530,7 @@ func TestGetExpertModeVolumeByNameAndPoolID_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 
 	_, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -577,7 +576,7 @@ func TestGetExpertModeVolumeByUUID(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -593,7 +592,7 @@ func TestGetExpertModeVolumeByUUID(t *testing.T) {
 		assert.Equal(tt, "test-expert-volume", retrievedVolume.Name)
 		assert.Equal(tt, int64(1099511627776), retrievedVolume.SizeInBytes)
 		assert.Equal(tt, "flexvol", retrievedVolume.Style)
-		assert.Equal(tt, models.LifeCycleStateCreating, retrievedVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, retrievedVolume.State)
 		assert.Equal(tt, pool.ID, retrievedVolume.PoolID)
 		assert.Equal(tt, account.ID, retrievedVolume.AccountID)
 		assert.Equal(tt, svm.ID, retrievedVolume.SvmID)
@@ -643,7 +642,7 @@ func TestGetExpertModeVolumeByUUID(t *testing.T) {
 					SvmID:        svm.ID,
 					Style:        style,
 					ExternalUUID: utils.RandomUUID(),
-					State:        models.LifeCycleStateCreating,
+					State:        datamodel.LifeCycleStateCreating,
 				}
 
 				createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -681,7 +680,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: volumeExternalUUID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -698,7 +697,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 		assert.Equal(tt, "test-expert-volume", retrievedVolume.Name)
 		assert.Equal(tt, int64(1099511627776), retrievedVolume.SizeInBytes)
 		assert.Equal(tt, "flexvol", retrievedVolume.Style)
-		assert.Equal(tt, models.LifeCycleStateAvailable, retrievedVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, retrievedVolume.State)
 		assert.Equal(tt, pool.ID, retrievedVolume.PoolID)
 		assert.Equal(tt, account.ID, retrievedVolume.AccountID)
 		assert.Equal(tt, svm.ID, retrievedVolume.SvmID)
@@ -749,7 +748,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 					SvmID:        svm.ID,
 					Style:        style,
 					ExternalUUID: volumeExternalUUID,
-					State:        models.LifeCycleStateAvailable,
+					State:        datamodel.LifeCycleStateAvailable,
 				}
 
 				_, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -789,7 +788,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: externalUUID1,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 		volume2 := &datamodel.ExpertModeVolumes{
 			Name:         "volume-2",
@@ -799,7 +798,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexgroup",
 			ExternalUUID: externalUUID2,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 		volume3 := &datamodel.ExpertModeVolumes{
 			Name:         "volume-3",
@@ -809,7 +808,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexcache",
 			ExternalUUID: externalUUID3,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 
 		_, err := store.CreateExpertModeVolume(ctx, volume1)
@@ -847,7 +846,7 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: volumeExternalUUID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -878,9 +877,9 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 
 	t.Run("WhenVolumeExistsInDifferentStates", func(tt *testing.T) {
 		states := []string{
-			models.LifeCycleStateCreating,
-			models.LifeCycleStateAvailable,
-			models.LifeCycleStateDeleting,
+			datamodel.LifeCycleStateCreating,
+			datamodel.LifeCycleStateAvailable,
+			datamodel.LifeCycleStateDeleting,
 		}
 
 		for _, state := range states {
@@ -936,7 +935,7 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -951,7 +950,7 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			Name:        "updated-expert-volume",
 			SizeInBytes: 2199023255552, // 2TB
 			Style:       "flexgroup",
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 
 		result, err := store.UpdateExpertModeVolume(ctx, updatedVolume)
@@ -961,7 +960,7 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 		assert.Equal(tt, "updated-expert-volume", result.Name)
 		assert.Equal(tt, int64(2199023255552), result.SizeInBytes)
 		assert.Equal(tt, "flexgroup", result.Style)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
 		assert.Equal(tt, createdVolume.UUID, result.UUID)
 		assert.Equal(tt, pool.ID, result.PoolID)
 		assert.Equal(tt, account.ID, result.AccountID)
@@ -985,7 +984,7 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1000,14 +999,14 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			Name:        createdVolume.Name,
 			SizeInBytes: createdVolume.SizeInBytes,
 			Style:       createdVolume.Style,
-			State:       models.LifeCycleStateDeleted,
+			State:       datamodel.LifeCycleStateDeleted,
 		}
 
 		result, err := store.UpdateExpertModeVolume(ctx, updatedVolume)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, result.State)
 		assert.Equal(tt, createdVolume.Name, result.Name)
 		assert.Equal(tt, createdVolume.SizeInBytes, result.SizeInBytes)
 		assert.Equal(tt, createdVolume.Style, result.Style)
@@ -1030,7 +1029,7 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1075,7 +1074,7 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1114,7 +1113,7 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			Name:        "non-existent-volume",
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 
 		result, err := store.UpdateExpertModeVolume(ctx, nonExistentVolume)
@@ -1141,13 +1140,13 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, createdVolume)
-		assert.Equal(tt, models.LifeCycleStateCreating, createdVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, createdVolume.State)
 
 		// Transition: CREATING -> AVAILABLE
 		updatedVolume1 := &datamodel.ExpertModeVolumes{
@@ -1157,13 +1156,13 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			Name:        createdVolume.Name,
 			SizeInBytes: createdVolume.SizeInBytes,
 			Style:       createdVolume.Style,
-			State:       models.LifeCycleStateAvailable,
+			State:       datamodel.LifeCycleStateAvailable,
 		}
 
 		result1, err := store.UpdateExpertModeVolume(ctx, updatedVolume1)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result1)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result1.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result1.State)
 
 		// Transition: AVAILABLE -> DELETED
 		updatedVolume2 := &datamodel.ExpertModeVolumes{
@@ -1173,13 +1172,13 @@ func TestUpdateExpertModeVolume(t *testing.T) {
 			Name:        result1.Name,
 			SizeInBytes: result1.SizeInBytes,
 			Style:       result1.Style,
-			State:       models.LifeCycleStateDeleted,
+			State:       datamodel.LifeCycleStateDeleted,
 		}
 
 		result2, err := store.UpdateExpertModeVolume(ctx, updatedVolume2)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result2)
-		assert.Equal(tt, models.LifeCycleStateDeleted, result2.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, result2.State)
 	})
 }
 
@@ -1200,7 +1199,7 @@ func TestGetExpertModeVolumeByUUID_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1254,7 +1253,7 @@ func TestGetExpertModeVolumeByUUID_WithBackupConfig(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 		BackupConfig: backupConfig,
 	}
 
@@ -1290,7 +1289,7 @@ func TestUpdateExpertModeVolume_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1310,7 +1309,7 @@ func TestUpdateExpertModeVolume_Success(t *testing.T) {
 		Name:        "updated-expert-volume",
 		SizeInBytes: 2199023255552, // 2TB
 		Style:       "flexgroup",
-		State:       models.LifeCycleStateAvailable,
+		State:       datamodel.LifeCycleStateAvailable,
 	}
 
 	result, err := store.UpdateExpertModeVolume(ctx, updatedVolume)
@@ -1319,7 +1318,7 @@ func TestUpdateExpertModeVolume_Success(t *testing.T) {
 	assert.Equal(t, "updated-expert-volume", result.Name)
 	assert.Equal(t, int64(2199023255552), result.SizeInBytes)
 	assert.Equal(t, "flexgroup", result.Style)
-	assert.Equal(t, models.LifeCycleStateAvailable, result.State)
+	assert.Equal(t, datamodel.LifeCycleStateAvailable, result.State)
 	assert.Equal(t, createdVolume.UUID, result.UUID)
 	assert.Equal(t, pool.ID, result.PoolID)
 	assert.Equal(t, account.ID, result.AccountID)
@@ -1343,7 +1342,7 @@ func TestUpdateExpertModeVolume_WithNilBackupConfig(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1419,7 +1418,7 @@ func TestUpdateExpertModeVolumeFields_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 		BackupConfig: &datamodel.DataProtection{
 			BackupVaultID: "old-vault-id",
 		},
@@ -1436,7 +1435,7 @@ func TestUpdateExpertModeVolumeFields_Success(t *testing.T) {
 			BackupVaultID:    "new-vault-id",
 			BackupChainBytes: &logicalSize,
 		},
-		"state": models.LifeCycleStateAvailable,
+		"state": datamodel.LifeCycleStateAvailable,
 	}
 
 	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
@@ -1446,7 +1445,7 @@ func TestUpdateExpertModeVolumeFields_Success(t *testing.T) {
 	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedVolume)
-	assert.Equal(t, models.LifeCycleStateAvailable, retrievedVolume.State)
+	assert.Equal(t, datamodel.LifeCycleStateAvailable, retrievedVolume.State)
 	assert.NotNil(t, retrievedVolume.BackupConfig)
 	assert.Equal(t, "new-vault-id", retrievedVolume.BackupConfig.BackupVaultID)
 	assert.NotNil(t, retrievedVolume.BackupConfig.BackupChainBytes)
@@ -1458,7 +1457,7 @@ func TestUpdateExpertModeVolumeFields_VolumeNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	updates := map[string]interface{}{
-		"state": models.LifeCycleStateAvailable,
+		"state": datamodel.LifeCycleStateAvailable,
 	}
 
 	err := store.UpdateExpertModeVolumeFields(ctx, "nonexistent-uuid", updates)
@@ -1481,7 +1480,7 @@ func TestUpdateExpertModeVolumeFields_UpdateStateOnly(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1489,7 +1488,7 @@ func TestUpdateExpertModeVolumeFields_UpdateStateOnly(t *testing.T) {
 
 	// Update only state
 	updates := map[string]interface{}{
-		"state": models.LifeCycleStateAvailable,
+		"state": datamodel.LifeCycleStateAvailable,
 	}
 
 	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
@@ -1498,7 +1497,7 @@ func TestUpdateExpertModeVolumeFields_UpdateStateOnly(t *testing.T) {
 	// Verify the update
 	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
 	assert.NoError(t, err)
-	assert.Equal(t, models.LifeCycleStateAvailable, retrievedVolume.State)
+	assert.Equal(t, datamodel.LifeCycleStateAvailable, retrievedVolume.State)
 	assert.Equal(t, createdVolume.Name, retrievedVolume.Name)
 	assert.Equal(t, createdVolume.SizeInBytes, retrievedVolume.SizeInBytes)
 }
@@ -1519,7 +1518,7 @@ func TestUpdateExpertModeVolumeFields_UpdateDataProtection(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateAvailable,
+		State:        datamodel.LifeCycleStateAvailable,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1564,7 +1563,7 @@ func TestUpdateExpertModeVolumeFields_UpdateMultipleFields(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1573,7 +1572,7 @@ func TestUpdateExpertModeVolumeFields_UpdateMultipleFields(t *testing.T) {
 	// Update multiple fields
 	backupChainBytes := int64(3072)
 	updates := map[string]interface{}{
-		"state": models.LifeCycleStateAvailable,
+		"state": datamodel.LifeCycleStateAvailable,
 		"name":  "updated-name",
 		"style": "flexgroup",
 		"data_protection": &datamodel.DataProtection{
@@ -1588,7 +1587,7 @@ func TestUpdateExpertModeVolumeFields_UpdateMultipleFields(t *testing.T) {
 	// Verify all updates
 	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
 	assert.NoError(t, err)
-	assert.Equal(t, models.LifeCycleStateAvailable, retrievedVolume.State)
+	assert.Equal(t, datamodel.LifeCycleStateAvailable, retrievedVolume.State)
 	assert.Equal(t, "updated-name", retrievedVolume.Name)
 	assert.Equal(t, "flexgroup", retrievedVolume.Style)
 	assert.NotNil(t, retrievedVolume.BackupConfig)
@@ -1613,7 +1612,7 @@ func TestUpdateExpertModeVolumeFields_EmptyUpdates(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateAvailable,
+		State:        datamodel.LifeCycleStateAvailable,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1648,7 +1647,7 @@ func TestUpdateExpertModeVolumeFields_UpdatesUpdatedAtTimestamp(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateAvailable,
+		State:        datamodel.LifeCycleStateAvailable,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1660,7 +1659,7 @@ func TestUpdateExpertModeVolumeFields_UpdatesUpdatedAtTimestamp(t *testing.T) {
 
 	// Update a field
 	updates := map[string]interface{}{
-		"state": models.LifeCycleStateDeleting,
+		"state": datamodel.LifeCycleStateDeleting,
 	}
 
 	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
@@ -1691,7 +1690,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1723,9 +1722,9 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 
 	t.Run("WhenVolumeInDifferentStates", func(tt *testing.T) {
 		states := []string{
-			models.LifeCycleStateCreating,
-			models.LifeCycleStateAvailable,
-			models.LifeCycleStateDeleting,
+			datamodel.LifeCycleStateCreating,
+			datamodel.LifeCycleStateAvailable,
+			datamodel.LifeCycleStateDeleting,
 		}
 
 		for _, initialState := range states {
@@ -1778,7 +1777,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateDeleting,
+			State:        datamodel.LifeCycleStateDeleting,
 		}
 
 		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -1810,7 +1809,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 		volume2 := &datamodel.ExpertModeVolumes{
 			Name:         "volume-2",
@@ -1820,7 +1819,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 		}
 
 		createdVolume1, err := store.CreateExpertModeVolume(ctx, volume1)
@@ -1872,7 +1871,7 @@ func TestListExpertModeVolumesByPoolID_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: "external-uuid-1",
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 		BackupConfig: backupConfig1,
 	}
 	created1, err := store.CreateExpertModeVolume(ctx, volume1)
@@ -1893,7 +1892,7 @@ func TestListExpertModeVolumesByPoolID_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexgroup",
 		ExternalUUID: "external-uuid-2",
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 		BackupConfig: backupConfig2,
 	}
 	created2, err := store.CreateExpertModeVolume(ctx, volume2)
@@ -1908,7 +1907,7 @@ func TestListExpertModeVolumesByPoolID_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: "external-uuid-3",
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	created3, err := store.CreateExpertModeVolume(ctx, volume3)
 	assert.NoError(t, err)
@@ -1932,7 +1931,7 @@ func TestListExpertModeVolumesByPoolID_Success(t *testing.T) {
 	assert.Equal(t, "external-uuid-1", vol1.ExternalUUID)
 	assert.Equal(t, int64(1099511627776), vol1.SizeInBytes)
 	assert.Equal(t, "flexvol", vol1.Style)
-	assert.Equal(t, models.LifeCycleStateREADY, vol1.State)
+	assert.Equal(t, datamodel.LifeCycleStateREADY, vol1.State)
 	assert.NotNil(t, vol1.BackupConfig)
 	assert.Equal(t, "backup-vault-uuid-1", vol1.BackupConfig.BackupVaultID)
 	assert.NotNil(t, vol1.BackupConfig.ScheduledBackupEnabled)
@@ -1945,7 +1944,7 @@ func TestListExpertModeVolumesByPoolID_Success(t *testing.T) {
 	assert.Equal(t, "external-uuid-2", vol2.ExternalUUID)
 	assert.Equal(t, int64(536870912000), vol2.SizeInBytes)
 	assert.Equal(t, "flexgroup", vol2.Style)
-	assert.Equal(t, models.LifeCycleStateCreating, vol2.State)
+	assert.Equal(t, datamodel.LifeCycleStateCreating, vol2.State)
 	assert.NotNil(t, vol2.BackupConfig)
 	assert.Equal(t, "backup-vault-uuid-2", vol2.BackupConfig.BackupVaultID)
 	assert.NotNil(t, vol2.BackupConfig.ScheduledBackupEnabled)
@@ -1958,7 +1957,7 @@ func TestListExpertModeVolumesByPoolID_Success(t *testing.T) {
 	assert.Equal(t, "external-uuid-3", vol3.ExternalUUID)
 	assert.Equal(t, int64(214748364800), vol3.SizeInBytes)
 	assert.Equal(t, "flexvol", vol3.Style)
-	assert.Equal(t, models.LifeCycleStateREADY, vol3.State)
+	assert.Equal(t, datamodel.LifeCycleStateREADY, vol3.State)
 	// GORM deserializes NULL JSONB as empty struct, so check for empty BackupVaultID
 	if vol3.BackupConfig != nil {
 		assert.Empty(t, vol3.BackupConfig.BackupVaultID, "Volume 3 should not have backup vault configured")
@@ -2028,7 +2027,7 @@ func TestListExpertModeVolumesByPoolID_IsolationBetweenPools(t *testing.T) {
 		SvmID:        svm1.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	_, err = store.CreateExpertModeVolume(ctx, volume1Pool1)
 	assert.NoError(t, err)
@@ -2041,7 +2040,7 @@ func TestListExpertModeVolumesByPoolID_IsolationBetweenPools(t *testing.T) {
 		SvmID:        svm1.ID,
 		Style:        "flexgroup",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	_, err = store.CreateExpertModeVolume(ctx, volume2Pool1)
 	assert.NoError(t, err)
@@ -2055,7 +2054,7 @@ func TestListExpertModeVolumesByPoolID_IsolationBetweenPools(t *testing.T) {
 		SvmID:        svm2.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	_, err = store.CreateExpertModeVolume(ctx, volumePool2)
 	assert.NoError(t, err)
@@ -2095,7 +2094,7 @@ func TestGetEligibleExpertModeVolumes_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	_, err := store.CreateExpertModeVolume(ctx, vol1)
 	assert.NoError(t, err)
@@ -2108,7 +2107,7 @@ func TestGetEligibleExpertModeVolumes_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexgroup",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		State:        datamodel.LifeCycleStateCreating,
 	}
 	_, err = store.CreateExpertModeVolume(ctx, vol2)
 	assert.NoError(t, err)
@@ -2140,7 +2139,7 @@ func TestGetEligibleExpertModeVolumes_ExcludesDeletedVolumes(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	created, err := store.CreateExpertModeVolume(ctx, vol)
 	assert.NoError(t, err)
@@ -2174,7 +2173,7 @@ func TestGetEligibleExpertModeVolumes_Pagination(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateREADY,
+			State:        datamodel.LifeCycleStateREADY,
 		}
 		_, err := store.CreateExpertModeVolume(ctx, vol)
 		assert.NoError(t, err)
@@ -2216,7 +2215,7 @@ func TestGetMultipleVolumesWithExpertMode_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	created, err := store.CreateExpertModeVolume(ctx, vol)
 	assert.NoError(t, err)
@@ -2265,7 +2264,7 @@ func TestListExpertModeVolumesWithPagination_Success(t *testing.T) {
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        datamodel.LifeCycleStateREADY,
 	}
 	created, err := store.CreateExpertModeVolume(ctx, vol)
 	assert.NoError(t, err)

@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
@@ -51,7 +50,7 @@ func (a *ExpertModeVolumeActivity) FetchOntapVolumeByName(ctx context.Context, v
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching volume %s from ONTAP", volume.Name))
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP provider from node: %v", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -153,7 +152,7 @@ func (a *ExpertModeVolumeActivity) CheckVolumeDeletedInOntap(ctx context.Context
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Checking if volume %s is deleted in ONTAP", volume.Name))
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP provider from node: %v", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -319,7 +318,7 @@ func _fetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVo
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching volume %s from ONTAP", volume.Name))
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP provider from node: %v", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -362,7 +361,7 @@ func _fetchOntapCloneVolumeByUUID(ctx context.Context, volume *datamodel.ExpertM
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching clone volume %s from ONTAP by UUID", volume.Name))
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP provider from node: %v", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -450,7 +449,7 @@ func (a *ExpertModeVolumeActivity) RecoverExpertModeVolumeAfterFlexCloneSplitFai
 
 	sharedBytes := int64(0)
 	if c := cloneResp.Clone; c != nil && c.ParentVolumeUUID != "" && c.ParentSnapshotUUID != "" {
-		provider, providerErr := hyperscaler.GetProviderByNode(ctx, node)
+		provider, providerErr := vsa.GetProviderByNode(ctx, node)
 		if providerErr != nil {
 			logger.Errorf("Failed to get ONTAP provider from node for recovery: %v", providerErr)
 			return vsaerrors.WrapAsTemporalApplicationError(providerErr)

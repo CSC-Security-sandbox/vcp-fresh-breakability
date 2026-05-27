@@ -13,9 +13,9 @@ import (
 type ArtifactType string
 
 const (
-	ArtifactTypePlan     ArtifactType = "plan"
-	ArtifactTypeRollback ArtifactType = "rollback"
-	ArtifactTypeAudit    ArtifactType = "audit"
+	ArtifactTypePlan      ArtifactType = "plan"
+	ArtifactTypeRollback  ArtifactType = "rollback"
+	ArtifactTypeAudit     ArtifactType = "audit"
 	ArtifactTypeExecution ArtifactType = "execution"
 )
 

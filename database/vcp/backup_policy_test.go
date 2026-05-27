@@ -5,11 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
@@ -524,8 +523,8 @@ func TestDeleteBackupPolicy(t *testing.T) {
 		assert.Equal(tt, backupPolicy.UUID, result.UUID)
 		assert.NotNil(tt, result.DeletedAt)
 		assert.True(tt, result.DeletedAt.Valid)
-		assert.Equal(tt, models.LifeCycleStateDeleted, result.LifeCycleState)
-		assert.Equal(tt, models.LifeCycleStateDeletedDetails, result.LifeCycleStateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, result.LifeCycleState)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, result.LifeCycleStateDetails)
 	})
 
 	t.Run("WhenDeleteBackupPolicyFailsWithNonExistentBackupPolicyID", func(tt *testing.T) {
@@ -601,8 +600,8 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		MonthlyBackupsToKeep:  1,
 		AccountID:             account.ID,
 		Account:               account,
-		LifeCycleState:        models.LifeCycleStateREADY,
-		LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		LifeCycleState:        datamodel.LifeCycleStateREADY,
+		LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 	}
 	err = store.db.Create(backupPolicy).Error()
 	assert.NoError(t, err, "Expected no error when creating backup policy")

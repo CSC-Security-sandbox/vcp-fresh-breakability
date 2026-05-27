@@ -178,11 +178,11 @@ func TestPasswordLeakagePrevention(t *testing.T) {
 	t.Run("DSN sanitization prevents leakage", func(t *testing.T) {
 		unsafeDSN := "host=localhost user=admin password=SuperSecret123! dbname=test"
 		safeDSN := sanitizeDSN(unsafeDSN)
-		
+
 		// Ensure password is masked
 		assert.NotContains(t, safeDSN, "SuperSecret123!")
 		assert.Contains(t, safeDSN, "password=***")
-		
+
 		// Ensure other parts remain intact
 		assert.Contains(t, safeDSN, "host=localhost")
 		assert.Contains(t, safeDSN, "user=admin")
@@ -237,14 +237,14 @@ func sanitizeDSN(dsn string) string {
 		if idx == -1 {
 			break
 		}
-		
+
 		// Find end of password value (next space or end of string)
 		valueStart := idx + 9
 		valueEnd := valueStart
 		for valueEnd < len(result) && result[valueEnd] != ' ' {
 			valueEnd++
 		}
-		
+
 		// Replace password value with ***
 		result = result[:valueStart] + "***" + result[valueEnd:]
 		passwordStart = valueStart + 3 // Move past the ***

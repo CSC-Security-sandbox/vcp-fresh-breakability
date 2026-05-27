@@ -9,12 +9,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	errorsutil "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -182,9 +181,9 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestPollPrepopulateJobStatus_Suc
 	s.mockStorage.On("GetNodesByPoolID", s.ctx, poolID).Return(nodes, nil)
 
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -230,9 +229,9 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestPollPrepopulateJobStatus_Suc
 	s.mockStorage.On("GetNodesByPoolID", s.ctx, poolID).Return(nodes, nil)
 
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -278,9 +277,9 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestPollPrepopulateJobStatus_Suc
 	s.mockStorage.On("GetNodesByPoolID", s.ctx, poolID).Return(nodes, nil)
 
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -331,9 +330,9 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestPollPrepopulateJobStatus_Suc
 	s.mockStorage.On("GetNodesByPoolID", s.ctx, poolID).Return(nodes, nil)
 
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -470,9 +469,9 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestPollPrepopulateJobStatus_Get
 
 	s.mockStorage.On("GetNodesByPoolID", s.ctx, poolID).Return(nodes, nil)
 
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("provider error")
 	}
 
@@ -512,9 +511,9 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestPollPrepopulateJobStatus_Job
 	s.mockStorage.On("GetNodesByPoolID", s.ctx, poolID).Return(nodes, nil)
 
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 

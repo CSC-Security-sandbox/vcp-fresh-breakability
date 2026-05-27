@@ -39,15 +39,15 @@ func TestControlWorkflowActivity_ExecutePoolCertificateRotationSequentially(t *t
 			expectedControlWfID := "Pool_test-pool-uuid_Ops_All"
 			assert.Equal(t, expectedControlWfID, sequenceWfOptions.ID)
 			assert.Equal(t, workflowengine.CustomerTaskQueue, sequenceWfOptions.TaskQueue)
-			
+
 			// Verify child workflow options
 			assert.Equal(t, workflowengine.CustomerTaskQueue, wfOptions.TaskQueue)
 			assert.Equal(t, workflowTimeout, wfOptions.WorkflowRunTimeout)
-			
+
 			// Verify workflow args
 			assert.Len(t, wfArgs, 1)
 			assert.Equal(t, poolUUID, wfArgs[0])
-			
+
 			return nil
 		}
 
@@ -101,15 +101,15 @@ func TestControlWorkflowActivity_ExecutePoolPasswordRotationSequentially(t *test
 			expectedControlWfID := "Pool_test-pool-uuid_Ops_All"
 			assert.Equal(t, expectedControlWfID, sequenceWfOptions.ID)
 			assert.Equal(t, workflowengine.CustomerTaskQueue, sequenceWfOptions.TaskQueue)
-			
+
 			// Verify child workflow options
 			assert.Equal(t, workflowengine.CustomerTaskQueue, wfOptions.TaskQueue)
 			assert.Equal(t, workflowTimeout, wfOptions.WorkflowRunTimeout)
-			
+
 			// Verify workflow args
 			assert.Len(t, wfArgs, 1)
 			assert.Equal(t, poolUUID, wfArgs[0])
-			
+
 			return nil
 		}
 
@@ -135,4 +135,3 @@ func TestControlWorkflowActivity_ExecutePoolPasswordRotationSequentially(t *test
 		assert.Error(t, err)
 	})
 }
-

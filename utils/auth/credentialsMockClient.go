@@ -9,7 +9,7 @@ import (
 	credentials2 "cloud.google.com/go/iam/credentials/apiv1/credentialspb"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 

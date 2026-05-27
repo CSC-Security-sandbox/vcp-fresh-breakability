@@ -10,15 +10,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -3817,11 +3816,11 @@ func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T)
 
 	// Mock hyperscaler provider
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 	node := &models.Node{EndpointAddress: "test-node-address"}
 	snapshotUUID := "snapshot-uuid-1"
@@ -3850,11 +3849,11 @@ func TestDeleteSnapshotForBackup_NotUseExistingSnapshot_DeletesSnapshot(t *testi
 
 	// Mock hyperscaler provider
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 	node := &models.Node{EndpointAddress: "test-node-address"}
 	snapshotUUID := "snapshot-uuid-1"
@@ -3882,11 +3881,11 @@ func TestDeleteSnapshotForBackup_GetProviderByNodeFailure(t *testing.T) {
 	env.RegisterActivity(&activity)
 
 	// Mock hyperscaler provider to return error
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider")
 	}
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 	node := &models.Node{EndpointAddress: "test-node-address"}
 	snapshotUUID := "snapshot-uuid-1"
@@ -3912,11 +3911,11 @@ func TestDeleteSnapshotForBackup_DeleteSnapshotFailure(t *testing.T) {
 
 	// Mock hyperscaler provider
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 	node := &models.Node{EndpointAddress: "test-node-address"}
 	snapshotUUID := "snapshot-uuid-1"

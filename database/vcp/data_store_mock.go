@@ -6,7 +6,8 @@ import (
 	context "context"
 
 	mock "github.com/stretchr/testify/mock"
-	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 
 	time "time"
 

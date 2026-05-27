@@ -4,4 +4,8 @@ use (
 	.
 	./cicd
 	./core
+	./database
+	./hyperscaler
+	./lib
+	./vcp-core
 )

@@ -20,4 +20,3 @@ const (
 	RotatePoolCertificateWorkflowName = "RotatePoolCertificateWorkflow"
 	RotatePoolPasswordWorkflowName    = "RotatePoolPasswordWorkflow"
 )
-

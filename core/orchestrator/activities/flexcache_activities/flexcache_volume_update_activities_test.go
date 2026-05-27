@@ -8,12 +8,11 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -60,8 +59,8 @@ func TestFlexCacheVolumeUpdateActivity_UpdateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(t)
 		logger := log.NewMockLogger(t)
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 		activity := FlexCacheVolumeUpdateActivity{SE: database.NewMockStorage(t)}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -78,8 +77,8 @@ func TestFlexCacheVolumeUpdateActivity_UpdateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(t)
 		logger := log.NewMockLogger(t)
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 		activity := FlexCacheVolumeUpdateActivity{SE: database.NewMockStorage(t)}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -98,8 +97,8 @@ func TestFlexCacheVolumeUpdateActivity_UpdateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(t)
 		logger := log.NewMockLogger(t)
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 		activity := FlexCacheVolumeUpdateActivity{SE: database.NewMockStorage(t)}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -118,8 +117,8 @@ func TestFlexCacheVolumeUpdateActivity_UpdateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(t)
 		logger := log.NewMockLogger(t)
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 		activity := FlexCacheVolumeUpdateActivity{SE: database.NewMockStorage(t)}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -139,8 +138,8 @@ func TestFlexCacheVolumeUpdateActivity_UpdateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(t)
 		logger := log.NewMockLogger(t)
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 		activity := FlexCacheVolumeUpdateActivity{SE: database.NewMockStorage(t)}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}

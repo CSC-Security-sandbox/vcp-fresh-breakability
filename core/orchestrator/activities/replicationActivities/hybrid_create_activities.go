@@ -11,15 +11,14 @@ import (
 	"github.com/google/uuid"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -172,8 +171,8 @@ func (a *HybridReplicationActivity) CreateNodesForHybridReplication(ctx context.
 	logger := util.GetLogger(ctx)
 	logger.Debug("CreateNodesForHybridReplication")
 
-	nodes := hyperscaler.NodeProviderInput{Nodes: result.DbNodes, DeploymentName: result.DestinationVolume.Pool.DeploymentName, OntapCredentials: result.DestinationVolume.Pool.PoolCredentials}
-	nodeProvider := hyperscaler.CreateNodeForProvider(nodes)
+	nodes := vsa.NodeProviderInput{Nodes: result.DbNodes, DeploymentName: result.DestinationVolume.Pool.DeploymentName, OntapCredentials: result.DestinationVolume.Pool.PoolCredentials}
+	nodeProvider := vsa.CreateNodeForProvider(nodes)
 	if nodeProvider == nil {
 		return nil, errors.NewVCPError(errors.ErrInputValidationError, fmt.Errorf("failed to create destination node"))
 	}
@@ -387,7 +386,7 @@ func (a *HybridReplicationActivity) GetOrCreateClusterPeerInOntapForHybridReplic
 	logger.Debug("GetOrCreateClusterPeerInOntapForHybridReplication")
 
 	// Get the provider from the node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}
@@ -580,7 +579,7 @@ func (a *HybridReplicationActivity) WaitForClusterPeerActivityForHybridReplicati
 		return result, nil
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		return nil, errors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
@@ -742,7 +741,7 @@ func (a *HybridReplicationActivity) CreateSVMPeerInOntapForHybridReplication(ctx
 	logger.Debugf("Creating SVM peer for hybrid replication between local SVM: %s and peer SVM: %s in cluster: %s",
 		result.DestinationVolume.Svm.Name, result.HybridReplicationParameters.PeerSvmName, result.HybridReplicationParameters.PeerClusterName)
 	// Get the provider for the node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}
@@ -833,7 +832,7 @@ func (a *HybridReplicationActivity) WaitForSVMPeerForHybridReplication(ctx conte
 	logger.Debugf("Getting SVM peer information for hybrid replication between local SVM: %s and peer SVM: %s",
 		result.DestinationVolume.Svm.Name, result.HybridReplicationParameters.PeerSvmName)
 	// Get the provider for the node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		return nil, errors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
@@ -927,7 +926,7 @@ func (a *HybridReplicationActivity) CleanupReplicationIfNeeded(ctx context.Conte
 	}
 	logger.Infof("Replication is in error state, proceeding with cleanup")
 	// Get the provider for the node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		return nil, errors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
@@ -973,7 +972,7 @@ func (a *HybridReplicationActivity) CreateHybridVolumeReplicationInternal(ctx co
 		return result, nil
 	}
 	// Get the provider for the node
-	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		return nil, errors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
@@ -1185,7 +1184,7 @@ func (a *HybridReplicationActivity) UpdateSVMPeerOnErrorActivity(ctx context.Con
 		logger.Debugf("GetAndDeleteSVMPeerForHybridReplication - Getting SVM peer between local SVM: %s and peer SVM: %s",
 			result.DestinationVolume.Svm.Name, result.HybridReplicationParameters.PeerSvmName)
 		// Get the provider for the node
-		provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+		provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 		if err != nil {
 			logger.Errorf("Failed to get provider for SVM peer deletion: %v", err)
 			return errors.WrapAsNonRetryableTemporalApplicationError(err)
@@ -1240,7 +1239,7 @@ func (a *HybridReplicationActivity) UpdateClusterPeerDetailsOnErrorActivity(ctx 
 		if clusterPeering.OntapPeerUUID != "" {
 			logger.Infof("Attempting to delete cluster peer from ONTAP: %s", clusterPeering.OntapPeerUUID)
 			// Get the provider from the node
-			provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+			provider, err := vsa.GetProviderByNode(ctx, result.NodeProvider)
 			if err != nil {
 				logger.Errorf("Failed to get provider for cluster peer deletion: %v", err)
 				// Continue with database update even if provider retrieval fails

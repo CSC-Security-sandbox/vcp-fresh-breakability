@@ -6,10 +6,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -54,7 +53,7 @@ func TestGetClusterPeerByAccountIDExternalClusterAndPoolID(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -175,7 +174,7 @@ func TestGetClusterPeeringRowByID(t *testing.T) {
 				ID:   42,
 				UUID: "test-cluster-peer-uuid-by-id",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -227,7 +226,7 @@ func TestGetClusterPeeringRowByID(t *testing.T) {
 
 		row := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{ID: 77, UUID: "peer-soft-del"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			OnprempCluster: "c1",
 			AccountID:      account.ID,
 			PoolID:         pool.ID,
@@ -257,7 +256,7 @@ func TestGetClusterPeeringRowByID(t *testing.T) {
 		assert.NoError(tt, store.db.Create(pool).Error())
 		row := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "peer-cancel"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			OnprempCluster: "c1",
 			AccountID:      account.ID,
 			PoolID:         pool.ID,
@@ -318,7 +317,7 @@ func TestCreateClusterPeeringRow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:                    models.CvpClusterPeeringStatusCREATING,
+			State:                    datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:             "Creating cluster peer",
 			OnprempCluster:           "test-cluster",
 			OntapPeerUUID:            "test-ontap-peer-uuid",
@@ -383,7 +382,7 @@ func TestCreateClusterPeeringRow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:                    models.CvpClusterPeeringStatusCREATING,
+			State:                    datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:             "Creating cluster peer",
 			OnprempCluster:           "test-cluster",
 			OntapPeerUUID:            "test-ontap-peer-uuid",
@@ -441,7 +440,7 @@ func TestUpdateClusterPeeringRow(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -452,7 +451,7 @@ func TestUpdateClusterPeeringRow(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create cluster peering row")
 
 		// Update the cluster peering row
-		clusterPeeringRow.State = models.CvpClusterPeeringStatusPEERED
+		clusterPeeringRow.State = datamodel.CvpClusterPeeringStatusPEERED
 		clusterPeeringRow.StateDetails = "Successfully peered"
 		clusterPeeringRow.OntapPeerUUID = "updated-ontap-peer-uuid"
 
@@ -463,7 +462,7 @@ func TestUpdateClusterPeeringRow(t *testing.T) {
 		var updatedRow datamodel.ClusterPeerings
 		err = store.db.Where("id = ?", clusterPeeringRow.ID).First(&updatedRow).Error()
 		assert.NoError(tt, err, "Failed to retrieve updated row")
-		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, updatedRow.State, "Expected state to be updated")
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, updatedRow.State, "Expected state to be updated")
 		assert.Equal(tt, "Successfully peered", updatedRow.StateDetails, "Expected state details to be updated")
 		assert.Equal(tt, "updated-ontap-peer-uuid", updatedRow.OntapPeerUUID, "Expected ontap peer UUID to be updated")
 	})
@@ -508,7 +507,7 @@ func TestUpdateClusterPeeringRow(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -519,7 +518,7 @@ func TestUpdateClusterPeeringRow(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create cluster peering row")
 
 		// Update the cluster peering row
-		clusterPeeringRow.State = models.CvpClusterPeeringStatusPEERED
+		clusterPeeringRow.State = datamodel.CvpClusterPeeringStatusPEERED
 		clusterPeeringRow.StateDetails = "Successfully peered"
 		clusterPeeringRow.OntapPeerUUID = "updated-ontap-peer-uuid"
 
@@ -586,7 +585,7 @@ func TestListClusterPeeringRowsByAccountID(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-1-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster-1",
 			OntapPeerUUID:  "test-ontap-peer-1-uuid",
@@ -601,7 +600,7 @@ func TestListClusterPeeringRowsByAccountID(t *testing.T) {
 				ID:   2,
 				UUID: "test-cluster-peer-2-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster-2",
 			OntapPeerUUID:  "test-ontap-peer-2-uuid",
@@ -640,7 +639,7 @@ func TestListClusterPeeringRowsByAccountID(t *testing.T) {
 				ID:   3,
 				UUID: "other-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "other-cluster",
 			OntapPeerUUID:  "other-ontap-peer-uuid",
@@ -740,7 +739,7 @@ func TestListClusterPeeringRowsByAccountID(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-1-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster-1",
 			OntapPeerUUID:  "test-ontap-peer-1-uuid",
@@ -755,7 +754,7 @@ func TestListClusterPeeringRowsByAccountID(t *testing.T) {
 				ID:   2,
 				UUID: "test-cluster-peer-2-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster-2",
 			OntapPeerUUID:  "test-ontap-peer-2-uuid",
@@ -817,7 +816,7 @@ func TestListClusterPeeringRowsByAccountIDWithConditions(t *testing.T) {
 		// Create cluster peering rows
 		clusterPeeringRow1 := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-1-uuid"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster-1",
 			OntapPeerUUID:  "test-ontap-peer-1-uuid",
@@ -829,7 +828,7 @@ func TestListClusterPeeringRowsByAccountIDWithConditions(t *testing.T) {
 
 		clusterPeeringRow2 := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-2-uuid"},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster-2",
 			OntapPeerUUID:  "test-ontap-peer-2-uuid",
@@ -921,7 +920,7 @@ func TestListClusterPeeringRowsByAccountIDWithConditions(t *testing.T) {
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -968,7 +967,7 @@ func TestListClusterPeeringRowsByAccountIDWithConditions(t *testing.T) {
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -1015,7 +1014,7 @@ func TestListClusterPeeringRowsByAccountIDWithConditions(t *testing.T) {
 
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -1166,7 +1165,7 @@ func TestListClusterPeeringRowsByPoolID(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-1-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster-1",
 			OntapPeerUUID:  "test-ontap-peer-1-uuid",
@@ -1181,7 +1180,7 @@ func TestListClusterPeeringRowsByPoolID(t *testing.T) {
 				ID:   2,
 				UUID: "test-cluster-peer-2-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster-2",
 			OntapPeerUUID:  "test-ontap-peer-2-uuid",
@@ -1210,7 +1209,7 @@ func TestListClusterPeeringRowsByPoolID(t *testing.T) {
 				ID:   3,
 				UUID: "other-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "other-cluster",
 			OntapPeerUUID:  "other-ontap-peer-uuid",
@@ -1234,11 +1233,11 @@ func TestListClusterPeeringRowsByPoolID(t *testing.T) {
 			if row.ID == clusterPeeringRow1.ID {
 				foundRow1 = true
 				assert.Equal(tt, "test-cluster-1", row.OnprempCluster, "Expected onprem cluster to match")
-				assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, row.State, "Expected state to match")
+				assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, row.State, "Expected state to match")
 			} else if row.ID == clusterPeeringRow2.ID {
 				foundRow2 = true
 				assert.Equal(tt, "test-cluster-2", row.OnprempCluster, "Expected onprem cluster to match")
-				assert.Equal(tt, models.CvpClusterPeeringStatusCREATING, row.State, "Expected state to match")
+				assert.Equal(tt, datamodel.CvpClusterPeeringStatusCREATING, row.State, "Expected state to match")
 			}
 		}
 		assert.True(tt, foundRow1, "Expected to find cluster peering row 1")
@@ -1299,7 +1298,7 @@ func TestListClusterPeeringRowsByPoolID(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -1412,7 +1411,7 @@ func TestListClusterPeeringRowsByPoolID(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-1-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster-1",
 			OntapPeerUUID:  "test-ontap-peer-1-uuid",
@@ -1428,7 +1427,7 @@ func TestListClusterPeeringRowsByPoolID(t *testing.T) {
 				ID:   2,
 				UUID: "test-cluster-peer-2-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster-2",
 			OntapPeerUUID:  "test-ontap-peer-2-uuid",
@@ -1501,7 +1500,7 @@ func TestListClusterPeeringRowsByPoolID(t *testing.T) {
 				ID:   1,
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:                    models.CvpClusterPeeringStatusPEERED,
+			State:                    datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:             "Successfully peered",
 			OnprempCluster:           "test-cluster",
 			OntapPeerUUID:            "test-ontap-peer-uuid",

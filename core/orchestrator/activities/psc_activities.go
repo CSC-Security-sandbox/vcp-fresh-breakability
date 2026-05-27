@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
@@ -80,7 +80,7 @@ func (j *PSCActivity) CreateInternalInfraSubnet(ctx context.Context, project str
 
 func (j *PSCActivity) UpdateSecurityAudit(ctx context.Context, node *models.Node) error {
 	activity.RecordHeartbeat(ctx, "Updating security audit settings")
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -108,7 +108,7 @@ func (j *PSCActivity) UpdateSecurityAudit(ctx context.Context, node *models.Node
 }
 
 func _getSecurityAudit(ctx context.Context, node *models.Node) (*vsa.SecurityAudit, error) {
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -126,7 +126,7 @@ func _getSecurityAudit(ctx context.Context, node *models.Node) (*vsa.SecurityAud
 
 func (j *PSCActivity) CreateClusterLogForwarding(ctx context.Context, node *models.Node, address string) error {
 	activity.RecordHeartbeat(ctx, "Creating log forwarding configuration")
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -159,7 +159,7 @@ func (j *PSCActivity) CreateClusterLogForwarding(ctx context.Context, node *mode
 
 func (j *PSCActivity) CreateEMSEventForwarding(ctx context.Context, node *models.Node, address string) error {
 	activity.RecordHeartbeat(ctx, "Creating EMS event forwarding configuration")
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -186,7 +186,7 @@ func (j *PSCActivity) CreateEMSEventForwarding(ctx context.Context, node *models
 
 func (j *PSCActivity) DeleteEMSEventForwarding(ctx context.Context, node *models.Node) error {
 	activity.RecordHeartbeat(ctx, "Deleting EMS event forwarding configuration")
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -204,7 +204,7 @@ func (j *PSCActivity) DeleteEMSEventForwarding(ctx context.Context, node *models
 }
 
 func _getClusterLogForwarding(ctx context.Context, node *models.Node, address string, port int64) error {
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

@@ -12,12 +12,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/testsuite"
@@ -277,10 +276,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 	t.Run("WhenVolumeStateIsNotValidForMigration", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -323,10 +322,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 	t.Run("WhenVolumeAttributesIsNil", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -349,10 +348,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 	t.Run("WhenVolumeSvmIsNil", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -376,10 +375,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -405,10 +404,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 			State:        models.LifeCycleStateUpdating,
 			StateDetails: models.LifeCycleStateVolMigratingDetails,
 		}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -435,10 +434,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 			State:        models.LifeCycleStateREADY,
 			StateDetails: models.LifeCycleStateReadyDetails,
 		}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -464,10 +463,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 			State:        models.LifeCycleStateUpdating,
 			StateDetails: models.LifeCycleStateVolMigratingDetails,
 		}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -493,10 +492,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestActivityEnvironment()
 		env.RegisterActivity(activity.MigrateVsaPoolActivity)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		encryptionState := "encrypting"
@@ -532,10 +531,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -557,10 +556,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -584,10 +583,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -613,10 +612,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -642,10 +641,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -676,10 +675,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -711,10 +710,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

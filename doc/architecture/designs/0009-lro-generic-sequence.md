@@ -72,7 +72,7 @@ This project uses a centralized error taxonomy. Link error code ranges to subsys
 - 4000-4999: VSA Cluster / ONTAP integration errors (core/vsa/, ontap-proxy/)
 - 5000-5999: ONTAP-specific errors and data-plane failures
 
-For implementation details and full mapping see: core/errors/README.md
+For implementation details and full mapping see: lib/errors/README.md
 
 ## Admin / internal endpoints (ops-only)
 
@@ -132,9 +132,9 @@ Implications:
 
 - Put per-resource PlantUML fragments in doc/architecture/resource-fragments/ and include them into per-resource .puml files using !include.
 - Add short curl snippets in each per-resource guide showing create + poll patterns.
-- Link operation error codes back to core/errors/README.md for troubleshooting and runbook mapping.
+- Link operation error codes back to lib/errors/README.md for troubleshooting and runbook mapping.
 
 ## References
 
-- core/errors/README.md
+- lib/errors/README.md
 - doc/api/architecture/lro-generic-sequence.md (canonical diagram usage and per-resource guidance)

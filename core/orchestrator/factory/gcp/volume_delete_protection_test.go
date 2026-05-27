@@ -8,14 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -154,14 +153,14 @@ func TestCheckDeleteProtectionAtDeleteAPI(t *testing.T) {
 		mockREST := ontap_rest.NewMockRESTClient(t)
 		mockREST.EXPECT().NAS().Return(mockNAS).Once()
 
-		orig := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
+		orig := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(context.Context, *models.Node) (vsa.Provider, error) {
 			return &deleteProtectionAPIRESTProvider{
 				MockProvider: vsa.NewMockProvider(t),
 				restClient:   mockREST,
 			}, nil
 		}
-		t.Cleanup(func() { hyperscaler.GetProviderByNode = orig })
+		t.Cleanup(func() { vsa.GetProviderByNode = orig })
 
 		err := checkDeleteProtectionAtDeleteAPI(ctx, se, volume)
 		require.Error(t, err)

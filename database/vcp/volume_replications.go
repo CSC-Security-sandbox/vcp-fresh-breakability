@@ -5,10 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -47,8 +46,8 @@ func (d *DataStoreRepository) CreateVolumeReplication(ctx context.Context, repli
 	}
 
 	replication.UUID = utils.RandomUUID()
-	replication.State = models.LifeCycleStateCreating
-	replication.StateDetails = models.LifeCycleStateCreatingDetails
+	replication.State = datamodel.LifeCycleStateCreating
+	replication.StateDetails = datamodel.LifeCycleStateCreatingDetails
 	replication.CreatedAt = time.Now()
 	replication.UpdatedAt = replication.CreatedAt
 	if replication.ReplicationAttributes.EndpointType == VolumeReplicationEndpointTypeSource {
@@ -231,13 +230,13 @@ func (d *DataStoreRepository) DeleteVolumeReplication(ctx context.Context, repli
 		return nil, err
 	}
 	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
-	mirrorState := models.OntapUninitialized
-	replicationStatus := models.SnapmirrorRelationshipIdle
+	mirrorState := datamodel.OntapUninitialized
+	replicationStatus := datamodel.SnapmirrorRelationshipIdle
 	replication.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	replication.MirrorState = &mirrorState
 	replication.RelationshipStatus = &replicationStatus
-	replication.State = models.LifeCycleStateDeleted
-	replication.StateDetails = models.LifeCycleStateDeletedDetails
+	replication.State = datamodel.LifeCycleStateDeleted
+	replication.StateDetails = datamodel.LifeCycleStateDeletedDetails
 	err = tx.Save(replication).Error
 	if err != nil {
 		return nil, err

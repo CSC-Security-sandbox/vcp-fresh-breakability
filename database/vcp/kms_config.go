@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -82,11 +81,11 @@ func (d *DataStoreRepository) UpdateKmsConfigStateForHandleResource(ctx context.
 	}
 
 	switch event {
-	case models.StateOff:
-		newState = models.LifeCycleStateDisabled
-		newStateDetails = models.LifeCycleStateDisabledDetails
-	case models.StateOn:
-		if currState != models.LifeCycleStateDisabled {
+	case datamodel.StateOff:
+		newState = datamodel.LifeCycleStateDisabled
+		newStateDetails = datamodel.LifeCycleStateDisabledDetails
+	case datamodel.StateOn:
+		if currState != datamodel.LifeCycleStateDisabled {
 			err = errors.New("Cannot Enable gcpKmsConfig which is not in disabled state")
 			return nil, err
 		}
@@ -98,9 +97,9 @@ func (d *DataStoreRepository) UpdateKmsConfigStateForHandleResource(ctx context.
 				return "", err
 			}
 			if inUse {
-				return models.LifeCycleStateInUse, nil
+				return datamodel.LifeCycleStateInUse, nil
 			}
-			return models.LifeCycleStateCreated, nil
+			return datamodel.LifeCycleStateCreated, nil
 		}()
 		if err != nil {
 			return nil, err
@@ -108,10 +107,10 @@ func (d *DataStoreRepository) UpdateKmsConfigStateForHandleResource(ctx context.
 
 		// Set appropriate state details based on the final state
 		switch newState {
-		case models.LifeCycleStateInUse:
-			newStateDetails = models.LifeCycleStateInUseDetails
-		case models.LifeCycleStateCreated:
-			newStateDetails = models.LifeCycleStateCreatedDetails
+		case datamodel.LifeCycleStateInUse:
+			newStateDetails = datamodel.LifeCycleStateInUseDetails
+		case datamodel.LifeCycleStateCreated:
+			newStateDetails = datamodel.LifeCycleStateCreatedDetails
 		default:
 			err = errors.NewNotSupportedErrWithMessage("Invalid state")
 			return nil, err
@@ -169,11 +168,11 @@ func (d *DataStoreRepository) CreateKmsConfig(ctx context.Context, kmsConfig *da
 	}
 	for _, dbKmsConfig := range dbKmsConfigs {
 		switch dbKmsConfig.State {
-		case models.LifeCycleStateCreating:
+		case datamodel.LifeCycleStateCreating:
 			return nil, errors.NewConflictErr("another config create operation is in progress for this region and project")
-		case models.LifeCycleStateDeleting:
+		case datamodel.LifeCycleStateDeleting:
 			return nil, errors.NewConflictErr("another config delete operation is in progress for this region and project")
-		case models.LifeCycleStateAvailable:
+		case datamodel.LifeCycleStateAvailable:
 			return dbKmsConfig, nil
 		}
 	}
@@ -416,11 +415,11 @@ func _isKmsConfigInUse(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error
 
 func isStateReady(currState string) error {
 	switch currState {
-	case models.LifeCycleStateDeleting, models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateDeleting, datamodel.LifeCycleStateDeleted:
 		return errors.NewNotFoundErr("Config does not exist", nil)
-	case models.LifeCycleStateError, models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateError, datamodel.LifeCycleStateCreating:
 		return errors.NewUserInputValidationErr("Can not update a KmsConfig which is in creating or error state")
-	case models.LifeCycleStateUpdating, models.LifeCycleStateMigrating:
+	case datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateMigrating:
 		return errors.NewUserInputValidationErr("GCP KMS configuration is already transitioning between states")
 	}
 	return nil

@@ -13,16 +13,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/sdk/testsuite"
@@ -46,14 +46,14 @@ func TestDeployADCCloudRunService(t *testing.T) {
 			},
 			Ingress: "INGRESS_TRAFFIC_INTERNAL_ONLY", // Equivalent to "internal" annotation
 			EnvVars: map[string]string{
-				"RUN_REST":           "1",
-				"REST_PORT":          "80",
-				"PROVIDER":           "GoogleCloud",
-				"LOG_LEVEL":          "2",
-				"ENABLE_COPY":        "1",
-				"LOG_TO_CONSOLE":     "1",
-				"CA_FILE":            "adc-cert.crt",
-				"CERT_PATH":          "/home/ADC/cert/",
+				"RUN_REST":       "1",
+				"REST_PORT":      "80",
+				"PROVIDER":       "GoogleCloud",
+				"LOG_LEVEL":      "2",
+				"ENABLE_COPY":    "1",
+				"LOG_TO_CONSOLE": "1",
+				"CA_FILE":        "adc-cert.crt",
+				"CERT_PATH":      "/home/ADC/cert/",
 			},
 			VolumeMounts: []hyperscalermodels.VolumeMount{
 				{
@@ -110,14 +110,14 @@ func TestDeployADCCloudRunService(t *testing.T) {
 			},
 			Ingress: "INGRESS_TRAFFIC_INTERNAL_ONLY",
 			EnvVars: map[string]string{
-				"RUN_REST":           "1",
-				"REST_PORT":          "80",
-				"PROVIDER":           "GoogleCloud",
-				"LOG_LEVEL":          "2",
-				"ENABLE_COPY":        "1",
-				"LOG_TO_CONSOLE":     "1",
-				"CA_FILE":            "adc-cert.crt",
-				"CERT_PATH":          "/home/ADC/cert/",
+				"RUN_REST":       "1",
+				"REST_PORT":      "80",
+				"PROVIDER":       "GoogleCloud",
+				"LOG_LEVEL":      "2",
+				"ENABLE_COPY":    "1",
+				"LOG_TO_CONSOLE": "1",
+				"CA_FILE":        "adc-cert.crt",
+				"CERT_PATH":      "/home/ADC/cert/",
 			},
 		}
 		ctx := context.Background()
@@ -153,14 +153,14 @@ func TestDeployADCCloudRunService(t *testing.T) {
 			},
 			Ingress: "INGRESS_TRAFFIC_ALL",
 			EnvVars: map[string]string{
-				"RUN_REST":           "1",
-				"REST_PORT":          "80",
-				"PROVIDER":           "GoogleCloud",
-				"LOG_LEVEL":          "2",
-				"ENABLE_COPY":        "1",
-				"LOG_TO_CONSOLE":     "1",
-				"CA_FILE":            "adc-cert.crt",
-				"CERT_PATH":          "/home/ADC/cert/",
+				"RUN_REST":       "1",
+				"REST_PORT":      "80",
+				"PROVIDER":       "GoogleCloud",
+				"LOG_LEVEL":      "2",
+				"ENABLE_COPY":    "1",
+				"LOG_TO_CONSOLE": "1",
+				"CA_FILE":        "adc-cert.crt",
+				"CERT_PATH":      "/home/ADC/cert/",
 			},
 		}
 		ctx := context.Background()
@@ -196,14 +196,14 @@ func TestDeployADCCloudRunService(t *testing.T) {
 			},
 			// No Ingress field specified - should use default
 			EnvVars: map[string]string{
-				"RUN_REST":           "1",
-				"REST_PORT":          "80",
-				"PROVIDER":           "GoogleCloud",
-				"LOG_LEVEL":          "2",
-				"ENABLE_COPY":        "1",
-				"LOG_TO_CONSOLE":     "1",
-				"CA_FILE":            "adc-cert.crt",
-				"CERT_PATH":          "/home/ADC/cert/",
+				"RUN_REST":       "1",
+				"REST_PORT":      "80",
+				"PROVIDER":       "GoogleCloud",
+				"LOG_LEVEL":      "2",
+				"ENABLE_COPY":    "1",
+				"LOG_TO_CONSOLE": "1",
+				"CA_FILE":        "adc-cert.crt",
+				"CERT_PATH":      "/home/ADC/cert/",
 			},
 		}
 		ctx := context.Background()
@@ -249,14 +249,14 @@ func TestDeployADCCloudRunService(t *testing.T) {
 			},
 			Ingress: "INGRESS_TRAFFIC_INTERNAL_ONLY", // Equivalent to "internal" annotation
 			EnvVars: map[string]string{
-				"RUN_REST":           "1",
-				"REST_PORT":          "80",
-				"PROVIDER":           "GoogleCloud",
-				"LOG_LEVEL":          "2",
-				"ENABLE_COPY":        "1",
-				"LOG_TO_CONSOLE":     "1",
-				"CA_FILE":            "adc-cert.crt",
-				"CERT_PATH":          "/home/ADC/cert/",
+				"RUN_REST":       "1",
+				"REST_PORT":      "80",
+				"PROVIDER":       "GoogleCloud",
+				"LOG_LEVEL":      "2",
+				"ENABLE_COPY":    "1",
+				"LOG_TO_CONSOLE": "1",
+				"CA_FILE":        "adc-cert.crt",
+				"CERT_PATH":      "/home/ADC/cert/",
 			},
 			VolumeMounts: []hyperscalermodels.VolumeMount{
 				{
@@ -1938,11 +1938,11 @@ func TestGetSummedLogicalBackupSizeAllVaultsActivity_ActiveVault_EndpointInfoErr
 
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "ep-uuid").Return(nil, errors.New("endpoint unreachable"))
-	origGetProvider := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+	origGetProvider := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProvider }()
+	defer func() { vsa.GetProviderByNode = origGetProvider }()
 
 	activity := activities.ADCActivity{SE: mockStorage}
 	env.RegisterActivity(&activity)
@@ -2344,11 +2344,11 @@ func TestGetSummedLogicalBackupSizeAllVaultsActivity_ActiveVault_EndpointInfo(t 
 
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "ep-uuid").Return(&vsa.SmObjectStoreEndpointt{LogicalSize: &expectedSize}, nil)
-	origGetProvider := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+	origGetProvider := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProvider }()
+	defer func() { vsa.GetProviderByNode = origGetProvider }()
 
 	activity := activities.ADCActivity{SE: mockStorage}
 	env.RegisterActivity(&activity)

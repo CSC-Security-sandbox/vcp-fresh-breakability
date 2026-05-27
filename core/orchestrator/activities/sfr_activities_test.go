@@ -8,13 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/sdk/testsuite"
@@ -307,12 +306,12 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -355,12 +354,12 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 		snapshotName := "snapshot-name"
 		files := []*commonparams.SnapmirrorTransferFile{}
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
 
@@ -386,12 +385,12 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 		files := []*commonparams.SnapmirrorTransferFile{}
 
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -426,12 +425,12 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 		files := []*commonparams.SnapmirrorTransferFile{}
 
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -472,12 +471,12 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 		files := []*commonparams.SnapmirrorTransferFile{}
 
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -518,12 +517,12 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 		files := []*commonparams.SnapmirrorTransferFile{}
 
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -570,12 +569,12 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

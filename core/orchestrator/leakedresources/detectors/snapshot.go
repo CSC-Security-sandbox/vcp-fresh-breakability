@@ -8,8 +8,8 @@ import (
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
-	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
 // Snapshot leak reason for orphan (volume missing).

@@ -24,7 +24,7 @@ func setupTestDataStoreRepository(t *testing.T) *DataStoreRepository {
 	_, err = sqlDB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_aggregated_usage_unique 
 		ON aggregated_usages (resource_uuid, aggregation_end, aggregation_start, measured_type, resource_type)`)
 	require.NoError(t, err)
-	
+
 	wrapper := gormWrapper.New(db)
 	return NewDataStoreRepository(wrapper)
 }

@@ -9,9 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -122,12 +120,12 @@ func TestUpdateUpdateKmsConfigState(t *testing.T) {
 			tt.Fatalf("Failed to create kms config: %v", err)
 		}
 
-		_, err = store.UpdateKmsConfigState(context.Background(), "test-uuid", models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+		_, err = store.UpdateKmsConfigState(context.Background(), "test-uuid", datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 
 		updatedkms, err1 := store.GetKmsConfig(context.Background(), "test-uuid")
 		assert.NoError(tt, err1, "Expected no error, got %v", err1)
-		assert.Equal(tt, models.LifeCycleStateUpdating, updatedkms.State, "Expected volume state %v, got %v", models.LifeCycleStateUpdating, updatedkms.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, updatedkms.State, "Expected volume state %v, got %v", datamodel.LifeCycleStateUpdating, updatedkms.State)
 	})
 	t.Run("WhenUpdateKmsConfigIsNotFound", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -141,9 +139,9 @@ func TestUpdateUpdateKmsConfigState(t *testing.T) {
 		kms := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "dummy"},
 			Name:      "test_volume_rep",
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 		}
-		_, err = store.UpdateKmsConfigState(context.Background(), kms.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+		_, err = store.UpdateKmsConfigState(context.Background(), kms.UUID, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails)
 		assert.EqualError(tt, err, "KMS Configuration not found", "Expected no error, got %v", err)
 	})
 }
@@ -340,13 +338,13 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 	}
 	kmsConfigs := []*datamodel.KmsConfig{
 		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ServiceAccountID: &serviceAccounts[0].ID, AccountID: 1111, State: "Ready", StateDetails: "Key is in Ready state"},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 2222, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 2222, State: datamodel.LifeCycleStateAvailable},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid3", DeletedAt: nil}, Name: "kmsConfig3", ServiceAccountID: &serviceAccounts[0].ID, AccountID: 2222},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid4", DeletedAt: nil}, Name: "kmsConfig4", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 1111},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid5", DeletedAt: nil}, Name: "kmsConfig5", AccountID: 3333, State: "Ready", StateDetails: "Key is in Ready state", Description: "kms description"},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid6", DeletedAt: nil}, Name: "kmsConfig6", AccountID: 4444, State: models.LifeCycleStateCreating},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid7", DeletedAt: nil}, Name: "kmsConfig7", AccountID: 5555, State: models.LifeCycleStateDeleting},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid8", DeletedAt: nil}, Name: "kmsConfig8", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 6666, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid6", DeletedAt: nil}, Name: "kmsConfig6", AccountID: 4444, State: datamodel.LifeCycleStateCreating},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid7", DeletedAt: nil}, Name: "kmsConfig7", AccountID: 5555, State: datamodel.LifeCycleStateDeleting},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid8", DeletedAt: nil}, Name: "kmsConfig8", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 6666, State: datamodel.LifeCycleStateAvailable},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid9", DeletedAt: nil}, Name: "kmsConfig9", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 6666, State: "Ready", ResourceID: "kmsConfig9"},
 	}
 	jobs := []*datamodel.Job{
@@ -649,10 +647,10 @@ func TestDeleteKmsConfig(t *testing.T) {
 			tt.Fatalf("Failed to create kms config: %v", err)
 		}
 
-		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), kmsConfig.UUID, models.LifeCycleStateDeleted, "")
+		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), kmsConfig.UUID, datamodel.LifeCycleStateDeleted, "")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, deletedKmsConfig.DeletedAt, "Expected kms config to be deleted, got %v", deletedKmsConfig.DeletedAt)
-		assert.Equal(tt, models.LifeCycleStateDeleted, deletedKmsConfig.State, "Expected kms config state %v, got %v", models.LifeCycleStateDeleted, deletedKmsConfig.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, deletedKmsConfig.State, "Expected kms config state %v, got %v", datamodel.LifeCycleStateDeleted, deletedKmsConfig.State)
 		assert.Equal(tt, "", deletedKmsConfig.StateDetails, "Expected kms config details %v, got %v", "", deletedKmsConfig.StateDetails)
 
 		_, err = store.GetKmsConfigByUUID(context.Background(), kmsConfig.UUID)
@@ -667,7 +665,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err, "Failed to clean up test database")
 
-		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), "dummy", models.LifeCycleStateDeleted, "")
+		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), "dummy", datamodel.LifeCycleStateDeleted, "")
 		assert.Nil(tt, deletedKmsConfig, "Expected nil volume replication, got %v", deletedKmsConfig)
 		assert.EqualError(tt, err, "KMS Configuration not found", "Expected no error, got %v", err)
 	})
@@ -905,17 +903,17 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			StateDetails: "Initial state",
 		}
 		err = store.db.Create(kmsConfig).Error()
 		assert.NoError(tt, err, "Failed to create kms config")
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource disabled", models.StateOff)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource disabled", datamodel.StateOff)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, coremodels.LifeCycleStateDisabled, result.State)
-		assert.Equal(tt, coremodels.LifeCycleStateDisabledDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDisabled, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDisabledDetails, result.StateDetails)
 	})
 
 	t.Run("SuccessfullyUpdatesStateToInUseOnOnEventWhenKmsConfigIsInUse", func(tt *testing.T) {
@@ -938,7 +936,7 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        coremodels.LifeCycleStateDisabled,
+			State:        datamodel.LifeCycleStateDisabled,
 			StateDetails: "Disabled state",
 		}
 		err = store.db.Create(kmsConfig).Error()
@@ -950,11 +948,11 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			return true, nil
 		}
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", datamodel.StateOn)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateInUse, result.State)
-		assert.Equal(tt, models.LifeCycleStateInUseDetails, result.StateDetails, "Should set 'In use' state details when KMS config is in use")
+		assert.Equal(tt, datamodel.LifeCycleStateInUse, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateInUseDetails, result.StateDetails, "Should set 'In use' state details when KMS config is in use")
 	})
 
 	t.Run("SuccessfullyUpdatesStateToCreatedOnOnEventWhenKmsConfigIsNotInUse", func(tt *testing.T) {
@@ -977,7 +975,7 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        coremodels.LifeCycleStateDisabled,
+			State:        datamodel.LifeCycleStateDisabled,
 			StateDetails: "Disabled state",
 		}
 		err = store.db.Create(kmsConfig).Error()
@@ -989,11 +987,11 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			return false, nil
 		}
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", datamodel.StateOn)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateCreated, result.State)
-		assert.Equal(tt, models.LifeCycleStateCreatedDetails, result.StateDetails, "Should set 'Created successfully' state details when KMS config is not in use")
+		assert.Equal(tt, datamodel.LifeCycleStateCreated, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreatedDetails, result.StateDetails, "Should set 'Created successfully' state details when KMS config is not in use")
 	})
 
 	t.Run("ReturnsErrorOnOnEventWhenKmsConfigIsNotInDisabledState", func(tt *testing.T) {
@@ -1016,13 +1014,13 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			StateDetails: "Available state",
 		}
 		err = store.db.Create(kmsConfig).Error()
 		assert.NoError(tt, err, "Failed to create kms config")
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", datamodel.StateOn)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "Cannot Enable gcpKmsConfig which is not in disabled state")
@@ -1037,7 +1035,7 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err, "Failed to clean up test database")
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "non-existent-uuid", "State details", models.StateOff)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "non-existent-uuid", "State details", datamodel.StateOff)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.True(tt, customerrors.IsNotFoundErr(err))
@@ -1063,7 +1061,7 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			StateDetails: "Available state",
 		}
 		err = store.db.Create(kmsConfig).Error()
@@ -1095,7 +1093,7 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        coremodels.LifeCycleStateDisabled,
+			State:        datamodel.LifeCycleStateDisabled,
 			StateDetails: "Disabled state",
 		}
 		err = store.db.Create(kmsConfig).Error()
@@ -1107,7 +1105,7 @@ func TestUpdateKmsConfigStateForHandleResource(t *testing.T) {
 			return false, fmt.Errorf("database connection error")
 		}
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", datamodel.StateOn)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "database connection error")
@@ -1485,7 +1483,7 @@ func TestUpdateKmsConfigStateForHandleResource_StateDetails(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        coremodels.LifeCycleStateDisabled,
+			State:        datamodel.LifeCycleStateDisabled,
 			StateDetails: "Disabled state",
 		}
 		err = store.db.Create(kmsConfig).Error()
@@ -1497,11 +1495,11 @@ func TestUpdateKmsConfigStateForHandleResource_StateDetails(t *testing.T) {
 			return true, nil
 		}
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", datamodel.StateOn)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateInUse, result.State)
-		assert.Equal(tt, models.LifeCycleStateInUseDetails, result.StateDetails, "Should set 'In use' state details when KMS config is in use")
+		assert.Equal(tt, datamodel.LifeCycleStateInUse, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateInUseDetails, result.StateDetails, "Should set 'In use' state details when KMS config is in use")
 	})
 
 	t.Run("VerifiesStateDetailsForCreatedState", func(tt *testing.T) {
@@ -1524,7 +1522,7 @@ func TestUpdateKmsConfigStateForHandleResource_StateDetails(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        coremodels.LifeCycleStateDisabled,
+			State:        datamodel.LifeCycleStateDisabled,
 			StateDetails: "Disabled state",
 		}
 		err = store.db.Create(kmsConfig).Error()
@@ -1536,11 +1534,11 @@ func TestUpdateKmsConfigStateForHandleResource_StateDetails(t *testing.T) {
 			return false, nil
 		}
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", models.StateOn)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource enabled", datamodel.StateOn)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.LifeCycleStateCreated, result.State)
-		assert.Equal(tt, models.LifeCycleStateCreatedDetails, result.StateDetails, "Should set 'Created successfully' state details when KMS config is not in use")
+		assert.Equal(tt, datamodel.LifeCycleStateCreated, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreatedDetails, result.StateDetails, "Should set 'Created successfully' state details when KMS config is not in use")
 	})
 
 	t.Run("VerifiesStateDetailsForDisabledState", func(tt *testing.T) {
@@ -1563,17 +1561,17 @@ func TestUpdateKmsConfigStateForHandleResource_StateDetails(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-kms-uuid"},
 			Name:         "test-kms",
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateAvailable,
 			StateDetails: "Initial state",
 		}
 		err = store.db.Create(kmsConfig).Error()
 		assert.NoError(tt, err, "Failed to create kms config")
 
-		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource disabled", models.StateOff)
+		result, err := store.UpdateKmsConfigStateForHandleResource(context.Background(), "test-kms-uuid", "Resource disabled", datamodel.StateOff)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, coremodels.LifeCycleStateDisabled, result.State)
-		assert.Equal(tt, coremodels.LifeCycleStateDisabledDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDisabled, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDisabledDetails, result.StateDetails)
 	})
 }
 
@@ -1581,10 +1579,10 @@ func TestIsStateReady(t *testing.T) {
 	t.Run("WhenStateIsReady_ShouldReturnNil", func(tt *testing.T) {
 		// Test states that are considered "ready" - should return nil (no error)
 		readyStates := []string{
-			models.LifeCycleStateAvailable,
-			models.LifeCycleStateCreated,
-			models.LifeCycleStateDisabled,
-			models.LifeCycleStateInUse,
+			datamodel.LifeCycleStateAvailable,
+			datamodel.LifeCycleStateCreated,
+			datamodel.LifeCycleStateDisabled,
+			datamodel.LifeCycleStateInUse,
 			"", // empty state should be considered ready
 		}
 
@@ -1597,7 +1595,7 @@ func TestIsStateReady(t *testing.T) {
 	})
 
 	t.Run("WhenStateIsDeleting_ShouldReturnNotFoundError", func(tt *testing.T) {
-		err := isStateReady(models.LifeCycleStateDeleting)
+		err := isStateReady(datamodel.LifeCycleStateDeleting)
 
 		assert.NotNil(tt, err, "Expected error for deleting state")
 		assert.True(tt, customerrors.IsNotFoundErr(err), "Expected NotFoundErr for deleting state")
@@ -1605,7 +1603,7 @@ func TestIsStateReady(t *testing.T) {
 	})
 
 	t.Run("WhenStateIsDeleted_ShouldReturnNotFoundError", func(tt *testing.T) {
-		err := isStateReady(models.LifeCycleStateDeleted)
+		err := isStateReady(datamodel.LifeCycleStateDeleted)
 
 		assert.NotNil(tt, err, "Expected error for deleted state")
 		assert.True(tt, customerrors.IsNotFoundErr(err), "Expected NotFoundErr for deleted state")
@@ -1613,7 +1611,7 @@ func TestIsStateReady(t *testing.T) {
 	})
 
 	t.Run("WhenStateIsError_ShouldReturnUserInputValidationError", func(tt *testing.T) {
-		err := isStateReady(models.LifeCycleStateError)
+		err := isStateReady(datamodel.LifeCycleStateError)
 
 		assert.NotNil(tt, err, "Expected error for error state")
 		assert.True(tt, customerrors.IsUserInputValidationErr(err), "Expected UserInputValidationErr for error state")
@@ -1622,7 +1620,7 @@ func TestIsStateReady(t *testing.T) {
 	})
 
 	t.Run("WhenStateIsCreating_ShouldReturnUserInputValidationError", func(tt *testing.T) {
-		err := isStateReady(models.LifeCycleStateCreating)
+		err := isStateReady(datamodel.LifeCycleStateCreating)
 
 		assert.NotNil(tt, err, "Expected error for creating state")
 		assert.True(tt, customerrors.IsUserInputValidationErr(err), "Expected UserInputValidationErr for creating state")
@@ -1631,7 +1629,7 @@ func TestIsStateReady(t *testing.T) {
 	})
 
 	t.Run("WhenStateIsUpdating_ShouldReturnUserInputValidationError", func(tt *testing.T) {
-		err := isStateReady(models.LifeCycleStateUpdating)
+		err := isStateReady(datamodel.LifeCycleStateUpdating)
 
 		assert.NotNil(tt, err, "Expected error for updating state")
 		assert.True(tt, customerrors.IsUserInputValidationErr(err), "Expected UserInputValidationErr for updating state")
@@ -1640,7 +1638,7 @@ func TestIsStateReady(t *testing.T) {
 	})
 
 	t.Run("WhenStateIsMigrating_ShouldReturnUserInputValidationError", func(tt *testing.T) {
-		err := isStateReady(models.LifeCycleStateMigrating)
+		err := isStateReady(datamodel.LifeCycleStateMigrating)
 
 		assert.NotNil(tt, err, "Expected error for migrating state")
 		assert.True(tt, customerrors.IsUserInputValidationErr(err), "Expected UserInputValidationErr for migrating state")
@@ -1673,43 +1671,43 @@ func TestIsStateReady(t *testing.T) {
 			description string
 		}{
 			{
-				state:       models.LifeCycleStateDeleting,
+				state:       datamodel.LifeCycleStateDeleting,
 				expectError: true,
 				errorCheck:  customerrors.IsNotFoundErr,
 				description: "Deleting state should return NotFoundErr",
 			},
 			{
-				state:       models.LifeCycleStateDeleted,
+				state:       datamodel.LifeCycleStateDeleted,
 				expectError: true,
 				errorCheck:  customerrors.IsNotFoundErr,
 				description: "Deleted state should return NotFoundErr",
 			},
 			{
-				state:       models.LifeCycleStateError,
+				state:       datamodel.LifeCycleStateError,
 				expectError: true,
 				errorCheck:  customerrors.IsUserInputValidationErr,
 				description: "Error state should return UserInputValidationErr",
 			},
 			{
-				state:       models.LifeCycleStateCreating,
+				state:       datamodel.LifeCycleStateCreating,
 				expectError: true,
 				errorCheck:  customerrors.IsUserInputValidationErr,
 				description: "Creating state should return UserInputValidationErr",
 			},
 			{
-				state:       models.LifeCycleStateUpdating,
+				state:       datamodel.LifeCycleStateUpdating,
 				expectError: true,
 				errorCheck:  customerrors.IsUserInputValidationErr,
 				description: "Updating state should return UserInputValidationErr",
 			},
 			{
-				state:       models.LifeCycleStateMigrating,
+				state:       datamodel.LifeCycleStateMigrating,
 				expectError: true,
 				errorCheck:  customerrors.IsUserInputValidationErr,
 				description: "Migrating state should return UserInputValidationErr",
 			},
 			{
-				state:       models.LifeCycleStateAvailable,
+				state:       datamodel.LifeCycleStateAvailable,
 				expectError: false,
 				errorCheck:  nil,
 				description: "Available state should return no error",

@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1676,11 +1676,11 @@ func TestUpdateBackupPolicy(t *testing.T) {
 
 		dailyLimit := int64(2)
 		params := &commonparams.UpdateBackupPolicyParams{
-			Name:               "test-backup-policy",
-			AccountName:        "test-account",
-			BackupPolicyID:     "test-backup-policy-uuid",
-			LocationID:         "test-location",
-			DailyBackupLimit:   &dailyLimit,
+			Name:             "test-backup-policy",
+			AccountName:      "test-account",
+			BackupPolicyID:   "test-backup-policy-uuid",
+			LocationID:       "test-location",
+			DailyBackupLimit: &dailyLimit,
 		}
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test-account"}
 		backupPolicy := &datamodel.BackupPolicy{

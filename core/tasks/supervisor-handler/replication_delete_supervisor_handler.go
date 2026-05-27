@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -81,4 +81,3 @@ func (h *ReplicationDeleteHandler) Handle(ctx context.Context, job *datamodel.Jo
 	logger.Infof("workflow-supervisor-task: reverted replication %s from DELETING to %s", replication.UUID, previousState)
 	return nil
 }
-

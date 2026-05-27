@@ -6,7 +6,7 @@ globs: ["**/workflows/**", "**/activities/**", "**/orchestrator/**", "**/worker/
 
 # Temporal Workflow Development Best Practices
 
-Workflows and activities use **Temporal** and **core/errors** (vsaerrors) for retry and HTTP mapping. See **doc/workflows/** and **doc/guides/temporal-debugging.md**.
+Workflows and activities use **Temporal** and **lib/errors** (vsaerrors) for retry and HTTP mapping. See **doc/workflows/** and **doc/guides/temporal-debugging.md**.
 
 ## Workflow design
 - **No long-running logic in workflows**: Workflows must **not** contain long-running or blocking logic. All I/O, API calls, DB access, sleep/delays, and any non-trivial computation belong in **activities**. The workflow only orchestrates: call activities, branch on results, handle signals/queries, and manage state. If it can block or take more than a few milliseconds, it belongs in an activity.
@@ -41,6 +41,6 @@ Workflows and activities use **Temporal** and **core/errors** (vsaerrors) for re
 - **doc/workflows/** — pool, volume, backup, KMS, replication, etc.; timeout and retry values.
 - **doc/guides/temporal-debugging.md** — debugging workflows.
 - **doc/api/error-taxonomy.md** — error ranges and retry semantics.
-- **core/errors/README.md** — WrapAsTemporalApplicationError, CustomError.
+- **lib/errors/README.md** — WrapAsTemporalApplicationError, CustomError.
 - **utils/setRetryPolicy.go** — retry policy helpers.
 - **core/tasks/workflow_supervisor_task.go**, **doc/architecture/designs/0015-workflow-supervisor-task.md** — supervisor behavior.

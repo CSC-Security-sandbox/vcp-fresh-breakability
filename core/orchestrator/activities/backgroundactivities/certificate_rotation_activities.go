@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -53,7 +53,6 @@ func (a *RotateVcpToVsaCertificateActivity) CertificateNeedsRotation(ctx context
 
 	return needsRotation, nil
 }
-
 
 // ListPoolsWithCertificateAuth returns one batch of pools that use certificate authentication (auth type USER_CERTIFICATE).
 // Offset and limit support pagination to avoid Temporal activity result size limit.

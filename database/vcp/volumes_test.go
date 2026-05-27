@@ -10,12 +10,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
@@ -127,8 +125,8 @@ func TestCreateVolume(t *testing.T) {
 	//	createdVolume, err := store.CreateVolume(context.Background(), volume)
 	//	assert.NoError(tt, err, "Expected no error, got %v", err)
 	//	assert.Equal(tt, volume.Name, createdVolume.Name, "Expected volume name %v, got %v", volume.Name, createdVolume.Name)
-	//	assert.Equal(tt, createdVolume.State, models.LifeCycleStateCreating, "Expected volume state %v, got %v", models.LifeCycleStateCreating, createdVolume.State)
-	//	assert.Equal(tt, createdVolume.StateDetails, models.LifeCycleStateCreatingDetails, "Expected volume state %v, got %v", models.LifeCycleStateCreatingDetails, createdVolume.State)
+	//	assert.Equal(tt, createdVolume.State, datamodel.LifeCycleStateCreating, "Expected volume state %v, got %v", datamodel.LifeCycleStateCreating, createdVolume.State)
+	//	assert.Equal(tt, createdVolume.StateDetails, datamodel.LifeCycleStateCreatingDetails, "Expected volume state %v, got %v", datamodel.LifeCycleStateCreatingDetails, createdVolume.State)
 	// })
 	t.Run("WhenVolumeAlreadyExists", func(tt *testing.T) {
 		tt.Skip("Skipped because this function uses PostgreSQL-specific JSON syntax which is not supported in SQLite")
@@ -224,8 +222,8 @@ func TestCreateVolume(t *testing.T) {
 		createdVolume, err := store.CreateVolume(context.Background(), volume)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volume.Name, createdVolume.Name, "Expected volume name %v, got %v", volume.Name, createdVolume.Name)
-		assert.Equal(tt, models.LifeCycleStateRestoring, createdVolume.State, "Expected volume state %v, got %v", models.LifeCycleStateRestoring, createdVolume.State)
-		assert.Equal(tt, models.LifeCycleStateRestoringDetails, createdVolume.StateDetails, "Expected volume state details %v, got %v", models.LifeCycleStateRestoringDetails, createdVolume.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateRestoring, createdVolume.State, "Expected volume state %v, got %v", datamodel.LifeCycleStateRestoring, createdVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateRestoringDetails, createdVolume.StateDetails, "Expected volume state details %v, got %v", datamodel.LifeCycleStateRestoringDetails, createdVolume.StateDetails)
 	})
 
 	t.Run("CreateVolumeWithRegionalPool", func(tt *testing.T) {
@@ -507,7 +505,7 @@ func TestDeleteVolumeAndChildResources(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volume.Name, deletedVolume.Name, "Expected volume name %v, got %v", volume.Name, deletedVolume.Name)
 		assert.NotNil(tt, deletedVolume.DeletedAt, "Expected volume to be deleted, got %v", deletedVolume.DeletedAt)
-		assert.Equal(tt, models.LifeCycleStateDeleted, deletedVolume.State, "Expected volume state %v, got %v", models.LifeCycleStateDeleted, deletedVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, deletedVolume.State, "Expected volume state %v, got %v", datamodel.LifeCycleStateDeleted, deletedVolume.State)
 		assert.Equal(tt, "", deletedVolume.StateDetails, "Expected volume state details %v, got %v", "", deletedVolume.StateDetails)
 
 		_, err = store.GetVolume(context.Background(), volume.UUID)
@@ -600,7 +598,7 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volume.Name, deletedVolume.Name, "Expected volume name %v, got %v", volume.Name, deletedVolume.Name)
 		assert.NotNil(tt, deletedVolume.DeletedAt, "Expected volume to be deleted, got %v", deletedVolume.DeletedAt)
-		assert.Equal(tt, models.LifeCycleStateDeleted, deletedVolume.State, "Expected volume state %v, got %v", models.LifeCycleStateDeleted, deletedVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, deletedVolume.State, "Expected volume state %v, got %v", datamodel.LifeCycleStateDeleted, deletedVolume.State)
 		assert.Equal(tt, "", deletedVolume.StateDetails, "Expected volume state details %v, got %v", "", deletedVolume.StateDetails)
 
 		_, err = store.GetVolume(context.Background(), volume.UUID)
@@ -670,10 +668,10 @@ func TestUpdateVolumeState(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
-		updatedVolume, err := store.UpdateVolumeState(context.Background(), volume.UUID, models.LifeCycleStateDeleted, "")
+		updatedVolume, err := store.UpdateVolumeState(context.Background(), volume.UUID, datamodel.LifeCycleStateDeleted, "")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volume.Name, updatedVolume.Name, "Expected volume name %v, got %v", volume.Name, updatedVolume.Name)
-		assert.Equal(tt, models.LifeCycleStateDeleted, updatedVolume.State, "Expected volume state %v, got %v", models.LifeCycleStateDeleted, updatedVolume.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, updatedVolume.State, "Expected volume state %v, got %v", datamodel.LifeCycleStateDeleted, updatedVolume.State)
 		assert.Equal(tt, "", updatedVolume.StateDetails, "Expected volume state details %v, got %v", "", updatedVolume.StateDetails)
 	})
 	t.Run("WhenVolumeIsNotFound", func(tt *testing.T) {
@@ -685,7 +683,7 @@ func TestUpdateVolumeState(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err, "Failed to clean up test database")
 
-		updatedVolume, err := store.UpdateVolumeState(context.Background(), "dummy", models.LifeCycleStateDeleted, "")
+		updatedVolume, err := store.UpdateVolumeState(context.Background(), "dummy", datamodel.LifeCycleStateDeleted, "")
 		assert.Nil(tt, updatedVolume, "Expected nil volume, got %v", updatedVolume)
 		assert.ErrorContains(tt, err, "not found", "Expected no error, got %v", err)
 		if !customerrors.IsNotFoundErr(err) {
@@ -1182,18 +1180,6 @@ func TestListVolumes(t *testing.T) {
 
 func TestRevertedVolume(t *testing.T) {
 	t.Run("WhenVolumeIsRevertedSuccessfully", func(tt *testing.T) {
-		// Save the original function
-		originalHydrateBatchSnapshotstoCCFE := hydrationActivities.HydrateBatchSnapshotstoCCFE
-		defer func() {
-			// Restore the original function after the test
-			hydrationActivities.HydrateBatchSnapshotstoCCFE = originalHydrateBatchSnapshotstoCCFE
-		}()
-
-		// Override the function to always return nil
-		hydrationActivities.HydrateBatchSnapshotstoCCFE = func(ctx context.Context, createdSnapshots []*datamodel.Snapshot, deletedSnapshots []*datamodel.Snapshot) error {
-			return nil
-		}
-
 		// Test setup
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")
@@ -4232,8 +4218,8 @@ func TestGetFlexCacheVolumeCountByClusterPeerID(t *testing.T) {
 			Account:       account,
 			PoolID:        pool.ID,
 			Pool:          pool,
-			State:         models.LifeCycleStateREADY,
-			StateDetails:  models.LifeCycleStateAvailableDetails,
+			State:         datamodel.LifeCycleStateREADY,
+			StateDetails:  datamodel.LifeCycleStateAvailableDetails,
 			ClusterPeerID: sql.NullInt64{Int64: clusterPeerID, Valid: true},
 		}
 		assert.NoError(tt, store.db.Create(vol).Error(), "create volume failed")
@@ -4348,8 +4334,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -4361,7 +4347,7 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, jobs, 1, "Expected 1 NEW job")
 		assert.Equal(tt, "job-uuid-1", jobs[0].UUID)
-		assert.Equal(tt, string(models.JobsStateNEW), jobs[0].State)
+		assert.Equal(tt, string(datamodel.JobsStateNEW), jobs[0].State)
 	})
 
 	t.Run("WhenOnlyProcessingJobsExist", func(tt *testing.T) {
@@ -4382,8 +4368,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStatePROCESSING),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -4395,7 +4381,7 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, jobs, 1, "Expected 1 PROCESSING job")
 		assert.Equal(tt, "job-uuid-1", jobs[0].UUID)
-		assert.Equal(tt, string(models.JobsStatePROCESSING), jobs[0].State)
+		assert.Equal(tt, string(datamodel.JobsStatePROCESSING), jobs[0].State)
 	})
 
 	t.Run("WhenBothNewAndProcessingJobsExist", func(tt *testing.T) {
@@ -4416,8 +4402,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -4426,8 +4412,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job2 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-2"},
 			ResourceName: "test-volume-2",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStatePROCESSING),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-2",
@@ -4442,8 +4428,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		assert.Len(tt, jobs, 2, "Expected 2 active jobs (NEW + PROCESSING)")
 
 		states := []string{jobs[0].State, jobs[1].State}
-		assert.Contains(tt, states, string(models.JobsStateNEW))
-		assert.Contains(tt, states, string(models.JobsStatePROCESSING))
+		assert.Contains(tt, states, string(datamodel.JobsStateNEW))
+		assert.Contains(tt, states, string(datamodel.JobsStatePROCESSING))
 	})
 
 	t.Run("WhenCompletedJobsExist", func(tt *testing.T) {
@@ -4464,8 +4450,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateDONE),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateDONE),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -4496,8 +4482,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateERROR),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateERROR),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -4528,8 +4514,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		jobNew := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-new"},
 			ResourceName: "test-volume-new",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-new",
@@ -4538,8 +4524,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		jobProcessing := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-processing"},
 			ResourceName: "test-volume-processing",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStatePROCESSING),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-processing",
@@ -4548,8 +4534,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		jobCompleted := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-completed"},
 			ResourceName: "test-volume-completed",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateERROR),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateERROR),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-completed",
@@ -4558,8 +4544,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		jobFailed := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-failed"},
 			ResourceName: "test-volume-failed",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateERROR),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateERROR),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-failed",
@@ -4601,7 +4587,7 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
 			Type:         "OTHER_JOB_TYPE",
-			State:        string(models.JobsStateNEW),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -4632,8 +4618,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -4644,8 +4630,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job2 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-2"},
 			ResourceName: "test-volume-2",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-2",
@@ -4656,8 +4642,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job3 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-3"},
 			ResourceName: "test-volume-3",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-3",
@@ -4741,15 +4727,15 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 
 		// Create 50 active jobs
 		for i := 0; i < 50; i++ {
-			state := string(models.JobsStateNEW)
+			state := string(datamodel.JobsStateNEW)
 			if i%2 == 0 {
-				state = string(models.JobsStatePROCESSING)
+				state = string(datamodel.JobsStatePROCESSING)
 			}
 
 			job := &datamodel.Job{
 				BaseModel:    datamodel.BaseModel{UUID: fmt.Sprintf("job-uuid-%d", i)},
 				ResourceName: fmt.Sprintf("test-volume-%d", i),
-				Type:         string(models.JobTypeFlexCachePrePopulate),
+				Type:         string(datamodel.JobTypeFlexCachePrePopulate),
 				State:        state,
 				AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 				JobAttributes: &datamodel.JobAttributes{
@@ -4765,9 +4751,9 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 
 		// Verify all jobs are either NEW or PROCESSING
 		for _, job := range jobs {
-			assert.Contains(tt, []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}, job.State,
+			assert.Contains(tt, []string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}, job.State,
 				"All returned jobs should be NEW or PROCESSING")
-			assert.Equal(tt, string(models.JobTypeFlexCachePrePopulate), job.Type,
+			assert.Equal(tt, string(datamodel.JobTypeFlexCachePrePopulate), job.Type,
 				"All returned jobs should be FlexCachePrePopulate type")
 		}
 	})
@@ -4796,8 +4782,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Int64: account1.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-1",
@@ -4807,8 +4793,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job2 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-2"},
 			ResourceName: "test-volume-2",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStatePROCESSING),
 			AccountID:    sql.NullInt64{Int64: account2.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "ontap-job-uuid-2",
@@ -4839,8 +4825,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName: "test-volume-1",
-			Type:         string(models.JobTypeFlexCachePrePopulate),
-			State:        string(models.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
 			AccountID:    sql.NullInt64{Valid: false}, // Null account ID
 			IsAdminJob:   true,
 			JobAttributes: &datamodel.JobAttributes{
@@ -4874,8 +4860,8 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-uuid-1"},
 			ResourceName:  "test-volume-1",
-			Type:          string(models.JobTypeFlexCachePrePopulate),
-			State:         string(models.JobsStateNEW),
+			Type:          string(datamodel.JobTypeFlexCachePrePopulate),
+			State:         string(datamodel.JobsStateNEW),
 			AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: nil, // Null job attributes
 		}
@@ -6156,7 +6142,7 @@ func TestGetVolumeCountByVolumePerformanceGroupID(t *testing.T) {
 			Account:                  account,
 			PoolID:                   pool.ID,
 			Pool:                     pool,
-			State:                    models.LifeCycleStateREADY,
+			State:                    datamodel.LifeCycleStateREADY,
 			VolumePerformanceGroupID: sql.NullInt64{Int64: vpgID, Valid: true},
 		}
 		assert.NoError(tt, store.db.Create(vol).Error(), "create volume failed")
@@ -6221,7 +6207,7 @@ func TestGetVolumeCountByVolumePerformanceGroupID(t *testing.T) {
 			Account:                  account,
 			PoolID:                   pool.ID,
 			Pool:                     pool,
-			State:                    models.LifeCycleStateREADY,
+			State:                    datamodel.LifeCycleStateREADY,
 			VolumePerformanceGroupID: sql.NullInt64{Int64: vpgA.ID, Valid: true},
 		}
 		assert.NoError(tt, store.db.Create(vol1).Error(), "create volume 1 failed")
@@ -6233,7 +6219,7 @@ func TestGetVolumeCountByVolumePerformanceGroupID(t *testing.T) {
 			Account:                  account,
 			PoolID:                   pool.ID,
 			Pool:                     pool,
-			State:                    models.LifeCycleStateREADY,
+			State:                    datamodel.LifeCycleStateREADY,
 			VolumePerformanceGroupID: sql.NullInt64{Int64: vpgA.ID, Valid: true},
 		}
 		assert.NoError(tt, store.db.Create(vol2).Error(), "create volume 2 failed")

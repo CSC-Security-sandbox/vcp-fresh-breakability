@@ -416,11 +416,11 @@ func emsDestinationFromONTAP(dest *models.EmsDestination) *EMSEventDestination {
 
 	if dest.Syslog != nil {
 		result.Syslog = &EMSEventDestinationSyslog{
-			Host:              nillable.FromPointerWithFallback(dest.Destination, ""),
-			Port:              nillable.FromPointerWithFallback(dest.Syslog.Port, int64(0)),
-			Transport:         nillable.FromPointerWithFallback(dest.Syslog.Transport, ""),
-			TimestampFormat:   "",
-			MessageFormat:     "",
+			Host:            nillable.FromPointerWithFallback(dest.Destination, ""),
+			Port:            nillable.FromPointerWithFallback(dest.Syslog.Port, int64(0)),
+			Transport:       nillable.FromPointerWithFallback(dest.Syslog.Transport, ""),
+			TimestampFormat: "",
+			MessageFormat:   "",
 		}
 
 		if dest.Syslog.Format != nil {
@@ -449,7 +449,7 @@ type EMSEventFilter struct {
 
 // EMSEventFilterRule represents an EMS filter rule
 type EMSEventFilterRule struct {
-	Index   int
-	Type    string // "include", "exclude"
+	Index    int
+	Type     string // "include", "exclude"
 	Severity []string
 }

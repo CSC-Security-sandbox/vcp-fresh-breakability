@@ -1,6 +1,6 @@
 package ontap_rest
 
-import "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+import "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 
 var (
 	notExactlyOneError = "unexpected response from server while creating FlexCache volume - did not receive exactly one FlexCache volume"

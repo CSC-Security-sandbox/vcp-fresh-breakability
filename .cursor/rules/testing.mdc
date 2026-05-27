@@ -25,7 +25,7 @@ Follow **CODING_GUIDELINES.md** (testing section) and these rules.
 ## Error and edge testing
 - **Paths**: Test both success and failure paths. Cover error wrapping and retriable vs non-retriable behavior where relevant.
 - **Assertions**: Use **testify** (assert, require). Use `assert.Error`, `assert.NoError`, `assert.Contains(t, err.Error(), ...)` and `errors.Is` / `errors.As` for error checks.
-- **VCP errors**: When testing code that returns vsaerrors, assert on error code/category or message as appropriate; see core/errors for test helpers if available.
+- **VCP errors**: When testing code that returns vsaerrors, assert on error code/category or message as appropriate; see lib/errors for test helpers if available.
 
 ## Coverage and performance
 - **Coverage**: Aim for high coverage on new or modified code; critical paths (workflows, activities, API handlers) should have explicit tests.
@@ -34,5 +34,5 @@ Follow **CODING_GUIDELINES.md** (testing section) and these rules.
 
 ## Repo pointers
 - **CODING_GUIDELINES.md** — “Testing”, “Function-Level Testing”, “Migration Strategies” (DI vs globals).
-- **core/errors/README.md** — “Testing Best Practices” for error tests.
+- **lib/errors/README.md** — “Testing Best Practices” for error tests.
 - Generated mocks: `*_mock.go`; regenerate with `make generate-mocks` / `make generate-monkey-mocks`.

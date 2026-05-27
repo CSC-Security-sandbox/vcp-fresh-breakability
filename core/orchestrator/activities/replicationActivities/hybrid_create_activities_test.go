@@ -11,14 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -210,8 +209,8 @@ func TestHybridReplicationActivity_GetNodeForHybridReplication(t *testing.T) {
 
 func TestHybridReplicationActivity_CreateNodesForHybridReplication(t *testing.T) {
 	t.Run("SuccessWhenNodeIsCreatedWithCertificateAuth", func(tt *testing.T) {
-		originalCreateNodeForProvider := hyperscaler.CreateNodeForProvider
-		defer func() { hyperscaler.CreateNodeForProvider = originalCreateNodeForProvider }()
+		originalCreateNodeForProvider := vsa.CreateNodeForProvider
+		defer func() { vsa.CreateNodeForProvider = originalCreateNodeForProvider }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -263,7 +262,7 @@ func TestHybridReplicationActivity_CreateNodesForHybridReplication(t *testing.T)
 			},
 		}
 
-		hyperscaler.CreateNodeForProvider = func(input hyperscaler.NodeProviderInput) *models.Node {
+		vsa.CreateNodeForProvider = func(input vsa.NodeProviderInput) *models.Node {
 			return expectedNode
 		}
 
@@ -278,8 +277,8 @@ func TestHybridReplicationActivity_CreateNodesForHybridReplication(t *testing.T)
 	})
 
 	t.Run("SuccessWhenNodeIsCreatedWithPasswordAuth", func(tt *testing.T) {
-		originalCreateNodeForProvider := hyperscaler.CreateNodeForProvider
-		defer func() { hyperscaler.CreateNodeForProvider = originalCreateNodeForProvider }()
+		originalCreateNodeForProvider := vsa.CreateNodeForProvider
+		defer func() { vsa.CreateNodeForProvider = originalCreateNodeForProvider }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -320,7 +319,7 @@ func TestHybridReplicationActivity_CreateNodesForHybridReplication(t *testing.T)
 			},
 		}
 
-		hyperscaler.CreateNodeForProvider = func(input hyperscaler.NodeProviderInput) *models.Node {
+		vsa.CreateNodeForProvider = func(input vsa.NodeProviderInput) *models.Node {
 			return expectedNode
 		}
 
@@ -334,8 +333,8 @@ func TestHybridReplicationActivity_CreateNodesForHybridReplication(t *testing.T)
 	})
 
 	t.Run("ErrorWhenCreateNodeForProviderReturnsNil", func(tt *testing.T) {
-		originalCreateNodeForProvider := hyperscaler.CreateNodeForProvider
-		defer func() { hyperscaler.CreateNodeForProvider = originalCreateNodeForProvider }()
+		originalCreateNodeForProvider := vsa.CreateNodeForProvider
+		defer func() { vsa.CreateNodeForProvider = originalCreateNodeForProvider }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -366,7 +365,7 @@ func TestHybridReplicationActivity_CreateNodesForHybridReplication(t *testing.T)
 			},
 		}
 
-		hyperscaler.CreateNodeForProvider = func(input hyperscaler.NodeProviderInput) *models.Node {
+		vsa.CreateNodeForProvider = func(input vsa.NodeProviderInput) *models.Node {
 			return nil
 		}
 
@@ -378,8 +377,8 @@ func TestHybridReplicationActivity_CreateNodesForHybridReplication(t *testing.T)
 	})
 
 	t.Run("SuccessWhenNodeIsCreatedWithNilCredentials", func(tt *testing.T) {
-		originalCreateNodeForProvider := hyperscaler.CreateNodeForProvider
-		defer func() { hyperscaler.CreateNodeForProvider = originalCreateNodeForProvider }()
+		originalCreateNodeForProvider := vsa.CreateNodeForProvider
+		defer func() { vsa.CreateNodeForProvider = originalCreateNodeForProvider }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -410,7 +409,7 @@ func TestHybridReplicationActivity_CreateNodesForHybridReplication(t *testing.T)
 			},
 		}
 
-		hyperscaler.CreateNodeForProvider = func(input hyperscaler.NodeProviderInput) *models.Node {
+		vsa.CreateNodeForProvider = func(input vsa.NodeProviderInput) *models.Node {
 			// When credentials are nil, CreateNodeForProvider returns a node with just DeploymentName
 			return expectedNode
 		}
@@ -840,8 +839,8 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerForHybridReplication(t 
 
 func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplication(t *testing.T) {
 	t.Run("SuccessWhenClusterPeerIsAvailableAndAuthenticated", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -865,7 +864,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(expectedClusterPeer, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -878,8 +877,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("ErrorWhenAuthenticationStateIsProblem", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -903,7 +902,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerWithProblem, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -917,8 +916,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("ErrorWhenAuthenticationStateIsAbsent", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
 		activity := HybridReplicationActivity{SE: mockStorage}
@@ -941,7 +940,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerWithAbsent, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -955,8 +954,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("TimeoutWhenClusterPeerIsNotReadyYet", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -980,7 +979,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerNotReady, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -993,8 +992,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("ErrorWhenProviderFailsToGetClusterPeer", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1012,7 +1011,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(nil, errors.New("failed to get cluster peer"))
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1025,8 +1024,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("ErrorWhenGetProviderByNodeFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1041,7 +1040,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 			},
 		}
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
 
@@ -1053,8 +1052,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("TimeoutWhenClusterPeerIsPartialAvailability", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1078,7 +1077,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerPartial, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1092,8 +1091,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("TimeoutWhenClusterPeerIsUnavailable", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1117,7 +1116,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerUnavailable, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1130,8 +1129,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("ErrorWhenProblemStateExceeds10Minutes", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1158,7 +1157,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerWithProblem, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1174,8 +1173,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("ErrorWhenProblemStateWithin10Minutes", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1202,7 +1201,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerWithProblem, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1218,8 +1217,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("ErrorWhenProblemStateExactly10Minutes", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1246,7 +1245,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerWithProblem, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1261,8 +1260,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("SuccessWhenRecoveredFromProblemState", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1290,7 +1289,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerRecovered, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1305,8 +1304,8 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 	})
 
 	t.Run("SuccessWhenRecoveredFromProblemStateWithOtherNonProblemState", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1335,7 +1334,7 @@ func TestHybridReplicationActivity_WaitForClusterPeerActivityForHybridReplicatio
 
 		mockProvider.On("GetClusterPeer", "test-cluster-peer-uuid").Return(clusterPeerRecovered, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2012,11 +2011,11 @@ func TestHybridReplicationActivity_CleanupReplicationIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, fmt.Errorf("provider error")
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		result, err := activity.CleanupReplicationIfNeeded(ctx, &replicationResult)
 
@@ -2054,11 +2053,11 @@ func TestHybridReplicationActivity_CleanupReplicationIfNeeded(t *testing.T) {
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock DeleteVolumeReplication to return conflict error
 		mockProvider.On("DeleteVolumeReplication", mock.Anything).Return(nil, customerrors.NewConflictErr("conflict error"))
@@ -2100,11 +2099,11 @@ func TestHybridReplicationActivity_CleanupReplicationIfNeeded(t *testing.T) {
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock DeleteVolumeReplication to return other error
 		mockProvider.On("DeleteVolumeReplication", mock.Anything).Return(nil, fmt.Errorf("delete error"))
@@ -2201,11 +2200,11 @@ func TestHybridReplicationActivity_CleanupReplicationIfNeeded(t *testing.T) {
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock DeleteVolumeReplication to return success
 		deletedReplication := &vsa.VolumeReplication{
@@ -2244,11 +2243,11 @@ func TestHybridReplicationActivity_CreateSVMPeerInOntapForHybridReplication(t *t
 		}
 
 		// Mock GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, fmt.Errorf("failed to get provider")
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		result, err := activity.CreateSVMPeerInOntapForHybridReplication(ctx, &replicationResult)
 
@@ -2279,11 +2278,11 @@ func TestHybridReplicationActivity_CreateSVMPeerInOntapForHybridReplication(t *t
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return non-not-found error
 		mockProvider.On("GetSVMPeer", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("connection error"))
@@ -2318,11 +2317,11 @@ func TestHybridReplicationActivity_CreateSVMPeerInOntapForHybridReplication(t *t
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return not found error
 		mockProvider.On("GetSVMPeer", mock.Anything, mock.Anything).Return(nil, customerrors.NewNotFoundErr("SVM peer", nil))
@@ -2359,11 +2358,11 @@ func TestHybridReplicationActivity_CreateSVMPeerInOntapForHybridReplication(t *t
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return SVM peer with rejected state
 		svmPeer := &vsa.SvmPeer{
@@ -2404,11 +2403,11 @@ func TestHybridReplicationActivity_CreateSVMPeerInOntapForHybridReplication(t *t
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return SVM peer with rejected state
 		svmPeer := &vsa.SvmPeer{
@@ -2451,11 +2450,11 @@ func TestHybridReplicationActivity_CreateSVMPeerInOntapForHybridReplication(t *t
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return not found error
 		mockProvider.On("GetSVMPeer", mock.Anything, mock.Anything).Return(nil, customerrors.NewNotFoundErr("SVM peer", nil))
@@ -2492,11 +2491,11 @@ func TestHybridReplicationActivity_CreateSVMPeerInOntapForHybridReplication(t *t
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return SVM peer with acceptable state (not rejected/suspended)
 		svmPeer := &vsa.SvmPeer{
@@ -2535,11 +2534,11 @@ func TestHybridReplicationActivity_CreateSVMPeerInOntapForHybridReplication(t *t
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return SVM peer with rejected state
 		svmPeer := &vsa.SvmPeer{
@@ -2896,11 +2895,11 @@ func TestHybridReplicationActivity_WaitForSVMPeerForHybridReplication(t *testing
 		}
 
 		// Mock GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, fmt.Errorf("failed to get provider")
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		result, err := activity.WaitForSVMPeerForHybridReplication(ctx, &replicationResult)
 
@@ -2930,11 +2929,11 @@ func TestHybridReplicationActivity_WaitForSVMPeerForHybridReplication(t *testing
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return non-not-found error
 		mockProvider.On("GetSVMPeer", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("connection error"))
@@ -2968,11 +2967,11 @@ func TestHybridReplicationActivity_WaitForSVMPeerForHybridReplication(t *testing
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return SVM peer with rejected state
 		svmPeer := &vsa.SvmPeer{
@@ -3012,11 +3011,11 @@ func TestHybridReplicationActivity_WaitForSVMPeerForHybridReplication(t *testing
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return nil (not found)
 		mockProvider.On("GetSVMPeer", mock.Anything, mock.Anything).Return(nil, customerrors.NewNotFoundErr("SVM peer", nil))
@@ -3050,11 +3049,11 @@ func TestHybridReplicationActivity_WaitForSVMPeerForHybridReplication(t *testing
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock GetSVMPeer to return SVM peer with peered state
 		svmPeer := &vsa.SvmPeer{
@@ -3111,11 +3110,11 @@ func TestHybridReplicationActivity_CreateHybridVolumeReplicationInternal(t *test
 		}
 
 		// Mock GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, fmt.Errorf("provider error")
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		result, err := activity.CreateHybridVolumeReplicationInternal(ctx, &replicationResult)
 
@@ -3163,11 +3162,11 @@ func TestHybridReplicationActivity_CreateHybridVolumeReplicationInternal(t *test
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock CreateVolumeReplication to return error
 		mockProvider.On("CreateVolumeReplication", mock.Anything).Return(nil, fmt.Errorf("create replication error"))
@@ -3241,11 +3240,11 @@ func TestHybridReplicationActivity_CreateHybridVolumeReplicationInternal(t *test
 
 		// Mock GetProviderByNode to return success
 		mockProvider := &vsa.MockProvider{}
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock CreateVolumeReplication to return success
 		createdReplication := &vsa.VolumeReplication{
@@ -3879,14 +3878,14 @@ func TestHybridReplicationActivity_UpdateClusterPeerDetailsOnErrorActivity(t *te
 			return clusterPeering.ID == 123
 		})).Return(fmt.Errorf("database error"))
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("DeleteClusterPeer", mock.Anything).Return(nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		err := activity.UpdateClusterPeerDetailsOnErrorActivity(ctx, &replicationResult)
 
@@ -3925,14 +3924,14 @@ func TestHybridReplicationActivity_UpdateClusterPeerDetailsOnErrorActivity(t *te
 			return clusterPeering.ID == 123
 		})).Return(nil)
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("DeleteClusterPeer", mock.Anything).Return(nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		err := activity.UpdateClusterPeerDetailsOnErrorActivity(ctx, &replicationResult)
 
@@ -4074,12 +4073,12 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			NodeProvider: &models.Node{Name: "test-node"},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Mock vsa.GetProviderByNode to return error
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, fmt.Errorf("provider error")
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		result, err := activity.GetOrCreateClusterPeerInOntapForHybridReplication(ctx, &replicationResult)
 
@@ -4103,14 +4102,14 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("GetClusterPeer", mock.Anything).Return(nil, fmt.Errorf("connection error"))
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		result, err := activity.GetOrCreateClusterPeerInOntapForHybridReplication(ctx, &replicationResult)
 
@@ -4134,8 +4133,8 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
@@ -4143,10 +4142,10 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			ExternalUUID: "new-uuid",
 			Passphrase:   (*slogger.Secret)(nillable.ToPointer("test-passphrase")),
 		}, nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return error
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(fmt.Errorf("database error"))
@@ -4185,16 +4184,16 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
 		mockProvider.On("CreateClusterPeer", mock.Anything).Return(nil, fmt.Errorf("create cluster peer error"))
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4224,17 +4223,17 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("GetClusterPeer", mock.Anything).Return(&vsa.ClusterPeer{
 			UUID:         "existing-uuid",
 			Availability: models.AvailabilityAvailable,
 		}, nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		result, err := activity.GetOrCreateClusterPeerInOntapForHybridReplication(ctx, &replicationResult)
 
@@ -4271,8 +4270,8 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
@@ -4280,10 +4279,10 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			ExternalUUID: "new-uuid",
 			Passphrase:   (*slogger.Secret)(nillable.ToPointer("test-passphrase")),
 		}, nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4325,8 +4324,8 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("GetClusterPeer", mock.Anything).Return(nil, fmt.Errorf("cluster peer not found"))
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
@@ -4335,10 +4334,10 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			ExternalUUID: "new-uuid",
 			Passphrase:   (*slogger.Secret)(nillable.ToPointer("test-passphrase")),
 		}, nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4382,8 +4381,8 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
@@ -4391,10 +4390,10 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			ExternalUUID: "new-uuid",
 			Passphrase:   (*slogger.Secret)(nillable.ToPointer("test-passphrase")),
 		}, nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4437,14 +4436,14 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("", fmt.Errorf("role creation error"))
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4484,15 +4483,15 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return(nil, fmt.Errorf("list cluster peers error"))
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4534,8 +4533,8 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{
@@ -4546,10 +4545,10 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 				Availability:    "unavailable", // Not available
 			},
 		}, nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4589,16 +4588,16 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
 		mockProvider.On("CreateClusterPeer", mock.Anything).Return(nil, fmt.Errorf("Error creating cluster peer - Max retries reached"))
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4638,16 +4637,16 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
 		mockProvider.On("CreateClusterPeer", mock.Anything).Return(nil, fmt.Errorf("Retries exhausted when attempting to reach the storage server"))
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4688,16 +4687,16 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
 		mockProvider.On("CreateClusterPeer", mock.Anything).Return(nil, fmt.Errorf("Verify that the peer address is correct, and then try the operation again."))
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4738,8 +4737,8 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
@@ -4747,10 +4746,10 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			ExternalUUID: "new-uuid",
 			Passphrase:   nil, // No passphrase
 		}, nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to return success
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
@@ -4795,8 +4794,8 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		// Mock vsa.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := vsa.GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
 		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{
@@ -4807,10 +4806,10 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 				Availability:    models.AvailabilityAvailable, // Available
 			},
 		}, nil)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		// Mock se.UpdateClusterPeeringRow to succeed first (for Case 2), then fail during reuse
 		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil).Once()                                              // Case 2 success
@@ -5607,13 +5606,13 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		}, nil)
 		mockProvider.On("DeleteSVMPeer", "test-svm-peer-uuid", false).Return(nil)
 
-		// Mock hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Mock vsa.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		err := activity.UpdateSVMPeerOnErrorActivity(ctx, &replicationResult)
@@ -5683,13 +5682,13 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		notFoundErr := customerrors.NewNotFoundErr("SVM peer", nil)
 		mockProvider.On("GetSVMPeer", mock.AnythingOfType("*string"), mock.AnythingOfType("*string")).Return(nil, notFoundErr)
 
-		// Mock hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Mock vsa.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		err := activity.UpdateSVMPeerOnErrorActivity(ctx, &replicationResult)
@@ -5727,13 +5726,13 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("GetSVMPeer", mock.AnythingOfType("*string"), mock.AnythingOfType("*string")).Return(nil, nil)
 
-		// Mock hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Mock vsa.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		err := activity.UpdateSVMPeerOnErrorActivity(ctx, &replicationResult)
@@ -5767,13 +5766,13 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 			},
 		}
 
-		// Mock hyperscaler.GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Mock vsa.GetProviderByNode to return error
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		err := activity.UpdateSVMPeerOnErrorActivity(ctx, &replicationResult)
@@ -5811,13 +5810,13 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("GetSVMPeer", mock.AnythingOfType("*string"), mock.AnythingOfType("*string")).Return(nil, errors.New("connection error"))
 
-		// Mock hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Mock vsa.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		err := activity.UpdateSVMPeerOnErrorActivity(ctx, &replicationResult)
@@ -5860,13 +5859,13 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		}, nil)
 		mockProvider.On("DeleteSVMPeer", "test-svm-peer-uuid", false).Return(errors.New("delete error"))
 
-		// Mock hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Mock vsa.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		defer func() {
-			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		err := activity.UpdateSVMPeerOnErrorActivity(ctx, &replicationResult)

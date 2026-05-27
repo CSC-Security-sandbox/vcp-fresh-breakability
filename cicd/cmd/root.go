@@ -3,11 +3,11 @@ package cmd
 import (
 	"main/cmd/images"
 	"main/cmd/jira"
-	"main/cmd/link-check"
+	linkcheck "main/cmd/link-check"
 	"main/cmd/lint"
 	"main/cmd/release-cmd/tag"
 	"main/cmd/slack"
-	"main/cmd/unit-test"
+	unitTest "main/cmd/unit-test"
 	"os"
 
 	"github.com/joho/godotenv"

@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	vcputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -79,8 +78,8 @@ func TestCreateVolumeReplication(t *testing.T) {
 		createdVolumeRep, err := store.CreateVolumeReplication(context.Background(), volumeRep)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volumeRep.Name, createdVolumeRep.Name, "Expected volume name %v, got %v", volumeRep.Name, createdVolumeRep.Name)
-		assert.Equal(tt, createdVolumeRep.State, models.LifeCycleStateCreating, "Expected volume state %v, got %v", models.LifeCycleStateCreating, createdVolumeRep.State)
-		assert.Equal(tt, createdVolumeRep.StateDetails, models.LifeCycleStateCreatingDetails, "Expected volume state %v, got %v", models.LifeCycleStateCreatingDetails, createdVolumeRep.State)
+		assert.Equal(tt, createdVolumeRep.State, datamodel.LifeCycleStateCreating, "Expected volume state %v, got %v", datamodel.LifeCycleStateCreating, createdVolumeRep.State)
+		assert.Equal(tt, createdVolumeRep.StateDetails, datamodel.LifeCycleStateCreatingDetails, "Expected volume state %v, got %v", datamodel.LifeCycleStateCreatingDetails, createdVolumeRep.State)
 		assert.Equal(tt, createdVolumeRep.ReplicationAttributes.DestinationReplicationUUID, createdVolumeRep.UUID)
 	})
 	t.Run("WhenVolumeReplicationIsCreatedSuccessfullyFromSrc", func(tt *testing.T) {
@@ -142,8 +141,8 @@ func TestCreateVolumeReplication(t *testing.T) {
 		createdVolumeRep, err := store.CreateVolumeReplication(context.Background(), volumeRep)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volumeRep.Name, createdVolumeRep.Name, "Expected volume name %v, got %v", volumeRep.Name, createdVolumeRep.Name)
-		assert.Equal(tt, createdVolumeRep.State, models.LifeCycleStateCreating, "Expected volume state %v, got %v", models.LifeCycleStateCreating, createdVolumeRep.State)
-		assert.Equal(tt, createdVolumeRep.StateDetails, models.LifeCycleStateCreatingDetails, "Expected volume state %v, got %v", models.LifeCycleStateCreatingDetails, createdVolumeRep.State)
+		assert.Equal(tt, createdVolumeRep.State, datamodel.LifeCycleStateCreating, "Expected volume state %v, got %v", datamodel.LifeCycleStateCreating, createdVolumeRep.State)
+		assert.Equal(tt, createdVolumeRep.StateDetails, datamodel.LifeCycleStateCreatingDetails, "Expected volume state %v, got %v", datamodel.LifeCycleStateCreatingDetails, createdVolumeRep.State)
 		assert.Equal(tt, createdVolumeRep.ReplicationAttributes.SourceReplicationUUID, createdVolumeRep.UUID)
 	})
 	t.Run("WhenVolumeReplicationAlreadyExists", func(tt *testing.T) {
@@ -441,8 +440,8 @@ func TestDeleteVolumeReplication(t *testing.T) {
 			Name:         "test_volume_rep",
 			Account:      account,
 			Volume:       volume,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.db.Create(volumeRep).Error()
 		if err != nil {
@@ -453,8 +452,8 @@ func TestDeleteVolumeReplication(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volumeRep.Name, deletedVolumeRep.Name, "Expected volume name %v, got %v", volumeRep.Name, deletedVolumeRep.Name)
 		assert.NotNil(tt, deletedVolumeRep.DeletedAt, "Expected volume to be deleted, got %v", deletedVolumeRep.DeletedAt)
-		assert.Equal(tt, models.LifeCycleStateDeleted, deletedVolumeRep.State, "Expected volume state %v, got %v", models.LifeCycleStateDeleted, deletedVolumeRep.State)
-		assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedVolumeRep.StateDetails, "Expected volume state details %v, got %v", models.LifeCycleStateDeletedDetails, deletedVolumeRep.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, deletedVolumeRep.State, "Expected volume state %v, got %v", datamodel.LifeCycleStateDeleted, deletedVolumeRep.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, deletedVolumeRep.StateDetails, "Expected volume state details %v, got %v", datamodel.LifeCycleStateDeletedDetails, deletedVolumeRep.StateDetails)
 
 		_, err = store.GetVolumeReplication(context.Background(), volumeRep.UUID)
 		assert.EqualError(tt, err, "volume replication not found", "Expected no error, got %v", err)
@@ -510,7 +509,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		// Create a cluster peering row for testing ClusterPeerId
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -529,7 +528,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 			Description:         "Test replication",
 			Labels:              map[string]string{"env": "test"},
 			ReplicationSchedule: "hourly",
-			Status:              models.HybridReplicationStatusPeered,
+			Status:              datamodel.HybridReplicationStatusPeered,
 			StatusDetails:       "Successfully peered",
 		}
 
@@ -554,7 +553,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 			Description:         "Updated test replication",
 			Labels:              map[string]string{"env": "prod"},
 			ReplicationSchedule: "daily",
-			Status:              models.HybridReplicationStatusPeered,
+			Status:              datamodel.HybridReplicationStatusPeered,
 			StatusDetails:       "Successfully updated",
 		}
 
@@ -564,7 +563,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		updateVolumeRep := &datamodel.VolumeReplication{
 			BaseModel:          datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
 			Name:               "test_volume_rep",
-			State:              models.LifeCycleStateUpdating,
+			State:              datamodel.LifeCycleStateUpdating,
 			MirrorState:        &mirrorState,
 			RelationshipStatus: &relationshipStatus,
 			LastTransferSize:   lastTransferSize,
@@ -579,7 +578,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 
 		updatedVolumeRep, err1 := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
 		assert.NoError(tt, err1, "Expected no error, got %v", err1)
-		assert.Equal(tt, models.LifeCycleStateUpdating, updatedVolumeRep.State, "Expected volume state %v, got %v", models.LifeCycleStateUpdating, updatedVolumeRep.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, updatedVolumeRep.State, "Expected volume state %v, got %v", datamodel.LifeCycleStateUpdating, updatedVolumeRep.State)
 		assert.Equal(tt, lastTransferSize, updatedVolumeRep.LastTransferSize, "Expected volume last transfer size %v, got %v", lastTransferSize, updatedVolumeRep.LastTransferSize)
 
 		// Verify HybridReplicationAttributes were updated
@@ -606,7 +605,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		updateVolumeRep := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "dummy"},
 			Name:      "test_volume_rep",
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 		}
 		err = store.UpdateVolumeReplication(context.Background(), updateVolumeRep)
 		assert.EqualError(tt, err, "volume replication not found", "Expected no error, got %v", err)
@@ -679,7 +678,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 				UUID:      "test-volume-rep-uuid",
 				DeletedAt: deletedAt,
 			},
-			State: models.LifeCycleStateDeleted,
+			State: datamodel.LifeCycleStateDeleted,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ExternalUUID: "test-volume-rep-external-uuid",
 			},
@@ -759,7 +758,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		// Update without DeletedAt (nil)
 		updateVolumeRep := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ExternalUUID: "test-volume-rep-external-uuid",
 			},
@@ -771,7 +770,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		updatedVolumeRep, err := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
 		assert.NoError(tt, err, "Failed to get updated volume replication")
 		assert.Nil(tt, updatedVolumeRep.DeletedAt, "Expected DeletedAt to remain nil when not set in update")
-		assert.Equal(tt, models.LifeCycleStateAvailable, updatedVolumeRep.State, "Expected state to be updated")
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, updatedVolumeRep.State, "Expected state to be updated")
 	})
 	t.Run("WhenClusterPeerIdIsSetToNull", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -820,7 +819,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		// Create a cluster peering row for testing ClusterPeerId
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -856,7 +855,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		// This tests the code path at lines 154-159 in UpdateVolumeReplication
 		updateVolumeRep := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ExternalUUID: "test-volume-rep-external-uuid",
 			},
@@ -879,7 +878,7 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		// Also verify using GetVolumeReplication to ensure the update worked
 		retrievedVolumeRep, err := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
 		assert.NoError(tt, err, "Failed to get volume replication")
-		assert.Equal(tt, models.LifeCycleStateAvailable, retrievedVolumeRep.State, "Expected state to be updated")
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, retrievedVolumeRep.State, "Expected state to be updated")
 	})
 }
 
@@ -940,14 +939,14 @@ func TestUpdateVolumeReplicationStates(t *testing.T) {
 		updateVolumeRep := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
 			Name:      "test_volume_rep",
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 		}
 		err = store.UpdateVolumeReplicationStates(context.Background(), updateVolumeRep)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 
 		updatedVolumeRep, err1 := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
 		assert.NoError(tt, err1, "Expected no error, got %v", err1)
-		assert.Equal(tt, models.LifeCycleStateUpdating, updatedVolumeRep.State, "Expected volume state %v, got %v", models.LifeCycleStateUpdating, updatedVolumeRep.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, updatedVolumeRep.State, "Expected volume state %v, got %v", datamodel.LifeCycleStateUpdating, updatedVolumeRep.State)
 	})
 	t.Run("WhenVolumeReplicationIsNotFound", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -961,7 +960,7 @@ func TestUpdateVolumeReplicationStates(t *testing.T) {
 		updateVolumeRep := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "dummy"},
 			Name:      "test_volume_rep",
-			State:     models.LifeCycleStateUpdating,
+			State:     datamodel.LifeCycleStateUpdating,
 		}
 		err = store.UpdateVolumeReplicationStates(context.Background(), updateVolumeRep)
 		assert.EqualError(tt, err, "volume replication not found", "Expected no error, got %v", err)
@@ -1013,9 +1012,9 @@ func TestUpdateVolumeReplicationTransferStats(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
-		mirrorState := models.OntapUninitialized
-		mirrorStateSnapmirrored := models.OntapSnapmirrored
-		relationshipStatus := models.SnapmirrorRelationshipIdle
+		mirrorState := datamodel.OntapUninitialized
+		mirrorStateSnapmirrored := datamodel.OntapSnapmirrored
+		relationshipStatus := datamodel.SnapmirrorRelationshipIdle
 		volumeRep := &datamodel.VolumeReplication{
 			BaseModel:          datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
 			Name:               "test_volume_rep",
@@ -1041,9 +1040,9 @@ func TestUpdateVolumeReplicationTransferStats(t *testing.T) {
 		updatedVolumeRep, err1 := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
 		assert.NoError(tt, err1, "Expected no error, got %v", err1)
 		assert.Equal(tt, int64(100), updatedVolumeRep.LastTransferSize, "Expected volume last transfer size %v, got %v", 100, updatedVolumeRep.LastTransferSize)
-		assert.Equal(tt, models.OntapSnapmirrored, *updatedVolumeRep.MirrorState, "Expected volume mirror state %v, got %v", models.OntapSnapmirrored, *updatedVolumeRep.MirrorState)
+		assert.Equal(tt, datamodel.OntapSnapmirrored, *updatedVolumeRep.MirrorState, "Expected volume mirror state %v, got %v", datamodel.OntapSnapmirrored, *updatedVolumeRep.MirrorState)
 		assert.True(tt, updatedVolumeRep.Healthy, "Expected volume healthy status %v, got %v", true, updatedVolumeRep.Healthy)
-		assert.Equal(tt, models.SnapmirrorRelationshipIdle, *updatedVolumeRep.RelationshipStatus, "Expected volume relationship status %v, got %v", models.SnapmirrorRelationshipIdle, *updatedVolumeRep.RelationshipStatus)
+		assert.Equal(tt, datamodel.SnapmirrorRelationshipIdle, *updatedVolumeRep.RelationshipStatus, "Expected volume relationship status %v, got %v", datamodel.SnapmirrorRelationshipIdle, *updatedVolumeRep.RelationshipStatus)
 	})
 	t.Run("WhenVolumeReplicationIsNotFound", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -1337,7 +1336,7 @@ func TestListVolumeReplications(t *testing.T) {
 		// Create a cluster peering row
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -1403,7 +1402,7 @@ func TestListVolumeReplications(t *testing.T) {
 		// Create a cluster peering row
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid-zero"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster-zero",
 			OntapPeerUUID:  "test-ontap-peer-uuid-zero",
@@ -1445,7 +1444,7 @@ func TestListVolumeReplications(t *testing.T) {
 		assert.Equal(tt, clusterPeeringRow.ID, replications[0].ClusterPeer.ID, "Expected ClusterPeer ID %v, got %v", clusterPeeringRow.ID, replications[0].ClusterPeer.ID)
 		assert.Equal(tt, clusterPeeringRow.UUID, replications[0].ClusterPeer.UUID, "Expected ClusterPeer UUID %v, got %v", clusterPeeringRow.UUID, replications[0].ClusterPeer.UUID)
 		assert.Equal(tt, "test-cluster-zero", replications[0].ClusterPeer.OnprempCluster, "Expected ClusterPeer OnprempCluster %v, got %v", "test-cluster-zero", replications[0].ClusterPeer.OnprempCluster)
-		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, replications[0].ClusterPeer.State, "Expected ClusterPeer State %v, got %v", models.CvpClusterPeeringStatusPEERED, replications[0].ClusterPeer.State)
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, replications[0].ClusterPeer.State, "Expected ClusterPeer State %v, got %v", datamodel.CvpClusterPeeringStatusPEERED, replications[0].ClusterPeer.State)
 	})
 
 	t.Run("WhenClusterPeerIdIsNotSet", func(tt *testing.T) {
@@ -1508,7 +1507,7 @@ func TestListVolumeReplications(t *testing.T) {
 		// Create a cluster peering row
 		clusterPeeringRow := &datamodel.ClusterPeerings{
 			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid-multi"},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster-multi",
 			OntapPeerUUID:  "test-ontap-peer-uuid-multi",
@@ -1617,7 +1616,7 @@ func TestUpdateVolumeReplicationFields(t *testing.T) {
 
 	t.Run("UpdateMultipleFields", func(tt *testing.T) {
 		updates := map[string]interface{}{
-			"state":         models.LifeCycleStateUpdating,
+			"state":         datamodel.LifeCycleStateUpdating,
 			"state_details": "updating details",
 		}
 		err := store.UpdateVolumeReplicationFields(context.Background(), volumeRep.UUID, updates)
@@ -1625,7 +1624,7 @@ func TestUpdateVolumeReplicationFields(t *testing.T) {
 
 		updated, err := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateUpdating, updated.State)
+		assert.Equal(tt, datamodel.LifeCycleStateUpdating, updated.State)
 		assert.Equal(tt, "updating details", updated.StateDetails)
 	})
 
@@ -2245,7 +2244,7 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 			Description:         "Test replication 1",
 			Labels:              map[string]string{"env": "test"},
 			ReplicationSchedule: "hourly",
-			Status:              models.HybridReplicationStatusPeered,
+			Status:              datamodel.HybridReplicationStatusPeered,
 			StatusDetails:       "Successfully peered",
 		}
 
@@ -2255,7 +2254,7 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 			Description:         "Test replication 2",
 			Labels:              map[string]string{"env": "test"},
 			ReplicationSchedule: "daily",
-			Status:              models.HybridReplicationStatusPeered,
+			Status:              datamodel.HybridReplicationStatusPeered,
 			StatusDetails:       "Successfully peered",
 		}
 
@@ -2263,7 +2262,7 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 		volumeReplication1 := &datamodel.VolumeReplication{
 			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-1-uuid"},
 			Name:                        "test_replication_1",
-			State:                       models.LifeCycleStateAvailable,
+			State:                       datamodel.LifeCycleStateAvailable,
 			AccountID:                   1,
 			VolumeID:                    volume1.ID,
 			HybridReplicationAttributes: hybridAttrs1,
@@ -2274,7 +2273,7 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 		volumeReplication2 := &datamodel.VolumeReplication{
 			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-2-uuid"},
 			Name:                        "test_replication_2",
-			State:                       models.LifeCycleStateAvailable,
+			State:                       datamodel.LifeCycleStateAvailable,
 			AccountID:                   1,
 			VolumeID:                    volume2.ID,
 			HybridReplicationAttributes: hybridAttrs2,
@@ -2289,14 +2288,14 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 			Description:         "Test replication 3",
 			Labels:              map[string]string{"env": "test"},
 			ReplicationSchedule: "weekly",
-			Status:              models.HybridReplicationStatusPeered,
+			Status:              datamodel.HybridReplicationStatusPeered,
 			StatusDetails:       "Successfully peered",
 		}
 
 		volumeReplication3 := &datamodel.VolumeReplication{
 			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-3-uuid"},
 			Name:                        "test_replication_3",
-			State:                       models.LifeCycleStateAvailable,
+			State:                       datamodel.LifeCycleStateAvailable,
 			AccountID:                   1,
 			VolumeID:                    volume1.ID,
 			HybridReplicationAttributes: hybridAttrs3,
@@ -2392,7 +2391,7 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 			Description:         "Test replication",
 			Labels:              map[string]string{"env": "test"},
 			ReplicationSchedule: "hourly",
-			Status:              models.HybridReplicationStatusPeered,
+			Status:              datamodel.HybridReplicationStatusPeered,
 			StatusDetails:       "Successfully peered",
 		}
 
@@ -2400,7 +2399,7 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 		volumeReplication := &datamodel.VolumeReplication{
 			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:                        "test_replication",
-			State:                       models.LifeCycleStateAvailable,
+			State:                       datamodel.LifeCycleStateAvailable,
 			AccountID:                   1,
 			VolumeID:                    volume.ID,
 			HybridReplicationAttributes: hybridAttrs,
@@ -2460,7 +2459,7 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 			Description:         "Test replication",
 			Labels:              map[string]string{"env": "test"},
 			ReplicationSchedule: "hourly",
-			Status:              models.HybridReplicationStatusPeered,
+			Status:              datamodel.HybridReplicationStatusPeered,
 			StatusDetails:       "Successfully peered",
 		}
 
@@ -2468,7 +2467,7 @@ func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 		volumeReplication := &datamodel.VolumeReplication{
 			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-uuid"},
 			Name:                        "test_replication",
-			State:                       models.LifeCycleStateAvailable,
+			State:                       datamodel.LifeCycleStateAvailable,
 			AccountID:                   1,
 			VolumeID:                    volume.ID,
 			HybridReplicationAttributes: hybridAttrs,
@@ -2512,8 +2511,8 @@ func TestGetVolumeReplicationCountByClusterPeerID(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: vcputils.RandomUUID()},
 			AccountID:     account.ID,
 			VolumeID:      volume.ID,
-			State:         models.LifeCycleStateCreating,
-			StateDetails:  models.LifeCycleStateCreatingDetails,
+			State:         datamodel.LifeCycleStateCreating,
+			StateDetails:  datamodel.LifeCycleStateCreatingDetails,
 			ClusterPeerId: sql.NullInt64{Int64: clusterPeerID, Valid: true},
 		}
 		err := store.db.Create(rep).Error()

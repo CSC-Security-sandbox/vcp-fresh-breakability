@@ -9,12 +9,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -270,11 +269,11 @@ func TestCreateDnsActivity(t *testing.T) {
 
 	t.Run("returns error if GetProviderByNode fails", func(t *testing.T) {
 		// Patch activities.GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -290,11 +289,11 @@ func TestCreateDnsActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("CreateDns", mock.Anything).Return(errors.New("dns error"))
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -310,11 +309,11 @@ func TestCreateDnsActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("CreateDns", mock.Anything).Return(errors.New("Retries exhausted when attempting to reach the storage server"))
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -329,11 +328,11 @@ func TestCreateDnsActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("CreateDns", mock.Anything).Return(nil)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -351,12 +350,12 @@ func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
 	node := &coreModels.Node{Name: "test-node"}
 
 	t.Run("returns error if GetProviderByNode fails", func(t *testing.T) {
-		// Patch hyperscaler.GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+		// Patch vsa.GetProviderByNode to return error
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -373,11 +372,11 @@ func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("EnableAutoVolOfflineCronForGCPKMS").Return(errors.New("cron error"))
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -394,11 +393,11 @@ func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("EnableAutoVolOfflineCronForGCPKMS").Return(nil)
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -419,11 +418,11 @@ func TestCreateDnsActivity_DuplicateEntry(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("CreateDns", mock.Anything).Return(errors.New("duplicate entry"))
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
 		testSuite := &testsuite.WorkflowTestSuite{}

@@ -3,13 +3,12 @@ package database
 import (
 	"context"
 	"errors"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
@@ -349,7 +348,7 @@ func TestDeleteHostGroup(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg).Error()
 		if err != nil {
@@ -370,7 +369,7 @@ func TestDeleteHostGroup(t *testing.T) {
 
 		result, err := store.DeleteHostGroup(context.Background(), "test-hg1", 1)
 		assert.NoError(tt, err, "Failed to get host group")
-		assert.Equal(tt, result.State, models.LifeCycleStateDeleted, "Expected result to be nil")
+		assert.Equal(tt, result.State, datamodel.LifeCycleStateDeleted, "Expected result to be nil")
 	})
 	t.Run("WhenHostGroupExistsAndInUse", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -388,7 +387,7 @@ func TestDeleteHostGroup(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg).Error()
 		if err != nil {
@@ -427,7 +426,7 @@ func TestDeleteHostGroup(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg).Error()
 		if err != nil {
@@ -468,7 +467,7 @@ func TestUpdateHostGroupsStateForHandleResource(t *testing.T) {
 
 		defer func() { getHostGroupWithDetails = _getHostGroupWithDetails }()
 
-		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 		assert.EqualError(tt, err, "host group not found")
 	})
 	t.Run("WhenStartTransactionFails", func(tt *testing.T) {
@@ -486,7 +485,7 @@ func TestUpdateHostGroupsStateForHandleResource(t *testing.T) {
 			startTransaction = _startTransaction
 		}()
 
-		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.Error(tt, err, "Failed to get host group")
 	})
 	t.Run("WhenHostGroupsExistsAndUpdateSucceeds", func(tt *testing.T) {
@@ -505,7 +504,7 @@ func TestUpdateHostGroupsStateForHandleResource(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg1).Error()
 		if err != nil {
@@ -526,7 +525,7 @@ func TestUpdateHostGroupsStateForHandleResource(t *testing.T) {
 			return hg1, nil
 		}
 
-		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		err = store.UpdateHostGroupsStateForHandleResource(context.Background(), "hg1", 1, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateAvailableDetails)
 		assert.NoError(tt, err, "Failed to get host group")
 	})
 }
@@ -547,7 +546,7 @@ func TestUpdateHostGroupsState(t *testing.T) {
 
 		defer func() { getMultipleHostGroups = _getMultipleHostGroups }()
 
-		err = store.UpdateHostGroupsState(context.Background(), []string{"hg1"}, 1, models.LifeCycleStateREADY, "")
+		err = store.UpdateHostGroupsState(context.Background(), []string{"hg1"}, 1, datamodel.LifeCycleStateREADY, "")
 		assert.EqualError(tt, err, "host group not found")
 	})
 	t.Run("WhenHostGroupsExistsAndUpdateSucceeds", func(tt *testing.T) {
@@ -566,7 +565,7 @@ func TestUpdateHostGroupsState(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg1).Error()
 		if err != nil {
@@ -580,7 +579,7 @@ func TestUpdateHostGroupsState(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg2).Error()
 		if err != nil {
@@ -601,7 +600,7 @@ func TestUpdateHostGroupsState(t *testing.T) {
 			return []*datamodel.HostGroup{hg1, hg2}, nil
 		}
 
-		err = store.UpdateHostGroupsState(context.Background(), []string{"hg1"}, 1, models.LifeCycleStateDeleted, "")
+		err = store.UpdateHostGroupsState(context.Background(), []string{"hg1"}, 1, datamodel.LifeCycleStateDeleted, "")
 		assert.NoError(tt, err, "Failed to get host group")
 	})
 }
@@ -623,7 +622,7 @@ func TestIsHostGroupInUse(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg1).Error()
 		if err != nil {
@@ -655,7 +654,7 @@ func TestIsHostGroupInUse(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg1).Error()
 		if err != nil {
@@ -687,7 +686,7 @@ func TestIsHostGroupInUse(t *testing.T) {
 			},
 			Name:      "test_hg",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg1).Error()
 		if err != nil {
@@ -724,7 +723,7 @@ func TestUpdateHostGroup(t *testing.T) {
 			AccountID:   1,
 			Description: "Old description",
 			Hosts:       datamodel.Hosts{Hosts: []string{"host1"}},
-			State:       models.LifeCycleStateREADY,
+			State:       datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(hg1).Error()
 		assert.NoError(tt, err, "Failed to create host group")

@@ -5,10 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
@@ -120,7 +119,7 @@ func getSoftDeleteAccount(db *gorm.DB, name string) (*datamodel.Account, error) 
 
 func getDeletedAccounts(db *gorm.DB) ([]*datamodel.Account, error) {
 	accounts := []datamodel.Account{}
-	err := db.Unscoped().Where("state = ?", models.AccountStateDeleted).Find(&accounts).Error
+	err := db.Unscoped().Where("state = ?", datamodel.AccountStateDeleted).Find(&accounts).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

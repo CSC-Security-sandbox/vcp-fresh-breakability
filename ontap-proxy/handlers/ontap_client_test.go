@@ -20,21 +20,35 @@ import (
 type mockBackendMetricsRecorder struct {
 	mu sync.Mutex
 
-	RecordBackendRequestCalls   []struct{ Method, ProjectID, PoolID, Path string; StatusCode int }
-	RecordBackendDurationCalls  []struct{ Duration float64; Method, ProjectID, PoolID, Path string; StatusCode int }
-	RecordBackendErrorCalls     []struct{ Method, ProjectID, PoolID, Path, ErrorCode string }
+	RecordBackendRequestCalls []struct {
+		Method, ProjectID, PoolID, Path string
+		StatusCode                      int
+	}
+	RecordBackendDurationCalls []struct {
+		Duration                        float64
+		Method, ProjectID, PoolID, Path string
+		StatusCode                      int
+	}
+	RecordBackendErrorCalls []struct{ Method, ProjectID, PoolID, Path, ErrorCode string }
 }
 
 func (m *mockBackendMetricsRecorder) RecordBackendRequest(_ context.Context, method, projectID, poolID, path string, statusCode int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.RecordBackendRequestCalls = append(m.RecordBackendRequestCalls, struct{ Method, ProjectID, PoolID, Path string; StatusCode int }{method, projectID, poolID, path, statusCode})
+	m.RecordBackendRequestCalls = append(m.RecordBackendRequestCalls, struct {
+		Method, ProjectID, PoolID, Path string
+		StatusCode                      int
+	}{method, projectID, poolID, path, statusCode})
 }
 
 func (m *mockBackendMetricsRecorder) RecordBackendDuration(_ context.Context, durationSec float64, method, projectID, poolID, path string, statusCode int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.RecordBackendDurationCalls = append(m.RecordBackendDurationCalls, struct{ Duration float64; Method, ProjectID, PoolID, Path string; StatusCode int }{durationSec, method, projectID, poolID, path, statusCode})
+	m.RecordBackendDurationCalls = append(m.RecordBackendDurationCalls, struct {
+		Duration                        float64
+		Method, ProjectID, PoolID, Path string
+		StatusCode                      int
+	}{durationSec, method, projectID, poolID, path, statusCode})
 }
 
 func (m *mockBackendMetricsRecorder) RecordBackendError(_ context.Context, method, projectID, poolID, path, errorCode string) {

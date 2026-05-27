@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/stretchr/testify/assert"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -163,4 +163,3 @@ func TestSetTestHooks(t *testing.T) {
 		})
 	})
 }
-

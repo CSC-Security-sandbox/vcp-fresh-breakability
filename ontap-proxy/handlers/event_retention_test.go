@@ -238,7 +238,7 @@ func TestRetentionPeriodCLIToAPI_EdgeCases(t *testing.T) {
 }
 
 func TestBuildEventRetentionPolicyCreateCommand_Infinite(t *testing.T) {
-		cmd := BuildEventRetentionPolicyCreateCommand("p1", RetentionPeriodInfinite)
+	cmd := BuildEventRetentionPolicyCreateCommand("p1", RetentionPeriodInfinite)
 	assert.Contains(t, cmd, "snaplock event-retention policy create")
 	assert.Contains(t, cmd, "-name p1")
 	// infinite has no space, so not quoted

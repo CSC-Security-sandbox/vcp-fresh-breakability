@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -46,7 +45,7 @@ func TestCreatingSnapshot(t *testing.T) {
 		createdSnapshot, err := store.CreatingSnapshot(ctx, snapshot)
 		assert.NoError(t, err, "Expected no error, got %v", err)
 		assert.Equal(t, snapshot.Name, createdSnapshot.Name, "Expected snapshot name %v, got %v", snapshot.Name, createdSnapshot.Name)
-		assert.Equal(t, models.LifeCycleStateCreating, createdSnapshot.State, "Expected snapshot state %v, got %v", models.LifeCycleStateCreating, createdSnapshot.State)
+		assert.Equal(t, datamodel.LifeCycleStateCreating, createdSnapshot.State, "Expected snapshot state %v, got %v", datamodel.LifeCycleStateCreating, createdSnapshot.State)
 	})
 
 	t.Run("WhenSnapshotCreationFails", func(tt *testing.T) {
@@ -104,7 +103,7 @@ func TestUpdateSnapshot(t *testing.T) {
 		snapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(snapshot).Error()
 		if err != nil {
@@ -113,7 +112,7 @@ func TestUpdateSnapshot(t *testing.T) {
 
 		updatedSnapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 
 		dbSnapshot, err := store.UpdateSnapshot(context.Background(), updatedSnapshot)
@@ -134,7 +133,7 @@ func TestUpdateSnapshot(t *testing.T) {
 
 		updatedSnapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 
 		dbSnapshot, err := store.UpdateSnapshot(context.Background(), updatedSnapshot)
@@ -166,7 +165,7 @@ func TestGetAppConsistentSnapshotsForVolume(t *testing.T) {
 		snapshot := &datamodel.Snapshot{
 			BaseModel:       datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			VolumeID:        volume.ID,
-			State:           models.LifeCycleStateAvailable,
+			State:           datamodel.LifeCycleStateAvailable,
 			IsAppConsistent: true,
 			AccountID:       1,
 		}
@@ -203,7 +202,7 @@ func TestGetAppConsistentSnapshotsForVolume(t *testing.T) {
 		snapshot := &datamodel.Snapshot{
 			BaseModel:       datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			VolumeID:        volume.ID,
-			State:           models.LifeCycleStateAvailable,
+			State:           datamodel.LifeCycleStateAvailable,
 			IsAppConsistent: false,
 			AccountID:       1,
 		}
@@ -257,7 +256,7 @@ func TestGetSnapshot(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:      "test_snapshot",
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			AccountID: 1,
 		}
 		err = store.db.Create(snapshot).Error()
@@ -484,8 +483,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, snapshot.Name, deletedSnapshot.Name, "Expected snapshot name %v, got %v", snapshot.Name, deletedSnapshot.Name)
 		assert.NotNil(tt, deletedSnapshot.DeletedAt, "Expected snapshot to be deleted, got %v", deletedSnapshot.DeletedAt)
-		assert.Equal(tt, models.LifeCycleStateDeleted, deletedSnapshot.State, "Expected snapshot state %v, got %v", models.LifeCycleStateDeleted, deletedSnapshot.State)
-		assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedSnapshot.StateDetails, "Expected snapshot state details %v, got %v", "", deletedSnapshot.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, deletedSnapshot.State, "Expected snapshot state %v, got %v", datamodel.LifeCycleStateDeleted, deletedSnapshot.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, deletedSnapshot.StateDetails, "Expected snapshot state details %v, got %v", "", deletedSnapshot.StateDetails)
 
 		_, err = store.GetSnapshotByUUID(context.Background(), snapshot.UUID, account.ID, volume.ID)
 		var vcpErr *vsaerrors.CustomError
@@ -590,8 +589,8 @@ func TestDeletingSnapshot(t *testing.T) {
 			VolumeID:     1,
 			AccountID:    account.ID,
 			Account:      account,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailable,
 		}
 		err = store.db.Create(snapshot).Error()
 		if err != nil {
@@ -608,11 +607,11 @@ func TestDeletingSnapshot(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to fetch updated pool: %v", err)
 		}
-		if updatedSnapshot.State != models.LifeCycleStateDeleting {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateDeleting, updatedSnapshot.State)
+		if updatedSnapshot.State != datamodel.LifeCycleStateDeleting {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateDeleting, updatedSnapshot.State)
 		}
-		if updatedSnapshot.StateDetails != models.LifeCycleStateDeletingDetails {
-			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateDeletingDetails, updatedSnapshot.StateDetails)
+		if updatedSnapshot.StateDetails != datamodel.LifeCycleStateDeletingDetails {
+			tt.Errorf("Expected state details %v, got %v", datamodel.LifeCycleStateDeletingDetails, updatedSnapshot.StateDetails)
 		}
 	})
 }
@@ -673,8 +672,8 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 			VolumeID:     1,
 			AccountID:    account.ID,
 			Account:      account,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailable,
 		}
 		snapshot2 := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-2", ID: 2},
@@ -682,8 +681,8 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 			VolumeID:     1,
 			AccountID:    account.ID,
 			Account:      account,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailable,
 		}
 
 		err = store.db.Create(snapshot1).Error()
@@ -719,11 +718,11 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 		assert.NotNil(tt, updatedSnapshot1.DeletedAt, "Expected DeletedAt to be not nil")
 		assert.NotNil(tt, updatedSnapshot2.DeletedAt, "Expected DeletedAt to be not nil")
 
-		assert.Equal(tt, models.LifeCycleStateDeletedDetails, updatedSnapshot1.StateDetails)
-		assert.Equal(tt, models.LifeCycleStateDeletedDetails, updatedSnapshot2.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, updatedSnapshot1.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateDeletedDetails, updatedSnapshot2.StateDetails)
 
-		assert.Equal(tt, models.LifeCycleStateDeleted, updatedSnapshot1.State)
-		assert.Equal(tt, models.LifeCycleStateDeleted, updatedSnapshot2.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, updatedSnapshot1.State)
+		assert.Equal(tt, datamodel.LifeCycleStateDeleted, updatedSnapshot2.State)
 	})
 }
 
@@ -834,8 +833,8 @@ func TestGetSnapshotsByVolumeIDs(t *testing.T) {
 			VolumeID:     1,
 			AccountID:    account.ID,
 			Account:      account,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailable,
 		}
 		snapshot2 := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-2"},
@@ -843,8 +842,8 @@ func TestGetSnapshotsByVolumeIDs(t *testing.T) {
 			VolumeID:     1,
 			AccountID:    account.ID,
 			Account:      account,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailable,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailable,
 		}
 
 		err = store.db.Create(snapshot1).Error()
@@ -971,7 +970,7 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:      "test_snapshot",
 			VolumeID:  volume.ID,
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 			AccountID: 1,
 		}
 		err = store.db.Create(snapshot).Error()
@@ -1047,8 +1046,8 @@ func TestUnDeleteSnapshot(t *testing.T) {
 		snapshot := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid", DeletedAt: &gorm.DeletedAt{}},
 			VolumeID:     volume.ID,
-			State:        models.LifeCycleStateDeleted,
-			StateDetails: models.LifeCycleStateDeletedDetails,
+			State:        datamodel.LifeCycleStateDeleted,
+			StateDetails: datamodel.LifeCycleStateDeletedDetails,
 		}
 		err = store.db.Create(snapshot).Error()
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -1059,8 +1058,8 @@ func TestUnDeleteSnapshot(t *testing.T) {
 		updated := &datamodel.Snapshot{}
 		err = store.db.GORM().First(updated, "uuid = ?", snapshot.UUID).Error
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateREADY, updated.State)
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, updated.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, updated.State)
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, updated.StateDetails)
 		assert.True(tt, updated.DeletedAt == nil || !updated.DeletedAt.Valid)
 	})
 
@@ -1105,8 +1104,8 @@ func TestBatchCreateSnapshots(t *testing.T) {
 	_ = store.db.Create(account).Error()
 
 	snapshots := []*datamodel.Snapshot{
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_create_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_create_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_create_1", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_create_2", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateAvailable},
 	}
 	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
 	if err != nil {
@@ -1130,8 +1129,8 @@ func TestBatchUpdateSnapshots(t *testing.T) {
 	_ = store.db.Create(account).Error()
 
 	snapshots := []*datamodel.Snapshot{
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_update_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_update_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_update_1", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_update_2", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateAvailable},
 	}
 	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
 	if err != nil {
@@ -1139,8 +1138,8 @@ func TestBatchUpdateSnapshots(t *testing.T) {
 	}
 	for i, uuid := range uuids {
 		snapshots[i].UUID = uuid
-		snapshots[i].State = models.LifeCycleStateDeleted
-		snapshots[i].StateDetails = models.LifeCycleStateDeletedDetails
+		snapshots[i].State = datamodel.LifeCycleStateDeleted
+		snapshots[i].StateDetails = datamodel.LifeCycleStateDeletedDetails
 	}
 	err = store.BatchUpdateSnapshots(context.Background(), snapshots)
 	if err != nil {
@@ -1161,8 +1160,8 @@ func TestBatchUnDeleteSnapshots(t *testing.T) {
 	_ = store.db.Create(account).Error()
 
 	snapshots := []*datamodel.Snapshot{
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_undelete_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails},
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_undelete_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_undelete_1", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateDeleted, StateDetails: datamodel.LifeCycleStateDeletedDetails},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_undelete_2", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateDeleted, StateDetails: datamodel.LifeCycleStateDeletedDetails},
 	}
 	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
 	if err != nil {
@@ -1211,8 +1210,8 @@ func TestBatchGetSnapshotsByUUIDs(t *testing.T) {
 	}
 
 	snapshots := []*datamodel.Snapshot{
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_get_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_get_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_get_1", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_get_2", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateREADY, StateDetails: datamodel.LifeCycleStateAvailable},
 	}
 	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
 	if err != nil {
@@ -1261,8 +1260,8 @@ func TestBatchGetWronglyDeletedSnapshots(t *testing.T) {
 	}
 
 	snapshots := []*datamodel.Snapshot{
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_wrongly_deleted_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "ext-uuid-1"}},
-		{BaseModel: datamodel.BaseModel{}, Name: "batch_wrongly_deleted_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "ext-uuid-2"}},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_wrongly_deleted_1", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateDeleted, StateDetails: datamodel.LifeCycleStateDeletedDetails, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "ext-uuid-1"}},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_wrongly_deleted_2", VolumeID: 1, AccountID: account.ID, Account: account, State: datamodel.LifeCycleStateDeleted, StateDetails: datamodel.LifeCycleStateDeletedDetails, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "ext-uuid-2"}},
 	}
 	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
 	if err != nil {
@@ -1317,8 +1316,8 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 			Type:         "adhoc-backup",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		snapshot2 := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{},
@@ -1326,8 +1325,8 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 			Type:         "adhoc-backup",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		snapshot3 := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{},
@@ -1335,8 +1334,8 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 			Type:         "scheduled-backup",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		// Create snapshots with time delay to test ordering
@@ -1401,8 +1400,8 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 			Type:         "adhoc-backup",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		snapshot2 := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{},
@@ -1410,7 +1409,7 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 			Type:         "adhoc-backup",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateError,
+			State:        datamodel.LifeCycleStateError,
 			StateDetails: "Some error occurred",
 		}
 		snapshot3 := &datamodel.Snapshot{
@@ -1419,8 +1418,8 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 			Type:         "adhoc-backup",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 
 		_, err = store.CreatingSnapshot(ctx, snapshot1)
@@ -1440,7 +1439,7 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 
 		// Verify no error state snapshots are returned
 		for _, snap := range snapshots {
-			assert.NotEqual(tt, models.LifeCycleStateError, snap.State, "Should not return snapshots in error state")
+			assert.NotEqual(tt, datamodel.LifeCycleStateError, snap.State, "Should not return snapshots in error state")
 		}
 	})
 
@@ -1469,8 +1468,8 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 			Type:         "scheduled-backup",
 			VolumeID:     volume.ID,
 			AccountID:    1,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		_, err = store.CreatingSnapshot(ctx, snapshot)
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -1547,8 +1546,8 @@ func TestGetSnapshotsByTypeAndVolumeID(t *testing.T) {
 				VolumeID:     volume.ID,
 				AccountID:    account.ID,
 				Type:         "adhoc-backup",
-				State:        models.LifeCycleStateREADY,
-				StateDetails: models.LifeCycleStateAvailable,
+				State:        datamodel.LifeCycleStateREADY,
+				StateDetails: datamodel.LifeCycleStateAvailable,
 			}
 			err = store.db.Create(snapshot).Error()
 			assert.NoError(tt, err, "Failed to create snapshot %s", s.name)
@@ -1600,8 +1599,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:         "test_snapshot",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 			Description:  "Original description",
 		}
 		err = store.db.Create(snapshot).Error()
@@ -1611,8 +1610,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:         "updated_snapshot",
 			Description:  "Updated description",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "external-uuid-123",
 			},
@@ -1623,8 +1622,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "updated_snapshot", result.Name)
 		assert.Equal(tt, "Updated description", result.Description)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
-		assert.Equal(tt, models.LifeCycleStateAvailableDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, result.StateDetails)
 		assert.Equal(tt, "external-uuid-123", result.SnapshotAttributes.ExternalUUID)
 	})
 
@@ -1662,8 +1661,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:         "test_snapshot",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 			Description:  "Original description",
 		}
 		err = store.db.Create(snapshot).Error()
@@ -1673,8 +1672,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:         "updated_snapshot",
 			Description:  "Updated description",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "external-uuid-123",
 			},
@@ -1714,8 +1713,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:         "test_snapshot",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 			Description:  "Original description",
 		}
 		err = store.db.Create(snapshot).Error()
@@ -1759,8 +1758,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:         "test_snapshot",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		err = store.db.Create(snapshot).Error()
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -1768,16 +1767,16 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		updateSnapshot := &datamodel.Snapshot{
 			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:         "updated_snapshot",
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 
 		result, err := store.UpdateSnapshotForHandleResource(ctx, updateSnapshot)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "updated_snapshot", result.Name)
-		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
-		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateReadyDetails, result.StateDetails)
 	})
 
 	t.Run("ReturnsErrorWhenSnapshotIsInCreatingState", func(tt *testing.T) {
@@ -1809,8 +1808,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:         "test_snapshot",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 		err = store.db.Create(snapshot).Error()
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -1818,7 +1817,7 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		updateSnapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:      "updated_snapshot",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 
 		result, err := store.UpdateSnapshotForHandleResource(ctx, updateSnapshot)
@@ -1857,8 +1856,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:         "test_snapshot",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateDeleting,
-			StateDetails: models.LifeCycleStateDeletingDetails,
+			State:        datamodel.LifeCycleStateDeleting,
+			StateDetails: datamodel.LifeCycleStateDeletingDetails,
 		}
 		err = store.db.Create(snapshot).Error()
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -1866,7 +1865,7 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		updateSnapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:      "updated_snapshot",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 
 		result, err := store.UpdateSnapshotForHandleResource(ctx, updateSnapshot)
@@ -1905,8 +1904,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:         "test_snapshot",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateUpdating,
-			StateDetails: models.LifeCycleStateUpdatingDetails,
+			State:        datamodel.LifeCycleStateUpdating,
+			StateDetails: datamodel.LifeCycleStateUpdatingDetails,
 		}
 		err = store.db.Create(snapshot).Error()
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -1914,7 +1913,7 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		updateSnapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:      "updated_snapshot",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 
 		result, err := store.UpdateSnapshotForHandleResource(ctx, updateSnapshot)
@@ -1936,7 +1935,7 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		updateSnapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
 			Name:      "updated_snapshot",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 
 		result, err := store.UpdateSnapshotForHandleResource(ctx, updateSnapshot)
@@ -1978,8 +1977,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:         "test_snapshot",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		err = store.db.Create(snapshot).Error()
 		assert.NoError(tt, err, "Failed to create snapshot")
@@ -1990,7 +1989,7 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		updateSnapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:      "updated_snapshot",
-			State:     models.LifeCycleStateAvailable,
+			State:     datamodel.LifeCycleStateAvailable,
 		}
 
 		result, err := store.UpdateSnapshotForHandleResource(ctx, updateSnapshot)
@@ -2033,8 +2032,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Description:  "Original description",
 			VolumeID:     volume.ID,
 			AccountID:    account.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "original-external-uuid",
 			},
@@ -2046,8 +2045,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:         "completely_updated_snapshot",
 			Description:  "Completely updated description",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateAvailable,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID:           "updated-external-uuid",
 				SizeInBytes:            1024000,
@@ -2061,8 +2060,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 
 		assert.Equal(tt, "completely_updated_snapshot", result.Name)
 		assert.Equal(tt, "Completely updated description", result.Description)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
-		assert.Equal(tt, models.LifeCycleStateAvailableDetails, result.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, result.StateDetails)
 		assert.Equal(tt, "updated-external-uuid", result.SnapshotAttributes.ExternalUUID)
 		assert.Equal(tt, int64(1024000), result.SnapshotAttributes.SizeInBytes)
 		assert.Equal(tt, int64(512000), result.SnapshotAttributes.LogicalSizeUsedInBytes)
@@ -2071,8 +2070,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, "completely_updated_snapshot", fetchedSnapshot.Name)
 		assert.Equal(tt, "Completely updated description", fetchedSnapshot.Description)
-		assert.Equal(tt, models.LifeCycleStateAvailable, fetchedSnapshot.State)
-		assert.Equal(tt, models.LifeCycleStateAvailableDetails, fetchedSnapshot.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, fetchedSnapshot.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, fetchedSnapshot.StateDetails)
 		assert.Equal(tt, "updated-external-uuid", fetchedSnapshot.SnapshotAttributes.ExternalUUID)
 		assert.Equal(tt, int64(1024000), fetchedSnapshot.SnapshotAttributes.SizeInBytes)
 		assert.Equal(tt, int64(512000), fetchedSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
@@ -2107,8 +2106,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 			Name:               "test_snapshot",
 			VolumeID:           volume.ID,
 			AccountID:          account.ID,
-			State:              models.LifeCycleStateREADY,
-			StateDetails:       models.LifeCycleStateReadyDetails,
+			State:              datamodel.LifeCycleStateREADY,
+			StateDetails:       datamodel.LifeCycleStateReadyDetails,
 			SnapshotAttributes: nil,
 		}
 		err = store.db.Create(snapshot).Error()
@@ -2117,8 +2116,8 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		updateSnapshot := &datamodel.Snapshot{
 			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:               "updated_snapshot",
-			State:              models.LifeCycleStateAvailable,
-			StateDetails:       models.LifeCycleStateAvailableDetails,
+			State:              datamodel.LifeCycleStateAvailable,
+			StateDetails:       datamodel.LifeCycleStateAvailableDetails,
 			SnapshotAttributes: nil,
 		}
 
@@ -2126,6 +2125,6 @@ func TestUpdateSnapshotForHandleResource(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "updated_snapshot", result.Name)
-		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailable, result.State)
 	})
 }

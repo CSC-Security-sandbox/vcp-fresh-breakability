@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -2288,18 +2288,18 @@ func TestGetVolumes(t *testing.T) {
 		}
 		rc := &OntapRestProvider{}
 
-	mockStorage.On("VolumeCollectionGet", &ontaprest.VolumeCollectionGetParams{
-		BaseParams: ontaprest.BaseParams{
-			Fields: []string{"uuid", "name", "space.*", "svm", "is_svm_root", "style", "type", "clone.split_complete_percent", "clone.is_flexclone"},
-		},
-	}, mock.Anything).Return(nil)
+		mockStorage.On("VolumeCollectionGet", &ontaprest.VolumeCollectionGetParams{
+			BaseParams: ontaprest.BaseParams{
+				Fields: []string{"uuid", "name", "space.*", "svm", "is_svm_root", "style", "type", "clone.split_complete_percent", "clone.is_flexclone"},
+			},
+		}, mock.Anything).Return(nil)
 
-	_, err := rc.GetVolumes()
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-	mockClient.AssertExpectations(t)
-})
-t.Run("GetVolumesFailure", func(t *testing.T) {
+		_, err := rc.GetVolumes()
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+	t.Run("GetVolumesFailure", func(t *testing.T) {
 		originalGetOntapClientFunc := getOntapClientFunc
 		defer func() {
 			getOntapClientFunc = originalGetOntapClientFunc

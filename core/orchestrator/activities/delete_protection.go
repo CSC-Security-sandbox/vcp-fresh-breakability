@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -58,7 +58,7 @@ func CheckDeleteProtection(ctx context.Context, volume *datamodel.Volume, node *
 				)
 			}
 			var err error
-			ontapNode, err = hyperscaler.GetOntapNode(ctx, se, volume)
+			ontapNode, err = vsa.GetOntapNode(ctx, se, volume)
 			if err != nil {
 				return err
 			}
@@ -93,7 +93,7 @@ func nfsClientsForVolume(ctx context.Context, node *models.Node, volume *datamod
 		return nil, customerrors.New("volume external UUID is not set")
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, err
 	}

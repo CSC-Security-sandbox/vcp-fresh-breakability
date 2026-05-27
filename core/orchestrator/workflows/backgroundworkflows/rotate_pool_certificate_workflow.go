@@ -95,7 +95,7 @@ func RotatePoolCertificateWorkflow(ctx workflow.Context, poolUUID string) error 
 	// Step 3: Password rotation for certificate pools (AuthType USER_CERTIFICATE)
 	// This happens regardless of whether certificate rotation succeeded or failed,
 	// as long as the certificate was due for rotation
-	
+
 	// Re-check pool state before password rotation to handle race conditions where
 	// pool delete might have been triggered after the initial state check
 	var updatedPoolContext *backgroundactivities.PoolContext
@@ -115,7 +115,7 @@ func RotatePoolCertificateWorkflow(ctx workflow.Context, poolUUID string) error 
 		}
 		logger.Info("Pool state verified before password rotation", "poolUUID", poolUUID, "poolName", updatedPoolContext.Pool.Name, "state", updatedPoolContext.Pool.State)
 	}
-	
+
 	logger.Info("Starting password rotation for certificate pool (certificate was due for rotation)", "poolUUID", poolUUID, "poolName", getPoolName())
 
 	// Execute password rotation child workflow for certificate pools

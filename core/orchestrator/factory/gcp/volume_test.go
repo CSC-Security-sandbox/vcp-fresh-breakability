@@ -17,8 +17,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -26,8 +24,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -37207,7 +37206,7 @@ func TestSplitStartVolume_ReserveCloneSharedBytesFails(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // TestSplitStartVolume_GetProviderFails covers lines 3640-3643:
-// hyperscaler.GetProviderByNode returns an error.
+// vsa.GetProviderByNode returns an error.
 // ---------------------------------------------------------------------------
 
 func TestSplitStartVolume_GetProviderFails(t *testing.T) {
@@ -37280,11 +37279,11 @@ func TestSplitStartVolume_GetProviderFails(t *testing.T) {
 		t.Fatalf("Failed to create volume: %v", err)
 	}
 
-	origGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return nil, errors2.New("provider creation failed")
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	origUpdateCloneState := updateCloneState
 	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
@@ -37377,11 +37376,11 @@ func TestSplitStartVolume_MissingExternalUUID(t *testing.T) {
 
 	mockProvider := new(vsa.MockProvider)
 
-	origGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	origUpdateCloneState := updateCloneState
 	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
@@ -37477,11 +37476,11 @@ func TestSplitStartVolume_InitiateSplitVolumeFails_OntapError(t *testing.T) {
 	ontapErr := vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, errors2.New("ONTAP split failed"))
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("", ontapErr)
 
-	origGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	origUpdateCloneState := updateCloneState
 	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
@@ -37582,11 +37581,11 @@ func TestSplitStartVolume_InitiateSplitVolumeFails_NonOntapError(t *testing.T) {
 	nonOntapErr := errors2.New("network timeout")
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("", nonOntapErr)
 
-	origGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	origUpdateCloneState := updateCloneState
 	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
@@ -37684,11 +37683,11 @@ func TestSplitStartVolume_WorkflowExecutionFails(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
 
-	origGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	origUpdateCloneState := updateCloneState
 	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
@@ -37886,11 +37885,11 @@ func TestSplitStartVolume_PersistSplitJobUUIDFails(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
 
-	origGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	// ExecuteWorkflow succeeds — the SplitJobUUID persist only runs in the
 	// WAIT_FOR_TEMPORAL goroutine (when ExecuteWorkflow fails), so no
@@ -37938,11 +37937,11 @@ func TestSplitStartVolume_WaitForTemporalEnabled_UpdateJobSucceeds(t *testing.T)
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
 
-	origGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	origUpdateCloneState := updateCloneState
 	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
@@ -38007,11 +38006,11 @@ func TestSplitStartVolume_WaitForTemporalEnabled_ErrClearedReturnsSuccess(t *tes
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
 
-	origGetProviderByNode := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	origUpdateCloneState := updateCloneState
 	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }

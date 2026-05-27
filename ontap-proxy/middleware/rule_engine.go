@@ -105,4 +105,3 @@ func findMatchingRule(requestPath string, logger log.Logger) (dsl.Rule, string, 
 	logger.Debug("No rule found for path", "path", path)
 	return dsl.Rule{}, "", false
 }
-

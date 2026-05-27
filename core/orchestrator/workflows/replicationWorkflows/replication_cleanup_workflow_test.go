@@ -7,13 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -149,9 +149,9 @@ func TestReplicationCleanupWorkflowWhenError(t *testing.T) {
 				ReplicationModel: &datamodel.VolumeReplication{
 					Name: "test-replication",
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceLocation:      "us-central1",
-						DestinationLocation: "us-east1",
-						SourceReplicationUUID: "src-replication-uuid",
+						SourceLocation:             "us-central1",
+						DestinationLocation:        "us-east1",
+						SourceReplicationUUID:      "src-replication-uuid",
 						DestinationReplicationUUID: "dst-replication-uuid",
 					},
 				},
@@ -524,7 +524,7 @@ func TestShouldSkipDehydration(t *testing.T) {
 			expectedSkip: false,
 		},
 		{
-			name: "lifecycle state not set should not skip",
+			name:        "lifecycle state not set should not skip",
 			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
 				// LifeCycleState is not set (default OptVolumeReplicationInternalV1betaLifeCycleState with Set=false)
 			},

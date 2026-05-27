@@ -9,7 +9,7 @@ import (
 
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 
-	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 

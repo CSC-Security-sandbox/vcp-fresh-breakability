@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -116,7 +115,7 @@ func (d *DataStoreRepository) DeleteJob(ctx context.Context, id, errorDetails st
 	}
 
 	job.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	job.State = string(models.JobsStateERROR)
+	job.State = string(datamodel.JobsStateERROR)
 	job.ErrorDetails = errorDetails
 	if err = tx.Updates(job).Error; err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -128,7 +127,7 @@ func (d *DataStoreRepository) ListOngoingPoolJobsWithKmsConfigId(ctx context.Con
 	db := d.db.GORM().WithContext(ctx)
 	jobs := make([]*datamodel.Job, 0)
 
-	err := db.Joins("INNER JOIN pools on pools.name = jobs.resource_name").Where("jobs.state = ? and jobs.type IN (?, ?) and pools.kms_config_id = ? and pools.account_id = ?", models.JobsStatePROCESSING, models.JobTypeCreatePool, models.JobTypeCreateLargePool, kmsId, accountId).Find(&jobs).Error
+	err := db.Joins("INNER JOIN pools on pools.name = jobs.resource_name").Where("jobs.state = ? and jobs.type IN (?, ?) and pools.kms_config_id = ? and pools.account_id = ?", datamodel.JobsStatePROCESSING, datamodel.JobTypeCreatePool, datamodel.JobTypeCreateLargePool, kmsId, accountId).Find(&jobs).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -183,7 +182,7 @@ func (d *DataStoreRepository) GetOngoingMigrateKmsConfigJob(ctx context.Context,
 	var job datamodel.Job
 	err := d.db.GORM().WithContext(ctx).Where(
 		"account_id = ? AND type = ? AND (state = ? OR state = ?)",
-		accountId, models.JobTypeMigrateKmsConfig, models.JobsStateNEW, models.JobsStatePROCESSING,
+		accountId, datamodel.JobTypeMigrateKmsConfig, datamodel.JobsStateNEW, datamodel.JobsStatePROCESSING,
 	).First(&job).Error
 
 	if err != nil {
@@ -223,8 +222,8 @@ func (d *DataStoreRepository) CancelRunningJobsForResource(ctx context.Context, 
 		whereClause = "job_attributes ->> 'resource_uuid' = ? AND state IN (?, ?)"
 	}
 	err := db.Model(&datamodel.Job{}).
-		Where(whereClause, resourceUUID, models.JobsStateNEW, models.JobsStatePROCESSING).
-		Update("state", string(models.JobsStateCANCELLED)).Error
+		Where(whereClause, resourceUUID, datamodel.JobsStateNEW, datamodel.JobsStatePROCESSING).
+		Update("state", string(datamodel.JobsStateCANCELLED)).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
@@ -240,11 +239,11 @@ func (d *DataStoreRepository) CancelPrepopulateJobsForVolume(ctx context.Context
 	// Update all active prepopulate jobs for this volume to ERROR state
 	err := db.Model(&datamodel.Job{}).
 		Where("type = ? AND resource_name = ? AND state IN ?",
-			models.JobTypeFlexCachePrePopulate,
+			datamodel.JobTypeFlexCachePrePopulate,
 			volumeUUID,
-			[]string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}).
+			[]string{string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}).
 		Updates(map[string]interface{}{
-			"state":         string(models.JobsStateERROR),
+			"state":         string(datamodel.JobsStateERROR),
 			"error_details": errorDetails,
 		}).Error
 

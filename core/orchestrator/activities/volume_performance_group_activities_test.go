@@ -7,12 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"go.temporal.io/sdk/testsuite"
 )
@@ -109,16 +108,16 @@ func TestCreateVPGInDB_Success(t *testing.T) {
 		PoolID:          1,
 		ThroughputMibps: 100,
 		Iops:            1000,
-		IsShared:         true,
+		IsShared:        true,
 		IsAutoGen:       false,
 	}
 	expectedVPG := &datamodel.VolumePerformanceGroup{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
-		Name:      "test-vpg",
-		PoolID:    1,
+		BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:            "test-vpg",
+		PoolID:          1,
 		ThroughputMibps: 100,
 		Iops:            1000,
-		IsShared:         true,
+		IsShared:        true,
 		IsAutoGen:       false,
 	}
 
@@ -176,10 +175,10 @@ func TestCreateQoSPolicyInONTAP_Success(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -191,7 +190,7 @@ func TestCreateQoSPolicyInONTAP_Success(t *testing.T) {
 		PoolID:          1,
 		ThroughputMibps: 100,
 		Iops:            1000,
-		IsShared:         true,
+		IsShared:        true,
 	}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
@@ -257,10 +256,10 @@ func TestCreateQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 	env := testSuite.NewTestActivityEnvironment()
 
 	mockStorage := database.NewMockStorage(t)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider")
 	}
 
@@ -300,10 +299,10 @@ func TestCreateQoSPolicyInONTAP_CreatePolicyError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -315,7 +314,7 @@ func TestCreateQoSPolicyInONTAP_CreatePolicyError(t *testing.T) {
 		PoolID:          1,
 		ThroughputMibps: 100,
 		Iops:            1000,
-		IsShared:         true,
+		IsShared:        true,
 	}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
@@ -347,10 +346,10 @@ func TestDeleteQoSPolicyInONTAP_Success(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -427,10 +426,10 @@ func TestDeleteQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 	env := testSuite.NewTestActivityEnvironment()
 
 	mockStorage := database.NewMockStorage(t)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider")
 	}
 
@@ -461,10 +460,10 @@ func TestDeleteQoSPolicyInONTAP_DeleteError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -498,10 +497,10 @@ func TestDeleteQoSPolicyInONTAP_NotFoundError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -534,9 +533,9 @@ func TestDeleteQoSPolicyInONTAP_NameFallback_Success(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -654,9 +653,9 @@ func TestUpdateQoSPolicyInONTAP_Success_WithRename(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -694,9 +693,9 @@ func TestUpdateQoSPolicyInONTAP_Success_ThroughputOnly(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -778,9 +777,9 @@ func TestUpdateQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 	env := testSuite.NewTestActivityEnvironment()
 
 	mockStorage := database.NewMockStorage(t)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("provider not available")
 	}
 
@@ -809,9 +808,9 @@ func TestUpdateQoSPolicyInONTAP_FindPolicyNotFound(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -845,9 +844,9 @@ func TestUpdateQoSPolicyInONTAP_FindPolicyNotFound_FallbackByNewName_Success(t *
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -885,9 +884,9 @@ func TestUpdateQoSPolicyInONTAP_UpdateQoSGroupPolicyError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -973,8 +972,8 @@ func TestUpdateVPGInDB_Error(t *testing.T) {
 
 	vpg := &datamodel.VolumePerformanceGroup{
 		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
-		Name:     "updated-name",
-		PoolID:   1,
+		Name:      "updated-name",
+		PoolID:    1,
 	}
 
 	mockStorage.On("UpdateVolumePerformanceGroup", mock.Anything, vpg).Return(errors.New("db update failed"))
@@ -1126,9 +1125,9 @@ func TestRestoreAutoGeneratedVPG_CreateVPGInDBError_ReturnsError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -1160,9 +1159,9 @@ func TestRestoreAutoGeneratedVPG_Success_UsesVPGNameForVolumeQoS(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -1175,7 +1174,7 @@ func TestRestoreAutoGeneratedVPG_Success_UsesVPGNameForVolumeQoS(t *testing.T) {
 		ThroughputMibps: 100, Iops: 200, IsShared: true,
 	}
 	vol := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid"},
 		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "ontap-vol-uuid"},
 	}
 	node := &models.Node{ExternalUUID: "node-1"}

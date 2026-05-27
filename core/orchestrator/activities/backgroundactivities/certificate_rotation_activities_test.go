@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
@@ -302,7 +302,7 @@ func TestRotateVcpToVsaCertificateActivity_BasicIntegration(t *testing.T) {
 			Return([]*datamodel.PoolView{poolView}, nil).Maybe()
 
 		// Test basic workflow steps that don't require complex dependencies
-		
+
 		// Step 1: Check if certificate needs rotation (will fail due to missing GCP service)
 		needsRotation, err := activity.CertificateNeedsRotation(ctx, poolUUID)
 		assert.Error(tt, err) // Expected due to missing dependencies
@@ -336,12 +336,12 @@ func TestRotateVcpToVsaCertificateActivity_PopulateMissingCaURI(t *testing.T) {
 	originalCaPoolDeployedProjectID := env.CaPoolDeployedProjectID
 	originalCaPoolName := env.CaPoolName
 	originalCaName := env.CaName
-	
+
 	// Set test CA values
 	env.CaPoolDeployedProjectID = "test-project-id"
 	env.CaPoolName = "test-ca-pool"
 	env.CaName = "test-ca-name"
-	
+
 	defer func() {
 		// Restore original values
 		env.CaPoolDeployedProjectID = originalCaPoolDeployedProjectID
@@ -381,7 +381,7 @@ func TestRotateVcpToVsaCertificateActivity_PopulateMissingCaURI(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-pool-uuid",
 			},
-			Name:           "test-pool",
+			Name:            "test-pool",
 			PoolCredentials: nil, // Nil credentials
 		}
 
@@ -486,7 +486,7 @@ func TestRotateVcpToVsaCertificateActivity_PopulateMissingCaURI(t *testing.T) {
 
 		pool1UUID := "test-pool-1-uuid"
 		pool2UUID := "test-pool-2-uuid"
-		
+
 		pool1 := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: pool1UUID,
@@ -527,7 +527,7 @@ func TestRotateVcpToVsaCertificateActivity_PopulateMissingCaURI(t *testing.T) {
 		// Mock database calls - ListPools called for each pool
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1}, nil).Once()
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView2}, nil).Once()
-		
+
 		mockSE.On("UpdatePoolFields", ctx, pool1UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
 			creds, ok := updates["pool_credentials"].(map[string]interface{})
 			return ok && creds["ca_uri"] != ""
@@ -892,9 +892,9 @@ func TestRotateVcpToVsaCertificateActivity_GetPoolContext(t *testing.T) {
 		assert.Nil(tt, result)
 		// The error is wrapped in VCPError, so check for either error message
 		errMsg := err.Error()
-		assert.True(tt, 
-			strings.Contains(errMsg, "Resource not found") || 
-			strings.Contains(errMsg, "pool non-existent-pool not found"),
+		assert.True(tt,
+			strings.Contains(errMsg, "Resource not found") ||
+				strings.Contains(errMsg, "pool non-existent-pool not found"),
 			"Error message should contain 'Resource not found' or 'pool non-existent-pool not found', got: %s", errMsg)
 		mockSE.AssertExpectations(tt)
 	})
@@ -1003,9 +1003,9 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		assert.Error(tt, err)
 		// Error message may vary, check for either variant
 		errMsg := err.Error()
-		assert.True(tt, 
-			strings.Contains(errMsg, "has no certificate ID") || 
-			strings.Contains(errMsg, "Pool credentials are missing"),
+		assert.True(tt,
+			strings.Contains(errMsg, "has no certificate ID") ||
+				strings.Contains(errMsg, "Pool credentials are missing"),
 			"Error message should contain 'has no certificate ID' or 'Pool credentials are missing', got: %s", errMsg)
 		mockSE.AssertExpectations(tt)
 	})
@@ -1028,9 +1028,9 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		assert.Error(tt, err)
 		// Error message may vary, check for either variant
 		errMsg := err.Error()
-		assert.True(tt, 
-			strings.Contains(errMsg, "has no certificate ID") || 
-			strings.Contains(errMsg, "Pool credentials are missing"),
+		assert.True(tt,
+			strings.Contains(errMsg, "has no certificate ID") ||
+				strings.Contains(errMsg, "Pool credentials are missing"),
 			"Error message should contain 'has no certificate ID' or 'Pool credentials are missing', got: %s", errMsg)
 		mockSE.AssertExpectations(tt)
 	})
@@ -1075,13 +1075,13 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 
 		// Mock isCertificateExpired to return true - covers line 166
 		// Save original function
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
 		// Mock to return nil certificate (which is treated as expired) - covers line 166
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return nil, nil // nil certificate is treated as expired
 		}
 
@@ -1114,14 +1114,14 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false - covers lines 158-163
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
 		// Mock to return a certificate with valid signed certificate (not expired)
 		// The actual expiration check parses the certificate, so we provide a valid cert
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			// Return a certificate with a valid (future-dated) signed certificate
 			// The parseCertificateExpiration will parse this and check expiration
 			return &models.Certificate{
@@ -1158,12 +1158,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1196,12 +1196,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1237,12 +1237,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1299,12 +1299,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1348,12 +1348,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1425,12 +1425,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1498,12 +1498,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1572,12 +1572,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1597,7 +1597,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		getGcpServiceForCerts = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		
+
 		// Mock revokeCertificateAndDeleteFromCacheAndSecretManager to avoid GCP service issues in rollback
 		revokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return nil // Mock successful revocation for rollback
@@ -1637,7 +1637,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		poolViewReady := createTestPoolView()
 		poolViewReady.Pool.State = "READY"
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolViewReady}, nil).Once()
-		
+
 		// Mock updatePoolCertificateIDNew to fail - covers lines 234-238, 247-250
 		// updatePoolCertificateIDNew calls ListPools and UpdatePoolFields
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{createTestPoolView()}, nil).Once()
@@ -1667,12 +1667,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1692,7 +1692,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		getGcpServiceForCerts = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		
+
 		// Mock revokeCertificateAndDeleteFromCacheAndSecretManager to avoid GCP service issues in rollback
 		revokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return nil // Mock successful revocation for rollback
@@ -1732,7 +1732,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		poolViewReady := createTestPoolView()
 		poolViewReady.Pool.State = "READY"
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolViewReady}, nil).Once()
-		
+
 		// Mock updatePoolCertificateIDNew to succeed
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{createTestPoolView()}, nil).Once()
 		mockSE.On("UpdatePoolFields", ctx, pool.UUID, mock.Anything).Return(nil).Once()
@@ -1767,12 +1767,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 
 		// Mock isCertificateExpired to return false for connectivity check, but true for old cert
 		callCount := 0
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			callCount++
 			// First call is for connectivity check (should return valid cert)
 			// Second call is for old certificate check (should return nil/expired)
@@ -1799,7 +1799,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		getGcpServiceForCerts = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		
+
 		// Mock revokeCertificateAndDeleteFromCacheAndSecretManager to avoid GCP service issues in rollback
 		revokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return nil // Mock successful revocation for rollback
@@ -1837,7 +1837,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		poolViewReady := createTestPoolView()
 		poolViewReady.Pool.State = "READY"
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolViewReady}, nil).Once()
-		
+
 		// Mock updatePoolCertificateIDNew to succeed
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{createTestPoolView()}, nil).Once()
 		mockSE.On("UpdatePoolFields", ctx, pool.UUID, mock.Anything).Return(nil).Once()
@@ -1876,12 +1876,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -1926,12 +1926,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2006,12 +2006,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2083,12 +2083,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2159,12 +2159,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2177,13 +2177,13 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// We need to mock the internal certificateNeedsRotation call
 		// Since it's a method, we'll need to make it fail by making certificateNeedsRotation fail
 		// This is done by making the certificate retrieval fail in certificateNeedsRotation
-		originalGetCertForRotation := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCertForRotation := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertForRotation
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCertForRotation
 		}()
 
 		callCount := 0
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			callCount++
 			if callCount == 2 { // Second call is from certificateNeedsRotation
 				return nil, errors.New("failed to get certificate for rotation check")
@@ -2217,12 +2217,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2270,10 +2270,10 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		generateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, deploymentName, username string, poolCredentials *datamodel.PoolCredentials, forceRotation bool) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return &hyperscalermodels.CustomCertificateResponse{
 				Certificate: &hyperscalermodels.CustomCertificate{
-					CertificateID: "new-cert-id",
+					CertificateID:  "new-cert-id",
 					PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-					SerialNumber:  "123456",
-					CaName:        "test-ca",
+					SerialNumber:   "123456",
+					CaName:         "test-ca",
 				},
 				Secret: &hyperscalermodels.CustomSecret{
 					Name: "projects/test/secrets/test-secret/versions/1",
@@ -2324,12 +2324,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2377,10 +2377,10 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		generateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, deploymentName, username string, poolCredentials *datamodel.PoolCredentials, forceRotation bool) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return &hyperscalermodels.CustomCertificateResponse{
 				Certificate: &hyperscalermodels.CustomCertificate{
-					CertificateID: "new-cert-id",
+					CertificateID:  "new-cert-id",
 					PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-					SerialNumber:  "123456",
-					CaName:        "test-ca",
+					SerialNumber:   "123456",
+					CaName:         "test-ca",
 				},
 				Secret: &hyperscalermodels.CustomSecret{
 					Name: "projects/test/secrets/test-secret/versions/1",
@@ -2405,9 +2405,9 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4", // Valid endpoint address
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 		// checkPoolHasNodes calls GetNodesByPoolID, and installCertificateOnVSA also calls it
@@ -2415,13 +2415,13 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		mockSE.On("GetNodesByPoolID", ctx, pool.ID).Return(checkNodes, nil).Maybe()
 
 		// Mock isCertificateExpired to return false for old cert (line 283)
-		originalIsCertExpired := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalIsCertExpired := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalIsCertExpired
+			vsa.GetCertificateFromCacheOrSecretManager = originalIsCertExpired
 		}()
 
 		callCount := 0
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			callCount++
 			if callCount == 3 { // Third call is for isCertificateExpired check on old cert
 				return &models.Certificate{
@@ -2434,12 +2434,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock GetProviderByNode to return error
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
 
@@ -2472,12 +2472,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2489,9 +2489,9 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 		mockSE.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodesForConnectivity, nil).Maybe()
@@ -2506,11 +2506,11 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		mockGCPService := &google.GcpServices{}
 		originalGetGCP := getGcpServiceForCerts
 		originalRevokeCert := revokeCertificateAndDeleteFromCacheAndSecretManager
-		originalGetProviderForConnectivity := hyperscaler2.GetProviderByNode
+		originalGetProviderForConnectivity := vsa.GetProviderByNode
 		defer func() {
 			getGcpServiceForCerts = originalGetGCP
 			revokeCertificateAndDeleteFromCacheAndSecretManager = originalRevokeCert
-			hyperscaler2.GetProviderByNode = originalGetProviderForConnectivity
+			vsa.GetProviderByNode = originalGetProviderForConnectivity
 		}()
 
 		getGcpServiceForCerts = func(ctx context.Context) (*google.GcpServices, error) {
@@ -2542,10 +2542,10 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		generateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, deploymentName, username string, poolCredentials *datamodel.PoolCredentials, forceRotation bool) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return &hyperscalermodels.CustomCertificateResponse{
 				Certificate: &hyperscalermodels.CustomCertificate{
-					CertificateID: "new-cert-id",
+					CertificateID:  "new-cert-id",
 					PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-					SerialNumber:  "123456",
-					CaName:        "test-ca",
+					SerialNumber:   "123456",
+					CaName:         "test-ca",
 				},
 				Secret: &hyperscalermodels.CustomSecret{
 					Name: "projects/test/secrets/test-secret/versions/1",
@@ -2569,9 +2569,9 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
-				EndpointAddress:  "1.2.3.4",
-				HostDNSName:      "test-host",
+				PoolID:          1,
+				EndpointAddress: "1.2.3.4",
+				HostDNSName:     "test-host",
 			},
 		}
 		// checkPoolHasNodes is called before installCertificateOnVSA, so we need to ensure nodes are returned
@@ -2579,7 +2579,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 
 		// Mock isCertificateExpired to return false for old cert (line 283)
 		callCount := 0
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			callCount++
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
@@ -2587,11 +2587,11 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock password retrieval for installCertificateOnVSA (called when password is empty)
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
 
@@ -2610,7 +2610,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// - Call 1: installCertificateOnVSAWithPasswordAuth -> GetProviderByNode (needs InstallServerCertificate)
 		// - Call 2: testCertificateConnectivity after installation -> GetProviderByNode (should fail)
 		providerCallCount := 0
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			providerCallCount++
 			// Check if this is for password auth (AuthType USERNAME_PWD_SEC_MGR) - indicates installCertificateOnVSAWithPasswordAuth
 			if node.AuthType == env.USERNAME_PWD_SEC_MGR {
@@ -2661,12 +2661,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2711,10 +2711,10 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		generateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, deploymentName, username string, poolCredentials *datamodel.PoolCredentials, forceRotation bool) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return &hyperscalermodels.CustomCertificateResponse{
 				Certificate: &hyperscalermodels.CustomCertificate{
-					CertificateID: "new-cert-id",
+					CertificateID:  "new-cert-id",
 					PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-					SerialNumber:  "123456",
-					CaName:        "test-ca",
+					SerialNumber:   "123456",
+					CaName:         "test-ca",
 				},
 				Secret: &hyperscalermodels.CustomSecret{
 					Name: "projects/test/secrets/test-secret/versions/1",
@@ -2738,9 +2738,9 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
-				EndpointAddress:  "1.2.3.4",
-				HostDNSName:      "test-host",
+				PoolID:          1,
+				EndpointAddress: "1.2.3.4",
+				HostDNSName:     "test-host",
 			},
 		}
 		// checkPoolHasNodes and installCertificateOnVSAWithPasswordAuth both call GetNodesByPoolID
@@ -2750,18 +2750,18 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil).Maybe()
 
 		// Mock isCertificateExpired to return false for old cert
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
 		}
 
 		// Mock password retrieval for installCertificateOnVSA (called when password is empty)
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
 
@@ -2779,14 +2779,14 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		version := "9.10.1"
 		mockProvider2.On("GetONTAPVersion").Return(&version, nil).Once()
 
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		providerCallCount := 0
 		seenPasswordAuth := false
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			providerCallCount++
 			// Check if this is for password auth (AuthType USERNAME_PWD_SEC_MGR) - indicates installCertificateOnVSAWithPasswordAuth
 			if node.AuthType == env.USERNAME_PWD_SEC_MGR {
@@ -2865,12 +2865,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// 1. For checkAndSyncCertificateConnectivity -> isCertificateExpired
 		// 2. For certificateNeedsRotation
 		// 3. For isCertificateExpired after certificate generation
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -2882,9 +2882,9 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 		// GetNodesByPoolID is called by checkAndSyncCertificateConnectivity, checkPoolHasNodes, and installCertificateOnVSA
@@ -2895,11 +2895,11 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		mockGCPService := &google.GcpServices{}
 		originalGetGCP := getGcpServiceForCerts
 		originalRevokeCert := revokeCertificateAndDeleteFromCacheAndSecretManager
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
 			getGcpServiceForCerts = originalGetGCP
 			revokeCertificateAndDeleteFromCacheAndSecretManager = originalRevokeCert
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		getGcpServiceForCerts = func(ctx context.Context) (*google.GcpServices, error) {
@@ -2929,7 +2929,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// When certificate is expired, installCertificateOnVSAWithPasswordAuth is used, which creates a node with AuthType USERNAME_PWD_SEC_MGR
 		providerCallCount := 0
 		seenPasswordAuth := false
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			providerCallCount++
 			// Check if this is for password auth (AuthType USERNAME_PWD_SEC_MGR) - indicates installCertificateOnVSAWithPasswordAuth
 			if node.AuthType == env.USERNAME_PWD_SEC_MGR {
@@ -2991,11 +2991,11 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock password retrieval for installCertificateOnVSA (called when password is empty)
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
 
@@ -3008,10 +3008,10 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		if poolView.Pool.PoolCredentials == nil {
 			poolView.Pool.PoolCredentials = &datamodel.PoolCredentials{}
 		}
-		
+
 		// ListPools mock - return pool, with CertificateIDNew updated if UpdatePoolFields was called
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil).Maybe()
-		
+
 		// Update the certificate ID when UpdatePoolFields is called
 		mockSE.On("UpdatePoolFields", ctx, pool.UUID, mock.Anything).Run(func(args mock.Arguments) {
 			updates := args.Get(2).(map[string]interface{})
@@ -3030,13 +3030,13 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// swapCertificateIDs will use the same mocks
 		// swapCertificateIDs also calls updateCertificateCache (line 633), which needs to be mocked
 		// Note: getGcpServiceForCerts is already mocked above, so we just need to mock GetCertificateAndPrivateKeyByID
-		originalGetCertForCache := hyperscaler2.GetCertificateAndPrivateKeyByID
+		originalGetCertForCache := vsa.GetCertificateAndPrivateKeyByID
 		defer func() {
-			hyperscaler2.GetCertificateAndPrivateKeyByID = originalGetCertForCache
+			vsa.GetCertificateAndPrivateKeyByID = originalGetCertForCache
 		}()
 
 		// Mock updateCertificateCache to succeed - getGcpServiceForCerts is already mocked above and will return mockGCPService
-		hyperscaler2.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler2.GoogleServices, caPoolProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
+		vsa.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler2.GoogleServices, caPoolProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return &hyperscalermodels.CustomCertificateResponse{
 				Certificate: &hyperscalermodels.CustomCertificate{
 					PemCertificate:      "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
@@ -3079,12 +3079,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -3093,10 +3093,10 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// Mock GetNodesByPoolID for checkAndSyncCertificateConnectivity
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
-				PoolID:           1,
+				BaseModel:       datamodel.BaseModel{ID: 1},
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 		mockSE.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodes, nil).Maybe()
@@ -3106,11 +3106,11 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		mockGCPService := &google.GcpServices{}
 		originalGetGCP := getGcpServiceForCerts
 		originalRevokeCert := revokeCertificateAndDeleteFromCacheAndSecretManager
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
 			getGcpServiceForCerts = originalGetGCP
 			revokeCertificateAndDeleteFromCacheAndSecretManager = originalRevokeCert
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		getGcpServiceForCerts = func(ctx context.Context) (*google.GcpServices, error) {
@@ -3128,7 +3128,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 
 		// Mock GetProviderByNode - will be called for checkAndSyncCertificateConnectivity
 		providerCallCount := 0
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			providerCallCount++
 			// First call(s) are for checkAndSyncCertificateConnectivity (testCertificateConnectivity)
 			if providerCallCount <= 2 {
@@ -3160,8 +3160,8 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 				Certificate: &hyperscalermodels.CustomCertificate{
 					CertificateID:  "new-cert-id",
 					PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-					SerialNumber:  "12345",
-					CaName:        "test-ca",
+					SerialNumber:   "12345",
+					CaName:         "test-ca",
 				},
 				Secret: &hyperscalermodels.CustomSecret{
 					Name: "projects/test/secrets/new-secret-id/versions/1",
@@ -3201,12 +3201,12 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock isCertificateExpired to return false
-		originalGetCert := hyperscaler2.GetCertificateFromCacheOrSecretManager
+		originalGetCert := vsa.GetCertificateFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCert
+			vsa.GetCertificateFromCacheOrSecretManager = originalGetCert
 		}()
 
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+		vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
 			return &models.Certificate{
 				SignedCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			}, nil
@@ -3215,10 +3215,10 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// Mock GetNodesByPoolID for checkAndSyncCertificateConnectivity and other calls
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
-				PoolID:           1,
+				BaseModel:       datamodel.BaseModel{ID: 1},
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 		mockSE.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodes, nil).Maybe()
@@ -3228,11 +3228,11 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		mockGCPService := &google.GcpServices{}
 		originalGetGCP := getGcpServiceForCerts
 		originalRevokeCert := revokeCertificateAndDeleteFromCacheAndSecretManager
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
 			getGcpServiceForCerts = originalGetGCP
 			revokeCertificateAndDeleteFromCacheAndSecretManager = originalRevokeCert
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		getGcpServiceForCerts = func(ctx context.Context) (*google.GcpServices, error) {
@@ -3265,7 +3265,7 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// When certificate is expired, installCertificateOnVSAWithPasswordAuth is used, which creates a node with AuthType USERNAME_PWD_SEC_MGR
 		providerCallCount := 0
 		seenPasswordAuth := false
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			providerCallCount++
 			// Check if this is for password auth (AuthType USERNAME_PWD_SEC_MGR) - indicates installCertificateOnVSAWithPasswordAuth
 			if node.AuthType == env.USERNAME_PWD_SEC_MGR {
@@ -3313,8 +3313,8 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 				Certificate: &hyperscalermodels.CustomCertificate{
 					CertificateID:  "new-cert-id",
 					PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-					SerialNumber:  "12345",
-					CaName:        "test-ca",
+					SerialNumber:   "12345",
+					CaName:         "test-ca",
 				},
 				Secret: &hyperscalermodels.CustomSecret{
 					Name: "projects/test/secrets/new-secret-id/versions/1",
@@ -3326,11 +3326,11 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		}
 
 		// Mock password retrieval for installCertificateOnVSA (called when password is empty)
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
 
@@ -3344,17 +3344,17 @@ func TestRotateVcpToVsaCertificateActivity_RotatePoolCertificateWithContext(t *t
 		// Mock checkPoolHasNodes to return true
 		// GetNodesByPoolID is called multiple times: checkPoolHasNodes, installCertificateOnVSA, testCertificateConnectivity, installCertificateOnVSAWithPasswordAuth
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil).Maybe()
-		
+
 		// Mock password retrieval for installCertificateOnVSAWithPasswordAuth (when cert is expired)
 		// This is already mocked above in the generateAndCreateCertificateForVSACluster section, but we need it here too
-		originalGetPasswordForSwap := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPasswordForSwap := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPasswordForSwap
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPasswordForSwap
 		}()
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
-		
+
 		// When certificate is expired, installCertificateOnVSAWithPasswordAuth is used
 		// It needs a provider that supports InstallServerCertificate with password auth
 		// The GetProviderByNode mock should handle this - it should return a provider for password auth nodes

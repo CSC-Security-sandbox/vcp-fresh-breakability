@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -394,11 +394,11 @@ func TestCreateCrossRegionRestoreMetrics_MissingBackupSize_Skipped(t *testing.T)
 	config := defaultConfig()
 
 	attrs := map[string]interface{}{
-		"volume_uuid":       "vol-uuid",
-		"account_name":      "acct",
-		"deployment_name":   "deploy",
-		"protocols":         "NFSV3",
-		"backup_vault_type": activities.CrossRegionBackupType,
+		"volume_uuid":        "vol-uuid",
+		"account_name":       "acct",
+		"deployment_name":    "deploy",
+		"protocols":          "NFSV3",
+		"backup_vault_type":  activities.CrossRegionBackupType,
 		"backup_region_name": "us-west2",
 	}
 	job := newTestJobWithAttrs("job-1", string(models.JobTypeRestoreBackup), string(models.JobsStateDONE), "vol-1", 100, time.Now(), attrs)

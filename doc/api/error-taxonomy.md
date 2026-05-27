@@ -38,7 +38,7 @@ All error responses (including Operation.error) conform to:
 
 ## 4. Internal -> API Translation
 ```
-core/errors/vsaerrors.CustomError{ Category, Code, Underlying }
+lib/errors.CustomError{ Category, Code, Underlying }
  -> mapper (google-proxy middleware)
  -> HTTP status (category+context) + body {code,message}
 ```
@@ -87,7 +87,7 @@ Polling route always HTTP 200; Operation.error mirrors above mapping.
 All errors include correlation ID (header X-Correlation-Id or generated) in structured logs; ensure log scrubbing removes secrets (passwords, keys).
 
 ## 10. Adding a New Error Code
-1. Define constant in `core/errors` with category range.
+1. Define constant in `lib/errors` with category range.
 2. Add mapping description to this table.
 3. Update tests to assert translation -> HTTP & JSON body.
 4. Document remediation if user actionable.

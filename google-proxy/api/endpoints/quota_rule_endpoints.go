@@ -10,13 +10,13 @@ import (
 	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/quota_rules"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	orchestratorcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	orchestratorcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -828,7 +828,7 @@ func (h Handler) V1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, req *
 	// Convert gcpgenserver types to common types
 	commonReq := convertGcpUpdateDstWithSrcQuotaRulesToCommon(req)
 	commonParams := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
-	
+
 	// Replace destination quota rules with source quota rules via orchestrator (handles transaction)
 	createdQuotaRules, err := h.Orchestrator.ReplaceDstQuotaRulesWithSrc(ctx, commonReq, commonParams)
 	if err != nil {
@@ -874,28 +874,28 @@ func convertGcpUpdateDstWithSrcQuotaRulesToCommon(req *gcpgenserver.UpdateDstWit
 		SrcQuotaRules: make([]commonparams.QuotaRulesV1beta, 0, len(req.SrcQuotaRules)),
 		DstQuotaRules: make([]commonparams.QuotaRulesV1beta, 0, len(req.DstQuotaRules)),
 	}
-	
+
 	for _, rule := range req.SrcQuotaRules {
 		commonRule := convertGcpQuotaRulesV1betaToCommon(rule)
 		commonReq.SrcQuotaRules = append(commonReq.SrcQuotaRules, commonRule)
 	}
-	
+
 	for _, rule := range req.DstQuotaRules {
 		commonRule := convertGcpQuotaRulesV1betaToCommon(rule)
 		commonReq.DstQuotaRules = append(commonReq.DstQuotaRules, commonRule)
 	}
-	
+
 	return commonReq
 }
 
 // convertGcpQuotaRulesV1betaToCommon converts gcpgenserver.QuotaRulesV1beta to commonparams.QuotaRulesV1beta
 func convertGcpQuotaRulesV1betaToCommon(rule gcpgenserver.QuotaRulesV1beta) commonparams.QuotaRulesV1beta {
 	commonRule := commonparams.QuotaRulesV1beta{
-		ResourceId:    rule.ResourceId,
-		QuotaType:     string(rule.QuotaType),
+		ResourceId:     rule.ResourceId,
+		QuotaType:      string(rule.QuotaType),
 		DiskLimitInMib: rule.DiskLimitInMib,
 	}
-	
+
 	if rule.QuotaId.IsSet() {
 		val := rule.QuotaId.Value
 		commonRule.QuotaId = &val
@@ -924,7 +924,7 @@ func convertGcpQuotaRulesV1betaToCommon(rule gcpgenserver.QuotaRulesV1beta) comm
 		val := rule.UpdatedAt.Value
 		commonRule.UpdatedAt = &val
 	}
-	
+
 	return commonRule
 }
 
@@ -935,11 +935,11 @@ func convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params gcpgens
 		LocationId:    params.LocationId,
 		VolumeId:      params.VolumeId,
 	}
-	
+
 	if params.XCorrelationID.IsSet() {
 		val := params.XCorrelationID.Value
 		commonParams.XCorrelationID = &val
 	}
-	
+
 	return commonParams
 }

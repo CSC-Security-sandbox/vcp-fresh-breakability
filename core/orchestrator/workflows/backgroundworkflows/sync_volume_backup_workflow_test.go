@@ -9,14 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -612,18 +611,18 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Single
 					BackupChainBytes: nillable.ToPointer(int64(100 * 1024 * 1024)),
 				},
 			},
-		LatestBackup: &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
-			VolumeUUID: "test-volume-uuid",
-			Name:       "test-backup",
-			State:      models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
-				ObjectStoreUUID: "test-object-store-uuid",
-				EndpointUUID:    "test-endpoint-uuid",
+			LatestBackup: &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
+				VolumeUUID: "test-volume-uuid",
+				Name:       "test-backup",
+				State:      models.LifeCycleStateAvailable,
+				Attributes: &datamodel.BackupAttributes{
+					ObjectStoreUUID: "test-object-store-uuid",
+					EndpointUUID:    "test-endpoint-uuid",
+				},
 			},
 		},
-	},
-}
+	}
 
 	// Mock the database calls that will be made by the real activities
 
@@ -645,12 +644,12 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Single
 	}
 
 	// Mock the hyperscaler provider functions
-	originalGetProvider := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProvider := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return s.mockProvider, nil
 	}
 	defer func() {
-		hyperscaler.GetProviderByNode = originalGetProvider
+		vsa.GetProviderByNode = originalGetProvider
 	}()
 
 	s.mockProvider.On("ObjectStoreEndpointInfoGet", "test-object-store-uuid", "test-endpoint-uuid").Return(objStoreEndpoint, nil).Once()
@@ -731,18 +730,18 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 					BackupChainBytes: nillable.ToPointer(int64(100 * 1024 * 1024)),
 				},
 			},
-		LatestBackup: &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "backup-success-uuid"},
-			VolumeUUID: "volume-success-uuid",
-			Name:       "backup-success",
-			State:      models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
-				ObjectStoreUUID: "object-store-success-uuid",
-				EndpointUUID:    "endpoint-success-uuid",
+			LatestBackup: &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "backup-success-uuid"},
+				VolumeUUID: "volume-success-uuid",
+				Name:       "backup-success",
+				State:      models.LifeCycleStateAvailable,
+				Attributes: &datamodel.BackupAttributes{
+					ObjectStoreUUID: "object-store-success-uuid",
+					EndpointUUID:    "endpoint-success-uuid",
+				},
 			},
 		},
-	},
-	// Volume 2: Will fail at backup update
+		// Volume 2: Will fail at backup update
 		2: {
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-backup-fail-uuid"},
@@ -821,12 +820,12 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 	s.mockStorage.On("GetNodesByPoolID", mock.Anything, int64(3)).Return(mockNodes3, nil).Once()
 
 	// 3. Setup hyperscaler provider mock
-	originalGetProvider := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProvider := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return s.mockProvider, nil
 	}
 	defer func() {
-		hyperscaler.GetProviderByNode = originalGetProvider
+		vsa.GetProviderByNode = originalGetProvider
 	}()
 
 	// Mock object store endpoint responses
@@ -954,18 +953,18 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Backup
 					BackupChainBytes: nillable.ToPointer(int64(100 * 1024 * 1024)),
 				},
 			},
-		LatestBackup: &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
-			VolumeUUID: "test-volume-uuid",
-			Name:       "test-backup",
-			State:      models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
-				ObjectStoreUUID: "test-object-store-uuid",
-				EndpointUUID:    "test-endpoint-uuid",
+			LatestBackup: &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
+				VolumeUUID: "test-volume-uuid",
+				Name:       "test-backup",
+				State:      models.LifeCycleStateAvailable,
+				Attributes: &datamodel.BackupAttributes{
+					ObjectStoreUUID: "test-object-store-uuid",
+					EndpointUUID:    "test-endpoint-uuid",
+				},
 			},
 		},
-	},
-}
+	}
 
 	// Mock database calls
 	s.mockStorage.On("GetVolumeLatestBackupMap", mock.Anything).Return(volumeBackupMap, nil).Once()
@@ -983,12 +982,12 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Backup
 		LogicalSize: &updatedLogicalSize,
 	}
 
-	originalGetProvider := hyperscaler.GetProviderByNode
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProvider := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return s.mockProvider, nil
 	}
 	defer func() {
-		hyperscaler.GetProviderByNode = originalGetProvider
+		vsa.GetProviderByNode = originalGetProvider
 	}()
 
 	s.mockProvider.On("ObjectStoreEndpointInfoGet", "test-object-store-uuid", "test-endpoint-uuid").Return(objStoreEndpoint, nil).Once()
@@ -1780,23 +1779,23 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 					BackupChainBytes: &initialLogicalSize,
 				},
 			},
-		LatestBackup: &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
-			VolumeUUID: "test-volume-uuid",
-			Name:       "test-backup",
-			State:      models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
-				ObjectStoreUUID: "test-object-store-uuid",
-				EndpointUUID:    "test-endpoint-uuid",
+			LatestBackup: &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
+				VolumeUUID: "test-volume-uuid",
+				Name:       "test-backup",
+				State:      models.LifeCycleStateAvailable,
+				Attributes: &datamodel.BackupAttributes{
+					ObjectStoreUUID: "test-object-store-uuid",
+					EndpointUUID:    "test-endpoint-uuid",
+				},
 			},
 		},
-	},
-}
+	}
 
-	// Mock hyperscaler.GetProviderByNode function
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	// Mock vsa.GetProviderByNode function
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return s.mockProvider, nil
 	}
 
@@ -1891,21 +1890,21 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 					BackupChainBytes: nillable.ToPointer(int64(100 * 1024 * 1024)),
 				},
 			},
-		LatestBackup: &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "backup-success-uuid"},
-			VolumeUUID: "volume-success-uuid",
-			Name:       "backup-success",
-			State:      models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
-				ObjectStoreUUID: "object-store-success-uuid",
-				EndpointUUID:    "endpoint-success-uuid",
+			LatestBackup: &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "backup-success-uuid"},
+				VolumeUUID: "volume-success-uuid",
+				Name:       "backup-success",
+				State:      models.LifeCycleStateAvailable,
+				Attributes: &datamodel.BackupAttributes{
+					ObjectStoreUUID: "object-store-success-uuid",
+					EndpointUUID:    "endpoint-success-uuid",
+				},
 			},
 		},
-	},
-	// Volume 2: Backup update fails
-	2: {
-		Volume: &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-backup-fail-uuid"},
+		// Volume 2: Backup update fails
+		2: {
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{ID: 2, UUID: "volume-backup-fail-uuid"},
 				Name:      "volume-backup-fail",
 				State:     models.LifeCycleStateREADY,
 				PoolID:    1,
@@ -1966,10 +1965,10 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 		},
 	}
 
-	// Mock hyperscaler.GetProviderByNode function
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	// Mock vsa.GetProviderByNode function
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return s.mockProvider, nil
 	}
 
@@ -2079,23 +2078,23 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 					BackupChainBytes: nillable.ToPointer(int64(100 * 1024 * 1024)),
 				},
 			},
-		LatestBackup: &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "backup-zero-size-uuid"},
-			VolumeUUID: "volume-zero-size-uuid",
-			Name:       "backup-zero-size",
-			State:      models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
-				ObjectStoreUUID: "object-store-zero-uuid",
-				EndpointUUID:    "endpoint-zero-uuid",
+			LatestBackup: &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "backup-zero-size-uuid"},
+				VolumeUUID: "volume-zero-size-uuid",
+				Name:       "backup-zero-size",
+				State:      models.LifeCycleStateAvailable,
+				Attributes: &datamodel.BackupAttributes{
+					ObjectStoreUUID: "object-store-zero-uuid",
+					EndpointUUID:    "endpoint-zero-uuid",
+				},
 			},
-		},
 		},
 	}
 
-	// Mock hyperscaler.GetProviderByNode function
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	// Mock vsa.GetProviderByNode function
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return s.mockProvider, nil
 	}
 
@@ -2176,23 +2175,23 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 					BackupChainBytes: nillable.ToPointer(int64(1024 * 1024 * 1024 * 1024)), // 1TB initial
 				},
 			},
-		LatestBackup: &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "backup-large-size-uuid"},
-			VolumeUUID: "volume-large-size-uuid",
-			Name:       "backup-large-size",
-			State:      models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
-				ObjectStoreUUID: "object-store-large-uuid",
-				EndpointUUID:    "endpoint-large-uuid",
+			LatestBackup: &datamodel.Backup{
+				BaseModel:  datamodel.BaseModel{UUID: "backup-large-size-uuid"},
+				VolumeUUID: "volume-large-size-uuid",
+				Name:       "backup-large-size",
+				State:      models.LifeCycleStateAvailable,
+				Attributes: &datamodel.BackupAttributes{
+					ObjectStoreUUID: "object-store-large-uuid",
+					EndpointUUID:    "endpoint-large-uuid",
+				},
 			},
-		},
 		},
 	}
 
-	// Mock hyperscaler.GetProviderByNode function
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	// Mock vsa.GetProviderByNode function
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return s.mockProvider, nil
 	}
 

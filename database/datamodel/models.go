@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"gorm.io/gorm"
 )
@@ -117,17 +116,24 @@ type PoolCredentials struct {
 	// Note: Region and VCPAdmin remain as environment variables
 	CaURI string `json:"ca_uri,omitempty"`
 
-	ExternalSecret      *models.ExternalCredRef `json:"external_secret,omitempty"`
-	ExternalCertificate *models.ExternalCredRef `json:"external_certificate,omitempty"`
+	ExternalSecret      *ExternalCredRef `json:"external_secret,omitempty"`
+	ExternalCertificate *ExternalCredRef `json:"external_certificate,omitempty"`
 
-	ExpertModeSecret *models.ExternalCredRef `json:"expert_mode_secret,omitempty"`
+	ExpertModeSecret *ExternalCredRef `json:"expert_mode_secret,omitempty"`
 }
 
-// ExternalCredRef is re-exported from core/models so existing call sites that
-// use datamodel.ExternalCredRef continue to compile after the type moved to
-// break a core/models → core/datamodel import cycle.
-type ExternalCredRef = models.ExternalCredRef
-
+// ExternalCredRef is a lookup-key reference to an external secret-store entry
+// (currently always an OCI Vault secret on the OCI ONTAP path). It is the
+// persistence shape used by PoolCredentials.ExternalSecret/ExternalCertificate
+// and also referenced by core/models.Node for the in-memory representation.
+// ExternalIdentifier holds the secret-store-native identifier (an OCID for OCI
+// Vault). Name carries the human-readable secret name, and Version is the
+// numeric secret version; together they form the lookup tuple.
+type ExternalCredRef struct {
+	ExternalIdentifier string `json:"external_identifier"`
+	Name               string `json:"name"`
+	Version            int64  `json:"version"`
+}
 type AssetMetadata struct {
 	ChildAssets []ChildAsset `json:"child_assets"`
 }
@@ -884,18 +890,18 @@ type ReplicationDetails struct {
 }
 
 type HybridReplicationAttribute struct {
-	SvmPeerCommand                *string                        `json:"svm_peer_command,omitempty"`
-	SvmPeerExpiryTime             *time.Time                     `json:"svm_peer_expiry_time,omitempty"`
-	Description                   string                         `json:"description"`
-	Labels                        map[string]string              `json:"labels"`
-	PeerVolumeName                string                         `json:"peer_volume_name"`
-	PeerSvmName                   string                         `json:"peer_svm_name"`
-	ReplicationSchedule           string                         `json:"replication_schedule"`
-	HybridReplicationType         *string                        `json:"hybrid_replication_type,omitempty"`
-	HybridReplicationUserCommands []string                       `json:"hybrid_replication_user_commands,omitempty"`
-	StateDetailsCode              int32                          `json:"state_details_code"`
-	Status                        models.HybridReplicationStatus `json:"status"`
-	StatusDetails                 string                         `json:"status_details"`
+	SvmPeerCommand                *string                 `json:"svm_peer_command,omitempty"`
+	SvmPeerExpiryTime             *time.Time              `json:"svm_peer_expiry_time,omitempty"`
+	Description                   string                  `json:"description"`
+	Labels                        map[string]string       `json:"labels"`
+	PeerVolumeName                string                  `json:"peer_volume_name"`
+	PeerSvmName                   string                  `json:"peer_svm_name"`
+	ReplicationSchedule           string                  `json:"replication_schedule"`
+	HybridReplicationType         *string                 `json:"hybrid_replication_type,omitempty"`
+	HybridReplicationUserCommands []string                `json:"hybrid_replication_user_commands,omitempty"`
+	StateDetailsCode              int32                   `json:"state_details_code"`
+	Status                        HybridReplicationStatus `json:"status"`
+	StatusDetails                 string                  `json:"status_details"`
 }
 
 // Scan implements the sql.Scanner interface for JSONB deserialization
@@ -914,13 +920,13 @@ func (h HybridReplicationAttribute) Value() (driver.Value, error) {
 
 type ClusterPeerings struct {
 	BaseModel
-	State                    models.ClusterPeeringStatus `gorm:"column:state"`
-	StateDetails             string                      `gorm:"column:state_details"`
-	OnprempCluster           string                      `gorm:"column:onpremp_cluster"`
-	OntapPeerUUID            string                      `gorm:"column:ontap_peer_uuid"`
-	AccountID                int64                       `gorm:"column:account_id"`
-	PoolID                   int64                       `gorm:"column:pool_id"`
-	ClusterPeeringAttributes *ClusterPeeringAttributes   `gorm:"column:cluster_peering_attributes;type:jsonb"`
+	State                    ClusterPeeringStatus      `gorm:"column:state"`
+	StateDetails             string                    `gorm:"column:state_details"`
+	OnprempCluster           string                    `gorm:"column:onpremp_cluster"`
+	OntapPeerUUID            string                    `gorm:"column:ontap_peer_uuid"`
+	AccountID                int64                     `gorm:"column:account_id"`
+	PoolID                   int64                     `gorm:"column:pool_id"`
+	ClusterPeeringAttributes *ClusterPeeringAttributes `gorm:"column:cluster_peering_attributes;type:jsonb"`
 }
 
 type ClusterPeeringAttributes struct {

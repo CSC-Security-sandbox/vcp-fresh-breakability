@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -41,8 +40,8 @@ func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.P
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
-	dbPool.State = models.LifeCycleStateREADY
-	dbPool.StateDetails = models.LifeCycleStateAvailableDetails
+	dbPool.State = datamodel.LifeCycleStateREADY
+	dbPool.StateDetails = datamodel.LifeCycleStateAvailableDetails
 	dbPool.UpdatedAt = time.Now()
 	err = tx.Updates(dbPool).Error
 	if err != nil {
@@ -67,8 +66,8 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 		if pool.UUID == "" {
 			pool.UUID = utils.RandomUUID()
 		}
-		pool.State = models.LifeCycleStateCreating
-		pool.StateDetails = models.LifeCycleStateCreatingDetails
+		pool.State = datamodel.LifeCycleStateCreating
+		pool.StateDetails = datamodel.LifeCycleStateCreatingDetails
 		pool.CreatedAt = time.Now()
 		pool.UpdatedAt = pool.CreatedAt
 		pool.Account.ID = pool.AccountID
@@ -160,13 +159,13 @@ func (d *DataStoreRepository) UpdatingPool(ctx context.Context, pool *datamodel.
 		return nil, err
 	}
 	dbPool := ConvertPoolViewToPool(dbPoolView)
-	if dbPool.State == models.LifeCycleStateCreating ||
-		dbPool.State == models.LifeCycleStateDeleting ||
-		dbPool.State == models.LifeCycleStateUpdating {
+	if dbPool.State == datamodel.LifeCycleStateCreating ||
+		dbPool.State == datamodel.LifeCycleStateDeleting ||
+		dbPool.State == datamodel.LifeCycleStateUpdating {
 		return nil, customerrors.NewConflictErr("Pool is already transitioning between states")
 	}
-	dbPool.State = models.LifeCycleStateUpdating
-	dbPool.StateDetails = models.LifeCycleStateUpdatingDetails
+	dbPool.State = datamodel.LifeCycleStateUpdating
+	dbPool.StateDetails = datamodel.LifeCycleStateUpdatingDetails
 
 	dbPool.SizeInBytes = pool.SizeInBytes
 	if !nillable.IsNilOrEmpty(&pool.Description) {
@@ -200,8 +199,8 @@ func (d *DataStoreRepository) UpdatedPool(ctx context.Context, pool *datamodel.P
 	defer commitOrRollbackOnError(logger, tx, &err)
 
 	pool.UpdatedAt = time.Now()
-	pool.State = models.LifeCycleStateREADY
-	pool.StateDetails = models.LifeCycleStateAvailableDetails
+	pool.State = datamodel.LifeCycleStateREADY
+	pool.StateDetails = datamodel.LifeCycleStateAvailableDetails
 
 	// Ensure a WHERE clause by explicitly using the primary key
 	if err = tx.Model(&datamodel.Pool{}).
@@ -279,8 +278,8 @@ func (d *DataStoreRepository) DeletePool(ctx context.Context, pool *datamodel.Po
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 	pool.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	pool.State = models.LifeCycleStateDeleted
-	pool.StateDetails = models.LifeCycleStateDeletedDetails
+	pool.State = datamodel.LifeCycleStateDeleted
+	pool.StateDetails = datamodel.LifeCycleStateDeletedDetails
 	err = tx.Updates(pool).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -297,8 +296,8 @@ func (d *DataStoreRepository) DeletingPool(ctx context.Context, pool *datamodel.
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
-	pool.State = models.LifeCycleStateDeleting
-	pool.StateDetails = models.LifeCycleStateDeletingDetails
+	pool.State = datamodel.LifeCycleStateDeleting
+	pool.StateDetails = datamodel.LifeCycleStateDeletingDetails
 	err = tx.Updates(pool).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)

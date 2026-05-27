@@ -8,13 +8,13 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -69,7 +69,7 @@ func (s *SvmActivity) GetSvmAdminOntapPasswordSecretForOCI(ctx context.Context, 
 	var creds vlm.OntapCredentials
 	switch pool.PoolCredentials.AuthType {
 	case env.USERNAME_PWD_SEC_MGR:
-		ociService, err := hyperscaler2.GetOCIService(ctx)
+		ociService, err := hyperscaler.GetOCIService(ctx)
 		if err != nil {
 			return vlm.OntapCredentials{}, vsaerrors.WrapAsTemporalApplicationError(
 				vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err))
@@ -110,7 +110,7 @@ func (s *SvmActivity) GetSvmAdminPasswordSecretForOCI(ctx context.Context, svm *
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting GetSvmAdminPasswordSecretForOCI activity - svm Name: %s, svmOCID: %s", svm.Name, svm.SvmExternalIdentifier))
 	credentials := &vlm.OntapCredentials{}
 
-	ociService, err := hyperscaler2.GetOCIService(ctx)
+	ociService, err := hyperscaler.GetOCIService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err))
 	}
@@ -292,7 +292,7 @@ func applyQoSPolicyToSVM(ctx context.Context, svm *datamodel.Svm, node *models.N
 	}
 
 	// Get the provider for the node
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -336,7 +336,7 @@ func (j *SvmActivity) RemoveQoSPolicyFromSVM(ctx context.Context, pool *datamode
 		return vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("SVM or SvmDetails is nil for pool %s", pool.Name))
 	}
 
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -384,7 +384,7 @@ func (j *SvmActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *da
 
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting CreateQoSPolicyAndApplyToSVM activity - pool: %s, SVM: %s, node: %s", pool.Name, svm.Name, node.Name))
 	// Get the provider for the node - CA fields are already in the node struct from CreateNodeForProvider()
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -503,7 +503,7 @@ func (j *SvmActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *da
 
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting ModifyQoSPolicyAndApplyToSVM activity - pool: %s, node: %s", pool.Name, node.Name))
 	// Get the provider for the node - CA fields are already in the node struct from CreateNodeForProvider()
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

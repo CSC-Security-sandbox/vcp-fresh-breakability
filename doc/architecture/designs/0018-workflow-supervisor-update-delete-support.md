@@ -131,7 +131,7 @@ For NEW state jobs, UPDATE and DELETE operations only change the VCP database st
 
 ## Data Model Changes
 
-- **JobAttributes** (`core/datamodel/models.go`): Added `PreviousState` and `PreviousStateDetails` fields to store resource state before UPDATE/DELETE operations.
+- **JobAttributes** (`database/datamodel/models.go`): Added `PreviousState` and `PreviousStateDetails` fields to store resource state before UPDATE/DELETE operations.
 - **Job Creation** (`core/orchestrator/`): Previous state is captured and stored in `JobAttributes` when creating UPDATE/DELETE jobs, before the resource state is changed to `UPDATING`/`DELETING`. For resources requiring additional lookup parameters (backups, snapshots), metadata is stored in `JobAttributes.PayloadAttributes`.
 
 ## Supported Job Types

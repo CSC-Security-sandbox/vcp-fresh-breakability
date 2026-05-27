@@ -398,7 +398,7 @@ func TestConvertADToBatchAD_AllAttributeFields(t *testing.T) {
 		"kdcIP": true, "kdcHostname": true,
 		"encryptDCConnections": true, "aesEncryption": true,
 		"ldapSigning": true, "allowLocalNFSUsersWithLdap": true,
-		"description": true,
+		"description":     true,
 		"backupOperators": true, "securityOperators": true, "administrators": true,
 		"activeDirectoryState": true, "activeDirectoryStateDetails": true, "createdAt": true,
 	}
@@ -424,7 +424,7 @@ func TestEnsureRequestedADFieldsPresent_SetsUnsetFieldsToNull(t *testing.T) {
 		"organizationalUnit": true, "site": true,
 		"kdcIP": true, "kdcHostname": true,
 		"activeDirectoryState": true, "activeDirectoryStateDetails": true,
-		"createdAt": true,
+		"createdAt":            true,
 		"encryptDCConnections": true, "backupOperators": true,
 		"aesEncryption": true, "ldapSigning": true,
 		"securityOperators": true, "allowLocalNFSUsersWithLdap": true,

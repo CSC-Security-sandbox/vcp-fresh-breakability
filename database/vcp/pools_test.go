@@ -10,12 +10,11 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/driver/postgres"
@@ -706,8 +705,8 @@ func TestCreatePool(t *testing.T) {
 		if createdPool.Name != pool.Name {
 			tt.Errorf("Expected pool name %v, got %v", pool.Name, createdPool.Name)
 		}
-		if createdPool.State != models.LifeCycleStateCreating {
-			tt.Errorf("Expected pool state %v, got %v", models.LifeCycleStateCreating, createdPool.State)
+		if createdPool.State != datamodel.LifeCycleStateCreating {
+			tt.Errorf("Expected pool state %v, got %v", datamodel.LifeCycleStateCreating, createdPool.State)
 		}
 	})
 	t.Run("WhenPoolAlreadyExists", func(tt *testing.T) {
@@ -871,15 +870,15 @@ func TestDeletePool(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
 			t.Fatalf("Failed to create pool: %v", err)
 		}
 
-		pool.State = models.LifeCycleStateREADY
-		pool.StateDetails = models.LifeCycleStateAvailableDetails
+		pool.State = datamodel.LifeCycleStateREADY
+		pool.StateDetails = datamodel.LifeCycleStateAvailableDetails
 
 		_, err = store.UpdatedPool(context.Background(), pool)
 		if err != nil {
@@ -891,11 +890,11 @@ func TestDeletePool(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to fetch updated pool: %v", err)
 		}
-		if updatedPool.State != models.LifeCycleStateREADY {
-			t.Errorf("Expected state %v, got %v", models.LifeCycleStateREADY, updatedPool.State)
+		if updatedPool.State != datamodel.LifeCycleStateREADY {
+			t.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateREADY, updatedPool.State)
 		}
-		if updatedPool.StateDetails != models.LifeCycleStateAvailableDetails {
-			t.Errorf("Expected state details %v, got %v", models.LifeCycleStateAvailableDetails, updatedPool.StateDetails)
+		if updatedPool.StateDetails != datamodel.LifeCycleStateAvailableDetails {
+			t.Errorf("Expected state details %v, got %v", datamodel.LifeCycleStateAvailableDetails, updatedPool.StateDetails)
 		}
 	})
 	t.Run("DeletesPoolSuccessfully", func(tt *testing.T) {
@@ -1000,7 +999,7 @@ func TestDeletingPool(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -1017,11 +1016,11 @@ func TestDeletingPool(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to fetch updated pool: %v", err)
 		}
-		if updatedPool.State != models.LifeCycleStateDeleting {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateDeleting, updatedPool.State)
+		if updatedPool.State != datamodel.LifeCycleStateDeleting {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateDeleting, updatedPool.State)
 		}
-		if updatedPool.StateDetails != models.LifeCycleStateDeletingDetails {
-			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateDeletingDetails, updatedPool.StateDetails)
+		if updatedPool.StateDetails != datamodel.LifeCycleStateDeletingDetails {
+			tt.Errorf("Expected state details %v, got %v", datamodel.LifeCycleStateDeletingDetails, updatedPool.StateDetails)
 		}
 	})
 }
@@ -1087,7 +1086,7 @@ func TestUpdatedPool(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 			PoolAttributes: &datamodel.PoolAttributes{
 				Iops:            100,
 				ThroughputMibps: 100,
@@ -1105,8 +1104,8 @@ func TestUpdatedPool(t *testing.T) {
 		labels := make(datamodel.JSONB)
 		labels["test"] = label
 		// Setting new state values.
-		pool.State = models.LifeCycleStateREADY
-		pool.StateDetails = models.LifeCycleStateAvailableDetails
+		pool.State = datamodel.LifeCycleStateREADY
+		pool.StateDetails = datamodel.LifeCycleStateAvailableDetails
 		pool.PoolAttributes.Labels = &labels
 
 		updatedPool, err := store.UpdatedPool(context.Background(), pool)
@@ -1121,11 +1120,11 @@ func TestUpdatedPool(t *testing.T) {
 			tt.Fatalf("Failed to fetch updated pool: %v", err)
 		}
 
-		if dbPool.State != models.LifeCycleStateREADY {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateREADY, dbPool.State)
+		if dbPool.State != datamodel.LifeCycleStateREADY {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateREADY, dbPool.State)
 		}
-		if dbPool.StateDetails != models.LifeCycleStateAvailableDetails {
-			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateAvailableDetails, dbPool.StateDetails)
+		if dbPool.StateDetails != datamodel.LifeCycleStateAvailableDetails {
+			tt.Errorf("Expected state details %v, got %v", datamodel.LifeCycleStateAvailableDetails, dbPool.StateDetails)
 		}
 
 		// Verify that UpdatedPool returns the correct updated pool.
@@ -1167,7 +1166,7 @@ func TestUpdatingPool(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		if err = store.db.Create(pool).Error(); err != nil {
 			tt.Fatalf("Failed to create pool: %v", err)
@@ -1216,7 +1215,7 @@ func TestUpdatingPool(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		if err = store.db.Create(pool).Error(); err != nil {
 			tt.Fatalf("Failed to create pool: %v", err)
@@ -1240,8 +1239,8 @@ func TestUpdatingPool(t *testing.T) {
 		}
 
 		// Verify updated fields
-		if dbPool.State != models.LifeCycleStateUpdating {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateUpdating, dbPool.State)
+		if dbPool.State != datamodel.LifeCycleStateUpdating {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateUpdating, dbPool.State)
 		}
 		if dbPool.SizeInBytes != 4096 {
 			tt.Errorf("Expected SizeInBytes 4096, got %v", dbPool.SizeInBytes)
@@ -1254,8 +1253,8 @@ func TestUpdatingPool(t *testing.T) {
 		if updatedPool.UUID != pool.UUID {
 			tt.Errorf("Expected pool UUID %v, got %v", pool.UUID, updatedPool.UUID)
 		}
-		if updatedPool.State != models.LifeCycleStateUpdating {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateUpdating, updatedPool.State)
+		if updatedPool.State != datamodel.LifeCycleStateUpdating {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateUpdating, updatedPool.State)
 		}
 		if updatedPool.SizeInBytes != 4096 {
 			tt.Errorf("Expected SizeInBytes 4096, got %v", updatedPool.SizeInBytes)
@@ -1326,7 +1325,7 @@ func TestCreatedPool(t *testing.T) {
 			VendorID:  "test-vendor-id",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -1338,11 +1337,11 @@ func TestCreatedPool(t *testing.T) {
 			tt.Errorf("Expected no error, got %v", err)
 		}
 
-		if updatedPool.State != models.LifeCycleStateREADY {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateREADY, updatedPool.State)
+		if updatedPool.State != datamodel.LifeCycleStateREADY {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateREADY, updatedPool.State)
 		}
-		if updatedPool.StateDetails != models.LifeCycleStateAvailableDetails {
-			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateAvailableDetails, updatedPool.StateDetails)
+		if updatedPool.StateDetails != datamodel.LifeCycleStateAvailableDetails {
+			tt.Errorf("Expected state details %v, got %v", datamodel.LifeCycleStateAvailableDetails, updatedPool.StateDetails)
 		}
 	})
 }
@@ -1816,7 +1815,7 @@ func TestUpdatePoolState(t *testing.T) {
 	accounts = append(accounts, account1, account2)
 
 	pool1 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-1"}, DeploymentName: "deployment-name1",
-		Name: "test-pool-1", AccountID: account1.ID, Account: account1, State: models.LifeCycleStateCreated, StateDetails: models.LifeCycleStateCreatingDetails}
+		Name: "test-pool-1", AccountID: account1.ID, Account: account1, State: datamodel.LifeCycleStateCreated, StateDetails: datamodel.LifeCycleStateCreatingDetails}
 	pool2 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-2"}, DeploymentName: "deployment-name2",
 		Name: "test-pool-2", AccountID: account2.ID, Account: account2}
 	pool3 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-3"}, DeploymentName: "deployment-name3",
@@ -1843,21 +1842,21 @@ func TestUpdatePoolState(t *testing.T) {
 		t.Fatalf("Failed to create kmsConfig: %v", err)
 	}
 	t.Run("WhenDbUpdateSucceedsWithStateAlreadyDefined", func(tt *testing.T) {
-		result, errDB := store.UpdatePoolState(context.Background(), pool1, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails)
+		result, errDB := store.UpdatePoolState(context.Background(), pool1, datamodel.LifeCycleStateMigrating, datamodel.LifeCycleStateMigratingDetails)
 		assert.NoError(tt, errDB)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, result.State, models.LifeCycleStateMigrating)
-		assert.Equal(tt, result.StateDetails, models.LifeCycleStateMigratingDetails)
+		assert.Equal(tt, result.State, datamodel.LifeCycleStateMigrating)
+		assert.Equal(tt, result.StateDetails, datamodel.LifeCycleStateMigratingDetails)
 	})
 	t.Run("WhenDbUpdateSucceedsWithStateNotDefined", func(tt *testing.T) {
-		result, errDB := store.UpdatePoolState(context.Background(), pool2, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+		result, errDB := store.UpdatePoolState(context.Background(), pool2, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails)
 		assert.NoError(tt, errDB)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, result.State, models.LifeCycleStateUpdating)
-		assert.Equal(tt, result.StateDetails, models.LifeCycleStateUpdatingDetails)
+		assert.Equal(tt, result.State, datamodel.LifeCycleStateUpdating)
+		assert.Equal(tt, result.StateDetails, datamodel.LifeCycleStateUpdatingDetails)
 	})
 	t.Run("WhenDbUpdateIsUnableToFindRecord", func(tt *testing.T) {
-		result, errDB := store.UpdatePoolState(context.Background(), pool3, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+		result, errDB := store.UpdatePoolState(context.Background(), pool3, datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails)
 		assert.Nil(tt, result)
 		assert.Error(tt, errDB)
 		assert.EqualError(tt, errDB, "Pool not found")
@@ -2616,7 +2615,7 @@ func TestCreatingPool_VendorIDUniqueness(t *testing.T) {
 		assert.NotNil(tt, createdPoolRegion)
 		assert.Equal(tt, "/projects/29632252492/locations/australia-southeast1/pools/nitin-pool-1754107056", createdPoolRegion.VendorID)
 		assert.Equal(tt, "australia-southeast1", createdPoolRegion.PoolAttributes.PrimaryZone)
-		assert.Equal(tt, models.LifeCycleStateCreating, createdPoolRegion.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, createdPoolRegion.State)
 
 		// Create second pool in zone-a (australia-southeast1-a) with same pool name but different vendor_id
 		poolZoneA := &datamodel.Pool{
@@ -2637,7 +2636,7 @@ func TestCreatingPool_VendorIDUniqueness(t *testing.T) {
 		assert.NotNil(tt, createdPoolZoneA)
 		assert.Equal(tt, "/projects/29632252492/locations/australia-southeast1-a/pools/nitin-pool-1754107056", createdPoolZoneA.VendorID)
 		assert.Equal(tt, "australia-southeast1-a", createdPoolZoneA.PoolAttributes.PrimaryZone)
-		assert.Equal(tt, models.LifeCycleStateCreating, createdPoolZoneA.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, createdPoolZoneA.State)
 
 		// Create third pool in zone-b (australia-southeast1-b) with same pool name but different vendor_id
 		poolZoneB := &datamodel.Pool{
@@ -2658,7 +2657,7 @@ func TestCreatingPool_VendorIDUniqueness(t *testing.T) {
 		assert.NotNil(tt, createdPoolZoneB)
 		assert.Equal(tt, "/projects/29632252492/locations/australia-southeast1-b/pools/nitin-pool-1754107056", createdPoolZoneB.VendorID)
 		assert.Equal(tt, "australia-southeast1-b", createdPoolZoneB.PoolAttributes.PrimaryZone)
-		assert.Equal(tt, models.LifeCycleStateCreating, createdPoolZoneB.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, createdPoolZoneB.State)
 
 		// Verify all three pools exist with same name but different VendorIDs and UUIDs
 		assert.Equal(tt, "nitin-pool-1754107056", createdPoolRegion.Name)
@@ -3394,7 +3393,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-ontap"},
 				Name:           "pool_ready_ontap",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				APIAccessMode:  "ONTAP",
 				DeploymentName: "dep-ready-ontap",
 			},
@@ -3402,7 +3401,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-available-ontap"},
 				Name:           "pool_available_ontap",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateAvailable,
+				State:          datamodel.LifeCycleStateAvailable,
 				APIAccessMode:  "ONTAP",
 				DeploymentName: "dep-available-ontap",
 			},
@@ -3410,7 +3409,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-nonontap"},
 				Name:           "pool_ready_nonontap",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				APIAccessMode:  "NFS",
 				DeploymentName: "dep-ready-nonontap",
 			},
@@ -3418,7 +3417,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-creating-ontap"},
 				Name:           "pool_creating_ontap",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateCreating,
+				State:          datamodel.LifeCycleStateCreating,
 				APIAccessMode:  "ONTAP",
 				DeploymentName: "dep-creating-ontap",
 			},
@@ -3426,7 +3425,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-deleting-ontap"},
 				Name:           "pool_deleting_ontap",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateDeleting,
+				State:          datamodel.LifeCycleStateDeleting,
 				APIAccessMode:  "ONTAP",
 				DeploymentName: "dep-deleting-ontap",
 			},
@@ -3477,7 +3476,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-nfs"},
 				Name:           "pool_ready_nfs",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				APIAccessMode:  "NFS",
 				DeploymentName: "dep-ready-nfs",
 			},
@@ -3523,7 +3522,7 @@ func TestListExpertModePool(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "pool-active-ontap"},
 			Name:           "pool_active_ontap",
 			AccountID:      account.ID,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			APIAccessMode:  "ONTAP",
 			DeploymentName: "dep-active-ontap",
 		}
@@ -3538,7 +3537,7 @@ func TestListExpertModePool(t *testing.T) {
 			},
 			Name:           "pool_deleted_ontap",
 			AccountID:      account.ID,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			APIAccessMode:  "ONTAP",
 			DeploymentName: "dep-deleted-ontap",
 		}
@@ -3573,7 +3572,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-1"},
 				Name:           "pool_ready_1",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				APIAccessMode:  "ONTAP",
 				DeploymentName: "dep-ready-1",
 			},
@@ -3581,7 +3580,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-2"},
 				Name:           "pool_ready_2",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateREADY,
+				State:          datamodel.LifeCycleStateREADY,
 				APIAccessMode:  "ONTAP",
 				DeploymentName: "dep-ready-2",
 			},
@@ -3589,7 +3588,7 @@ func TestListExpertModePool(t *testing.T) {
 				BaseModel:      datamodel.BaseModel{UUID: "pool-available-1"},
 				Name:           "pool_available_1",
 				AccountID:      account.ID,
-				State:          models.LifeCycleStateAvailable,
+				State:          datamodel.LifeCycleStateAvailable,
 				APIAccessMode:  "ONTAP",
 				DeploymentName: "dep-available-1",
 			},

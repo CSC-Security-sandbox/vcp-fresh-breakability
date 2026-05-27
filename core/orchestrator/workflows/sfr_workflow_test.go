@@ -9,15 +9,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	appenv "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -8249,8 +8249,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		cross := "projects/p/locations/us-west1/backupVaults/src"
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		backup := &datamodel.Backup{
-			Name:   "",
-			State:  models.LifeCycleStateAvailable,
+			Name:       "",
+			State:      models.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8298,8 +8298,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		account := &datamodel.Account{Name: "a"}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account}
 		backup := &datamodel.Backup{
-			Name:  "my-backup",
-			State: models.LifeCycleStateAvailable,
+			Name:       "my-backup",
+			State:      models.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8351,8 +8351,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		cross := "projects/p/locations/us-west1/backupVaults/source-vault"
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		backup := &datamodel.Backup{
-			Name:  "my-backup",
-			State: models.LifeCycleStateAvailable,
+			Name:       "my-backup",
+			State:      models.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8407,8 +8407,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		cross := "projects/1/locations/us-west1/backupVaults/source-vault"
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		backup := &datamodel.Backup{
-			Name:  "my-backup",
-			State: models.LifeCycleStateDeleting,
+			Name:       "my-backup",
+			State:      models.LifeCycleStateDeleting,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8464,8 +8464,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
 		backup := &datamodel.Backup{
-			Name:  "my-backup",
-			State: models.LifeCycleStateDeleting,
+			Name:       "my-backup",
+			State:      models.LifeCycleStateDeleting,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8524,13 +8524,13 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
 		destBackup := &datamodel.Backup{
-			Name:  "my-backup",
-			State: models.LifeCycleStateDeleting,
+			Name:       "my-backup",
+			State:      models.LifeCycleStateDeleting,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		sourceBackup := &datamodel.Backup{
-			Name:  "my-backup",
-			State: models.LifeCycleStateAvailable,
+			Name:       "my-backup",
+			State:      models.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8589,13 +8589,13 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
 		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
 		destBackup := &datamodel.Backup{
-			Name:  "my-backup",
-			State: models.LifeCycleStateDeleting,
+			Name:       "my-backup",
+			State:      models.LifeCycleStateDeleting,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e", Protocols: []string{"nfs"}},
 		}
 		sourceBackup := &datamodel.Backup{
-			Name:  "my-backup",
-			State: models.LifeCycleStateAvailable,
+			Name:       "my-backup",
+			State:      models.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "resolved-snapshot-uuid", BucketName: "b", EndpointUUID: "e"},
 		}
 		volume := &datamodel.Volume{
@@ -8713,8 +8713,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		account := &datamodel.Account{Name: "a"}
 		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account}
 		backup := &datamodel.Backup{
-			Name:  "b",
-			State: models.LifeCycleStateAvailable,
+			Name:       "b",
+			State:      models.LifeCycleStateAvailable,
 			Attributes: &datamodel.BackupAttributes{SnapshotID: "s", BucketName: "b", EndpointUUID: "e", Protocols: []string{"nfs"}},
 		}
 		volume := &datamodel.Volume{

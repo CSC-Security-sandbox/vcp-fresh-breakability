@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/option"
 	"google.golang.org/api/secretmanager/v1"
@@ -406,7 +406,7 @@ func Test_CreateSecret(t *testing.T) {
 		}
 		gService := &GcpServices{
 			AdminGCPService: &AdminGCPService{secretManagerService: svc},
-			Ctx: ctx, Logger: util.GetLogger(ctx),
+			Ctx:             ctx, Logger: util.GetLogger(ctx),
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		// Secret exists but has no versions (e.g. CreateSecretVersion failed with 503); AddVersion path.
@@ -447,7 +447,7 @@ func Test_CreateSecret(t *testing.T) {
 		assert.NoError(tt, err)
 		gService := &GcpServices{
 			AdminGCPService: &AdminGCPService{secretManagerService: svc},
-			Ctx: ctx, Logger: util.GetLogger(ctx),
+			Ctx:             ctx, Logger: util.GetLogger(ctx),
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		existingVersion := &hyperscaler.CustomSecretVersion{Name: "existing-version", Value: "existing-value"}
@@ -482,7 +482,7 @@ func Test_CreateSecret(t *testing.T) {
 		assert.NoError(tt, err)
 		gService := &GcpServices{
 			AdminGCPService: &AdminGCPService{secretManagerService: svc},
-			Ctx: ctx, Logger: util.GetLogger(ctx),
+			Ctx:             ctx, Logger: util.GetLogger(ctx),
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		secret, err := gService.CreateSecret(projectId, region, secretName, secretValue)
@@ -515,7 +515,7 @@ func Test_CreateSecret(t *testing.T) {
 		assert.NoError(tt, err)
 		gService := &GcpServices{
 			AdminGCPService: &AdminGCPService{secretManagerService: svc},
-			Ctx: ctx, Logger: util.GetLogger(ctx),
+			Ctx:             ctx, Logger: util.GetLogger(ctx),
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		GetSecretVersion = func(g *GcpServices, projectId, secretName, versionId string) (*hyperscaler.CustomSecretVersion, error) {
@@ -554,7 +554,7 @@ func Test_CreateSecret(t *testing.T) {
 		assert.NoError(tt, err)
 		gService := &GcpServices{
 			AdminGCPService: &AdminGCPService{secretManagerService: svc},
-			Ctx: ctx, Logger: util.GetLogger(ctx),
+			Ctx:             ctx, Logger: util.GetLogger(ctx),
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		GetSecretVersion = func(g *GcpServices, projectId, secretName, versionId string) (*hyperscaler.CustomSecretVersion, error) {
@@ -595,7 +595,7 @@ func Test_CreateSecret(t *testing.T) {
 		assert.NoError(tt, err)
 		gService := &GcpServices{
 			AdminGCPService: &AdminGCPService{secretManagerService: svc},
-			Ctx: ctx, Logger: util.GetLogger(ctx),
+			Ctx:             ctx, Logger: util.GetLogger(ctx),
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		GetSecretVersion = func(g *GcpServices, projectId, secretName, versionId string) (*hyperscaler.CustomSecretVersion, error) {
@@ -805,7 +805,7 @@ func Test_addSecretVersion(t *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
 		gService := &GcpServices{
-			AdminGCPService: &AdminGCPService{},
+			AdminGCPService:                   &AdminGCPService{},
 			Ctx:                               ctx,
 			Logger:                            util.GetLogger(ctx),
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,

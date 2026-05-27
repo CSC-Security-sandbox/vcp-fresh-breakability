@@ -3,20 +3,22 @@ package backgroundactivities
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/vmscan"
 	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
-	"testing"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 )
 
 type fakeInstanceLister struct {
-	byProject map[string][]vmscan.GCEInstanceItem
+	byProject map[string][]hyperscalermodels.GCEInstance
 	errors    map[string]error
 	calls     []string
 }
 
-func (f *fakeInstanceLister) ListInstances(ctx context.Context, projectID string) ([]vmscan.GCEInstanceItem, error) {
+func (f *fakeInstanceLister) ListInstances(ctx context.Context, projectID string) ([]hyperscalermodels.GCEInstance, error) {
 	f.calls = append(f.calls, projectID)
 	if err, ok := f.errors[projectID]; ok {
 		return f.byProject[projectID], err
@@ -56,7 +58,7 @@ func TestScanGCEInstancesActivity_ListerInitFails(t *testing.T) {
 
 func TestScanGCEInstancesActivity_AggregatesAcrossProjects(t *testing.T) {
 	lister := &fakeInstanceLister{
-		byProject: map[string][]vmscan.GCEInstanceItem{
+		byProject: map[string][]hyperscalermodels.GCEInstance{
 			"p1": {
 				{Project: "p1", Name: "vm-a", SelfLink: "sl-a", Labels: map[string]string{"pool_uuid": "u1"}},
 			},
@@ -79,7 +81,7 @@ func TestScanGCEInstancesActivity_AggregatesAcrossProjects(t *testing.T) {
 
 func TestScanGCEInstancesActivity_PartialFailure_IsRecorded_NotFatal(t *testing.T) {
 	lister := &fakeInstanceLister{
-		byProject: map[string][]vmscan.GCEInstanceItem{
+		byProject: map[string][]hyperscalermodels.GCEInstance{
 			"good": {{Project: "good", Name: "vm-good", SelfLink: "sl-good", Labels: map[string]string{"pool_uuid": "u"}}},
 			"bad":  nil,
 		},
@@ -98,7 +100,7 @@ func TestScanGCEInstancesActivity_PartialFailure_IsRecorded_NotFatal(t *testing.
 
 func TestScanGCEInstancesActivity_ContextCancelled(t *testing.T) {
 	lister := &fakeInstanceLister{
-		byProject: map[string][]vmscan.GCEInstanceItem{
+		byProject: map[string][]hyperscalermodels.GCEInstance{
 			"p1": {{Project: "p1", Name: "vm-a", SelfLink: "sl-a"}},
 		},
 	}

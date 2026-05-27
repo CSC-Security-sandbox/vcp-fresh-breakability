@@ -11,7 +11,7 @@ MOCKERY_VERSION := v2.53.4
 DEV_REGISTRY ?= ghcr.io/vcp-vsa-control-plane
 TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
 IMAGE_TAG := $(TIMESTAMP)
-WORKSPACE_MODULES := . ./cicd ./core
+WORKSPACE_MODULES := . ./cicd ./core ./database ./hyperscaler ./lib ./vcp-core
 
 .PHONY: fix-imports
 fix-imports:
@@ -112,8 +112,8 @@ generate-metrics-api:
 
 .PHONY: generate-retry-engine-wrapper
 generate-retry-engine-wrapper:
-	cd cmd/retry-engine-generator; go run main.go vcp core
-	cd scripts; ./generate-retry-engine.sh vcp core
+	cd cmd/retry-engine-generator; go run main.go vcp database
+	cd scripts; ./generate-retry-engine.sh vcp database
 	cd cmd/retry-engine-generator; go run main.go metrics telemetry
 	cd scripts; ./generate-retry-engine.sh metrics telemetry
 
@@ -340,7 +340,7 @@ oci-proxy-dev-image: build-oci-proxy base-image
 .PHONY: validate-errors
 validate-errors:
 	@echo "🔍 Running error framework validation..."
-	@cd core/errors && ./validate.sh
+	@cd lib/errors && ./validate.sh
 
 # SafeSQL targets
 .PHONY: safesql-build
@@ -364,7 +364,7 @@ safesql-test:
 error-status:
 	@echo "📊 Error Framework Status"
 	@echo "========================"
-	@cd core/errors && ./validate.sh --status-only 2>/dev/null || echo "Status check not available"
+	@cd lib/errors && ./validate.sh --status-only 2>/dev/null || echo "Status check not available"
 
 %:
 	@:

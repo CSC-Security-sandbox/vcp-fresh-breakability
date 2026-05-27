@@ -1,6 +1,6 @@
 package errors
 
-import vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+import vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 
 // UserInputValidationErr defines an error for when the user input is invalid
 type UserInputValidationErr struct {

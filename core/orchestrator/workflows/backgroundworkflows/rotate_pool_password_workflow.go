@@ -27,7 +27,7 @@ func RotatePoolPasswordWorkflow(ctx workflow.Context, poolUUID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{

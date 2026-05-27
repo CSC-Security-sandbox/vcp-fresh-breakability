@@ -104,7 +104,7 @@ func runApplyForPR(prNumber int) error {
 	}
 
 	if planFile == nil {
-		return fmt.Errorf("validation error: no plan file found in merged PR. The PR must contain both SQL and plan files.\n" +
+		return fmt.Errorf("validation error: no plan file found in merged PR. The PR must contain both SQL and plan files.\n"+
 			"This should not happen if you used 'safesql plan --pr %d' before merging", prNumber)
 	}
 
@@ -155,7 +155,7 @@ func runApplyForPR(prNumber int) error {
 		logger.Info("  5. Get the new PR reviewed and merged\n")
 		logger.Info(fmt.Sprintf("  6. Run: safesql apply --pr <new-pr-number>\n"))
 		logger.Info("")
-		
+
 		return fmt.Errorf("plan expired: created %v ago, must be < 1 hour old", planAge.Round(time.Minute))
 	}
 

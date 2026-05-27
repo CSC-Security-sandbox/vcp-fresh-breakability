@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -373,7 +373,6 @@ func TestGetServerCertificates_GetError(t *testing.T) {
 	mockSecurityClient.AssertExpectations(t)
 }
 
-
 // Test ModifySSL
 // Note: These tests are skipped because NewSSHClient cannot be mocked directly.
 // To properly test ModifySSL, we would need to make NewSSHClient mockable by introducing
@@ -399,18 +398,17 @@ type mockLogger struct {
 	mock.Mock
 }
 
-func (m *mockLogger) Debug(format string, args ...any) {}
-func (m *mockLogger) Debugf(format string, args ...any) {}
-func (m *mockLogger) Info(format string, args ...any) {}
-func (m *mockLogger) Infof(format string, args ...any) {}
-func (m *mockLogger) Warn(format string, args ...any) {}
-func (m *mockLogger) Warnf(format string, args ...any) {}
-func (m *mockLogger) Error(format string, args ...any) {}
-func (m *mockLogger) Errorf(format string, args ...any) {}
-func (m *mockLogger) InfoContext(ctx context.Context, msg string, args ...any) {}
-func (m *mockLogger) WarnContext(ctx context.Context, msg string, args ...any) {}
+func (m *mockLogger) Debug(format string, args ...any)                          {}
+func (m *mockLogger) Debugf(format string, args ...any)                         {}
+func (m *mockLogger) Info(format string, args ...any)                           {}
+func (m *mockLogger) Infof(format string, args ...any)                          {}
+func (m *mockLogger) Warn(format string, args ...any)                           {}
+func (m *mockLogger) Warnf(format string, args ...any)                          {}
+func (m *mockLogger) Error(format string, args ...any)                          {}
+func (m *mockLogger) Errorf(format string, args ...any)                         {}
+func (m *mockLogger) InfoContext(ctx context.Context, msg string, args ...any)  {}
+func (m *mockLogger) WarnContext(ctx context.Context, msg string, args ...any)  {}
 func (m *mockLogger) ErrorContext(ctx context.Context, msg string, args ...any) {}
 func (m *mockLogger) DebugContext(ctx context.Context, msg string, args ...any) {}
 func (m *mockLogger) WithFields(fieldName string, fields log.Fields) log.Logger { return m }
-func (m *mockLogger) With(fields log.Fields) log.Logger { return m }
-
+func (m *mockLogger) With(fields log.Fields) log.Logger                         { return m }

@@ -9,15 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/diskscan"
 	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 )
 
 type fakeDiskLister struct {
-	byProject map[string][]diskscan.GCEDiskItem
+	byProject map[string][]hyperscalermodels.GCEDisk
 	errors    map[string]error
 	calls     []string
 }
 
-func (f *fakeDiskLister) ListDisks(ctx context.Context, projectID string) ([]diskscan.GCEDiskItem, error) {
+func (f *fakeDiskLister) ListDisks(ctx context.Context, projectID string) ([]hyperscalermodels.GCEDisk, error) {
 	f.calls = append(f.calls, projectID)
 	if err, ok := f.errors[projectID]; ok {
 		return f.byProject[projectID], err
@@ -57,7 +58,7 @@ func TestScanGCEDisksActivity_ListerInitFails(t *testing.T) {
 
 func TestScanGCEDisksActivity_AggregatesAcrossProjects(t *testing.T) {
 	lister := &fakeDiskLister{
-		byProject: map[string][]diskscan.GCEDiskItem{
+		byProject: map[string][]hyperscalermodels.GCEDisk{
 			"p1": {
 				{Project: "p1", Name: "disk-a", SelfLink: "sl-a", Labels: map[string]string{"pool_uuid": "u1"}},
 			},
@@ -82,7 +83,7 @@ func TestScanGCEDisksActivity_AggregatesAcrossProjects(t *testing.T) {
 
 func TestScanGCEDisksActivity_PartialFailure_IsRecorded_NotFatal(t *testing.T) {
 	lister := &fakeDiskLister{
-		byProject: map[string][]diskscan.GCEDiskItem{
+		byProject: map[string][]hyperscalermodels.GCEDisk{
 			"good": {{Project: "good", Name: "disk-good", SelfLink: "sl-good", Labels: map[string]string{"pool_uuid": "u"}}},
 			"bad":  nil,
 		},
@@ -103,7 +104,7 @@ func TestScanGCEDisksActivity_PartialFailure_IsRecorded_NotFatal(t *testing.T) {
 
 func TestScanGCEDisksActivity_ContextCancelled(t *testing.T) {
 	lister := &fakeDiskLister{
-		byProject: map[string][]diskscan.GCEDiskItem{
+		byProject: map[string][]hyperscalermodels.GCEDisk{
 			"p1": {{Project: "p1", Name: "disk-a", SelfLink: "sl-a"}},
 		},
 	}

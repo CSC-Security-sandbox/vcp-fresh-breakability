@@ -1271,10 +1271,10 @@ func Test_GetLabelValue(t *testing.T) {
 		googleMetric := *common.NewGoogleMetric(hydratedM)
 
 		tests := []struct {
-			name       string
-			flagOn     bool
-			repType    string
-			wantLabel  string
+			name      string
+			flagOn    bool
+			repType   string
+			wantLabel string
 		}{
 			{
 				name:      "MIGRATION with flag off returns raw replication type",

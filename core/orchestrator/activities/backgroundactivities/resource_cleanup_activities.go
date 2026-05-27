@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
 )
@@ -82,7 +82,7 @@ func (a *ResourceDeleteActivity) CleanupPendingResources(ctx context.Context, re
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Processing %d resources", len(resources)))
 
 	// Get the GCP service instance once outside the loop for better performance
-	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	gcpService, err := hyperscaler.GetGCPService(ctx)
 	if err != nil {
 		logger.Error("Failed to initialize GCP service", "Error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("error initializing GCP service: %w", err))

@@ -11,14 +11,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	vmrs_oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/oci"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -1158,7 +1158,7 @@ func approxEqual(a, b, delta float64) bool {
 // every future operation that loads the pool from the DB.
 //
 // Without this write-back, downstream callers that build *models.Node via
-// hyperscaler.CreateNodeForProvider — and the unified _saveNodeDetails, which
+// vsa.CreateNodeForProvider — and the unified _saveNodeDetails, which
 // also reads ExternalSecret off PoolCredentials — see
 // PoolCredentials.ExternalSecret == nil, which gets copied (as nil) onto the
 // runtime node, which causes _getProviderByNode → _getPasswordFromCacheOrOCIVault

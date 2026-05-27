@@ -11,9 +11,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"go.temporal.io/sdk/testsuite"
 	"gorm.io/gorm"
 )
@@ -877,11 +877,11 @@ func TestUploadHarvestTemplate_WithSMCredentials(t *testing.T) {
 		Pool: *pool,
 	}
 
-	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+	originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 	oldsmHarvestAuthEnabled := smHarvestAuthEnabled
 	smHarvestAuthEnabled = true
 	defer func() {
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+		vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		smHarvestAuthEnabled = oldsmHarvestAuthEnabled
 	}()
 
@@ -931,14 +931,14 @@ func TestUploadHarvestTemplate_WithSMCredentialsError(t *testing.T) {
 		Pool: *pool,
 	}
 
-	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+	originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 	oldsmHarvestAuthEnabled := smHarvestAuthEnabled
 	smHarvestAuthEnabled = false
 	defer func() {
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+		vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		smHarvestAuthEnabled = oldsmHarvestAuthEnabled
 	}()
-	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+	vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 		return "", errors.New("creds-fetch-error")
 	}
 

@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -85,8 +84,8 @@ func (d *DataStoreRepository) DeleteServiceAccount(ctx context.Context, serviceA
 
 func _deleteServiceAccount(db *gorm.DB, serviceAccount *datamodel.ServiceAccount) error {
 	serviceAccount.UpdatedAt = utils.GetTimeNow()
-	serviceAccount.State = models.LifeCycleStateDisabled
-	serviceAccount.StateDetails = models.LifeCycleStateDisabledDetails
+	serviceAccount.State = datamodel.LifeCycleStateDisabled
+	serviceAccount.StateDetails = datamodel.LifeCycleStateDisabledDetails
 
 	return db.Save(serviceAccount).Error
 }

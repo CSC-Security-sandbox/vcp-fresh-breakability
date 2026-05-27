@@ -1021,12 +1021,12 @@ func TestVolumeCreateParamsToONTAP(t *testing.T) {
 
 	t.Run("WhenQosPolicyIsSet_ThenQosIsPopulated", func(tt *testing.T) {
 		params := &VolumeCreateParams{
-			Name:      "vol1",
-			Type:      "rw",
-			Size:      1024,
-			Svm:       "svm1",
+			Name:       "vol1",
+			Type:       "rw",
+			Size:       1024,
+			Svm:        "svm1",
 			Aggregates: []string{"aggr1"},
-			QosPolicy: "qos-policy-1",
+			QosPolicy:  "qos-policy-1",
 		}
 		result := volumeCreateParamsToONTAP(params)
 		assert.NotNil(tt, result)

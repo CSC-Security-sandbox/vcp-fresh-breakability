@@ -12,10 +12,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"go.temporal.io/sdk/testsuite"
 	"gorm.io/gorm"
@@ -225,14 +225,14 @@ func TestGetNodeGroupMapping_LargePoolMultiHADisabled_SkipsNodeWithNoMap(t *test
 
 	// Node 0 and 2 have mappings; node 1 has no mapping (NotFound) and should be skipped
 	nodeGroupMap0 := &datamodel.NodeNodeGroupMap{
-		BaseModel:  datamodel.BaseModel{ID: 10, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "ngm-0"},
-		NodeID:     0,
+		BaseModel:   datamodel.BaseModel{ID: 10, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "ngm-0"},
+		NodeID:      0,
 		NodeGroupID: 100,
 		NodeGroup:   &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "group-0", LeaseName: "lease-0"},
 	}
 	nodeGroupMap2 := &datamodel.NodeNodeGroupMap{
-		BaseModel:  datamodel.BaseModel{ID: 12, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "ngm-2"},
-		NodeID:     2,
+		BaseModel:   datamodel.BaseModel{ID: 12, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "ngm-2"},
+		NodeID:      2,
 		NodeGroupID: 102,
 		NodeGroup:   &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 102}, Name: "group-2", LeaseName: "lease-2"},
 	}

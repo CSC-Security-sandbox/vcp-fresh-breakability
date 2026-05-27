@@ -248,4 +248,3 @@ func (v *Validator) ValidateMetadata(metadata *QueryMetadata) []ValidationError 
 
 	return errors
 }
-

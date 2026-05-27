@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -1369,7 +1369,7 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "b-g4em"}, VolumeUUID: "v-g4em",
 				LatestLogicalBackupSize: 450,
 				Attributes: &datamodel.BackupAttributes{
-					AccountIdentifier:  "acct", VolumeName: "vol",
+					AccountIdentifier: "acct", VolumeName: "vol",
 					IsExpertModeBackup: true,
 				},
 				BackupVault: &datamodel.BackupVault{
@@ -1470,7 +1470,7 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 				BaseModel: datamodel.BaseModel{UUID: "b-std"}, VolumeUUID: "v-std",
 				LatestLogicalBackupSize: 800,
 				Attributes: &datamodel.BackupAttributes{
-					AccountIdentifier:  "acct", VolumeName: "vol",
+					AccountIdentifier: "acct", VolumeName: "vol",
 					Protocols:          []string{"NFS"},
 					IsExpertModeBackup: false,
 				},

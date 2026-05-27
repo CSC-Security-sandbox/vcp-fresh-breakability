@@ -7,14 +7,14 @@ import (
 
 	"github.com/google/uuid"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -44,7 +44,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 	se := a.SE
 	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeInONTAP activity")
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -140,7 +140,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeJunctionpath(ctx context.Context, vol
 		return nil
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -156,7 +156,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeJunctionpath(ctx context.Context, vol
 func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting GetVolumeFromONTAP activity")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -186,7 +186,7 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting UpdateLun activity")
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -238,7 +238,7 @@ func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Cont
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting EnsureHostGroupsExistsAndMapDisk activity")
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -301,7 +301,7 @@ func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volum
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting UnmapHostGroupFromDisk activity")
 	se := a.SE
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -612,7 +612,7 @@ func _getHostGroup(se database.Storage, ctx context.Context, uuid string, accoun
 func (a *VolumeUpdateActivity) UpdateSnapshotPolicyInOntap(ctx context.Context, node *models.Node, currentPolicy, updatingPolicy *datamodel.SnapshotPolicy) error {
 	activity.RecordHeartbeat(ctx, "Initializing snapshot policy update")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -709,7 +709,7 @@ func (a *VolumeUpdateActivity) CreateScheduleForBackupPolicy(ctx context.Context
 func (a *VolumeUpdateActivity) UpdateJunctionPathInONTAP(ctx context.Context, volume *datamodel.Volume, junctionPath string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting UpdateJunctionPathInONTAP activity")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -756,7 +756,7 @@ func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Contex
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting UpdateExportPolicyRulesInONTAP activity")
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -823,7 +823,7 @@ func (a *VolumeUpdateActivity) UpdateSMBShareSettings(ctx context.Context, volum
 		logger.Errorf("SMB share for volume %v not found when attempting to update SMB share settings", volume.Name)
 		return vsaerrors.WrapAsTemporalApplicationError(errors.NewNotFoundErr("share", nil))
 	}
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -882,7 +882,7 @@ func (a *VolumeUpdateActivity) UpdateQoSPolicyGroupForVolume(
 		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume %s has autogenerated VPG but missing OntapQosPolicyID", volume.UUID))
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1002,7 +1002,7 @@ func (a *VolumeUpdateActivity) UnassignQoSPolicyFromVolume(ctx context.Context, 
 		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume %s has no ExternalUUID", volume.UUID))
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1033,7 +1033,7 @@ func (a *VolumeUpdateActivity) CreateAutoGeneratedQoSPolicyGroupForVolume(ctx co
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume %s has no SVM name", volume.UUID))
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1095,7 +1095,7 @@ func (a *VolumeUpdateActivity) AssignQoSPolicyToVolume(ctx context.Context, volu
 		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume %s has no ExternalUUID", volume.UUID))
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1126,7 +1126,7 @@ func (a *VolumeUpdateActivity) FindQoSGroupPolicyForVolume(ctx context.Context, 
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("policyUUID is empty"))
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}

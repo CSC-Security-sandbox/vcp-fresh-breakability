@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -84,4 +84,3 @@ func (h *VolumeUpdateHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 	logger.Infof("workflow-supervisor-task: volume %s reverted from UPDATING to %s", volume.UUID, previousState)
 	return nil
 }
-

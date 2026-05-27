@@ -5,10 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -39,8 +38,8 @@ func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *da
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, dbError)
 	}
 	snapshot.UUID = utils.RandomUUID()
-	snapshot.State = models.LifeCycleStateCreating
-	snapshot.StateDetails = models.LifeCycleStateCreatingDetails
+	snapshot.State = datamodel.LifeCycleStateCreating
+	snapshot.StateDetails = datamodel.LifeCycleStateCreatingDetails
 	snapshot.CreatedAt = time.Now()
 	snapshot.UpdatedAt = snapshot.CreatedAt
 	snapshot.DeletedAt = nil
@@ -115,9 +114,9 @@ func (d *DataStoreRepository) UpdateSnapshotForHandleResource(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	if dbSnapshot.State == models.LifeCycleStateCreating ||
-		dbSnapshot.State == models.LifeCycleStateDeleting ||
-		dbSnapshot.State == models.LifeCycleStateUpdating {
+	if dbSnapshot.State == datamodel.LifeCycleStateCreating ||
+		dbSnapshot.State == datamodel.LifeCycleStateDeleting ||
+		dbSnapshot.State == datamodel.LifeCycleStateUpdating {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrHREResourceIsTransitioning, errors.New("snapshot is in transition state"))
 	}
 	err = tx.Model(&dbSnapshot).Updates(datamodel.Snapshot{
@@ -212,8 +211,8 @@ func (d *DataStoreRepository) UnDeleteSnapshot(ctx context.Context, snapshot *da
 	}
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	snapshot.State = models.LifeCycleStateREADY
-	snapshot.StateDetails = models.LifeCycleStateReadyDetails
+	snapshot.State = datamodel.LifeCycleStateREADY
+	snapshot.StateDetails = datamodel.LifeCycleStateReadyDetails
 	snapshot.DeletedAt = &gorm.DeletedAt{}
 
 	err = tx.Model(&snapshot).Where("uuid = ?", snapshot.UUID).Updates(snapshot).Error
@@ -240,8 +239,8 @@ func _deleteSnapshot(db *gorm.DB, snapshotUUID string) (*datamodel.Snapshot, err
 		return nil, err
 	}
 	snapshot.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	snapshot.State = models.LifeCycleStateDeleted
-	snapshot.StateDetails = models.LifeCycleStateDeletedDetails
+	snapshot.State = datamodel.LifeCycleStateDeleted
+	snapshot.StateDetails = datamodel.LifeCycleStateDeletedDetails
 	err = db.Save(snapshot).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataDeleteError, err)
@@ -259,8 +258,8 @@ func (d *DataStoreRepository) DeletingSnapshot(ctx context.Context, snapshot *da
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
-	snapshot.State = models.LifeCycleStateDeleting
-	snapshot.StateDetails = models.LifeCycleStateDeletingDetails
+	snapshot.State = datamodel.LifeCycleStateDeleting
+	snapshot.StateDetails = datamodel.LifeCycleStateDeletingDetails
 	err = tx.Updates(snapshot).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -282,8 +281,8 @@ func (d *DataStoreRepository) BatchDeleteSnapshots(ctx context.Context, snapshot
 			BaseModel: datamodel.BaseModel{
 				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
 			},
-			State:        models.LifeCycleStateDeleted,
-			StateDetails: models.LifeCycleStateDeletedDetails,
+			State:        datamodel.LifeCycleStateDeleted,
+			StateDetails: datamodel.LifeCycleStateDeletedDetails,
 		}).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -322,7 +321,7 @@ func (d *DataStoreRepository) GetReplicationSnapshotsByVolumeID(ctx context.Cont
 func (d *DataStoreRepository) GetSnapshotsByVolumeIDs(ctx context.Context, volumeIDs []int64) ([]*datamodel.Snapshot, error) {
 	var snapshots []*datamodel.Snapshot
 	db := d.db.GORM().WithContext(ctx)
-	err := db.Preload("Volume").Where("volume_id IN ? AND state = ?", volumeIDs, models.LifeCycleStateREADY).Find(&snapshots).Error
+	err := db.Preload("Volume").Where("volume_id IN ? AND state = ?", volumeIDs, datamodel.LifeCycleStateREADY).Find(&snapshots).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -392,8 +391,8 @@ func (d *DataStoreRepository) BatchUnDeleteSnapshots(ctx context.Context, snapsh
 	defer commitOrRollbackOnError(logger, tx, &err)
 
 	for _, snapshot := range snapshots {
-		snapshot.State = models.LifeCycleStateREADY
-		snapshot.StateDetails = models.LifeCycleStateReadyDetails
+		snapshot.State = datamodel.LifeCycleStateREADY
+		snapshot.StateDetails = datamodel.LifeCycleStateReadyDetails
 		snapshot.DeletedAt = &gorm.DeletedAt{}
 
 		if err = tx.Model(&datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshot.UUID}}).
@@ -455,7 +454,7 @@ func (d *DataStoreRepository) GetSnapshotsByTypeAndVolumeID(ctx context.Context,
 	var snapshots []*datamodel.Snapshot
 
 	err := db.Preload("Volume").Preload("Account").
-		Where("type = ? AND volume_id = ? AND state != ?", snapshotType, volumeID, models.LifeCycleStateError).
+		Where("type = ? AND volume_id = ? AND state != ?", snapshotType, volumeID, datamodel.LifeCycleStateError).
 		Order("created_at DESC").
 		Find(&snapshots).Error
 	if err != nil {

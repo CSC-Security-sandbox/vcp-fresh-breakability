@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/privateca/v1"
@@ -284,19 +284,19 @@ func extractCANameFromAuthority(authority string) (string, error) {
 	if authority == "" {
 		return "", nil
 	}
-	
+
 	// Expected format: projects/.../certificateAuthorities/{ca}
 	const prefix = "certificateAuthorities/"
 	idx := strings.LastIndex(authority, prefix)
 	if idx == -1 {
 		return "", fmt.Errorf("invalid authority format: %s", authority)
 	}
-	
+
 	caName := authority[idx+len(prefix):]
 	if caName == "" {
 		return "", fmt.Errorf("empty CA name in authority: %s", authority)
 	}
-	
+
 	return caName, nil
 }
 
@@ -308,20 +308,20 @@ func convertPrivateCACertificateToCustomCertificate(certificateId string, cert *
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Extract serial number from certificate description
 	var serialNumber string
 	if cert.CertificateDescription != nil && cert.CertificateDescription.SubjectDescription != nil {
 		serialNumber = cert.CertificateDescription.SubjectDescription.HexSerialNumber
 	}
-	
+
 	// Extract CA name from IssuerCertificateAuthority with validation
 	// Format: projects/{project}/locations/{location}/caPools/{pool}/certificateAuthorities/{ca}
 	caName, err := extractCANameFromAuthority(cert.IssuerCertificateAuthority)
 	if err != nil {
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to extract CA name: %w", err))
 	}
-	
+
 	customCert := &models.CustomCertificate{
 		CertificateID:              certificateId,
 		Name:                       cert.Name,

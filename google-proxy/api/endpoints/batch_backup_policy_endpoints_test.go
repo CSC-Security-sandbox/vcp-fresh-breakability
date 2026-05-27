@@ -682,7 +682,7 @@ func TestFetchBatchBackupPoliciesFromCVP_WhitelistFieldsAndCorrelationID(t *test
 	}
 
 	params := gcpgenserver.V1betaBatchListBackupPoliciesParams{
-		LocationId: "loc-1",
+		LocationId:     "loc-1",
 		XCorrelationID: gcpgenserver.NewOptString("corr-xyz"),
 		Fields: []gcpgenserver.V1betaBatchListBackupPoliciesFieldsItem{
 			gcpgenserver.V1betaBatchListBackupPoliciesFieldsItemBackupPolicyId,
@@ -839,13 +839,13 @@ func TestMergeBatchBackupPolicyVCPAndSDE_FillsFromSDEAndVolumeOnlyOnSDE(t *testi
 		BackupPolicyId:     gcpgenserver.NewOptNilString(u),
 		ResourceId:         gcpgenserver.NewOptNilString("from-sde"),
 		Description:        gcpgenserver.NewOptNilString("sd"),
-		CreatedAt:            gcpgenserver.NewOptNilDateTime(time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)),
-		Enabled:              gcpgenserver.NewOptNilBool(true),
-		VolumeCount:          gcpgenserver.NewOptNilInt(9),
-		DailyBackupLimit:     gcpgenserver.NewOptNilInt(2),
-		WeeklyBackupLimit:    gcpgenserver.NewOptNilInt(3),
-		MonthlyBackupLimit:   gcpgenserver.NewOptNilInt(4),
-		State:                gcpgenserver.NewOptNilBatchBackupPolicyV1betaState(gcpgenserver.BatchBackupPolicyV1betaStateREADY),
+		CreatedAt:          gcpgenserver.NewOptNilDateTime(time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)),
+		Enabled:            gcpgenserver.NewOptNilBool(true),
+		VolumeCount:        gcpgenserver.NewOptNilInt(9),
+		DailyBackupLimit:   gcpgenserver.NewOptNilInt(2),
+		WeeklyBackupLimit:  gcpgenserver.NewOptNilInt(3),
+		MonthlyBackupLimit: gcpgenserver.NewOptNilInt(4),
+		State:              gcpgenserver.NewOptNilBatchBackupPolicyV1betaState(gcpgenserver.BatchBackupPolicyV1betaStateREADY),
 	}
 	out := mergeBatchBackupPolicyVCPAndSDE(vcp, sde, fieldSet)
 	assert.Equal(t, "from-sde", out.ResourceId.Value)

@@ -5,8 +5,9 @@ package database
 import (
 	context "context"
 
-	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	gorm "gorm.io/gorm"
+
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 
 	mock "github.com/stretchr/testify/mock"
 

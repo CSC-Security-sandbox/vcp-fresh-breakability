@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -212,7 +212,7 @@ func TestBackupDeleteHandler_Handle_InvalidPayloadAttributeTypes(t *testing.T) {
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "backup-uuid",
 			PayloadAttributes: map[string]interface{}{
-				"backup_vault_uuid": 456, // Wrong type
+				"backup_vault_uuid": 456,              // Wrong type
 				"account_name":      []string{"test"}, // Wrong type
 			},
 		},
@@ -228,4 +228,3 @@ func TestBackupDeleteHandler_Handle_InvalidPayloadAttributeTypes(t *testing.T) {
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
 	require.NoError(t, err)
 }
-

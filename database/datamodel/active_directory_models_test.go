@@ -2,8 +2,9 @@ package datamodel
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestActiveDirectory_ModelFields(t *testing.T) {

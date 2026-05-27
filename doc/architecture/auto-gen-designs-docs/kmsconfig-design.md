@@ -251,7 +251,7 @@ stateDiagram-v2
 
 - **Temporal Retries**: Automatic retry with exponential backoff
 - **Compensation Logic**: Rollback on failure using Temporal compensation
-- **Error Categorization**: Custom error codes (see `core/errors/`)
+- **Error Categorization**: Custom error codes (see `lib/errors/`)
 - **State Management**: PostgreSQL transactions ensure consistency
 
 ## Deployment Considerations

@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	vsamodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -21,7 +21,7 @@ type ReplicationInternalGetMultipleActivity struct {
 }
 
 var (
-	activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+	activitiesGetProviderByNode = vsa.GetProviderByNode
 )
 
 // GetReplicationsFromDB retrieves multiple replications from the database based on the ReplicationUUIDs.
@@ -110,7 +110,7 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromOntap(ctx co
 			continue // Skip if no replications for this pool
 		}
 		// Prepare node for provider
-		nodeModel := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		nodeModel := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 			Nodes:            []*datamodel.Node{node},
 			DeploymentName:   replications[0].Volume.Pool.DeploymentName,
 			OntapCredentials: replications[0].Volume.Pool.PoolCredentials,

@@ -1,11 +1,12 @@
 package validator
 
 import (
+	"log"
+	"sync"
+
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
-	"log"
-	"sync"
 )
 
 // BaseValidator provides a reusable validation and translation mechanism.

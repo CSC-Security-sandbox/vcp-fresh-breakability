@@ -21,7 +21,7 @@ Follow **CODING_GUIDELINES.md** and these rules. If unsure, ask before changing 
 - **Decomposition**: Keep functions focused and single-purpose. Break large logic into smaller, testable functions; expose business-logic helpers for unit tests.
 
 ## Error handling
-- **VCP errors**: Use `core/errors` (vsaerrors): `errors.NewVCPError(trackingID, err)` for user-facing and retry semantics. See **core/errors/README.md** and **doc/api/error-taxonomy.md** for code ranges and HTTP mapping.
+- **VCP errors**: Use `lib/errors` (vsaerrors): `errors.NewVCPError(trackingID, err)` for user-facing and retry semantics. See **lib/errors/README.md** and **doc/api/error-taxonomy.md** for code ranges and HTTP mapping.
 - **Wrapping**: Use `%w` for wrapping: `fmt.Errorf("operation failed: %w", err)`. Preserve chain for `errors.Is` / `errors.As`.
 - **Unchecked errors**: Handle all errors explicitly or document intentional ignore (e.g. `_ = file.Close()` when safe). No silent `_` for critical errors.
 - **Type assertions**: Use the two-value form: `if x, ok := v.(Type); ok { ... }`.
@@ -36,5 +36,5 @@ Follow **CODING_GUIDELINES.md** and these rules. If unsure, ask before changing 
 
 ## Repo pointers
 - **CODING_GUIDELINES.md** — imports, boundaries, context, errors, testing, migration patterns.
-- **core/errors/README.md** — CustomError, NewVCPError, Temporal integration.
+- **lib/errors/README.md** — CustomError, NewVCPError, Temporal integration.
 - **doc/api/error-taxonomy.md** — error code ranges and HTTP mapping.

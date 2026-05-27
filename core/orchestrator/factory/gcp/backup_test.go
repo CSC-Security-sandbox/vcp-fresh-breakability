@@ -12,14 +12,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	clientsontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -1793,7 +1792,7 @@ func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
 		store.On("GetNodesByPoolID", ctx, int64(99)).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "n1"}}}, nil)
 
 		// Monkey-patch node/prov creation
-		createNodeForProvider = func(input hyperscaler.NodeProviderInput) *models.Node {
+		createNodeForProvider = func(input vsa.NodeProviderInput) *models.Node {
 			return &models.Node{Name: "node-1"}
 		}
 		mockProv := vsa.NewMockProvider(t)
@@ -1902,10 +1901,10 @@ func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
 		}()
 
 		const (
-			activeEndpoint = "ae6cf390-b80a-4715-9dbb-e0d410be4c58"
-			volUUID        = "volumeUUID1"
-			poolID   int64 = 99
-			smVendorSubnet = "vs-subnet-sm-precheck"
+			activeEndpoint       = "ae6cf390-b80a-4715-9dbb-e0d410be4c58"
+			volUUID              = "volumeUUID1"
+			poolID         int64 = 99
+			smVendorSubnet       = "vs-subnet-sm-precheck"
 		)
 
 		smPrecheckVolume := func() *datamodel.Volume {
@@ -1990,7 +1989,7 @@ func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
 			store.On("GetPoolByID", ctx, poolID).Return(&datamodel.Pool{DeploymentName: "dep-1", PoolCredentials: &datamodel.PoolCredentials{}}, nil)
 			store.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "n1"}}}, nil)
 
-			createNodeForProvider = func(input hyperscaler.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
+			createNodeForProvider = func(input vsa.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
 			getProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 				return nil, errors.New("prov err")
 			}
@@ -2012,7 +2011,7 @@ func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
 			store.On("GetPoolByID", ctx, poolID).Return(&datamodel.Pool{DeploymentName: "dep-1", PoolCredentials: &datamodel.PoolCredentials{}}, nil)
 			store.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "n1"}}}, nil)
 
-			createNodeForProvider = func(input hyperscaler.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
+			createNodeForProvider = func(input vsa.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
 			mockProv := vsa.NewMockProvider(t)
 			getProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) { return mockProv, nil }
 
@@ -2033,7 +2032,7 @@ func TestValidateBackupDeleteParams_BackupVaultSwitching(t *testing.T) {
 			store.On("GetPoolByID", ctx, poolID).Return(&datamodel.Pool{DeploymentName: "dep-1", PoolCredentials: &datamodel.PoolCredentials{}}, nil)
 			store.On("GetNodesByPoolID", ctx, poolID).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "n1"}}}, nil)
 
-			createNodeForProvider = func(input hyperscaler.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
+			createNodeForProvider = func(input vsa.NodeProviderInput) *models.Node { return &models.Node{Name: "node-1"} }
 			mockProv := vsa.NewMockProvider(t)
 			getProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) { return mockProv, nil }
 			mockProv.On("SnapmirrorRelationshipGet", mock.Anything, mock.Anything).Return(nil, errors.New("ontap down"))

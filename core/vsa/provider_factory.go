@@ -1,4 +1,4 @@
-package hyperscaler
+package vsa
 
 import (
 	"context"
@@ -10,18 +10,16 @@ import (
 	"encoding/pem"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	common2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/oci"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -31,7 +29,7 @@ import (
 // GetProviderByNode creates a VSA provider using CA fields from Node struct (with env var fallback)
 var GetProviderByNode = _getProviderByNode
 
-func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+func _getProviderByNode(ctx context.Context, node *models.Node) (Provider, error) {
 	// Validate that we have a valid node
 	if node == nil {
 		util.GetLogger(ctx).Errorf("Node is nil")
@@ -83,11 +81,11 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 			// Continue without password - SSH will fail but REST API will work
 		}
 
-		return vsa.NewProvider(ctx, vsa.ProviderDetails{
+		return NewProvider(ctx, ProviderDetails{
 			IPAddress: ipAddress,
 			Hosts:     node.EndpointAddressesToHostNameMap,
 			Password:  password, // Set password for SSH connections
-			Certificate: &vsa.Certificate{
+			Certificate: &Certificate{
 				SignedCertificate:        certificate.SignedCertificate,
 				InterMediateCertificates: certificate.InterMediateCertificates,
 				CommonName:               certificate.CommonName,
@@ -135,7 +133,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 		break // Use the first available IP address
 	}
 
-	return vsa.NewProvider(ctx, vsa.ProviderDetails{
+	return NewProvider(ctx, ProviderDetails{
 		IPAddress:          ipAddress,
 		Hosts:              node.EndpointAddressesToHostNameMap,
 		Password:           password,
@@ -147,7 +145,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 // GetProviderByNodeWithFastConnection creates a VSA provider with fast connection using CA fields from Node struct
 var GetProviderByNodeWithFastConnection = _getProviderByNodeWithFastConnection
 
-func _getProviderByNodeWithFastConnection(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+func _getProviderByNodeWithFastConnection(ctx context.Context, node *models.Node) (Provider, error) {
 	if node.AuthType == env.USER_CERTIFICATE {
 		// Create PoolCredentials from Node's CA URI for certificate retrieval
 		poolCredentials := &datamodel.PoolCredentials{
@@ -162,9 +160,9 @@ func _getProviderByNodeWithFastConnection(ctx context.Context, node *models.Node
 			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
 		}
 
-		return vsa.NewProvider(ctx, vsa.ProviderDetails{
+		return NewProvider(ctx, ProviderDetails{
 			Hosts: node.EndpointAddressesToHostNameMap,
-			Certificate: &vsa.Certificate{
+			Certificate: &Certificate{
 				SignedCertificate:        certificate.SignedCertificate,
 				InterMediateCertificates: certificate.InterMediateCertificates,
 				CommonName:               certificate.CommonName,
@@ -194,7 +192,7 @@ func _getProviderByNodeWithFastConnection(ctx context.Context, node *models.Node
 		node.EndpointAddressesToHostNameMap[node.EndpointAddress] = node.EndpointAddress
 	}
 
-	return vsa.NewProvider(ctx, vsa.ProviderDetails{
+	return NewProvider(ctx, ProviderDetails{
 		Hosts:              node.EndpointAddressesToHostNameMap,
 		Password:           password,
 		InsecureSkipVerify: true,
@@ -243,7 +241,7 @@ var GetCertificateAndSecret = _getCertificateAndSecret
 var DeleteCertificateAndSecret = _deleteCertificateAndSecret
 
 // _generateAndCreateCertificateForVSACluster generates a CSR and creates a certificate in GCP Certificate Authority Service.
-func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscalermodels.CustomCertificateResponse, error) {
+func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscalermodels.CustomCertificateResponse, error) {
 	logger := gcpService.GetLogger()
 	certificateID := poolCredentials.CertificateID
 	// Get Both Certificate and Secret
@@ -298,7 +296,7 @@ func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, clust
 	}, nil
 }
 
-func _deleteCertificateAndSecret(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate, secret *hyperscalermodels.CustomSecret, poolCredentials *datamodel.PoolCredentials) error {
+func _deleteCertificateAndSecret(gcpService hyperscaler.GoogleServices, certificate *hyperscalermodels.CustomCertificate, secret *hyperscalermodels.CustomSecret, poolCredentials *datamodel.PoolCredentials) error {
 	logger := gcpService.GetLogger()
 	certificateID := poolCredentials.CertificateID
 	if certificate != nil {
@@ -334,7 +332,7 @@ func _deleteCertificateAndSecret(gcpService GoogleServices, certificate *hypersc
 	return nil
 }
 
-func _getCertificateAndSecret(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
+func _getCertificateAndSecret(gcpService hyperscaler.GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 	certificateID := poolCredentials.CertificateID
 
@@ -357,7 +355,7 @@ func _getCertificateAndSecret(gcpService GoogleServices, poolCredentials *datamo
 	return cert, secret, nil
 }
 
-func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certificateID string, clusterName string, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
+func _createCertificateInCASAndPrivateKeyInSM(gcpService hyperscaler.GoogleServices, certificateID string, clusterName string, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 
 	// Use environment variables for Region (always from env)
@@ -411,7 +409,7 @@ func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certifi
 }
 
 // _createCertificateInCAS creates a certificate in GCP Certificate Authority Service and stores the private key in Secret Manager.
-func _createCertificateInCAS(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate) (*hyperscalermodels.CustomCertificate, error) {
+func _createCertificateInCAS(gcpService hyperscaler.GoogleServices, certificate *hyperscalermodels.CustomCertificate) (*hyperscalermodels.CustomCertificate, error) {
 	logger := gcpService.GetLogger()
 	logger.Debugf("Creating certificate in CAS for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
 	var cert *hyperscalermodels.CustomCertificate
@@ -425,7 +423,7 @@ func _createCertificateInCAS(gcpService GoogleServices, certificate *hyperscaler
 	return cert, nil
 }
 
-func _createPrivateKeyInSecretManager(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate, key *rsa.PrivateKey) (*hyperscalermodels.CustomSecret, error) {
+func _createPrivateKeyInSecretManager(gcpService hyperscaler.GoogleServices, certificate *hyperscalermodels.CustomCertificate, key *rsa.PrivateKey) (*hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 	logger.Debugf("Creating private key in Secret Manager for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
 
@@ -441,7 +439,7 @@ func _createPrivateKeyInSecretManager(gcpService GoogleServices, certificate *hy
 }
 
 // _getCertificateAndPrivateKeyByID retrieves the certificate for a VSA cluster from GCP Certificate Authority Service and Private key from Secret Manager.
-func _getCertificateAndPrivateKeyByID(gcpService GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
+func _getCertificateAndPrivateKeyByID(gcpService hyperscaler.GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
 	certificate, err := gcpService.GetCertificate(caDeployedProjectID, region, caPoolName, certificateID)
 	if err != nil || certificate == nil {
 		return nil, fmt.Errorf("failed to get certficate for project: %s, region: %s, caPoolName : %s, certificateID : %s, err: %s", caDeployedProjectID, region, caPoolName, certificateID, err)
@@ -459,7 +457,7 @@ func _getCertificateAndPrivateKeyByID(gcpService GoogleServices, caDeployedProje
 }
 
 // _generatePasswordForVSACluster generates a strong password and creates a secret in GCP Secret Manager.
-func _generatePasswordForVSACluster(gcpService GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
+func _generatePasswordForVSACluster(gcpService hyperscaler.GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 
 	var secret *hyperscalermodels.CustomSecret
@@ -595,7 +593,7 @@ func _deletePasswordForVSAClusterOCI(ociService oci.OciServices, secretName stri
 }
 
 // _getPasswordForVSACluster retrieves the password for a VSA cluster from GCP Secret Manager.
-func _getPasswordForVSACluster(gcpService GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
+func _getPasswordForVSACluster(gcpService hyperscaler.GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
 	secret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, secretID)
 	if err != nil || secret == nil || secret.SecretVersion == nil {
 		return nil, fmt.Errorf("failed to get secret for project: %s, userName: %s, err: %s", env.SecretManagerProjectID, secretID, err)
@@ -608,7 +606,7 @@ func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) 
 	password := ""
 	userCache, exist := common.GetFromUserAuthCache(secretID)
 	if !exist || userCache.Password == "" {
-		gcpService, err := GetGCPService(ctx)
+		gcpService, err := hyperscaler.GetGCPService(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -626,7 +624,7 @@ func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) 
 
 // _getPasswordForVSAClusterOCI retrieves the password for a VSA cluster from OCI Vault using the secret OCID.
 func _getPasswordForVSAClusterOCI(ctx context.Context, secretID string) (*oci.OCICustomSecret, error) {
-	ociService, err := GetOCIService(ctx)
+	ociService, err := hyperscaler.GetOCIService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -646,7 +644,7 @@ func _getPasswordFromCacheOrOCIVault(ctx context.Context, ref *datamodel.Externa
 	if userCache, exist := common.GetFromUserAuthCache(ref.Name); exist && userCache.Password != "" {
 		return userCache.Password, nil
 	}
-	ociService, err := GetOCIService(ctx)
+	ociService, err := hyperscaler.GetOCIService(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -666,7 +664,7 @@ func _getPasswordFromCacheOrOCIVault(ctx context.Context, ref *datamodel.Externa
 }
 
 // _deletePasswordFromSecretManagerAndCache generates a strong password and creates a secret in GCP Secret Manager.
-func _deletePasswordFromSecretManagerAndCache(gcpService GoogleServices, secretID string) error {
+func _deletePasswordFromSecretManagerAndCache(gcpService hyperscaler.GoogleServices, secretID string) error {
 	logger := gcpService.GetLogger()
 	secret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, secretID)
 	if err != nil {
@@ -693,7 +691,7 @@ func _getCertificateFromCacheOrSecretManager(ctx context.Context, poolCredential
 	certCache, exist := common.GetCertAuthCache(certificateID)
 	// If not found in cache, fetch from GCP Certificate and Secret Manager
 	if !exist || certCache.Certificate == nil {
-		gcpService, err := GetGCPService(ctx)
+		gcpService, err := hyperscaler.GetGCPService(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -721,7 +719,7 @@ func _getCertificateFromCacheOrSecretManager(ctx context.Context, poolCredential
 }
 
 // _getOrCreateCloudDNSRecord checks if a Cloud DNS record exists, and if not, creates it.
-func _getOrCreateCloudDNSRecord(gcpService GoogleServices, recordName, ipAddress string) (*hyperscalermodels.CustomCloudDNSRecord, error) {
+func _getOrCreateCloudDNSRecord(gcpService hyperscaler.GoogleServices, recordName, ipAddress string) (*hyperscalermodels.CustomCloudDNSRecord, error) {
 	gcpService.GetLogger().Debugf("Get and Create Cloud DNS for projectID: %s, record: %s, managedZone: %s", env.SecretManagerProjectID, recordName, env.VsaManagedZone)
 	record, err := gcpService.GetResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
 	if err != nil {
@@ -741,7 +739,7 @@ func _getOrCreateCloudDNSRecord(gcpService GoogleServices, recordName, ipAddress
 	return record, nil
 }
 
-func _deleteCloudDNSRecord(gcpService GoogleServices, recordName string) error {
+func _deleteCloudDNSRecord(gcpService hyperscaler.GoogleServices, recordName string) error {
 	logger := gcpService.GetLogger()
 	record, err := gcpService.GetResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
 	if err != nil {
@@ -758,7 +756,7 @@ func _deleteCloudDNSRecord(gcpService GoogleServices, recordName string) error {
 	return nil
 }
 
-func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService hyperscaler.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 	logger := gcpService.GetLogger()
 	certificateID := poolCredentials.CertificateID
 	certificate, secret, err := GetCertificateAndSecret(gcpService, poolCredentials)
@@ -876,58 +874,6 @@ const RsaKeyType = "RSA PRIVATE KEY"
 const DigitalSignature = 0x80 // 10000000 in binary (bit 0)
 
 const KeyEncipherment = 0x20
-
-var GetGCPService = _getGCPService
-
-// _getGCPService initializes and returns a GcpServices instance.
-func _getGCPService(ctx context.Context) (*google.GcpServices, error) {
-	gcpService := NewGcpServices(ctx)
-
-	gcpService.Logger.Debug("gcpService initialized")
-	err := gcpService.InitializeClients()
-	if err != nil || !gcpService.IsAdminClientInitialized() {
-		gcpService.Logger.Debug("Initialisation of service failed")
-		return nil, errors.NewVCPError(errors.ErrGCPClientInitializationError, errors2.New("initialisation of Google GCP service failed"))
-	}
-	return gcpService, nil
-}
-
-// NewGcpServices creates a new instance of GcpServices with the provided context
-func NewGcpServices(ctx context.Context) *google.GcpServices {
-	return &google.GcpServices{
-		Ctx:    ctx,
-		Logger: util.GetLogger(ctx),
-		Retry:  google.NewExponentialRetryStrategy(time.Second, uint(MaxRetries)),
-	}
-}
-
-var MaxRetries = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
-
-var GetOCIService = _getOCIService
-
-// _getOCIService initializes and returns an OciServices instance.
-func _getOCIService(ctx context.Context) (*oci.OciServices, error) {
-	ociService := NewOCIServices(ctx)
-
-	ociService.Logger.Debug("ociService initialized")
-	err := ociService.InitializeClients()
-	if err != nil || !ociService.IsAdminClientInitialized() {
-		ociService.Logger.Debug("Initialisation of OCI service failed")
-		return nil, errors.NewVCPError(errors.ErrOCIClientInitializationError, errors2.New("initialisation of OCI service failed"))
-	}
-	return ociService, nil
-}
-
-// NewOCIServices creates a new instance of OciServices with the provided context.
-func NewOCIServices(ctx context.Context) *oci.OciServices {
-	return &oci.OciServices{
-		Ctx:    ctx,
-		Logger: util.GetLogger(ctx),
-		Retry:  oci.NewExponentialRetryStrategy(time.Second, uint(maxOCIRetries)),
-	}
-}
-
-var maxOCIRetries = env.GetInt("OCI_API_MAX_RETRIES", 6)
 
 var CreateNodeForProvider = _createNodeForProvider
 

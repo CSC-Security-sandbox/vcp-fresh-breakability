@@ -10,13 +10,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/testsuite"
 )
@@ -51,10 +50,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: "aggr3",
 		}
 
-		// Patch hyperscaler.GetProviderByNodeWithFastConnection
-		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
-		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch vsa.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -90,10 +89,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		}
 		tieringFullnessThreshold := int64(80)
 
-		// Patch hyperscaler.GetProviderByNodeWithFastConnection to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
-		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch vsa.GetProviderByNodeWithFastConnection to return error
+		originalGetProviderByNode := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
 
@@ -117,10 +116,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		// Patch hyperscaler.GetProviderByNodeWithFastConnection
-		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
-		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch vsa.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -151,10 +150,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: activities.AggregateName,
 		}
 
-		// Patch hyperscaler.GetProviderByNodeWithFastConnection
-		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
-		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch vsa.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -191,10 +190,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: "aggr2",
 		}
 
-		// Patch hyperscaler.GetProviderByNodeWithFastConnection
-		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
-		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch vsa.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -255,10 +254,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: "aggr3",
 		}
 
-		// Patch hyperscaler.GetProviderByNodeWithFastConnection
-		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
-		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch vsa.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -311,9 +310,9 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: "aggr1",
 		}
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

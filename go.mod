@@ -17,18 +17,17 @@ require (
 	github.com/go-openapi/swag v0.23.1
 	github.com/go-openapi/validate v0.24.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
-	github.com/golang-migrate/migrate/v4 v4.18.2
+	github.com/golang-migrate/migrate/v4 v4.18.2 // indirect
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.2
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.7.4 // indirect
 	github.com/lib/pq v1.10.9
-	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/ogen-go/ogen v1.15.1
-	github.com/oracle/oci-go-sdk/v65 v65.112.0
+	github.com/oracle/oci-go-sdk/v65 v65.112.0 // indirect
 	github.com/pb33f/libopenapi v0.21.12
 	github.com/prometheus/client_golang v1.22.0
 	github.com/stretchr/testify v1.11.1
-	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	go.opentelemetry.io/otel v1.40.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.58.0
@@ -39,7 +38,6 @@ require (
 	go.temporal.io/api v1.44.1
 	go.temporal.io/sdk v1.33.0
 	go.temporal.io/sdk/contrib/opentelemetry v0.6.0
-	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.46.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
@@ -48,8 +46,8 @@ require (
 	golang.org/x/sync v0.19.0
 	google.golang.org/api v0.240.0
 	google.golang.org/protobuf v1.36.10
-	gorm.io/driver/postgres v1.5.11
-	gorm.io/driver/sqlite v1.5.7
+	gorm.io/driver/postgres v1.5.11 // indirect
+	gorm.io/driver/sqlite v1.5.7 // indirect
 	gorm.io/gorm v1.25.12
 	k8s.io/api v0.33.3
 	k8s.io/apimachinery v0.33.3
@@ -138,7 +136,7 @@ require (
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -184,4 +182,18 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/vcp-vsa-control-Plane/vsa-control-plane/core => ./core
+require (
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/database v0.0.0
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler v0.0.0
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core v0.0.0
+)
+
+replace (
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/core => ./core
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/database => ./database
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler => ./hyperscaler
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/lib => ./lib
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core => ./vcp-core
+)

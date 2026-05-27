@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -27,7 +27,7 @@ type RegionZoneLister interface {
 // initialized *google.GcpServices via the same path the rest of the
 // orchestrator uses.
 var gcpServiceForZones = func(ctx context.Context) (RegionZoneLister, error) {
-	svc, err := hyperscaler2.GetGCPService(ctx)
+	svc, err := hyperscaler.GetGCPService(ctx)
 	if err != nil {
 		return nil, err
 	}

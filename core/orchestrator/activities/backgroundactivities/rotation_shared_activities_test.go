@@ -17,11 +17,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
@@ -257,13 +257,13 @@ func TestRotateVcpToVsaCertificateActivity_checkPoolHasNodes(t *testing.T) {
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				EndpointAddress:  "1.2.3.4",
+				EndpointAddress: "1.2.3.4",
 			},
 			{
 				BaseModel: datamodel.BaseModel{
 					ID: 2,
 				},
-				EndpointAddress:  "1.2.3.5", // Valid endpoint
+				EndpointAddress: "1.2.3.5", // Valid endpoint
 			},
 		}
 
@@ -614,10 +614,10 @@ func TestRotateVcpToVsaCertificateActivity_updateCertificateCache(t *testing.T) 
 
 		// Save original functions
 		originalGetGCP := getGcpServiceForCerts
-		originalGetCert := hyperscaler2.GetCertificateAndPrivateKeyByID
+		originalGetCert := vsa.GetCertificateAndPrivateKeyByID
 		defer func() {
 			getGcpServiceForCerts = originalGetGCP
-			hyperscaler2.GetCertificateAndPrivateKeyByID = originalGetCert
+			vsa.GetCertificateAndPrivateKeyByID = originalGetCert
 		}()
 
 		// Mock getGcpServiceForCerts to succeed
@@ -627,7 +627,7 @@ func TestRotateVcpToVsaCertificateActivity_updateCertificateCache(t *testing.T) 
 		}
 
 		// Mock GetCertificateAndPrivateKeyByID to succeed - covers lines 659-663, 665-677
-		hyperscaler2.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler2.GoogleServices, caPoolProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
+		vsa.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler2.GoogleServices, caPoolProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return &hyperscalermodels.CustomCertificateResponse{
 				Certificate: &hyperscalermodels.CustomCertificate{
 					PemCertificate:      "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
@@ -683,10 +683,10 @@ func TestRotateVcpToVsaCertificateActivity_updateCertificateCache(t *testing.T) 
 
 		// Save original functions
 		originalGetGCP := getGcpServiceForCerts
-		originalGetCert := hyperscaler2.GetCertificateAndPrivateKeyByID
+		originalGetCert := vsa.GetCertificateAndPrivateKeyByID
 		defer func() {
 			getGcpServiceForCerts = originalGetGCP
-			hyperscaler2.GetCertificateAndPrivateKeyByID = originalGetCert
+			vsa.GetCertificateAndPrivateKeyByID = originalGetCert
 		}()
 
 		// Mock getGcpServiceForCerts to succeed
@@ -696,7 +696,7 @@ func TestRotateVcpToVsaCertificateActivity_updateCertificateCache(t *testing.T) 
 		}
 
 		// Mock GetCertificateAndPrivateKeyByID to fail - covers lines 659-663
-		hyperscaler2.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler2.GoogleServices, caPoolProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
+		vsa.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler2.GoogleServices, caPoolProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return nil, errors.New("failed to get certificate")
 		}
 
@@ -1206,10 +1206,10 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID: "new-cert-id",
+			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:  "12345",
-			CaName:        "test-ca",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
 		}
 		secret := &hyperscalermodels.CustomSecret{
 			SecretVersion: &hyperscalermodels.CustomSecretVersion{
@@ -1282,7 +1282,7 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
@@ -1296,13 +1296,13 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock password retrieval to fail
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to get password")
 		}
 
@@ -1333,7 +1333,7 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
@@ -1346,14 +1346,14 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		// Save original function
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		// Mock GetProviderByNode to succeed (type check happens after provider creation)
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1385,7 +1385,7 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
@@ -1400,14 +1400,14 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		// Save original function
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		// Mock GetProviderByNode to succeed (type check happens after provider creation)
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1439,16 +1439,16 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID: "new-cert-id",
+			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:  "12345",
-			CaName:        "test-ca",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
 		}
 		secret := &hyperscalermodels.CustomSecret{
 			SecretVersion: &hyperscalermodels.CustomSecretVersion{
@@ -1460,16 +1460,16 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil).Twice()
 
 		// Save original functions
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetProvider := vsa.GetProviderByNode
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetProviderByNode = originalGetProvider
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock GetProviderByNode - return error for certificate auth, success for password auth
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			// If AuthType is USERNAME_PWD_SEC_MGR, it's the password auth fallback - return success
 			if node.AuthType == env.USERNAME_PWD_SEC_MGR {
 				return mockProvider, nil
@@ -1479,7 +1479,7 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		}
 
 		// Mock password retrieval for password auth fallback
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
 
@@ -1516,16 +1516,16 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID: "new-cert-id",
+			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:  "", // Empty serial number
-			CaName:        "test-ca",
+			SerialNumber:   "", // Empty serial number
+			CaName:         "test-ca",
 		}
 		secret := &hyperscalermodels.CustomSecret{
 			SecretVersion: &hyperscalermodels.CustomSecretVersion{
@@ -1537,14 +1537,14 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		// Save original function
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1580,16 +1580,16 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID: "new-cert-id",
+			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:  "12345",
-			CaName:        "", // Empty CA name
+			SerialNumber:   "12345",
+			CaName:         "", // Empty CA name
 		}
 		secret := &hyperscalermodels.CustomSecret{
 			SecretVersion: &hyperscalermodels.CustomSecretVersion{
@@ -1601,14 +1601,14 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		// Save original function
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1644,16 +1644,16 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID: "new-cert-id",
+			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:  "12345",
-			CaName:        "test-ca",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
 		}
 		secret := &hyperscalermodels.CustomSecret{
 			SecretVersion: &hyperscalermodels.CustomSecretVersion{
@@ -1665,14 +1665,14 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		// Save original function
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1708,16 +1708,16 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID: "new-cert-id",
+			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:  "12345",
-			CaName:        "test-ca",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
 		}
 		secret := &hyperscalermodels.CustomSecret{
 			SecretVersion: &hyperscalermodels.CustomSecretVersion{
@@ -1729,14 +1729,14 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		// Save original function
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1780,17 +1780,17 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
 			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-			SerialNumber:  "123456",
-			CaName:        "test-ca",
+			SerialNumber:   "123456",
+			CaName:         "test-ca",
 		}
 
 		secret := &hyperscalermodels.CustomSecret{
@@ -1804,23 +1804,23 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil).Once()
 
 		// Mock GetPasswordFromCacheOrSecretManager to succeed - covers lines 424-429
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return &mockProvider, nil
 		}
 
@@ -1862,17 +1862,17 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
 			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-			SerialNumber:  "123456",
-			CaName:        "test-ca",
+			SerialNumber:   "123456",
+			CaName:         "test-ca",
 		}
 
 		secret := &hyperscalermodels.CustomSecret{
@@ -1886,12 +1886,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil).Once()
 
 		// Mock GetProviderByNode to return nil provider - covers lines 469-472
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, nil
 		}
 
@@ -1928,9 +1928,9 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 
@@ -1938,7 +1938,7 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		// Note: JSON field names need to match the struct field names (capitalized)
 		certMap := map[string]interface{}{
 			"CertificateID":  "new-cert-id",
-			"PemCertificate":  "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
+			"PemCertificate": "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
 			"SerialNumber":   "123456",
 			"CaName":         "test-ca",
 		}
@@ -1955,12 +1955,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return &mockProvider, nil
 		}
 
@@ -2008,17 +2008,17 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
 			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-			SerialNumber:  "123456",
-			CaName:        "test-ca",
+			SerialNumber:   "123456",
+			CaName:         "test-ca",
 		}
 
 		secret := &hyperscalermodels.CustomSecret{
@@ -2033,13 +2033,13 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		callCount := 0
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			callCount++
 			if callCount == 1 {
 				// First call - InstallServerCertificate fails with expired error - covers lines 527-530
@@ -2055,12 +2055,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		}
 
 		// Mock GetPasswordFromCacheOrSecretManager for installCertificateOnVSAWithPasswordAuth
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
 
@@ -2097,17 +2097,17 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
 				},
-				PoolID:           1,
+				PoolID:          1,
 				EndpointAddress: "1.2.3.4",
-				HostDNSName:      "test-host",
+				HostDNSName:     "test-host",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
 			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest-certificate-placeholder\n-----END CERTIFICATE-----",
-			SerialNumber:  "123456",
-			CaName:        "test-ca",
+			SerialNumber:   "123456",
+			CaName:         "test-ca",
 		}
 
 		secret := &hyperscalermodels.CustomSecret{
@@ -2122,12 +2122,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return &mockProvider, nil
 		}
 
@@ -2164,16 +2164,16 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID: "new-cert-id",
+			CertificateID:  "new-cert-id",
 			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:  "12345",
-			CaName:        "test-ca",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
 		}
 		secret := &hyperscalermodels.CustomSecret{
 			SecretVersion: &hyperscalermodels.CustomSecretVersion{
@@ -2185,14 +2185,14 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA(t *testing.T)
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		// Save original function
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		// Mock GetProviderByNode to succeed
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2808,13 +2808,13 @@ func TestRotateVcpToVsaCertificateActivity_testCertificateConnectivity_Additiona
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID:    "new-cert-id",
+			CertificateID:     "new-cert-id",
 			SubjectCommonName: "test-cn",
 		}
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
@@ -2824,12 +2824,12 @@ func TestRotateVcpToVsaCertificateActivity_testCertificateConnectivity_Additiona
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2864,7 +2864,7 @@ func TestRotateVcpToVsaCertificateActivity_testCertificateConnectivity_Additiona
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
@@ -2874,12 +2874,12 @@ func TestRotateVcpToVsaCertificateActivity_testCertificateConnectivity_Additiona
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2917,7 +2917,7 @@ func TestRotateVcpToVsaCertificateActivity_testCertificateConnectivity_Additiona
 
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
@@ -2927,12 +2927,12 @@ func TestRotateVcpToVsaCertificateActivity_testCertificateConnectivity_Additiona
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2976,15 +2976,15 @@ func TestRotateVcpToVsaCertificateActivity_checkAndSyncCertificateConnectivity_A
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		version := "9.10.1"
 		mockProvider.On("GetONTAPVersion").Return(&version, nil).Maybe()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -3007,8 +3007,8 @@ func TestRotateVcpToVsaCertificateActivity_checkAndSyncCertificateConnectivity_A
 			},
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID:    "test-cert-id",
-				CertificateIDNew:  "test-cert-id-new",
-				SecretID:          "test-secret-id",
+				CertificateIDNew: "test-cert-id-new",
+				SecretID:         "test-secret-id",
 			},
 		}
 
@@ -3024,15 +3024,15 @@ func TestRotateVcpToVsaCertificateActivity_checkAndSyncCertificateConnectivity_A
 
 		// Mock GetProviderByNode for testCertificateConnectivity
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		version := "9.10.1"
 		mockProvider.On("GetONTAPVersion").Return(&version, nil).Maybe()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -3070,12 +3070,12 @@ func TestRotateVcpToVsaCertificateActivity_checkAndSyncCertificateConnectivity_A
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil).Maybe()
 
 		// Mock GetProviderByNode to fail for both connectivity tests
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("connectivity test failed")
 		}
 
@@ -3244,10 +3244,10 @@ func TestRotateVcpToVsaCertificateActivity_rotatePasswordForPool_Comprehensive(t
 
 		// Save original functions
 		originalGeneratePassword := utils.GenerateStrongPassword
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
 			utils.GenerateStrongPassword = originalGeneratePassword
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock password generation
@@ -3430,13 +3430,13 @@ func TestRotateVcpToVsaCertificateActivity_updateVSAPassword_Comprehensive(t *te
 		}
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock password retrieval
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "fetched-password", nil
 		}
 
@@ -3505,10 +3505,10 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_Comprehensive
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID:    "new-cert-id",
-			PemCertificate:  "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:    "12345",
-			CaName:          "test-ca",
+			CertificateID:     "new-cert-id",
+			PemCertificate:    "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			SerialNumber:      "12345",
+			CaName:            "test-ca",
 			SubjectCommonName: "test-cn",
 		}
 
@@ -3527,12 +3527,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_Comprehensive
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -3569,10 +3569,10 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_Comprehensive
 		}
 
 		certMap := map[string]interface{}{
-			"CertificateID":    "new-cert-id",
-			"PemCertificate":  "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			"SerialNumber":    "12345",
-			"CaName":          "test-ca",
+			"CertificateID":     "new-cert-id",
+			"PemCertificate":    "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			"SerialNumber":      "12345",
+			"CaName":            "test-ca",
 			"SubjectCommonName": "test-cn",
 		}
 
@@ -3591,12 +3591,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_Comprehensive
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -3634,10 +3634,10 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_Comprehensive
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID:    "new-cert-id",
-			PemCertificate:  "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:    "12345",
-			CaName:          "test-ca",
+			CertificateID:  "new-cert-id",
+			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
 		}
 
 		secret := &hyperscalermodels.CustomSecret{
@@ -3651,13 +3651,13 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_Comprehensive
 		}
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock password retrieval
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "fetched-password", nil
 		}
 
@@ -3666,12 +3666,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_Comprehensive
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -3730,12 +3730,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_Comprehensive
 		// Mock GetProviderByNode to return expired certificate error first, then succeed with password auth
 		mockProvider := &vsa.MockProvider{}
 		providerCallCount := 0
-		originalGetProviderForExpired := hyperscaler2.GetProviderByNode
+		originalGetProviderForExpired := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProviderForExpired
+			vsa.GetProviderByNode = originalGetProviderForExpired
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			providerCallCount++
 			if providerCallCount == 1 {
 				// First call fails with expired certificate
@@ -4117,15 +4117,15 @@ func TestRotateVcpToVsaCertificateActivity_swapCertificateIDs_Comprehensive(t *t
 
 		// Save original function
 		originalGetGCP := getGcpServiceForCerts
-		originalGetCertAndKey := hyperscaler2.GetCertificateAndPrivateKeyByID
+		originalGetCertAndKey := vsa.GetCertificateAndPrivateKeyByID
 		defer func() {
 			getGcpServiceForCerts = originalGetGCP
-			hyperscaler2.GetCertificateAndPrivateKeyByID = originalGetCertAndKey
+			vsa.GetCertificateAndPrivateKeyByID = originalGetCertAndKey
 		}()
 
 		// Mock GetCertificateAndPrivateKeyByID to avoid calling the real GCP service
 		// This prevents nil pointer dereference when updateCertificateCache is called
-		hyperscaler2.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler2.GoogleServices, caPoolProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
+		vsa.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler2.GoogleServices, caPoolProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return &hyperscalermodels.CustomCertificateResponse{
 				Certificate: &hyperscalermodels.CustomCertificate{
 					PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
@@ -4261,10 +4261,10 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSAWithPasswordAu
 		}
 
 		cert := &hyperscalermodels.CustomCertificate{
-			CertificateID:    "new-cert-id",
-			PemCertificate:  "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
-			SerialNumber:    "12345",
-			CaName:          "test-ca",
+			CertificateID:  "new-cert-id",
+			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
 		}
 
 		secret := &hyperscalermodels.CustomSecret{
@@ -4282,12 +4282,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSAWithPasswordAu
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4341,13 +4341,13 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSAWithPasswordAu
 		}
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock password retrieval
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "fetched-password", nil
 		}
 
@@ -4356,12 +4356,12 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSAWithPasswordAu
 
 		// Mock GetProviderByNode
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4465,14 +4465,14 @@ func TestRotateVcpToVsaCertificateActivity_checkAndSyncCertificateConnectivity_A
 
 		// Mock GetProviderByNode and GetONTAPVersion for testCertificateConnectivity
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		version := "9.10.1"
 		callCount := 0
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			callCount++
 			if callCount == 1 {
 				// First call fails (certificate_id)
@@ -4564,12 +4564,12 @@ func TestRotateVcpToVsaCertificateActivity_rollbackPasswordRotation(t *testing.T
 		}
 
 		// Save original functions
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "old-password", nil
 		}
 
@@ -4627,12 +4627,12 @@ func TestRotateVcpToVsaCertificateActivity_rollbackPasswordRotation(t *testing.T
 		}
 
 		// Save original functions
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to get password")
 		}
 
@@ -4714,19 +4714,19 @@ func TestRotateVcpToVsaCertificateActivity_rollbackCertificateRotation(t *testin
 		// Provide nodes with endpoint addresses so removeCertificateFromVSA can succeed
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
 		mockSE.On("GetNodesByPoolID", mock.Anything, int64(1)).Return(nodes, nil).Maybe()
-		
+
 		// Mock GetProviderByNode for removeCertificateFromVSA
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -4783,19 +4783,19 @@ func TestRotateVcpToVsaCertificateActivity_rollbackCertificateRotation(t *testin
 		// Mock GetNodesByPoolID for cleanupVsaCertificate (called during rollback via removeCertificateFromVSA)
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
 		mockSE.On("GetNodesByPoolID", mock.Anything, int64(1)).Return(nodes, nil).Maybe()
-		
+
 		// Mock GetProviderByNode for removeCertificateFromVSA
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -5425,10 +5425,10 @@ func TestRotateVcpToVsaCertificateActivity_rotateExpertModeCertificate(t *testin
 	ontapPoolView := func(expertCreds *datamodel.ExpertModeCredentials) *datamodel.PoolView {
 		return &datamodel.PoolView{
 			Pool: datamodel.Pool{
-				BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
-				APIAccessMode:   common.ONTAPMode,
-				DeploymentName:  "deploy-1",
-				PoolCredentials: &datamodel.PoolCredentials{CaURI: "ca-uri", CertificateID: "pool-cert"},
+				BaseModel:             datamodel.BaseModel{UUID: "pool-uuid"},
+				APIAccessMode:         common.ONTAPMode,
+				DeploymentName:        "deploy-1",
+				PoolCredentials:       &datamodel.PoolCredentials{CaURI: "ca-uri", CertificateID: "pool-cert"},
 				ExpertModeCredentials: expertCreds,
 			},
 		}
@@ -5615,10 +5615,10 @@ func TestRotateVcpToVsaCertificateActivity_rotateExpertModeCertificate(t *testin
 
 		revokeCalledForOldActive := false
 		origRevoke := revokeCertificateAndDeleteFromCacheAndSecretManager
-		origGetCertByID := hyperscaler2.GetCertificateAndPrivateKeyByID
+		origGetCertByID := vsa.GetCertificateAndPrivateKeyByID
 		defer func() {
 			revokeCertificateAndDeleteFromCacheAndSecretManager = origRevoke
-			hyperscaler2.GetCertificateAndPrivateKeyByID = origGetCertByID
+			vsa.GetCertificateAndPrivateKeyByID = origGetCertByID
 		}()
 		revokeCertificateAndDeleteFromCacheAndSecretManager = func(_ hyperscaler2.GoogleServices, creds *datamodel.PoolCredentials) error {
 			if creds != nil && creds.CertificateID == "old-active" {
@@ -5626,7 +5626,7 @@ func TestRotateVcpToVsaCertificateActivity_rotateExpertModeCertificate(t *testin
 			}
 			return nil
 		}
-		hyperscaler2.GetCertificateAndPrivateKeyByID = func(hyperscaler2.GoogleServices, string, string, string, string, string) (*hyperscalermodels.CustomCertificateResponse, error) {
+		vsa.GetCertificateAndPrivateKeyByID = func(hyperscaler2.GoogleServices, string, string, string, string, string) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return &hyperscalermodels.CustomCertificateResponse{
 				Certificate: &hyperscalermodels.CustomCertificate{PemCertificate: "test", PemCertificateChain: nil, SubjectCommonName: "cn"},
 				Secret:      &hyperscalermodels.CustomSecret{SecretVersion: &hyperscalermodels.CustomSecretVersion{Value: "key"}},
@@ -5886,12 +5886,12 @@ func TestRotateVcpToVsaCertificateActivity_testPasswordConnectivity_EdgeCases(t 
 		}
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to fetch password")
 		}
 
@@ -5918,13 +5918,13 @@ func TestRotateVcpToVsaCertificateActivity_testPasswordConnectivity_EdgeCases(t 
 		}
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		callCount := 0
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			callCount++
 			if callCount == 1 {
 				return "", errors.New("failed to fetch from secret_id")
@@ -5935,7 +5935,7 @@ func TestRotateVcpToVsaCertificateActivity_testPasswordConnectivity_EdgeCases(t 
 		// Mock GetNodesByPoolID
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
@@ -5943,14 +5943,14 @@ func TestRotateVcpToVsaCertificateActivity_testPasswordConnectivity_EdgeCases(t 
 
 		// Don't use testPasswordConnectivityFunc - we want to test the actual password fetch logic
 		// Mock GetProviderByNode for testPasswordConnectivity
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 		mockProvider := &vsa.MockProvider{}
 		version := "9.10.1"
 		mockProvider.On("GetONTAPVersion").Return(&version, nil).Once()
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -5979,12 +5979,12 @@ func TestRotateVcpToVsaCertificateActivity_testPasswordConnectivity_EdgeCases(t 
 		}
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to fetch password")
 		}
 
@@ -5995,10 +5995,10 @@ func TestRotateVcpToVsaCertificateActivity_testPasswordConnectivity_EdgeCases(t 
 		assert.Error(tt, err)
 		// Error is wrapped by vsaerrors.NewVCPError, so check for the wrapped message or the original message
 		errMsg := err.Error()
-		assert.True(tt, 
-			strings.Contains(errMsg, "no fallback available") || 
-			strings.Contains(errMsg, "Failed to get current password from both secret_id and secret_id_new") ||
-			strings.Contains(errMsg, "An internal error occurred"),
+		assert.True(tt,
+			strings.Contains(errMsg, "no fallback available") ||
+				strings.Contains(errMsg, "Failed to get current password from both secret_id and secret_id_new") ||
+				strings.Contains(errMsg, "An internal error occurred"),
 			"Error message should contain 'no fallback available' or related message, got: %s", errMsg)
 	})
 }
@@ -6027,12 +6027,12 @@ func TestRotateVcpToVsaCertificateActivity_updateVSAPassword_EdgeCases(t *testin
 		}, nil)
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "current-password", nil
 		}
 
@@ -6069,12 +6069,12 @@ func TestRotateVcpToVsaCertificateActivity_updateVSAPassword_EdgeCases(t *testin
 		}, nil)
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to fetch password")
 		}
 
@@ -6137,11 +6137,11 @@ func TestRotateVcpToVsaCertificateActivity_checkAndSyncPasswordConnectivity_Edge
 		assert.Error(tt, err)
 		// Error is wrapped by vsaerrors.NewVCPError, so check for the wrapped message or the original message
 		errMsg := err.Error()
-		assert.True(tt, 
-			strings.Contains(errMsg, "Failed to swap secret_id and secret_id_new") || 
-			strings.Contains(errMsg, "Failed to swap password secret IDs in database") ||
-			strings.Contains(errMsg, "failed to swap secret IDs after connectivity test") ||
-			strings.Contains(errMsg, "An internal error occurred"),
+		assert.True(tt,
+			strings.Contains(errMsg, "Failed to swap secret_id and secret_id_new") ||
+				strings.Contains(errMsg, "Failed to swap password secret IDs in database") ||
+				strings.Contains(errMsg, "failed to swap secret IDs after connectivity test") ||
+				strings.Contains(errMsg, "An internal error occurred"),
 			"Error message should contain 'Failed to swap secret_id and secret_id_new' or related message, got: %s", errMsg)
 		mockSE.AssertExpectations(tt)
 	})
@@ -6221,15 +6221,15 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSAWithPasswordAu
 		}, nil)
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		originalRemove := common.RemoveFromUserAuthCache
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 			common.RemoveFromUserAuthCache = originalRemove
 		}()
 
 		common.RemoveFromUserAuthCache = func(secretID string) bool { return true }
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to fetch password")
 		}
 
@@ -6587,9 +6587,9 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_SVMNotFoundFa
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -6644,9 +6644,9 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_SVMNotFoundFa
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -6706,9 +6706,9 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSAWithPasswordAu
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -6764,9 +6764,9 @@ func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSAWithPasswordAu
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
 		mockProvider := &vsa.MockProvider{}
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -6816,8 +6816,8 @@ func TestRotateVcpToVsaCertificateActivity_removeCertificateFromVSA_SVMNotFoundF
 
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		originalGetProvider := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
 
 		mockSecurityClient := &ontaprest.MockSecurityClient{}
 		mockRESTClient := &ontaprest.MockRESTClient{}
@@ -6835,7 +6835,7 @@ func TestRotateVcpToVsaCertificateActivity_removeCertificateFromVSA_SVMNotFoundF
 		mockSecurityClient.On("SecurityCertificateDeleteCollection", mock.Anything).Return(nil).Once()
 
 		ontapProvider := &vsa.OntapRestProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return ontapProvider, nil
 		}
 
@@ -6875,8 +6875,8 @@ func TestRotateVcpToVsaCertificateActivity_removeCertificateFromVSA_SVMNotFoundF
 
 		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
 
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		originalGetProvider := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
 
 		mockSecurityClient := &ontaprest.MockSecurityClient{}
 		mockRESTClient := &ontaprest.MockRESTClient{}
@@ -6893,7 +6893,7 @@ func TestRotateVcpToVsaCertificateActivity_removeCertificateFromVSA_SVMNotFoundF
 		mockSecurityClient.On("SecurityCertificateDeleteCollection", mock.Anything).Return(svmNotFoundErr)
 
 		ontapProvider := &vsa.OntapRestProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return ontapProvider, nil
 		}
 
@@ -6903,4 +6903,3 @@ func TestRotateVcpToVsaCertificateActivity_removeCertificateFromVSA_SVMNotFoundF
 		mockSE.AssertExpectations(tt)
 	})
 }
-

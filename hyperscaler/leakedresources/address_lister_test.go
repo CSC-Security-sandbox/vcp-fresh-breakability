@@ -3,14 +3,15 @@ package leakedresources
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	googlehyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
-	"google.golang.org/api/compute/v1"
-	"google.golang.org/api/option"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	googlehyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
+	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/option"
 )
 
 func TestSubnetworkBaseName(t *testing.T) {

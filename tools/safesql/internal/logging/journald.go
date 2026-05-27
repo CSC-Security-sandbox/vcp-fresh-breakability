@@ -43,7 +43,7 @@ func (w *journaldWriter) Write(entry Entry) error {
 	// Build structured message with metadata
 	message := entry.Message
 	metadata := make(map[string]string)
-	
+
 	// Always include component if present
 	if entry.Component != "" {
 		metadata["component"] = entry.Component
@@ -60,7 +60,7 @@ func (w *journaldWriter) Write(entry Entry) error {
 	if entry.Operator != "" {
 		metadata["operator"] = entry.Operator
 	}
-	
+
 	// Add metadata to message if any exists
 	if len(metadata) > 0 {
 		metaJSON, _ := json.Marshal(metadata)

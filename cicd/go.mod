@@ -10,10 +10,7 @@ require (
 	golang.org/x/oauth2 v0.34.0
 )
 
-require (
-	cloud.google.com/go/longrunning v0.6.7 // indirect
-	github.com/opentracing/opentracing-go v1.2.0 // indirect
-)
+require github.com/opentracing/opentracing-go v1.2.0 // indirect
 
 require (
 	cloud.google.com/go/auth v0.16.2 // indirect
@@ -57,7 +54,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -141,13 +138,22 @@ require (
 
 // Phase 1 workaround (multi-module split):
 // cicd directly imports vsa-control-plane/utils, which transitively imports
-// vsa-control-plane/core. cicd has to know about that peer module so
-// go build resolves it via the local replace below.
+// vsa-control-plane/core AND vsa-control-plane/vcp-core/servergen. cicd has
+// to know about both peer modules so go build resolves them via the local
+// replace below.
 // TODO(phase-2): drop this require + replace once utils relocates to
-// lib/util and is detached from core.
-require github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0 // indirect
+// lib/util and is detached from core and vcp-core/servergen.
+require (
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0 // indirect
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/database v0.0.0 // indirect
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0 // indirect
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core v0.0.0 // indirect
+)
 
 replace (
 	github.com/vcp-vsa-control-Plane/vsa-control-plane => ../
 	github.com/vcp-vsa-control-Plane/vsa-control-plane/core => ../core
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/database => ../database
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/lib => ../lib
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core => ../vcp-core
 )

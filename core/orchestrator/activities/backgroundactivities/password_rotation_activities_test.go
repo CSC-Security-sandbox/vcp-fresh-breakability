@@ -8,11 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
@@ -374,11 +373,11 @@ func TestRotateVcpToVsaCertificateActivity_UpdateCacheWithNewSecret(t *testing.T
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 
 		// Mock password retrieval to fail (lines 286-290)
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to retrieve password")
 		}
-		defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+		defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
 
 		// Execute
 		err := activity.UpdateCacheWithNewSecret(ctx, poolUUID)
@@ -402,11 +401,11 @@ func TestRotateVcpToVsaCertificateActivity_UpdateCacheWithNewSecret(t *testing.T
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 
 		// Mock password retrieval to succeed (lines 295-296, 298-300)
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
-		defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+		defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
 
 		// Execute
 		err := activity.UpdateCacheWithNewSecret(ctx, poolUUID)
@@ -612,11 +611,11 @@ func TestRotateVcpToVsaCertificateActivity_ValidateNewPasswordConnectivity(t *te
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 
 		// Mock password retrieval to fail (lines 401-405)
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to retrieve password")
 		}
-		defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+		defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
 
 		// Execute
 		err := activity.ValidateNewPasswordConnectivity(ctx, poolUUID)
@@ -640,11 +639,11 @@ func TestRotateVcpToVsaCertificateActivity_ValidateNewPasswordConnectivity(t *te
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 
 		// Mock password retrieval to succeed
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
-		defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+		defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
 
 		// Mock connectivity test to fail (lines 409, 411-414)
 		originalTestConnectivity := activity.testPasswordConnectivityFunc
@@ -674,11 +673,11 @@ func TestRotateVcpToVsaCertificateActivity_ValidateNewPasswordConnectivity(t *te
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 
 		// Mock password retrieval to succeed
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
-		defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+		defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
 
 		// Mock connectivity test to succeed (line 417-418)
 		originalTestConnectivity := activity.testPasswordConnectivityFunc
@@ -811,7 +810,7 @@ func TestRotateVcpToVsaCertificateActivity_PasswordRotationBasicIntegration(t *t
 			Return([]*datamodel.PoolView{poolView}, nil).Maybe()
 
 		// Test basic workflow steps that don't require complex dependencies
-		
+
 		// Step 1: List pools with password auth (should work)
 		result, err := activity.ListPoolsWithPasswordAuth(ctx, 0, 50)
 		assert.NoError(tt, err)
@@ -964,11 +963,11 @@ func TestRotateVcpToVsaCertificateActivity_TestPasswordConnectivity_EdgeCases(t 
 		// Mock database calls
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 		// Mock password retrieval to fail (since password is empty, it will try to fetch from Secret Manager)
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to retrieve password")
 		}
-		defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+		defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
 
 		// Execute with empty password
 		err := activity.TestPasswordConnectivity(ctx, poolUUID, "")
@@ -1069,7 +1068,7 @@ func TestRotateVcpToVsaCertificateActivity_UpdateVSAPassword_Additional(t *testi
 		mockSE.AssertExpectations(tt)
 	})
 
-		t.Run("UpdateVSAPassword_NilCredentials", func(tt *testing.T) {
+	t.Run("UpdateVSAPassword_NilCredentials", func(tt *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
 
@@ -1088,7 +1087,7 @@ func TestRotateVcpToVsaCertificateActivity_UpdateVSAPassword_Additional(t *testi
 		mockSE.AssertExpectations(tt)
 	})
 
-		t.Run("UpdateVSAPassword_EmptySecretIDNew", func(tt *testing.T) {
+	t.Run("UpdateVSAPassword_EmptySecretIDNew", func(tt *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
 
@@ -1119,13 +1118,13 @@ func TestRotateVcpToVsaCertificateActivity_UpdateVSAPassword_Additional(t *testi
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock password retrieval to fail - covers lines 173-177
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("failed to retrieve password")
 		}
 
@@ -1148,13 +1147,13 @@ func TestRotateVcpToVsaCertificateActivity_UpdateVSAPassword_Additional(t *testi
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock password retrieval to succeed
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "new-password", nil
 		}
 
@@ -1181,15 +1180,15 @@ func TestRotateVcpToVsaCertificateActivity_UpdateVSAPassword_Additional(t *testi
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
 
 		// Save original functions
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		originalGetProvider := hyperscaler2.GetProviderByNode
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		originalGetProvider := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
-			hyperscaler2.GetProviderByNode = originalGetProvider
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetProviderByNode = originalGetProvider
 		}()
 
 		// Mock password retrieval to succeed (for both new password and current password)
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "test-password", nil
 		}
 
@@ -1197,7 +1196,7 @@ func TestRotateVcpToVsaCertificateActivity_UpdateVSAPassword_Additional(t *testi
 		// This requires mocking GetNodesByPoolID and the provider
 		nodes := []*datamodel.Node{
 			{
-				BaseModel: datamodel.BaseModel{ID: 1},
+				BaseModel:       datamodel.BaseModel{ID: 1},
 				EndpointAddress: "1.2.3.4",
 			},
 		}
@@ -1205,7 +1204,7 @@ func TestRotateVcpToVsaCertificateActivity_UpdateVSAPassword_Additional(t *testi
 
 		// Mock provider to return a mock that has UpdateAdminPassword
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

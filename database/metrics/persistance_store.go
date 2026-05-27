@@ -434,4 +434,3 @@ func (s *PersistenceStore) GetRestoreTimestamp(ctx context.Context) (*datamodel.
 func (s *PersistenceStore) UpdateRestoreTimestamp(ctx context.Context, lastProcessedAt time.Time) error {
 	return s.dataStore.dataStore.UpdateRestoreTimestamp(ctx, lastProcessedAt)
 }
-

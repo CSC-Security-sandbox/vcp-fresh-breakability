@@ -3,13 +3,13 @@ package expertMode
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -103,10 +103,10 @@ func (wf *expertModeFlexCloneSplitWorkflow) Run(ctx workflow.Context, args ...in
 		StartToCloseTimeout:    expertModeStartToCloseTimeout,
 		HeartbeatTimeout:       2 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    pollInterval,
-			BackoffCoefficient: 1,
-			MaximumInterval:    pollInterval,
-			MaximumAttempts:    0,
+			InitialInterval:        pollInterval,
+			BackoffCoefficient:     1,
+			MaximumInterval:        pollInterval,
+			MaximumAttempts:        0,
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	})
@@ -131,7 +131,7 @@ func (wf *expertModeFlexCloneSplitWorkflow) Run(ctx workflow.Context, args ...in
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+	node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 		Nodes:            dbNodes,
 		DeploymentName:   pool.DeploymentName,
 		OntapCredentials: pool.PoolCredentials,

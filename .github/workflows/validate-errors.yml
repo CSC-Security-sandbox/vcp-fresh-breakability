@@ -41,6 +41,6 @@ jobs:
 
       - name: Validate Error Framework
         run: |
-          cd core/errors
+          cd lib/errors
           chmod +x validate.sh
           ./validate.sh

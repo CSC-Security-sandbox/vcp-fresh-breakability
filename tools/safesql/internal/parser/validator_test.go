@@ -351,39 +351,39 @@ func TestValidateMetadata(t *testing.T) {
 	v := NewValidator()
 
 	tests := []struct {
-		name        string
-		metadata    QueryMetadata
-		wantErrors  int
-		wantTicket  bool
-		wantAuthor  bool
+		name       string
+		metadata   QueryMetadata
+		wantErrors int
+		wantTicket bool
+		wantAuthor bool
 	}{
 		{
-			name:        "valid metadata",
-			metadata:    QueryMetadata{Ticket: "JIRA-123", Author: "john@example.com"},
-			wantErrors:  0,
-			wantTicket:  false,
-			wantAuthor:  false,
+			name:       "valid metadata",
+			metadata:   QueryMetadata{Ticket: "JIRA-123", Author: "john@example.com"},
+			wantErrors: 0,
+			wantTicket: false,
+			wantAuthor: false,
 		},
 		{
-			name:        "missing ticket",
-			metadata:    QueryMetadata{Author: "john@example.com"},
-			wantErrors:  1,
-			wantTicket:  true,
-			wantAuthor:  false,
+			name:       "missing ticket",
+			metadata:   QueryMetadata{Author: "john@example.com"},
+			wantErrors: 1,
+			wantTicket: true,
+			wantAuthor: false,
 		},
 		{
-			name:        "missing author (warning only)",
-			metadata:    QueryMetadata{Ticket: "JIRA-123"},
-			wantErrors:  1,
-			wantTicket:  false,
-			wantAuthor:  true,
+			name:       "missing author (warning only)",
+			metadata:   QueryMetadata{Ticket: "JIRA-123"},
+			wantErrors: 1,
+			wantTicket: false,
+			wantAuthor: true,
 		},
 		{
-			name:        "missing both",
-			metadata:    QueryMetadata{},
-			wantErrors:  2,
-			wantTicket:  true,
-			wantAuthor:  true,
+			name:       "missing both",
+			metadata:   QueryMetadata{},
+			wantErrors: 2,
+			wantTicket: true,
+			wantAuthor: true,
 		},
 	}
 

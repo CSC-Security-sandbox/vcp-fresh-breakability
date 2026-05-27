@@ -20,7 +20,7 @@ When `ADDRESS_SPACE_MGMT_ENABLED=true`, these registered ranges are automaticall
 | Layer | File | What Changed |
 |---|---|---|
 | **DB Migration** | `database/vcp/migrations/post/0027_add_address_ranges.up.sql` | New `address_ranges` table |
-| **Data Model** | `core/datamodel/models.go` | New `AddressRange` struct; `AllocatedSubnetCIDR` field added to `ClusterDetails` |
+| **Data Model** | `database/datamodel/models.go` | New `AddressRange` struct; `AllocatedSubnetCIDR` field added to `ClusterDetails` |
 | **DB Layer** | `database/vcp/address_range.go` | CRUD + state-machine logic |
 | **Storage Interface** | `database/vcp/interface.go` | 6 new interface methods |
 | **Persistence Delegation** | `database/vcp/persistance_store.go` | Passthrough delegation |
@@ -376,7 +376,7 @@ Multiple pools can be created using the same registered IP range. GCP allocates 
 | What | Path |
 |---|---|
 | DB migration | `database/vcp/migrations/post/0027_add_address_ranges.up.sql` |
-| Data model struct | `core/datamodel/models.go` (`AddressRange`; `ClusterDetails.AllocatedSubnetCIDR`) |
+| Data model struct | `database/datamodel/models.go` (`AddressRange`; `ClusterDetails.AllocatedSubnetCIDR`) |
 | DB CRUD + state machine | `database/vcp/address_range.go` |
 | Storage interface | `database/vcp/interface.go` |
 | GCP orchestrator delegation | `core/orchestrator/factory/gcp/address_range.go` |

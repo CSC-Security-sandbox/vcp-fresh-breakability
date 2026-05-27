@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/secretmanager/v1"
 )
@@ -166,15 +166,15 @@ func (gcpService *GcpServices) DeleteSecret(projectID, secretID string) error {
 // AddSecretVersion creates a secret version and stores the private key in the secret manager. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets/addVersion
 func _addSecretVersion(gcpService *GcpServices, projectID, secretName, secretValue string) (*models.CustomSecretVersion, error) {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateSecretVersion for project id : %s", projectID))
-	
+
 	// Validate secret value before processing
 	if secretValue == "" {
 		gcpService.Logger.Errorf("Secret value is empty")
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("secret value is empty"))
 	}
-	
+
 	encodedData := base64.StdEncoding.EncodeToString([]byte(secretValue))
-	
+
 	parent := fmt.Sprintf("projects/%s/secrets/%s", projectID, secretName)
 	req := &secretmanager.AddSecretVersionRequest{
 		Payload: &secretmanager.SecretPayload{

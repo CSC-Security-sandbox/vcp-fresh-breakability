@@ -209,7 +209,7 @@ func extractUpdatedColumnsRegex(sql string) []string {
 			break
 		}
 	}
-	
+
 	var setClause string
 	if whereIdx == -1 {
 		setClause = sql[setIdx+3:]

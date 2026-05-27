@@ -236,7 +236,7 @@ jobs:
 
           # Verify retry engine code
           cd ./scripts
-          ./verify-retry-engine.sh vcp core
+          ./verify-retry-engine.sh vcp database
           ./verify-retry-engine.sh metrics telemetry
 
   verify_build:

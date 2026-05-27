@@ -43,7 +43,7 @@ func NewIntegratedLogger(enableJournald bool, component string) *IntegratedLogge
 func (l *IntegratedLogger) Info(msg string) {
 	// Output to stdout via slog (preserves existing behavior)
 	fmt.Print(msg)
-	
+
 	// Also log to journald (logger will handle journald availability internally)
 	l.logger.Log(Entry{
 		Severity: LevelInfo,
@@ -80,7 +80,7 @@ type IntegratedContextLogger struct {
 func (c *IntegratedContextLogger) Info(msg string) {
 	// Output to stdout
 	fmt.Print(msg)
-	
+
 	// Log to journald with context (logger will handle journald availability internally)
 	c.integrated.logger.Log(Entry{
 		Severity: LevelInfo,

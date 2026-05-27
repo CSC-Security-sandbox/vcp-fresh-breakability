@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalergoogle "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
@@ -18,14 +19,14 @@ import (
 )
 
 var originalGetGCPService = hyperscaler.GetGCPService
-var originalGetCertificateAndPrivateKeyByID = hyperscaler.GetCertificateAndPrivateKeyByID
-var originalGetPasswordFromCacheOrSecretManager = hyperscaler.GetPasswordFromCacheOrSecretManager
+var originalGetCertificateAndPrivateKeyByID = vsa.GetCertificateAndPrivateKeyByID
+var originalGetPasswordFromCacheOrSecretManager = vsa.GetPasswordFromCacheOrSecretManager
 
 func setupMocks() {
 	hyperscaler.GetGCPService = func(ctx context.Context) (*hyperscalergoogle.GcpServices, error) {
 		return &hyperscalergoogle.GcpServices{}, nil
 	}
-	hyperscaler.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler.GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
+	vsa.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler.GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
 		return &hyperscalermodels.CustomCertificateResponse{
 			Certificate: &hyperscalermodels.CustomCertificate{
 				PemCertificate:      "-----BEGIN CERTIFICATE-----\nMOCK_CERTIFICATE\n-----END CERTIFICATE-----",
@@ -39,15 +40,15 @@ func setupMocks() {
 			},
 		}, nil
 	}
-	hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+	vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 		return "mock-password", nil
 	}
 }
 
 func restoreMocks() {
 	hyperscaler.GetGCPService = originalGetGCPService
-	hyperscaler.GetCertificateAndPrivateKeyByID = originalGetCertificateAndPrivateKeyByID
-	hyperscaler.GetPasswordFromCacheOrSecretManager = originalGetPasswordFromCacheOrSecretManager
+	vsa.GetCertificateAndPrivateKeyByID = originalGetCertificateAndPrivateKeyByID
+	vsa.GetPasswordFromCacheOrSecretManager = originalGetPasswordFromCacheOrSecretManager
 }
 
 func TestCertificateMiddleware(t *testing.T) {
@@ -344,7 +345,7 @@ func TestGetCertificateFromSecretManager(t *testing.T) {
 		hyperscaler.GetGCPService = func(ctx context.Context) (*hyperscalergoogle.GcpServices, error) {
 			return &hyperscalergoogle.GcpServices{}, nil
 		}
-		hyperscaler.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler.GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
+		vsa.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler.GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscalermodels.CustomCertificateResponse, error) {
 			return nil, assert.AnError
 		}
 		defer restoreMocks()
@@ -388,7 +389,7 @@ func TestGetPasswordFromSecretManager(t *testing.T) {
 	})
 
 	t.Run("WhenSecretManagerFails_ShouldReturnError", func(t *testing.T) {
-		hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", assert.AnError
 		}
 		defer restoreMocks()
@@ -440,7 +441,7 @@ func TestCertificateMiddleware_ErrorCases(t *testing.T) {
 				PoolID:   "test-pool",
 			},
 			setupMock: func() {
-				hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+				vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 					return "", assert.AnError
 				}
 			},

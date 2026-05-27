@@ -8,10 +8,10 @@ import (
 
 func TestComputeFileHash(t *testing.T) {
 	tests := []struct {
-		name     string
-		content  string
-		wantLen  int
-		wantPfx  string
+		name    string
+		content string
+		wantLen int
+		wantPfx string
 	}{
 		{
 			name:    "basic content",

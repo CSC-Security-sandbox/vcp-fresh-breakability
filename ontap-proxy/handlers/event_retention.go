@@ -56,9 +56,9 @@ func RetentionPeriodAPIToCLI(apiPeriod string) string {
 }
 
 var (
-	retentionTimeRegex  = regexp.MustCompile(`^pt(\d+)([hms])$`) // PT24H, PT30M, PT60S
-	retentionDateRegex  = regexp.MustCompile(`^p(\d+)([ymd])$`)  // P7Y, P30M, P7D
-	retentionCLIRegex = regexp.MustCompile(`(?i)^(\d+)\s*(years?|months?|days?|hours?|minutes?|seconds?)$`)
+	retentionTimeRegex = regexp.MustCompile(`^pt(\d+)([hms])$`) // PT24H, PT30M, PT60S
+	retentionDateRegex = regexp.MustCompile(`^p(\d+)([ymd])$`)  // P7Y, P30M, P7D
+	retentionCLIRegex  = regexp.MustCompile(`(?i)^(\d+)\s*(years?|months?|days?|hours?|minutes?|seconds?)$`)
 )
 
 // RetentionPeriodCLIToAPI converts CLI retention output (e.g. "7 years", "1 years", "infinite")
@@ -96,9 +96,9 @@ func RetentionPeriodCLIToAPI(cliPeriod string) string {
 
 // EventRetentionPolicyRow is one row parsed from "snaplock event-retention policy show" CLI output.
 type EventRetentionPolicyRow struct {
-	Vserver          string
-	Name             string
-	RetentionPeriod  string // API format (e.g. P7Y)
+	Vserver         string
+	Name            string
+	RetentionPeriod string // API format (e.g. P7Y)
 }
 
 // ParseEventRetentionPolicyShowOutput parses the CLI output of "snaplock event-retention policy show"
@@ -237,16 +237,16 @@ func BuildEventRetentionPolicyModifyCommand(policyName, retentionPeriodCLI strin
 
 // EventRetentionOperationRow is one row parsed from "snaplock event-retention show" CLI output.
 type EventRetentionOperationRow struct {
-	Vserver          string
-	OperationID      int64
-	State            string
-	Path             string
-	PolicyName       string
-	VolumeName       string
+	Vserver           string
+	OperationID       int64
+	State             string
+	Path              string
+	PolicyName        string
+	VolumeName        string
 	NumFilesProcessed int64
-	NumFilesFailed   int64
-	NumFilesSkipped  int64
-	NumInodesIgnored int64
+	NumFilesFailed    int64
+	NumFilesSkipped   int64
+	NumInodesIgnored  int64
 }
 
 // BuildEventRetentionOperationShowCommand builds the ONTAP CLI command to list EBR operations.
@@ -325,6 +325,7 @@ func ParseEventRetentionOperationShowOutput(cliOutput string) ([]EventRetentionO
 // ONTAP "snaplock event-retention show" can use either column order:
 //   - Operation ID, Vserver, Volume, Operation Status (default table; spacing varies so we may get 2–4 parts)
 //   - Vserver, Operation Id, State, Path, Policy, Volume (with -instance or other views)
+//
 // We detect by checking if first column is numeric (Operation ID first) or not (Vserver first).
 func parseEventRetentionOperationRowParts(parts []string) *EventRetentionOperationRow {
 	if len(parts) < 2 {

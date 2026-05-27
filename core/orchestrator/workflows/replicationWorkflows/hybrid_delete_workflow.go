@@ -4,8 +4,6 @@ import (
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
@@ -13,7 +11,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -161,7 +160,7 @@ func (wf *hybridReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...int
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 			Nodes:            dbNodes,
 			DeploymentName:   replicationResult.Event.ReplicationModel.Volume.Pool.DeploymentName,
 			OntapCredentials: replicationResult.Event.ReplicationModel.Volume.Pool.PoolCredentials,
@@ -271,7 +270,7 @@ func (wf *hybridReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...int
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		node := vsa.CreateNodeForProvider(vsa.NodeProviderInput{
 			Nodes:            dbNodes,
 			DeploymentName:   replicationResult.Event.ReplicationModel.Volume.Pool.DeploymentName,
 			OntapCredentials: replicationResult.Event.ReplicationModel.Volume.Pool.PoolCredentials,

@@ -1,11 +1,12 @@
 package jira
 
 import (
-	"github.com/spf13/cobra"
 	"log"
 	ghutils "main/cmd/github"
 	"os"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 var githubBaseRef string

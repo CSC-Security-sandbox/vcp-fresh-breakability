@@ -1,10 +1,10 @@
 package utils
 
 import (
-	"go.temporal.io/sdk/temporal"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"go.temporal.io/sdk/temporal"
 )
 
 var (

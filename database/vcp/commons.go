@@ -4,8 +4,8 @@ import (
 	"context"
 	"reflect"
 
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -30,7 +30,7 @@ func (d *DataStoreRepository) ErroredResource(ctx context.Context, resource inte
 		if !f.IsValid() {
 			return nil, vsaerrors.New("State field not found in the errored resource")
 		}
-		f.SetString(models.LifeCycleStateError)
+		f.SetString(datamodel.LifeCycleStateError)
 		f = s.FieldByName("StateDetails")
 		if !f.IsValid() {
 			return nil, vsaerrors.New("StateDetails field not found in the errored resource")

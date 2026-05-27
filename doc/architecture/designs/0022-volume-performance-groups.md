@@ -22,7 +22,7 @@ A Volume Performance Group (VPG) is a database entity that represents a QoS poli
 
 VPGs map to ONTAP QoS policy groups (QPGs), which enforce the performance limits at the storage layer. When a volume is assigned to a VPG, the volume's Qos Policy Group (QPG) in ONTAP is set to the VPG's corresponding QPG.  While every VPG will have a corresponding QPG, not every QPG in an ONTAP cluster used by VCP will have a corresponding VPG.
 
-**Code Reference**: See `VolumePerformanceGroup` struct definition in `core/datamodel/models.go` (lines 331-343).
+**Code Reference**: See `VolumePerformanceGroup` struct definition in `database/datamodel/models.go` (lines 331-343).
 
 ## How VPGs are Created
 
@@ -347,7 +347,7 @@ VPGs are stored in the `volume_performance_groups` table with the following key 
 - `iops`: Maximum IOPS
 - `ontap_qos_policy_id`: ONTAP QoS policy group UUID
 
-**Code Reference**: See `VolumePerformanceGroup` struct in `core/datamodel/models.go` (lines 331-343).
+**Code Reference**: See `VolumePerformanceGroup` struct in `database/datamodel/models.go` (lines 331-343).
 
 ## Related Documentation
 

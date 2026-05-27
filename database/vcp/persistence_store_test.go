@@ -11,11 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -559,6 +558,58 @@ func TestCreateSVM_Persistence_Store(t *testing.T) {
 	assert.NotNil(t, created)
 }
 
+// SvmExistsByExternalIdentifier is a thin wrapper over the dataStore method.
+// Cover both the empty-input fast path and a typical existence check so the
+// PersistenceStore-level delegation is exercised.
+func TestSvmExistsByExternalIdentifier_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	exists, err := store.SvmExistsByExternalIdentifier(ctx, "ocid1.svm..none", 1)
+	assert.NoError(t, err)
+	assert.False(t, exists)
+
+	exists, err = store.SvmExistsByExternalIdentifier(ctx, "", 1)
+	assert.NoError(t, err)
+	assert.False(t, exists)
+}
+
+// TransitionSvmToDeleting is a thin wrapper. Drive it through a CAS path that
+// flips a READY row to DELETING so the PersistenceStore-level delegation runs
+// once end-to-end.
+func TestTransitionSvmToDeleting_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	acc, err := store.CreateAccount(ctx, &datamodel.Account{Name: "ts-svm-trans"})
+	require.NoError(t, err)
+	pool := &datamodel.Pool{
+		Name:      "p-ts-svm-trans",
+		AccountID: acc.ID,
+		Account:   acc,
+		State:     datamodel.LifeCycleStateREADY,
+	}
+	require.NoError(t, store.DB().Create(pool).Error)
+
+	created, err := store.CreateSVM(ctx, &datamodel.Svm{
+		Name:      "svm-ts-trans",
+		AccountID: acc.ID,
+		PoolID:    pool.ID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, datamodel.LifeCycleStateREADY, created.State)
+
+	updated, err := store.TransitionSvmToDeleting(ctx, created)
+	assert.NoError(t, err)
+	if assert.NotNil(t, updated) {
+		assert.Equal(t, datamodel.LifeCycleStateDeleting, updated.State)
+	}
+}
+
 func TestGetSvmsByPoolID_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)
@@ -585,7 +636,7 @@ func TestUnsetSvmActiveDirectoryID_Persistence_Store(t *testing.T) {
 		Name:      "test_pool",
 		AccountID: createdAcc.ID,
 		Account:   createdAcc,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:  "us-central1-a",
 			IsRegionalHA: false,
@@ -883,17 +934,17 @@ func TestGetSnapshotsByVolumeIDs_Persistence_Store(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create two snapshots for the volume
-	snap1 := &datamodel.Snapshot{Name: "test-snap-1", AccountID: createdAcc.ID, VolumeID: createdVol1.ID, State: models.LifeCycleStateREADY}
-	snap2 := &datamodel.Snapshot{Name: "test-snap-2", AccountID: createdAcc.ID, VolumeID: createdVol2.ID, State: models.LifeCycleStateREADY}
+	snap1 := &datamodel.Snapshot{Name: "test-snap-1", AccountID: createdAcc.ID, VolumeID: createdVol1.ID, State: datamodel.LifeCycleStateREADY}
+	snap2 := &datamodel.Snapshot{Name: "test-snap-2", AccountID: createdAcc.ID, VolumeID: createdVol2.ID, State: datamodel.LifeCycleStateREADY}
 	_, err = store.CreatingSnapshot(ctx, snap1)
 	assert.NoError(t, err)
 	_, err = store.CreatingSnapshot(ctx, snap2)
 	assert.NoError(t, err)
 
-	snap1.State = models.LifeCycleStateREADY
+	snap1.State = datamodel.LifeCycleStateREADY
 	_, err = store.UpdateSnapshot(ctx, snap1)
 	assert.NoError(t, err)
-	snap2.State = models.LifeCycleStateREADY
+	snap2.State = datamodel.LifeCycleStateREADY
 	_, err = store.UpdateSnapshot(ctx, snap2)
 	assert.NoError(t, err)
 
@@ -940,8 +991,8 @@ func TestBatchDeleteSnapshots_Persistence_Store(t *testing.T) {
 
 	// Verify snapshots are marked as deleted
 	for _, snap := range deletedSnapshots {
-		assert.Equal(t, models.LifeCycleStateDeleted, snap.State)
-		assert.Equal(t, models.LifeCycleStateDeletedDetails, snap.StateDetails)
+		assert.Equal(t, datamodel.LifeCycleStateDeleted, snap.State)
+		assert.Equal(t, datamodel.LifeCycleStateDeletedDetails, snap.StateDetails)
 		assert.NotNil(t, snap.DeletedAt)
 	}
 
@@ -1043,7 +1094,7 @@ func TestUpdateKmsConfig_Persistence_Store(t *testing.T) {
 	}
 	store.DB().Create(&kms)
 	kms.Name = "updatedpool"
-	_, err := store.UpdateKmsConfigState(ctx, kms.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+	_, err := store.UpdateKmsConfigState(ctx, kms.UUID, datamodel.LifeCycleStateREADY, datamodel.LifeCycleStateReadyDetails)
 	assert.NoError(t, err)
 }
 
@@ -1056,7 +1107,7 @@ func TestUpdateKmsConfigState_Persistence_Store(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
 	}
 	store.DB().Create(&kms)
-	_, err := store.UpdateKmsConfigState(ctx, "kms-uuid", models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+	_, err := store.UpdateKmsConfigState(ctx, "kms-uuid", datamodel.LifeCycleStateUpdating, datamodel.LifeCycleStateUpdatingDetails)
 	assert.NoError(t, err)
 }
 
@@ -1866,8 +1917,8 @@ func TestPersistenceStore_UpdateBackupPolicy(t *testing.T) {
 		MonthlyBackupsToKeep:  1,
 		AccountID:             account.ID,
 		Account:               account,
-		LifeCycleState:        models.LifeCycleStateREADY,
-		LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		LifeCycleState:        datamodel.LifeCycleStateREADY,
+		LifeCycleStateDetails: datamodel.LifeCycleStateReadyDetails,
 	}
 	_, err = store.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 	assert.NoError(t, err)
@@ -2394,8 +2445,8 @@ func TestBatchUpdateSnapshots_Persistence_Store(t *testing.T) {
 	// Update snapshots with new state and state details
 	for i, uuid := range uuids {
 		snapshots[i].UUID = uuid
-		snapshots[i].State = models.LifeCycleStateDeleted
-		snapshots[i].StateDetails = models.LifeCycleStateDeletedDetails
+		snapshots[i].State = datamodel.LifeCycleStateDeleted
+		snapshots[i].StateDetails = datamodel.LifeCycleStateDeletedDetails
 	}
 
 	// Test batch update
@@ -2407,8 +2458,8 @@ func TestBatchUpdateSnapshots_Persistence_Store(t *testing.T) {
 		snapshot, err := store.GetSnapshotByUUID(ctx, uuid, createdAcc.ID, createdVol.ID)
 		// Note: This might fail if snapshot is soft-deleted, which is expected behavior
 		if err == nil {
-			assert.Equal(t, models.LifeCycleStateDeleted, snapshot.State)
-			assert.Equal(t, models.LifeCycleStateDeletedDetails, snapshot.StateDetails)
+			assert.Equal(t, datamodel.LifeCycleStateDeleted, snapshot.State)
+			assert.Equal(t, datamodel.LifeCycleStateDeletedDetails, snapshot.StateDetails)
 		}
 	}
 
@@ -2451,8 +2502,8 @@ func TestBatchUnDeleteSnapshots_Persistence_Store(t *testing.T) {
 	// Mark snapshots as deleted first
 	for i, uuid := range uuids {
 		snapshots[i].UUID = uuid
-		snapshots[i].State = models.LifeCycleStateDeleted
-		snapshots[i].StateDetails = models.LifeCycleStateDeletedDetails
+		snapshots[i].State = datamodel.LifeCycleStateDeleted
+		snapshots[i].StateDetails = datamodel.LifeCycleStateDeletedDetails
 	}
 	err = store.BatchUpdateSnapshots(ctx, snapshots)
 	assert.NoError(t, err)
@@ -2650,7 +2701,7 @@ func TestBatchSnapshotOperations_ErrorScenarios_Persistence_Store(t *testing.T) 
 		snapshots := []*datamodel.Snapshot{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid", ID: 9999},
-				State:     models.LifeCycleStateDeleted,
+				State:     datamodel.LifeCycleStateDeleted,
 			},
 		}
 		err := store.BatchUpdateSnapshots(ctx, snapshots)
@@ -2662,7 +2713,7 @@ func TestBatchSnapshotOperations_ErrorScenarios_Persistence_Store(t *testing.T) 
 		snapshots := []*datamodel.Snapshot{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid", ID: 9999},
-				State:     models.LifeCycleStateREADY,
+				State:     datamodel.LifeCycleStateREADY,
 			},
 		}
 		err := store.BatchUnDeleteSnapshots(ctx, snapshots)
@@ -2719,8 +2770,8 @@ func TestBatchSnapshotOperations_ChunkingBehavior_Persistence_Store(t *testing.T
 	// Update all snapshots
 	for i, uuid := range uuids {
 		snapshots[i].UUID = uuid
-		snapshots[i].State = models.LifeCycleStateUpdating
-		snapshots[i].StateDetails = models.LifeCycleStateUpdatingDetails
+		snapshots[i].State = datamodel.LifeCycleStateUpdating
+		snapshots[i].StateDetails = datamodel.LifeCycleStateUpdatingDetails
 	}
 
 	// Test batch update with large number of snapshots
@@ -3725,7 +3776,7 @@ func TestPersistenceStore_WrapperMethods(t *testing.T) {
 			BaseModel:           datamodel.BaseModel{UUID: "test-sa-uuid-wrapper"},
 			ServiceAccountEmail: "test@email.com",
 			AccountID:           createdAccount.ID,
-			State:               models.AccountStateEnabled,
+			State:               datamodel.AccountStateEnabled,
 		}
 		created, err := store.CreateKmsServiceAccount(ctx, sa)
 		require.NoError(t, err)
@@ -3766,7 +3817,7 @@ func TestPersistenceStore_WrapperMethods(t *testing.T) {
 			BaseModel:           datamodel.BaseModel{UUID: "test-sa-uuid-remove"},
 			ServiceAccountEmail: "test-remove@email.com",
 			AccountID:           createdAccount.ID,
-			State:               models.AccountStateEnabled,
+			State:               datamodel.AccountStateEnabled,
 			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
 				Keys: []datamodel.ServiceAccountKey{
 					{KeyID: "key-to-remove", KeyData: "data", IsPrimary: false, IsActive: true},
@@ -3807,7 +3858,7 @@ func TestPersistenceStore_WrapperMethods(t *testing.T) {
 			BaseModel:                      datamodel.BaseModel{UUID: "test-sa-uuid-primary"},
 			ServiceAccountEmail:            "test-primary@email.com",
 			AccountID:                      createdAccount.ID,
-			State:                          models.AccountStateEnabled,
+			State:                          datamodel.AccountStateEnabled,
 			ServiceAccountPasswordLocation: "old-primary-key-data",
 			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
 				Keys: []datamodel.ServiceAccountKey{
@@ -3849,7 +3900,7 @@ func TestPersistenceStore_WrapperMethods(t *testing.T) {
 			BaseModel:           datamodel.BaseModel{UUID: "test-sa-uuid-get"},
 			ServiceAccountEmail: "test-get@email.com",
 			AccountID:           createdAccount.ID,
-			State:               models.AccountStateEnabled,
+			State:               datamodel.AccountStateEnabled,
 			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
 				Keys: []datamodel.ServiceAccountKey{
 					{KeyID: "key-1", KeyData: "data-1", IsPrimary: true, IsActive: true},
@@ -4238,7 +4289,7 @@ func TestPersistenceStore_GetClusterPeerByAccountIDExternalClusterAndPoolID(t *t
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -4373,7 +4424,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -4385,7 +4436,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 		assert.NotNil(tt, createdRow, "Created cluster peering row should not be nil")
 
 		// Update the cluster peering row
-		createdRow.State = models.CvpClusterPeeringStatusPEERED
+		createdRow.State = datamodel.CvpClusterPeeringStatusPEERED
 		createdRow.StateDetails = "Successfully peered"
 		createdRow.OntapPeerUUID = "updated-ontap-peer-uuid"
 
@@ -4396,7 +4447,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 		updatedRow, err := store.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, account.ID, "test-cluster", pool.ID)
 		assert.NoError(tt, err, "Failed to retrieve updated cluster peering row")
 		assert.NotNil(tt, updatedRow, "Updated cluster peering row should not be nil")
-		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, updatedRow.State, "Expected state to be PEERED")
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, updatedRow.State, "Expected state to be PEERED")
 		assert.Equal(tt, "Successfully peered", updatedRow.StateDetails, "Expected state details to be updated")
 		assert.Equal(tt, "updated-ontap-peer-uuid", updatedRow.OntapPeerUUID, "Expected OntapPeerUUID to be updated")
 		assert.Equal(tt, createdRow.ID, updatedRow.ID, "Expected ID to remain the same")
@@ -4420,7 +4471,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 				ID:   999,
 				UUID: "non-existent-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Updated",
 			OnprempCluster: "non-existent-cluster",
 			OntapPeerUUID:  "non-existent-ontap-uuid",
@@ -4473,7 +4524,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "test-ontap-peer-uuid",
@@ -4482,7 +4533,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 		}
 		createdRow, err := store.CreateClusterPeeringRow(context.Background(), clusterPeeringRow)
 		assert.NoError(tt, err, "Failed to create cluster peering row")
-		createdRow.State = models.CvpClusterPeeringStatusPEERED
+		createdRow.State = datamodel.CvpClusterPeeringStatusPEERED
 
 		// Use a cancelled context to trigger a database error
 		cancelledCtx, cancel := context.WithCancel(context.Background())
@@ -4535,7 +4586,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Initial state",
 			OnprempCluster: "test-cluster",
 			OntapPeerUUID:  "initial-ontap-uuid",
@@ -4546,7 +4597,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create cluster peering row")
 
 		// Update multiple fields
-		createdRow.State = models.CvpClusterPeeringStatusPEERED
+		createdRow.State = datamodel.CvpClusterPeeringStatusPEERED
 		createdRow.StateDetails = "Updated multiple fields"
 		createdRow.OntapPeerUUID = "updated-multiple-ontap-uuid"
 		createdRow.OnprempCluster = "updated-cluster"
@@ -4558,7 +4609,7 @@ func TestPersistenceStore_UpdateClusterPeeringRow(t *testing.T) {
 		updatedRow, err := store.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, account.ID, "updated-cluster", pool.ID)
 		assert.NoError(tt, err, "Failed to retrieve updated cluster peering row")
 		assert.NotNil(tt, updatedRow, "Updated cluster peering row should not be nil")
-		assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, updatedRow.State, "Expected state to be PEERED")
+		assert.Equal(tt, datamodel.CvpClusterPeeringStatusPEERED, updatedRow.State, "Expected state to be PEERED")
 		assert.Equal(tt, "Updated multiple fields", updatedRow.StateDetails, "Expected state details to be updated")
 		assert.Equal(tt, "updated-multiple-ontap-uuid", updatedRow.OntapPeerUUID, "Expected OntapPeerUUID to be updated")
 		assert.Equal(tt, "updated-cluster", updatedRow.OnprempCluster, "Expected OnprempCluster to be updated")
@@ -4610,7 +4661,7 @@ func TestPersistenceStore_ListClusterPeeringRowsByAccountID(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid-1",
 			},
-			State:          models.CvpClusterPeeringStatusCREATING,
+			State:          datamodel.CvpClusterPeeringStatusCREATING,
 			StateDetails:   "Creating cluster peer 1",
 			OnprempCluster: "test-cluster-1",
 			OntapPeerUUID:  "test-ontap-peer-uuid-1",
@@ -4625,7 +4676,7 @@ func TestPersistenceStore_ListClusterPeeringRowsByAccountID(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid-2",
 			},
-			State:          models.CvpClusterPeeringStatusPEERED,
+			State:          datamodel.CvpClusterPeeringStatusPEERED,
 			StateDetails:   "Successfully peered cluster 2",
 			OnprempCluster: "test-cluster-2",
 			OntapPeerUUID:  "test-ontap-peer-uuid-2",
@@ -4640,7 +4691,7 @@ func TestPersistenceStore_ListClusterPeeringRowsByAccountID(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-peer-uuid-3",
 			},
-			State:          models.CvpClusterPeeringStatusERROR,
+			State:          datamodel.CvpClusterPeeringStatusERROR,
 			StateDetails:   "Error peering cluster 3",
 			OnprempCluster: "test-cluster-3",
 			OntapPeerUUID:  "test-ontap-peer-uuid-3",
@@ -4788,11 +4839,11 @@ func TestPersistenceStore_ListClusterPeeringRowsByAccountID(t *testing.T) {
 		pool = createdPool
 
 		// Create cluster peering rows with different states
-		states := []models.ClusterPeeringStatus{
-			models.CvpClusterPeeringStatusCREATING,
-			models.CvpClusterPeeringStatusPEERED,
-			models.CvpClusterPeeringStatusERROR,
-			models.CvpClusterPeeringStatusDELETED,
+		states := []datamodel.ClusterPeeringStatus{
+			datamodel.CvpClusterPeeringStatusCREATING,
+			datamodel.CvpClusterPeeringStatusPEERED,
+			datamodel.CvpClusterPeeringStatusERROR,
+			datamodel.CvpClusterPeeringStatusDELETED,
 		}
 
 		for i, state := range states {
@@ -4819,7 +4870,7 @@ func TestPersistenceStore_ListClusterPeeringRowsByAccountID(t *testing.T) {
 		assert.Len(tt, results, 4, "Expected 4 cluster peering rows")
 
 		// Verify all states are present
-		foundStates := make(map[models.ClusterPeeringStatus]bool)
+		foundStates := make(map[datamodel.ClusterPeeringStatus]bool)
 		for _, row := range results {
 			assert.Equal(tt, account.ID, row.AccountID, "Expected account ID to match")
 			assert.Equal(tt, pool.ID, row.PoolID, "Expected pool ID to match")
@@ -4942,7 +4993,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerDetails(t *testing.T) {
 				PeerSvmName:    peerSvmName,
 				PeerVolumeName: peerVolumeName,
 				Description:    "Test replication 1",
-				Status:         models.HybridReplicationStatusPeered,
+				Status:         datamodel.HybridReplicationStatusPeered,
 				StatusDetails:  "Active replication",
 			},
 		}
@@ -4965,7 +5016,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerDetails(t *testing.T) {
 				PeerSvmName:    peerSvmName,
 				PeerVolumeName: peerVolumeName,
 				Description:    "Test replication 2",
-				Status:         models.HybridReplicationStatusPeered,
+				Status:         datamodel.HybridReplicationStatusPeered,
 				StatusDetails:  "Active replication",
 			},
 		}
@@ -4988,7 +5039,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerDetails(t *testing.T) {
 				PeerSvmName:    "different-peer-svm",
 				PeerVolumeName: "different-peer-volume",
 				Description:    "Test replication 3",
-				Status:         models.HybridReplicationStatusPeered,
+				Status:         datamodel.HybridReplicationStatusPeered,
 				StatusDetails:  "Active replication",
 			},
 		}
@@ -5198,7 +5249,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerDetails(t *testing.T) {
 					PeerSvmName:    peerName.svmName,
 					PeerVolumeName: peerName.volumeName,
 					Description:    fmt.Sprintf("Test replication %d", i+1),
-					Status:         models.HybridReplicationStatusPeered,
+					Status:         datamodel.HybridReplicationStatusPeered,
 					StatusDetails:  "Active replication",
 				},
 			}
@@ -5292,7 +5343,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerDetails(t *testing.T) {
 				PeerSvmName:    "test-peer-svm",
 				PeerVolumeName: "test-peer-volume",
 				Description:    "Test replication",
-				Status:         models.HybridReplicationStatusPeered,
+				Status:         datamodel.HybridReplicationStatusPeered,
 				StatusDetails:  "Active replication",
 			},
 		}
@@ -5522,8 +5573,8 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID_Persistence_store(t *testing.T) 
 			AccountID:             account.ID,
 			Account:               account,
 			ExternalUUID:          &externalUUID,
-			LifeCycleState:        models.LifeCycleStateAvailable,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVaultType:       "STANDARD",
 			AccountVendorID:       "test-vendor-id",
 		}
@@ -5619,8 +5670,8 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID_Persistence_store(t *testing.T) 
 			AccountID:             account.ID,
 			Account:               account,
 			ExternalUUID:          &externalUUID,
-			LifeCycleState:        models.LifeCycleStateAvailable,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVaultType:       "STANDARD",
 			AccountVendorID:       "test-vendor-id",
 		}
@@ -5693,8 +5744,8 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID_Persistence_store(t *testing.T) 
 			AccountID:             account.ID,
 			Account:               account,
 			ExternalUUID:          nil, // null external UUID
-			LifeCycleState:        models.LifeCycleStateAvailable,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVaultType:       "STANDARD",
 			AccountVendorID:       "test-vendor-id",
 		}
@@ -5775,8 +5826,8 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID_Persistence_store(t *testing.T) 
 			AccountID:             account.ID,
 			Account:               account,
 			ExternalUUID:          &externalUUID1,
-			LifeCycleState:        models.LifeCycleStateAvailable,
-			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			LifeCycleState:        datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails: datamodel.LifeCycleStateAvailableDetails,
 			BackupVaultType:       "STANDARD",
 			AccountVendorID:       "test-vendor-id-1",
 		}
@@ -5792,8 +5843,8 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID_Persistence_store(t *testing.T) 
 			AccountID:             account.ID,
 			Account:               account,
 			ExternalUUID:          &externalUUID2,
-			LifeCycleState:        models.LifeCycleStateCreating,
-			LifeCycleStateDetails: models.LifeCycleStateCreatingDetails,
+			LifeCycleState:        datamodel.LifeCycleStateCreating,
+			LifeCycleStateDetails: datamodel.LifeCycleStateCreatingDetails,
 			BackupVaultType:       "PREMIUM",
 			AccountVendorID:       "test-vendor-id-2",
 		}
@@ -5887,8 +5938,8 @@ func TestGetBackupVaultByCrossRegionBackupVaultName_Persistence_store(t *testing
 			AccountID:                  account.ID,
 			Account:                    account,
 			CrossRegionBackupVaultName: &crossRegionBackupVaultName,
-			LifeCycleState:             models.LifeCycleStateAvailable,
-			LifeCycleStateDetails:      models.LifeCycleStateAvailableDetails,
+			LifeCycleState:             datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails:      datamodel.LifeCycleStateAvailableDetails,
 			BackupVaultType:            "STANDARD",
 			AccountVendorID:            "test-vendor-id",
 		}
@@ -5978,8 +6029,8 @@ func TestGetBackupVaultByCrossRegionBackupVaultName_Persistence_store(t *testing
 			AccountID:                  account1.ID,
 			Account:                    account1,
 			CrossRegionBackupVaultName: &crossRegionBackupVaultName,
-			LifeCycleState:             models.LifeCycleStateAvailable,
-			LifeCycleStateDetails:      models.LifeCycleStateAvailableDetails,
+			LifeCycleState:             datamodel.LifeCycleStateAvailable,
+			LifeCycleStateDetails:      datamodel.LifeCycleStateAvailableDetails,
 			BackupVaultType:            "STANDARD",
 			AccountVendorID:            "test-vendor-id",
 		}
@@ -6194,7 +6245,7 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 		PoolID:     pool.ID,
 		AccountID:  account.ID,
 		SvmDetails: svmDetails,
-		State:      models.LifeCycleStateREADY,
+		State:      datamodel.LifeCycleStateREADY,
 	}
 	err = store.DB().Create(svm).Error
 	require.NoError(t, err)
@@ -6211,7 +6262,7 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 
 		// Test the wrapper method
@@ -6225,7 +6276,7 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 		assert.Equal(t, expertModeVolume.AccountID, result.AccountID)
 		assert.Equal(t, expertModeVolume.SvmID, result.SvmID)
 		assert.Equal(t, expertModeVolume.Style, result.Style)
-		assert.Equal(t, models.LifeCycleStateCreating, result.State)
+		assert.Equal(t, datamodel.LifeCycleStateCreating, result.State)
 		assert.NotEmpty(t, result.ExternalUUID)
 	})
 
@@ -6260,7 +6311,7 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 		_, err = store.CreateExpertModeVolume(ctx, volume1)
 		require.NoError(t, err)
@@ -6273,7 +6324,7 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexgroup",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 		_, err = store.CreateExpertModeVolume(ctx, volume2)
 		require.NoError(t, err)
@@ -6286,7 +6337,7 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 			SvmID:        svm.ID,
 			Style:        "flexvol",
 			ExternalUUID: utils.RandomUUID(),
-			State:        models.LifeCycleStateCreating,
+			State:        datamodel.LifeCycleStateCreating,
 		}
 		_, err = store.CreateExpertModeVolume(ctx, volume3)
 		require.NoError(t, err)
@@ -6439,8 +6490,8 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Update backup to Available state (not in progress)
-		backup.State = models.LifeCycleStateAvailable
-		backup.StateDetails = models.LifeCycleStateAvailableDetails
+		backup.State = datamodel.LifeCycleStateAvailable
+		backup.StateDetails = datamodel.LifeCycleStateAvailableDetails
 		_, err = store.UpdateBackupState(ctx, backup)
 		require.NoError(tt, err)
 
@@ -6533,8 +6584,8 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Update backup to Deleting state
-		backup.State = models.LifeCycleStateDeleting
-		backup.StateDetails = models.LifeCycleStateDeletingDetails
+		backup.State = datamodel.LifeCycleStateDeleting
+		backup.StateDetails = datamodel.LifeCycleStateDeletingDetails
 		_, err = store.UpdateBackupState(ctx, backup)
 		require.NoError(tt, err)
 
@@ -6681,8 +6732,8 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Update backup2 to Deleting state
-		backup2.State = models.LifeCycleStateDeleting
-		backup2.StateDetails = models.LifeCycleStateDeletingDetails
+		backup2.State = datamodel.LifeCycleStateDeleting
+		backup2.StateDetails = datamodel.LifeCycleStateDeletingDetails
 		_, err = store.UpdateBackupState(ctx, backup2)
 		require.NoError(tt, err)
 
@@ -6739,8 +6790,8 @@ func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
 		require.NoError(tt, err)
 
 		// Update backup2 to Deleting state
-		backup2.State = models.LifeCycleStateDeleting
-		backup2.StateDetails = models.LifeCycleStateDeletingDetails
+		backup2.State = datamodel.LifeCycleStateDeleting
+		backup2.StateDetails = datamodel.LifeCycleStateDeletingDetails
 		backup2, err = store.UpdateBackupState(ctx, backup2)
 		require.NoError(tt, err)
 
@@ -7819,18 +7870,18 @@ func TestCancelPrepopulateJobsForVolume_Persistence_Store(t *testing.T) {
 	// Create prepopulate jobs in various states for this volume
 	newJob := &datamodel.Job{
 		ResourceName: volumeUUID,
-		Type:         string(models.JobTypeFlexCachePrePopulate),
-		State:        string(models.JobsStateNEW),
+		Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+		State:        string(datamodel.JobsStateNEW),
 	}
 	processingJob := &datamodel.Job{
 		ResourceName: volumeUUID,
-		Type:         string(models.JobTypeFlexCachePrePopulate),
-		State:        string(models.JobsStatePROCESSING),
+		Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+		State:        string(datamodel.JobsStatePROCESSING),
 	}
 	doneJob := &datamodel.Job{
 		ResourceName: volumeUUID,
-		Type:         string(models.JobTypeFlexCachePrePopulate),
-		State:        string(models.JobsStateDONE),
+		Type:         string(datamodel.JobTypeFlexCachePrePopulate),
+		State:        string(datamodel.JobsStateDONE),
 	}
 
 	createdNew, err := store.CreateJob(ctx, newJob)
@@ -7847,19 +7898,19 @@ func TestCancelPrepopulateJobsForVolume_Persistence_Store(t *testing.T) {
 	// Verify NEW job was cancelled (moved to ERROR)
 	found, err := store.GetJob(ctx, createdNew.UUID)
 	assert.NoError(t, err)
-	assert.Equal(t, string(models.JobsStateERROR), found.State)
+	assert.Equal(t, string(datamodel.JobsStateERROR), found.State)
 	assert.Contains(t, found.ErrorDetails, volumeUUID)
 
 	// Verify PROCESSING job was cancelled (moved to ERROR)
 	found, err = store.GetJob(ctx, createdProcessing.UUID)
 	assert.NoError(t, err)
-	assert.Equal(t, string(models.JobsStateERROR), found.State)
+	assert.Equal(t, string(datamodel.JobsStateERROR), found.State)
 	assert.Contains(t, found.ErrorDetails, volumeUUID)
 
 	// Verify DONE job was NOT affected
 	found, err = store.GetJob(ctx, createdDone.UUID)
 	assert.NoError(t, err)
-	assert.Equal(t, string(models.JobsStateDONE), found.State)
+	assert.Equal(t, string(datamodel.JobsStateDONE), found.State)
 }
 
 func TestCancelPrepopulateJobsForVolume_NoActiveJobs_Persistence_Store(t *testing.T) {
@@ -8491,7 +8542,7 @@ func TestPersistenceStore_PollerRebalanceDataPaths(t *testing.T) {
 		Name:      "pool_prbp",
 		AccountID: acc.ID,
 		Account:   acc,
-		State:     models.LifeCycleStateREADY,
+		State:     datamodel.LifeCycleStateREADY,
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:  "z1",
 			IsRegionalHA: false,

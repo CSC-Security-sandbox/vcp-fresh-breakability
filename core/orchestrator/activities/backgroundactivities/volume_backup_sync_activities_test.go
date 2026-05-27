@@ -7,12 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
@@ -278,15 +277,15 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestGetObjectStoreEndpointInfo()
 			// Setup
 			tt.setupMock()
 
-			// Mock hyperscaler.GetProviderByNode if needed
+			// Mock vsa.GetProviderByNode if needed
 			var originalGetProviderByNode func(context.Context, *models.Node) (vsa.Provider, error)
 			if tt.mockProviderNeeded {
-				originalGetProviderByNode = hyperscaler.GetProviderByNode
-				hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				originalGetProviderByNode = vsa.GetProviderByNode
+				vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 					return s.mockProvider, nil
 				}
 				defer func() {
-					hyperscaler.GetProviderByNode = originalGetProviderByNode
+					vsa.GetProviderByNode = originalGetProviderByNode
 				}()
 			}
 
@@ -467,15 +466,15 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestGetObjectStoreEndpointInfoAc
 			// Setup
 			tt.setupMock()
 
-			// Mock hyperscaler.GetProviderByNode if needed
+			// Mock vsa.GetProviderByNode if needed
 			var originalGetProviderByNode func(context.Context, *models.Node) (vsa.Provider, error)
 			if tt.mockProviderNeeded {
-				originalGetProviderByNode = hyperscaler.GetProviderByNode
-				hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				originalGetProviderByNode = vsa.GetProviderByNode
+				vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 					return s.mockProvider, nil
 				}
 				defer func() {
-					hyperscaler.GetProviderByNode = originalGetProviderByNode
+					vsa.GetProviderByNode = originalGetProviderByNode
 				}()
 			}
 
@@ -656,8 +655,8 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(2*1024*1024*1024*1024)
 				})).Return(nil)
 
-			// Mock backup chain history update (no vault → endpointUUID = "")
-			s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(2*1024*1024*1024*1024)).Return(nil)
+				// Mock backup chain history update (no vault → endpointUUID = "")
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(2*1024*1024*1024*1024)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -712,9 +711,9 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 			setupMock: func() {
 				s.mockStorage.On("UpdateBackupFields", s.ctx, "backup-uuid", mock.Anything).Return(nil)
 				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.Anything).Return(nil)
-			// Force ledger update to fail; the activity should still succeed because the error is swallowed.
-			s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(1024*1024*1024)).Return(
-				errors.New("simulated chain history update failure"))
+				// Force ledger update to fail; the activity should still succeed because the error is swallowed.
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(1024*1024*1024)).Return(
+					errors.New("simulated chain history update failure"))
 			},
 			expectedError: false,
 		},

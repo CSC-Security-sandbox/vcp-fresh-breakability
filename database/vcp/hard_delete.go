@@ -4,8 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"gorm.io/gorm"
 )
 
@@ -20,8 +19,8 @@ func (d *DataStoreRepository) DeleteAccount(ctx context.Context, accountID int64
 
 	accountInfo.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	accountInfo.UpdatedAt = accountInfo.DeletedAt.Time
-	accountInfo.State = models.AccountStateDeleted
-	accountInfo.StateDetails = models.LifeCycleStateDeletedDetails
+	accountInfo.State = datamodel.AccountStateDeleted
+	accountInfo.StateDetails = datamodel.LifeCycleStateDeletedDetails
 
 	err = db.Save(&accountInfo).Error
 	if err != nil {
@@ -81,8 +80,8 @@ func (d *DataStoreRepository) RollBackDeletedAccount(ctx context.Context, accoun
 	accountInfo.DeletedAt = nil
 	accountInfo.UpdatedAt = time.Now()
 	// TODO: State might be hyperscalerDisabled or something else
-	accountInfo.State = models.AccountStateHyperscalerDisabled
-	accountInfo.StateDetails = models.LifeCycleStateHyperscalerDisabledDetails
+	accountInfo.State = datamodel.AccountStateHyperscalerDisabled
+	accountInfo.StateDetails = datamodel.LifeCycleStateHyperscalerDisabledDetails
 
 	err = db.Save(&accountInfo).Error
 	if err != nil {

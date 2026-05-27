@@ -10,10 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
@@ -272,7 +271,7 @@ func TestCreateSVM(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -320,7 +319,7 @@ func TestCreateSVM(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -375,7 +374,7 @@ func TestCreateSVM(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -419,7 +418,7 @@ func TestCreateSVM(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		// Step 1: pre-allocate row in CREATING with the OCID — mirrors the OCI
@@ -429,7 +428,7 @@ func TestCreateSVM(t *testing.T) {
 			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID, SvmExternalIdentifier: "ocid1.svm..a",
 		})
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateCreating, preallocated.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, preallocated.State)
 
 		// Step 2: CreateSVM is invoked again with VLM-derived fields populated. This
 		// must upgrade the existing row in place rather than fail with conflict.
@@ -441,8 +440,8 @@ func TestCreateSVM(t *testing.T) {
 			SvmDetails:            &datamodel.SvmDetails{ExternalUUID: "ext-uuid", IPSpace: "Default"},
 		})
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateREADY, finalized.State)
-		assert.Equal(tt, models.LifeCycleStateAvailableDetails, finalized.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, finalized.State)
+		assert.Equal(tt, datamodel.LifeCycleStateAvailableDetails, finalized.StateDetails)
 		assert.Equal(tt, "ocid1.svm..a", finalized.SvmExternalIdentifier)
 		if assert.NotNil(tt, finalized.SvmDetails) {
 			assert.Equal(tt, "ext-uuid", finalized.SvmDetails.ExternalUUID)
@@ -467,14 +466,14 @@ func TestCreateSVM(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		first, err := store.CreateSVM(context.Background(), &datamodel.Svm{
 			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID,
 		})
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateREADY, first.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, first.State)
 
 		second, err := store.CreateSVM(context.Background(), &datamodel.Svm{
 			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID,
@@ -501,7 +500,7 @@ func TestCreateSVM(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		// Stale survivor from a previous successful create with the same name,
@@ -512,8 +511,8 @@ func TestCreateSVM(t *testing.T) {
 			AccountID:             account.ID,
 			PoolID:                pool.ID,
 			SvmExternalIdentifier: "ocid1.svm..stale",
-			State:                 models.LifeCycleStateREADY,
-			StateDetails:          models.LifeCycleStateAvailableDetails,
+			State:                 datamodel.LifeCycleStateREADY,
+			StateDetails:          datamodel.LifeCycleStateAvailableDetails,
 		}
 		assert.NoError(tt, store.db.Create(stale).Error())
 
@@ -526,7 +525,7 @@ func TestCreateSVM(t *testing.T) {
 			SvmExternalIdentifier: "ocid1.svm..fresh",
 		})
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateCreating, preallocated.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, preallocated.State)
 		assert.NotEqual(tt, stale.UUID, preallocated.UUID)
 
 		// Finalize: must target the pre-allocated row by OCID, not the stale
@@ -540,7 +539,7 @@ func TestCreateSVM(t *testing.T) {
 		})
 		assert.NoError(tt, err)
 		assert.Equal(tt, preallocated.UUID, finalized.UUID, "finalize must target the pre-allocated row, not the stale one")
-		assert.Equal(tt, models.LifeCycleStateREADY, finalized.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, finalized.State)
 		assert.Equal(tt, "ocid1.svm..fresh", finalized.SvmExternalIdentifier)
 		if assert.NotNil(tt, finalized.SvmDetails) {
 			assert.Equal(tt, "fresh-ext", finalized.SvmDetails.ExternalUUID)
@@ -549,7 +548,7 @@ func TestCreateSVM(t *testing.T) {
 		// Stale row must be untouched.
 		var staleAfter datamodel.Svm
 		assert.NoError(tt, store.db.GORM().Where("uuid = ?", stale.UUID).First(&staleAfter).Error)
-		assert.Equal(tt, models.LifeCycleStateREADY, staleAfter.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, staleAfter.State)
 		assert.Equal(tt, "ocid1.svm..stale", staleAfter.SvmExternalIdentifier)
 	})
 }
@@ -566,15 +565,15 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		svm, err := store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
 			Name: "svm-1", AccountID: account.ID, PoolID: pool.ID, SvmExternalIdentifier: "ocid1.svm..a",
 		})
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateCreating, svm.State)
-		assert.Equal(tt, models.LifeCycleStateCreatingDetails, svm.StateDetails)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, svm.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreatingDetails, svm.StateDetails)
 		assert.Equal(tt, "ocid1.svm..a", svm.SvmExternalIdentifier)
 		assert.NotEmpty(tt, svm.UUID)
 	})
@@ -593,7 +592,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		first, err := store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
@@ -606,7 +605,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 		})
 		assert.NoError(tt, err)
 		assert.Equal(tt, first.UUID, second.UUID)
-		assert.Equal(tt, models.LifeCycleStateCreating, second.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, second.State)
 	})
 
 	// External-identifier idempotency: a retry with the same OCID + name +
@@ -623,7 +622,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		first, err := store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
@@ -636,7 +635,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 		})
 		assert.NoError(tt, err)
 		assert.Equal(tt, first.UUID, second.UUID)
-		assert.Equal(tt, models.LifeCycleStateCreating, second.State)
+		assert.Equal(tt, datamodel.LifeCycleStateCreating, second.State)
 	})
 
 	// Concurrency guard: a second insert that reuses an OCID already owned by
@@ -654,7 +653,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		_, err = store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
@@ -683,7 +682,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		existing := &datamodel.Svm{
@@ -695,7 +694,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 			AccountID:             account.ID,
 			PoolID:                pool.ID,
 			SvmExternalIdentifier: "ocid1.svm..a",
-			State:                 models.LifeCycleStateDeleted,
+			State:                 datamodel.LifeCycleStateDeleted,
 		}
 		assert.NoError(tt, store.db.GORM().Create(existing).Error)
 
@@ -720,7 +719,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		existing := &datamodel.Svm{
@@ -729,7 +728,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 			AccountID:             account.ID,
 			PoolID:                pool.ID,
 			SvmExternalIdentifier: "ocid1.svm..a",
-			State:                 models.LifeCycleStateREADY,
+			State:                 datamodel.LifeCycleStateREADY,
 		}
 		assert.NoError(tt, store.db.GORM().Create(existing).Error)
 
@@ -755,7 +754,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		existing := &datamodel.Svm{
@@ -764,7 +763,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 			AccountID:             account.ID,
 			PoolID:                pool.ID,
 			SvmExternalIdentifier: "ocid1.svm..a",
-			State:                 models.LifeCycleStateError,
+			State:                 datamodel.LifeCycleStateError,
 		}
 		assert.NoError(tt, store.db.GORM().Create(existing).Error)
 
@@ -790,7 +789,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		existing := &datamodel.Svm{
@@ -798,8 +797,8 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 			Name:         "svm-1",
 			AccountID:    account.ID,
 			PoolID:       pool.ID,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateAvailableDetails,
 		}
 		assert.NoError(tt, store.db.GORM().Create(existing).Error)
 
@@ -824,7 +823,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		// Soft-deleted prior SVM with same name+pool but no OCID (legacy path).
@@ -836,7 +835,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 			Name:      "svm-1",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
-			State:     models.LifeCycleStateDeleted,
+			State:     datamodel.LifeCycleStateDeleted,
 		}
 		assert.NoError(tt, store.db.GORM().Create(deleted).Error)
 
@@ -845,7 +844,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 		})
 		assert.NoError(tt, err)
 		if assert.NotNil(tt, fresh) {
-			assert.Equal(tt, models.LifeCycleStateCreating, fresh.State)
+			assert.Equal(tt, datamodel.LifeCycleStateCreating, fresh.State)
 			assert.NotEqual(tt, deleted.UUID, fresh.UUID)
 		}
 	})
@@ -866,7 +865,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		existing := &datamodel.Svm{
@@ -875,7 +874,7 @@ func TestCreateSvmInCreatingState(t *testing.T) {
 			AccountID:             account.ID,
 			PoolID:                pool.ID,
 			SvmExternalIdentifier: "ocid1.svm..a",
-			State:                 models.LifeCycleStateDeleting,
+			State:                 datamodel.LifeCycleStateDeleting,
 		}
 		assert.NoError(tt, store.db.GORM().Create(existing).Error)
 
@@ -906,7 +905,7 @@ func TestCreateSvmInCreatingState_ParallelSameOCID(t *testing.T) {
 
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 	assert.NoError(t, store.db.Create(account).Error())
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 	assert.NoError(t, store.db.Create(pool).Error())
 
 	const sharedOCID = "ocid1.svm..race"
@@ -988,7 +987,7 @@ func TestSvmExistsByExternalIdentifier(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		_, err = store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
@@ -1015,7 +1014,7 @@ func TestSvmExistsByExternalIdentifier(t *testing.T) {
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		existing := &datamodel.Svm{
@@ -1027,7 +1026,7 @@ func TestSvmExistsByExternalIdentifier(t *testing.T) {
 			AccountID:             account.ID,
 			PoolID:                pool.ID,
 			SvmExternalIdentifier: "ocid1.svm..a",
-			State:                 models.LifeCycleStateDeleted,
+			State:                 datamodel.LifeCycleStateDeleted,
 		}
 		assert.NoError(tt, store.db.GORM().Create(existing).Error)
 
@@ -1061,7 +1060,7 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		tt.Helper()
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct"}, Name: "acct"}
 		assert.NoError(tt, store.db.Create(account).Error())
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: models.LifeCycleStateREADY}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 7}, Name: "pool", AccountID: account.ID, State: datamodel.LifeCycleStateREADY}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
 		svm, err := store.CreateSvmInCreatingState(context.Background(), &datamodel.Svm{
@@ -1071,7 +1070,7 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		// CreateSvmInCreatingState seeds CREATING; flip to the requested
 		// state directly so each subtest can target a specific source state
 		// without going through the production state machine.
-		if state != models.LifeCycleStateCreating {
+		if state != datamodel.LifeCycleStateCreating {
 			assert.NoError(tt, store.db.GORM().Model(svm).Update("state", state).Error)
 			svm.State = state
 		}
@@ -1087,13 +1086,13 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		store := NewDataStoreRepository(wrapper)
 		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
 
-		svm := seed(tt, store, models.LifeCycleStateREADY)
+		svm := seed(tt, store, datamodel.LifeCycleStateREADY)
 
 		updated, err := store.TransitionSvmToDeleting(context.Background(), svm)
 		assert.NoError(tt, err)
 		if assert.NotNil(tt, updated) {
-			assert.Equal(tt, models.LifeCycleStateDeleting, updated.State)
-			assert.Equal(tt, models.LifeCycleStateDeletingDetails, updated.StateDetails)
+			assert.Equal(tt, datamodel.LifeCycleStateDeleting, updated.State)
+			assert.Equal(tt, datamodel.LifeCycleStateDeletingDetails, updated.StateDetails)
 		}
 	})
 
@@ -1108,12 +1107,12 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		store := NewDataStoreRepository(wrapper)
 		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
 
-		svm := seed(tt, store, models.LifeCycleStateError)
+		svm := seed(tt, store, datamodel.LifeCycleStateError)
 
 		updated, err := store.TransitionSvmToDeleting(context.Background(), svm)
 		assert.NoError(tt, err)
 		if assert.NotNil(tt, updated) {
-			assert.Equal(tt, models.LifeCycleStateDeleting, updated.State)
+			assert.Equal(tt, datamodel.LifeCycleStateDeleting, updated.State)
 		}
 	})
 
@@ -1128,7 +1127,7 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		store := NewDataStoreRepository(wrapper)
 		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
 
-		svm := seed(tt, store, models.LifeCycleStateDeleting)
+		svm := seed(tt, store, datamodel.LifeCycleStateDeleting)
 
 		_, err = store.TransitionSvmToDeleting(context.Background(), svm)
 		assert.Error(tt, err)
@@ -1146,7 +1145,7 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		store := NewDataStoreRepository(wrapper)
 		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
 
-		svm := seed(tt, store, models.LifeCycleStateDeleted)
+		svm := seed(tt, store, datamodel.LifeCycleStateDeleted)
 
 		_, err = store.TransitionSvmToDeleting(context.Background(), svm)
 		assert.Error(tt, err)
@@ -1165,7 +1164,7 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		store := NewDataStoreRepository(wrapper)
 		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
 
-		svm := seed(tt, store, models.LifeCycleStateDeleted)
+		svm := seed(tt, store, datamodel.LifeCycleStateDeleted)
 		assert.NoError(tt, store.db.GORM().Delete(&datamodel.Svm{}, svm.ID).Error)
 
 		_, err = store.TransitionSvmToDeleting(context.Background(), svm)
@@ -1184,7 +1183,7 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		store := NewDataStoreRepository(wrapper)
 		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
 
-		svm := seed(tt, store, models.LifeCycleStateREADY)
+		svm := seed(tt, store, datamodel.LifeCycleStateREADY)
 		assert.NoError(tt, store.db.GORM().Unscoped().Delete(&datamodel.Svm{}, svm.ID).Error)
 
 		_, err = store.TransitionSvmToDeleting(context.Background(), svm)
@@ -1201,7 +1200,7 @@ func TestTransitionSvmToDeleting(t *testing.T) {
 		store := NewDataStoreRepository(wrapper)
 		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
 
-		svm := seed(tt, store, models.LifeCycleStateCreating)
+		svm := seed(tt, store, datamodel.LifeCycleStateCreating)
 
 		_, err = store.TransitionSvmToDeleting(context.Background(), svm)
 		assert.Error(tt, err)
@@ -1239,7 +1238,7 @@ func TestDeleteSVM(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -1302,7 +1301,7 @@ func TestDeletingSVM(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -1332,11 +1331,11 @@ func TestDeletingSVM(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to fetch updated svm: %v", err)
 		}
-		if updatedSvm.State != models.LifeCycleStateDeleting {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateDeleting, updatedSvm.State)
+		if updatedSvm.State != datamodel.LifeCycleStateDeleting {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateDeleting, updatedSvm.State)
 		}
-		if updatedSvm.StateDetails != models.LifeCycleStateDeletingDetails {
-			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateDeletingDetails, updatedSvm.StateDetails)
+		if updatedSvm.StateDetails != datamodel.LifeCycleStateDeletingDetails {
+			tt.Errorf("Expected state details %v, got %v", datamodel.LifeCycleStateDeletingDetails, updatedSvm.StateDetails)
 		}
 	})
 }
@@ -1475,7 +1474,7 @@ func TestErroredSVM(t *testing.T) {
 			Name:      "test_svm",
 			AccountID: int64(10),
 			PoolID:    1234,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(svm).Error()
 		if err != nil {
@@ -1489,7 +1488,7 @@ func TestErroredSVM(t *testing.T) {
 		updatedSvm := &datamodel.Svm{}
 		err = store.db.GORM().First(updatedSvm, "uuid = ?", svm.UUID).Error
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateError, updatedSvm.State)
+		assert.Equal(tt, datamodel.LifeCycleStateError, updatedSvm.State)
 		assert.Equal(tt, errMsg, updatedSvm.StateDetails)
 		assert.WithinDuration(tt, time.Now(), updatedSvm.UpdatedAt, 2*time.Second)
 	})
@@ -1511,7 +1510,7 @@ func TestErroredSVM(t *testing.T) {
 			Name:      "failing_svm",
 			AccountID: int64(20),
 			PoolID:    5678,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(svm).Error()
 		if err != nil {
@@ -1782,7 +1781,7 @@ func TestUnsetSvmActiveDirectoryID(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
@@ -1854,7 +1853,7 @@ func TestUnsetSvmActiveDirectoryID(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
@@ -1896,7 +1895,7 @@ func TestDataStoreRepository_GetSvmByExternalUUID(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "pool-external-1"},
 			Name:           "test_pool",
 			AccountID:      account.ID,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			DeploymentName: "deployment-1",
 		}
 		assert.NoError(tt, store.db.Create(pool).Error())
@@ -1950,7 +1949,7 @@ func TestDataStoreRepository_GetSvmByExternalUUID(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "pool-source"},
 			Name:           "source_pool",
 			AccountID:      account.ID,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			DeploymentName: "deployment-source",
 		}
 		assert.NoError(tt, store.db.Create(sourcePool).Error())
@@ -1959,7 +1958,7 @@ func TestDataStoreRepository_GetSvmByExternalUUID(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "pool-target"},
 			Name:           "target_pool",
 			AccountID:      account.ID,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			DeploymentName: "deployment-target",
 		}
 		assert.NoError(tt, store.db.Create(targetPool).Error())
@@ -1999,7 +1998,7 @@ func TestDataStoreRepository_GetSvmByExternalUUID(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "pool-external-3"},
 			Name:           "test_pool",
 			AccountID:      account.ID,
-			State:          models.LifeCycleStateREADY,
+			State:          datamodel.LifeCycleStateREADY,
 			DeploymentName: "deployment-3",
 		}
 		assert.NoError(tt, store.db.Create(pool).Error())
@@ -2059,7 +2058,7 @@ func TestUpdateSvmCurrentKmsKeyID(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
@@ -2107,7 +2106,7 @@ func TestUpdateSvmCurrentKmsKeyID(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		assert.NoError(tt, store.db.Create(pool).Error())
 
@@ -2181,7 +2180,7 @@ func TestUpdateSvmCurrentKmsKeyID(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		assert.NoError(tt, store.db.Create(pool).Error())
 

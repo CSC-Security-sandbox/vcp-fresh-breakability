@@ -3,7 +3,7 @@ package activities
 import (
 	"sort"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 )
 
 // HarvestRebalanceMove is one atomic drain: all NodeIDs move from SourceGroupID to TargetGroupID together.

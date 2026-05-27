@@ -14,14 +14,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/inmemotasksprocessor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1141,11 +1140,11 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 			return nil // Always succeed to bypass the connection test
 		}
 
-		// Patch hyperscaler.GetProviderByNodeWithFastConnection to return mock provider
+		// Patch vsa.GetProviderByNodeWithFastConnection to return mock provider
 		// This must be set up before SyncVSAClusterHealth is called to avoid race conditions
-		originalGetProviderByNodeWithFastConnection := hyperscaler.GetProviderByNodeWithFastConnection
-		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection }()
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		originalGetProviderByNodeWithFastConnection := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection }()
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

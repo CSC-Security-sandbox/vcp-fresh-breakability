@@ -266,4 +266,4 @@ ORDER BY created_at ASC;
 - **Database:** VCP database — `jobs` table for job state, `workflow_id`, `type`, `created_at`
 - **Temporal CLI:** `doc/guides/temporal-debugging.md` — describe, show, list workflows; cancel/terminate only per process
 - **Workflow docs:** `doc/workflows/` — pool, volume, replication, backup workflows and timeouts
-- **Error taxonomy:** `doc/api/error-taxonomy.md`, `core/errors/README.md`
+- **Error taxonomy:** `doc/api/error-taxonomy.md`, `lib/errors/README.md`

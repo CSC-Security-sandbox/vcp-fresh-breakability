@@ -329,15 +329,15 @@ func extractWhereClause(sql string) (string, bool) {
 func removeTopLevelTrailingClauses(whereClause string) string {
 	upper := strings.ToUpper(whereClause)
 	keywords := []string{"ORDER BY", "LIMIT", "GROUP BY", "HAVING", "OFFSET"}
-	
+
 	// Track parenthesis depth
 	depth := 0
 	result := whereClause
-	
+
 	for _, keyword := range keywords {
 		keywordIdx := -1
 		keywordDepth := 0
-		
+
 		// Find the keyword at depth 0 (top level)
 		for i := 0; i < len(upper); i++ {
 			if upper[i] == '(' {
@@ -348,8 +348,8 @@ func removeTopLevelTrailingClauses(whereClause string) string {
 				// Check if keyword starts at this position
 				if i+len(keyword) <= len(upper) && upper[i:i+len(keyword)] == keyword {
 					// Make sure it's a word boundary
-					if (i == 0 || !isAlphaNum(upper[i-1])) && 
-					   (i+len(keyword) >= len(upper) || !isAlphaNum(upper[i+len(keyword)])) {
+					if (i == 0 || !isAlphaNum(upper[i-1])) &&
+						(i+len(keyword) >= len(upper) || !isAlphaNum(upper[i+len(keyword)])) {
 						keywordIdx = i
 						keywordDepth = depth
 						break
@@ -357,7 +357,7 @@ func removeTopLevelTrailingClauses(whereClause string) string {
 				}
 			}
 		}
-		
+
 		// If found at top level, truncate
 		if keywordIdx != -1 && keywordDepth == 0 {
 			result = strings.TrimSpace(result[:keywordIdx])
@@ -365,7 +365,7 @@ func removeTopLevelTrailingClauses(whereClause string) string {
 			depth = 0 // Reset for next keyword
 		}
 	}
-	
+
 	return result
 }
 

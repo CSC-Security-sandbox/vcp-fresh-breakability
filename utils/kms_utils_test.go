@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"google.golang.org/api/cloudkms/v1"
 	"google.golang.org/api/googleapi"
 )

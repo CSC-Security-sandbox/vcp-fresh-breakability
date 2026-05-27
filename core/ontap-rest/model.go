@@ -920,13 +920,13 @@ func securityLogForwardingCreateParamsToONTAP(params *SecurityLogForwardingCreat
 
 type EMSEventDestinationCreateParams struct {
 	BaseParams
-	Name                    *string
-	Type                    *string // "syslog", "email", "snmp", "rest_api"
-	SyslogHost              *string
-	SyslogPort              *int64
-	SyslogTransport         *string // "udp_unencrypted", "tcp_unencrypted", "tcp_encrypted"
-	SyslogTimestampFormat   *string // "rfc-3164", "rfc-5424", "no-override"
-	SyslogMessageFormat     *string // "legacy-netapp", "rfc-5424"
+	Name                  *string
+	Type                  *string // "syslog", "email", "snmp", "rest_api"
+	SyslogHost            *string
+	SyslogPort            *int64
+	SyslogTransport       *string // "udp_unencrypted", "tcp_unencrypted", "tcp_encrypted"
+	SyslogTimestampFormat *string // "rfc-3164", "rfc-5424", "no-override"
+	SyslogMessageFormat   *string // "legacy-netapp", "rfc-5424"
 }
 
 type EMSEventFilterCreateParams struct {
@@ -937,7 +937,7 @@ type EMSEventFilterCreateParams struct {
 type EMSEventFilterRuleAddParams struct {
 	BaseParams
 	FilterName *string
-	Type       *string // "include", "exclude"
+	Type       *string  // "include", "exclude"
 	Severity   []string // "EMERGENCY", "ALERT", "ERROR", "NOTICE", "INFORMATIONAL"
 }
 
@@ -953,17 +953,17 @@ type EMSEventDestinationModifyParams struct {
 }
 
 type EMSEventDestination struct {
-	Name    string
-	Type    string
-	Syslog  *EMSEventDestinationSyslog
+	Name   string
+	Type   string
+	Syslog *EMSEventDestinationSyslog
 }
 
 type EMSEventDestinationSyslog struct {
-	Host              string
-	Port              int64
-	Transport         string
-	TimestampFormat   string
-	MessageFormat     string
+	Host            string
+	Port            int64
+	Transport       string
+	TimestampFormat string
+	MessageFormat   string
 }
 
 func gcpKmsCreateParamsToONTAP(params *GcpKmsCreateParams) *security.GcpKmsCreateParams {

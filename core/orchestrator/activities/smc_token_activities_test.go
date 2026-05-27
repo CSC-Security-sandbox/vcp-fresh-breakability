@@ -3,12 +3,12 @@ package activities_test
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
@@ -44,12 +44,12 @@ func Test_generateTokenForNode_Success(t *testing.T) {
 	tokenValue := "test-token"
 	node := &coremodels.Node{Name: "node1"}
 	clientSecret := "secret"
-	origGetProviderByNode := hyperscaler2.GetProviderByNode
+	origGetProviderByNode := vsa.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(&tokenValue, nil)
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
@@ -61,12 +61,12 @@ func Test_generateTokenForNode_Success(t *testing.T) {
 func Test_generateTokenForNode_NilToken(t *testing.T) {
 	node := &coremodels.Node{Name: "node1"}
 	clientSecret := "secret"
-	origGetProviderByNode := hyperscaler2.GetProviderByNode
+	origGetProviderByNode := vsa.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(nil, nil)
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
@@ -78,12 +78,12 @@ func Test_generateTokenForNode_EmptyToken(t *testing.T) {
 	tokenValue := ""
 	node := &coremodels.Node{Name: "node1"}
 	clientSecret := "secret"
-	origGetProviderByNode := hyperscaler2.GetProviderByNode
+	origGetProviderByNode := vsa.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(&tokenValue, nil)
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
@@ -94,11 +94,11 @@ func Test_generateTokenForNode_EmptyToken(t *testing.T) {
 func Test_generateTokenForNode_GetProviderByNodeError(t *testing.T) {
 	node := &coremodels.Node{Name: "node1"}
 	clientSecret := "secret"
-	origGetProviderByNode := hyperscaler2.GetProviderByNode
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+	origGetProviderByNode := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
 		return nil, workflows.ConvertToVSAError(fmt.Errorf("getProviderByNode error"))
 	}
-	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
+	defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
 	assert.Error(t, err)

@@ -8,17 +8,16 @@ import (
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -184,7 +183,7 @@ func (a *QuotaRuleCommonActivity) GetOntapQuotaUUID(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
 		return "", vsaerrors.WrapAsTemporalApplicationError(err)
@@ -241,7 +240,7 @@ func (a *QuotaRuleCommonActivity) HandleQuotaEnableDisable(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -291,7 +290,7 @@ func (a *QuotaRuleCommonActivity) QuotaReinitialization(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -540,7 +539,7 @@ func (a *QuotaRuleUpdateActivity) UpdateQuotaRulesOnOntap(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for quota rule update: %v", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -580,7 +579,7 @@ func (a *QuotaRuleUpdateActivity) RevertQuotaRulesOnSource(
 		externalQuotaUUID, originalDiskLimitInKib)
 
 	// Use the existing UpdateQuotaRulesOnOntap activity with the original value
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for quota rule update: %v", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -616,7 +615,7 @@ func (a *QuotaRuleDeleteActivity) DeleteQuotaRuleOnOntap(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for quota rule deletion: %v", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -830,7 +829,7 @@ func (a *QuotaRuleCommonActivity) UpdateRQuotaOnSvm(ctx context.Context, svmExte
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for SVM %s: %v", svmExternalUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -859,7 +858,7 @@ func (a *QuotaRuleCreateActivity) HandleDefaultQuotaRuleUpdate(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -941,7 +940,7 @@ func (a *QuotaRuleCreateActivity) CreateQuotaRuleOnONTAP(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1006,7 +1005,7 @@ func (a *QuotaRuleCreateActivity) GetQuotaStatus(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1133,7 +1132,7 @@ func (a *QuotaRuleCommonActivity) HandleQuotaEnablementAndReinitialization(
 	logger := util.GetLogger(ctx)
 
 	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)

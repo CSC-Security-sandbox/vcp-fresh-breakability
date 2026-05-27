@@ -12,7 +12,6 @@ import (
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -69,11 +68,11 @@ func makeTestNode() *models.Node {
 }
 
 func overrideProvider(t *testing.T, provider vsa.Provider) {
-	originalGetProvider := hyperscaler2.GetProviderByNode
-	hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+	originalGetProvider := vsa.GetProviderByNode
+	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return provider, nil
 	}
-	t.Cleanup(func() { hyperscaler2.GetProviderByNode = originalGetProvider })
+	t.Cleanup(func() { vsa.GetProviderByNode = originalGetProvider })
 }
 
 func newOntapProvider(ctx context.Context) *vsa.OntapRestProvider {
@@ -225,11 +224,11 @@ func TestGetOrCreateCifsService(t *testing.T) {
 		defer func() { utils.DecryptPassword = originalDecryptPassword }()
 
 		mockProvider := vsa.NewMockProvider(t)
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
 
 		_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, node, ad, svmName, externalSVMUUID)
 		assert.Error(t, err)
@@ -249,11 +248,11 @@ func TestGetOrCreateCifsService(t *testing.T) {
 		}
 		defer func() { utils.DecryptPassword = originalDecryptPassword }()
 
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
 
 		_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, node, ad, svmName, externalSVMUUID)
 		assert.Error(t, err)
@@ -312,11 +311,11 @@ func TestDdnsModify(t *testing.T) {
 		env.RegisterActivity(activity.DdnsModify)
 
 		mockProvider := vsa.NewMockProvider(t)
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
 
 		_, err := env.ExecuteActivity(activity.DdnsModify, node, externalSVMUUID, fqdn)
 		assert.Error(t, err)
@@ -328,11 +327,11 @@ func TestDdnsModify(t *testing.T) {
 		env := testSuite.NewTestActivityEnvironment()
 		env.RegisterActivity(activity.DdnsModify)
 
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
 
 		_, err := env.ExecuteActivity(activity.DdnsModify, node, externalSVMUUID, fqdn)
 		assert.Error(t, err)
@@ -385,11 +384,11 @@ func TestCreateJunctionPathForCifsShare(t *testing.T) {
 		env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
 
 		mockProvider := vsa.NewMockProvider(t)
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
 
 		_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, node, svmName, junctionPath, []string{})
 		assert.Error(t, err)
@@ -401,11 +400,11 @@ func TestCreateJunctionPathForCifsShare(t *testing.T) {
 		env := testSuite.NewTestActivityEnvironment()
 		env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
 
-		originalGetProvider := hyperscaler2.GetProviderByNode
-		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		originalGetProvider := vsa.GetProviderByNode
+		vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		defer func() { vsa.GetProviderByNode = originalGetProvider }()
 
 		_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, node, svmName, junctionPath, []string{})
 		assert.Error(t, err)

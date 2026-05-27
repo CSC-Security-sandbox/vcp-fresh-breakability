@@ -3,12 +3,12 @@ package replicationActivities
 import (
 	"context"
 
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -35,7 +35,7 @@ func (r *InternalSnapshotsDeleteActivity) GetNodeFromDB(ctx context.Context, par
 }
 
 func (a *InternalSnapshotsDeleteActivity) ListSnapshotInONTAP(ctx context.Context, params *commonparams.SnapshotsInternalDeleteParams, node *models.Node) (*commonparams.SnapshotsInternalDeleteParams, error) {
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -74,7 +74,7 @@ func (r *InternalSnapshotsDeleteActivity) ListSnapshotFromDB(ctx context.Context
 
 func (r *InternalSnapshotsDeleteActivity) DeleteSnapshotsInONTAP(ctx context.Context, params *commonparams.SnapshotsInternalDeleteParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

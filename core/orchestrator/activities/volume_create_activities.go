@@ -15,16 +15,16 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -97,7 +97,7 @@ func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamode
 
 func (a VolumeCreateActivity) GetAggregatesFromOntap(ctx context.Context, volume *datamodel.Volume, node *models.Node, totalNodes int) (*models.AggregateDistributionResult, error) {
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -142,7 +142,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	se := a.SE
 
 	activity.RecordHeartbeat(ctx, "Starting CreateVolumeInONTAP activity & Getting ONTAP provider")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -321,7 +321,7 @@ func (a VolumeCreateActivity) UpdateVolumeAutoTieringPolicyInONTAP(ctx context.C
 	se := a.SE
 	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeAutoTieringPolicyInONTAP activity")
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -386,7 +386,7 @@ func (a VolumeCreateActivity) UpdateVolumeAutoTieringPolicyInONTAP(ctx context.C
 func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, restoreVolCreateResponse *vsa.VolumeResponse) (*vsa.LunResponse, error) {
 	activity.RecordHeartbeat(ctx, "Initializing LUN name update")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -443,7 +443,7 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 		}
 		volume.Svm = svm
 	}
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -513,7 +513,7 @@ func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider)
 func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting CreateIgroup activity")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -550,7 +550,7 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 		logger.Info("Skipping lun creation for data protection volume")
 		return &vsa.LunResponse{}, nil
 	}
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -621,7 +621,7 @@ func (a VolumeCreateActivity) GetOntapClusterHealth(ctx context.Context, node *m
 	*isOntapClusterHealthy = false
 
 	activity.RecordHeartbeat(ctx, "Getting ONTAP provider")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return isOntapClusterHealthy, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -652,7 +652,7 @@ func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamode
 		logger.Info("Skipping CreateLunMap for data protection volume")
 		return nil
 	}
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1593,7 +1593,7 @@ func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, v
 	if node != nil && volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		activity.RecordHeartbeat(ctx, "Initializing snapshot policy creation")
 		logger := util.GetLogger(ctx)
-		provider, err := hyperscaler.GetProviderByNode(ctx, node)
+		provider, err := vsa.GetProviderByNode(ctx, node)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1617,7 +1617,7 @@ func (a VolumeCreateActivity) LunSizeUpdateValidation(ctx context.Context, volum
 	activity.RecordHeartbeat(ctx, "Initializing LUN size validation")
 	logger := util.GetLogger(ctx)
 	requiredLunSpace := volume.SizeInBytes * (100 - int64(volume.VolumeAttributes.SnapReserve)) / 100
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1642,7 +1642,7 @@ func (a VolumeCreateActivity) LunSizeUpdateValidation(ctx context.Context, volum
 func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	activity.RecordHeartbeat(ctx, "Initializing cloned volume update before split")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1695,7 +1695,7 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) error {
 	activity.RecordHeartbeat(ctx, "Initializing volume split operation")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -3005,7 +3005,7 @@ func (a *VolumeCreateActivity) DeleteRestoreObjectStore(ctx context.Context, nod
 	activity.RecordHeartbeat(ctx, "DeleteRestoreObjectStore started")
 	log := util.GetLogger(ctx)
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -3037,7 +3037,7 @@ func (a VolumeCreateActivity) ConfigureLdap(ctx context.Context, volume *datamod
 		logger.Info("Skipping ldap configuration for non-file volume")
 		return nil
 	}
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

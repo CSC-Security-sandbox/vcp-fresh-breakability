@@ -38,7 +38,7 @@ jobs:
 
       - name: Fetch and switch to PR branch
         run: |
-          git diff -U50 origin/$GITHUB_BASE_REF > temp_diff_before_checkout.txt
+          git diff -U50 --no-renames origin/$GITHUB_BASE_REF > temp_diff_before_checkout.txt
           # Get the PR branch name
           PR_BRANCH=$(echo $GITHUB_HEAD_REF)
           echo "Pull request branch: $PR_BRANCH"

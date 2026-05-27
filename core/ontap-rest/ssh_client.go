@@ -33,13 +33,13 @@ type sshClient struct {
 
 // SSHClientParams contains parameters for SSH connection
 type SSHClientParams struct {
-	Host        string
-	Port        int           // SSH port (default: 22)
-	Username    string
-	Password    string
-	PrivateKey  string        // For certificate-based authentication
-	AuthType    int           // 0=password, 1=password_secret_mgr, 2=certificate
-	Timeout     time.Duration
+	Host       string
+	Port       int // SSH port (default: 22)
+	Username   string
+	Password   string
+	PrivateKey string // For certificate-based authentication
+	AuthType   int    // 0=password, 1=password_secret_mgr, 2=certificate
+	Timeout    time.Duration
 }
 
 // NewSSHClient creates a new SSH client for ONTAP operations
@@ -60,19 +60,19 @@ func NewSSHClient(ctx context.Context, params SSHClientParams) (SSHClient, error
 
 	// Configure SSH client based on authentication type
 	var authMethods []ssh.AuthMethod
-	
+
 	if params.AuthType == env.USER_CERTIFICATE { // Certificate authentication
 		logger.Debug("Using private key authentication for SSH")
 		if params.PrivateKey == "" {
 			return nil, fmt.Errorf("private key is required for certificate authentication")
 		}
-		
+
 		// Parse the private key
 		block, _ := pem.Decode([]byte(params.PrivateKey))
 		if block == nil {
 			return nil, fmt.Errorf("failed to decode private key PEM")
 		}
-		
+
 		// Parse the private key
 		privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 		if err != nil {
@@ -83,13 +83,13 @@ func NewSSHClient(ctx context.Context, params SSHClientParams) (SSHClient, error
 			}
 			privateKey = key.(*rsa.PrivateKey)
 		}
-		
+
 		// Create SSH signer
 		signer, err := ssh.NewSignerFromKey(privateKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create SSH signer: %v", err)
 		}
-		
+
 		authMethods = append(authMethods, ssh.PublicKeys(signer))
 	} else {
 		// Password authentication
@@ -206,7 +206,7 @@ func (sc *sshClient) ExecuteCommandWithInput(ctx context.Context, command string
 	// Send input to stdin with delays between each line
 	lines := strings.Split(strings.TrimSpace(input), "\n")
 	sc.logger.Debugf("Sending %d lines of input to stdin", len(lines))
-	
+
 	for i, line := range lines {
 		sc.logger.Debugf("Sending line %d: %s", i+1, line)
 		_, err = stdin.Write([]byte(line + "\n"))
@@ -214,7 +214,7 @@ func (sc *sshClient) ExecuteCommandWithInput(ctx context.Context, command string
 			sc.logger.Errorf("Failed to write line %d to stdin: %v", i+1, err)
 			return "", fmt.Errorf("failed to write line %d to stdin: %w", i+1, err)
 		}
-		
+
 		// Add a longer delay between inputs to allow ONTAP to process each prompt
 		if i < len(lines)-1 { // Don't delay after the last line
 			sc.logger.Debugf("Waiting 500ms before sending next input")
@@ -260,12 +260,12 @@ func (sc *sshClient) ExecuteCommandWithInput(ctx context.Context, command string
 	go func() {
 		waitDone <- session.Wait()
 	}()
-	
+
 	select {
 	case waitErr := <-waitDone:
 		combinedOutput := string(stdoutBytes) + string(stderrBytes)
 		sc.logger.Debugf("Command completed with output: %s", combinedOutput)
-		
+
 		if waitErr != nil {
 			sc.logger.Errorf("SSH command with input failed: %s, error: %v, output: %s", command, waitErr, combinedOutput)
 			// Don't return error immediately - let's see if we can get more info

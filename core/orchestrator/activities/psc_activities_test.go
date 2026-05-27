@@ -3,21 +3,21 @@ package activities_test
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler3 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -28,15 +28,15 @@ import (
 func TestCreateClusterLogForwardingProvider_Success(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := vsa.GetProviderByNode
 	originalGetClusterLogForwarding := activities.GetClusterLogForwarding
 	defer func() {
-		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		vsa.GetProviderByNode = originalGetProviderByNode
 		activities.GetClusterLogForwarding = originalGetClusterLogForwarding
 	}() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	// Mock GetClusterLogForwarding to return record not found error.
@@ -63,15 +63,15 @@ func TestCreateClusterLogForwardingProvider_Success(t *testing.T) {
 func TestCreateClusterLogForwardingProvider_Failure(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := vsa.GetProviderByNode
 	originalGetClusterLogForwarding := activities.GetClusterLogForwarding
 	defer func() {
-		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		vsa.GetProviderByNode = originalGetProviderByNode
 		activities.GetClusterLogForwarding = originalGetClusterLogForwarding
 	}() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	// Mock GetClusterLogForwarding to return record not found error.
@@ -98,13 +98,13 @@ func TestCreateClusterLogForwardingProvider_Failure(t *testing.T) {
 func TestCreateEMSEventForwarding_Success(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := vsa.GetProviderByNode
 	defer func() {
-		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		vsa.GetProviderByNode = originalGetProviderByNode
 	}() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -128,13 +128,13 @@ func TestCreateEMSEventForwarding_Success(t *testing.T) {
 func TestCreateEMSEventForwarding_Failure(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := vsa.GetProviderByNode
 	defer func() {
-		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		vsa.GetProviderByNode = originalGetProviderByNode
 	}() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -158,13 +158,13 @@ func TestCreateEMSEventForwarding_Failure(t *testing.T) {
 
 func TestCreateEMSEventForwarding_ProviderError(t *testing.T) {
 	// Arrange
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := vsa.GetProviderByNode
 	defer func() {
-		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		vsa.GetProviderByNode = originalGetProviderByNode
 	}() // Restore original function after test
 
 	// Mock GetProviderByNode to return error
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider by node")
 	}
 
@@ -186,11 +186,11 @@ func TestCreateEMSEventForwarding_ProviderError(t *testing.T) {
 
 func Test_getClusterLogForwarding_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -206,11 +206,11 @@ func Test_getClusterLogForwarding_Success(t *testing.T) {
 
 func Test_getClusterLogForwarding_Error(t *testing.T) {
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -226,11 +226,11 @@ func Test_getClusterLogForwarding_Error(t *testing.T) {
 }
 
 func Test_getClusterLogForwarding_ProviderError(t *testing.T) {
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider by node")
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -247,10 +247,10 @@ func Test_getClusterLogForwarding_ProviderError(t *testing.T) {
 func Test_updateSecurityAudit_Success(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := vsa.GetProviderByNode
 	originalGetSecurityAudit := activities.GetSecurityAudit
 	defer func() {
-		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		vsa.GetProviderByNode = originalGetProviderByNode
 		activities.GetSecurityAudit = originalGetSecurityAudit
 	}() // Restore original function after test
 	securityAudit := vsa.SecurityAudit{
@@ -259,7 +259,7 @@ func Test_updateSecurityAudit_Success(t *testing.T) {
 		Ontapi: false,
 	}
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	// Mock GetClusterLogForwarding to return record not found error.
@@ -286,10 +286,10 @@ func Test_updateSecurityAudit_Success(t *testing.T) {
 func Test_updateSecurityAudit_Failure(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := vsa.GetProviderByNode
 	originalGetSecurityAudit := activities.GetSecurityAudit
 	defer func() {
-		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		vsa.GetProviderByNode = originalGetProviderByNode
 		activities.GetSecurityAudit = originalGetSecurityAudit
 	}() // Restore original function after test
 	securityAudit := vsa.SecurityAudit{
@@ -298,7 +298,7 @@ func Test_updateSecurityAudit_Failure(t *testing.T) {
 		Ontapi: false,
 	}
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	// Mock GetClusterLogForwarding to return record not found error.
@@ -324,11 +324,11 @@ func Test_updateSecurityAudit_Failure(t *testing.T) {
 }
 
 func Test_updateSecurityAudit_ProviderError(t *testing.T) {
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider by node")
 	}
 	node := &coremodel.Node{}
@@ -349,11 +349,11 @@ func Test_updateSecurityAudit_ProviderError(t *testing.T) {
 
 func Test_GetSecurityAudit_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -374,11 +374,11 @@ func Test_GetSecurityAudit_Success(t *testing.T) {
 
 func Test_GetSecurityAudit_Error(t *testing.T) {
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -395,11 +395,11 @@ func Test_GetSecurityAudit_Error(t *testing.T) {
 }
 
 func Test_GetSecurityAudit_ProviderError(t *testing.T) {
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider by node")
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})

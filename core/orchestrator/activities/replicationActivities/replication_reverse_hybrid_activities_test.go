@@ -10,13 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -230,8 +229,8 @@ func TestReverseHybridReplicationActivity_SetReplicationToErrorForReverseHybrid(
 
 func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse(t *testing.T) {
 	t.Run("WhenSuccess", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -256,7 +255,7 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 
 		mockProvider.On("GetClusterPeer", ontapPeerUUID).Return(expectedClusterPeer, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -320,8 +319,8 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 	})
 
 	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -336,7 +335,7 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 			NodeProvider: &models.Node{Name: "test-node"},
 		}
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, fmt.Errorf("provider error")
 		}
 
@@ -347,8 +346,8 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 	})
 
 	t.Run("WhenGetClusterPeerFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -367,7 +366,7 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("GetClusterPeer", ontapPeerUUID).Return(nil, assert.AnError)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -379,8 +378,8 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 	})
 
 	t.Run("WhenClusterPeerNotAvailable", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -405,7 +404,7 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 
 		mockProvider.On("GetClusterPeer", ontapPeerUUID).Return(unavailableClusterPeer, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -419,8 +418,8 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 
 func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *testing.T) {
 	t.Run("WhenSuccess_CreateNewPrivilege", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -453,7 +452,7 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 				params.Query == "-source-path dst-svm:dst-volume"
 		})).Return("privilege-location", nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -465,8 +464,8 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 	})
 
 	t.Run("WhenSuccess_ModifyExistingPrivilege", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -505,7 +504,7 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 				params.Query == "-source-path existing-svm:existing-volume|dst-svm:dst-volume"
 		})).Return(nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -517,8 +516,8 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 	})
 
 	t.Run("WhenSuccess_PathAlreadyExists", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -550,7 +549,7 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 			Name: nillable.GetStringPtr(onPremPeerRole),
 		}).Return([]*vsa.Role{targetRole}, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -594,8 +593,8 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 	})
 
 	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -611,7 +610,7 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 			NodeProvider: &models.Node{Name: "test-node"},
 		}
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, fmt.Errorf("provider error")
 		}
 
@@ -622,8 +621,8 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 	})
 
 	t.Run("WhenGetRoleCollectionFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -644,7 +643,7 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 			Name: nillable.GetStringPtr(onPremPeerRole),
 		}).Return(nil, assert.AnError)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -656,8 +655,8 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 	})
 
 	t.Run("WhenRoleNotFound", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -678,7 +677,7 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 			Name: nillable.GetStringPtr(onPremPeerRole),
 		}).Return([]*vsa.Role{}, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -690,8 +689,8 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 	})
 
 	t.Run("WhenModifyRolePrivilegeFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -725,7 +724,7 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 
 		mockProvider.On("ModifyRolePrivilege", mock.Anything).Return(assert.AnError)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -737,8 +736,8 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 	})
 
 	t.Run("WhenCreateRolePrivilegeFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -766,7 +765,7 @@ func TestReverseHybridReplicationActivity_UpdateRbacRoleForHybridReverse(t *test
 
 		mockProvider.On("CreateRolePrivilege", mock.Anything).Return("", assert.AnError)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -980,8 +979,8 @@ func TestReverseHybridReplicationActivity_UpdateReplicationWithReverseCommandsFo
 
 func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridReverse(t *testing.T) {
 	t.Run("WhenSuccess", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1016,7 +1015,7 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 				*params.DestinationPath == "source-svm:source-volume"
 		})).Return(expectedDestinations, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1043,8 +1042,8 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 	})
 
 	t.Run("WhenReplicationIsNil", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1056,7 +1055,7 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 		}
 
 		mockProvider := &vsa.MockProvider{}
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1067,8 +1066,8 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 	})
 
 	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1086,7 +1085,7 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 			NodeProvider: &models.Node{Name: "test-node"},
 		}
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, fmt.Errorf("provider error")
 		}
 
@@ -1097,8 +1096,8 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 	})
 
 	t.Run("WhenListSnapmirrorDestinationsFails", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1119,7 +1118,7 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("ListSnapmirrorDestinations", mock.Anything).Return(nil, assert.AnError)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1131,8 +1130,8 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 	})
 
 	t.Run("WhenNoDestinationsFound", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1153,7 +1152,7 @@ func TestReverseHybridReplicationActivity_ListSnapmirrorDestinationsForHybridRev
 		mockProvider := &vsa.MockProvider{}
 		mockProvider.On("ListSnapmirrorDestinations", mock.Anything).Return([]*vsa.SnapmirrorDestination{}, nil)
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

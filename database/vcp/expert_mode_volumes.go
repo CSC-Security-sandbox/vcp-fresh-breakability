@@ -4,10 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
@@ -170,7 +169,7 @@ func (d *DataStoreRepository) DeleteExpertModeVolume(ctx context.Context, volume
 	}
 
 	volume.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	volume.State = models.LifeCycleStateDeleted
+	volume.State = datamodel.LifeCycleStateDeleted
 
 	err = tx.Save(volume).Error
 	if err != nil {

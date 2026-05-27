@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -2761,9 +2761,9 @@ func Test_GetVolumeMetrics_ExpertModeVolumesBillingIncluded(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:                  "us-east-1",
-		EnableBackupBillingMetrics:  true,
-		EnableFilesBackupBilling:    true,
+		RegionName:                    "us-east-1",
+		EnableBackupBillingMetrics:    true,
+		EnableFilesBackupBilling:      true,
 		EnableExpertModeBackupBilling: true,
 	}
 
@@ -2924,10 +2924,10 @@ func Test_GetVolumeMetrics_ExpertModeVolumesSkipCrossRegion(t *testing.T) {
 	src := "us-east-1"
 	dst := "us-west-1"
 	config := &common.TelemetryConfig{
-		RegionName:                           "us-east-1",
-		EnableBackupBillingMetrics:           true,
-		EnableFilesBackupBilling:             true,
-		EnableExpertModeBackupBilling:        true,
+		RegionName:                            "us-east-1",
+		EnableBackupBillingMetrics:            true,
+		EnableFilesBackupBilling:              true,
+		EnableExpertModeBackupBilling:         true,
 		EnableCrossRegionBackupBillingMetrics: false,
 	}
 
@@ -3132,10 +3132,10 @@ func Test_GetVolumeMetrics_ExpertModeVolumes_CRBDisabledVaultNotInMapSkipped(t *
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:                           "us-east-1",
-		EnableBackupBillingMetrics:           true,
-		EnableFilesBackupBilling:             true,
-		EnableExpertModeBackupBilling:        true,
+		RegionName:                            "us-east-1",
+		EnableBackupBillingMetrics:            true,
+		EnableFilesBackupBilling:              true,
+		EnableExpertModeBackupBilling:         true,
 		EnableCrossRegionBackupBillingMetrics: false,
 	}
 
@@ -3176,12 +3176,12 @@ func Test_GetVolumeMetrics_ExpertModeVolumes_CMEKDisabledVaultFoundWithCmekSkipp
 	ctx := context.Background()
 	kmsPath := "projects/p/locations/us/keyRings/kr/cryptoKeys/key"
 	config := &common.TelemetryConfig{
-		RegionName:                           "us-east-1",
-		EnableBackupBillingMetrics:           true,
-		EnableFilesBackupBilling:             true,
-		EnableExpertModeBackupBilling:        true,
+		RegionName:                            "us-east-1",
+		EnableBackupBillingMetrics:            true,
+		EnableFilesBackupBilling:              true,
+		EnableExpertModeBackupBilling:         true,
 		EnableCrossRegionBackupBillingMetrics: true, // CRB check skipped
-		EnableCmekBackupBilling:              false,
+		EnableCmekBackupBilling:               false,
 	}
 
 	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
@@ -3227,12 +3227,12 @@ func Test_GetVolumeMetrics_ExpertModeVolumes_CMEKDisabledVaultNotInMapSkipped(t 
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:                           "us-east-1",
-		EnableBackupBillingMetrics:           true,
-		EnableFilesBackupBilling:             true,
-		EnableExpertModeBackupBilling:        true,
+		RegionName:                            "us-east-1",
+		EnableBackupBillingMetrics:            true,
+		EnableFilesBackupBilling:              true,
+		EnableExpertModeBackupBilling:         true,
 		EnableCrossRegionBackupBillingMetrics: true, // CRB check skipped
-		EnableCmekBackupBilling:              false,
+		EnableCmekBackupBilling:               false,
 	}
 
 	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
@@ -3272,13 +3272,13 @@ func Test_GetVolumeMetrics_ExpertModeVolumes_GCBDRDisabledCrossProjectVaultSkipp
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:                           "us-east-1",
-		EnableBackupBillingMetrics:           true,
-		EnableFilesBackupBilling:             true,
-		EnableExpertModeBackupBilling:        true,
+		RegionName:                            "us-east-1",
+		EnableBackupBillingMetrics:            true,
+		EnableFilesBackupBilling:              true,
+		EnableExpertModeBackupBilling:         true,
 		EnableCrossRegionBackupBillingMetrics: true, // CRB check skipped
-		EnableCmekBackupBilling:              true,  // CMEK check skipped
-		EnableGcbdrBackupBilling:             false,
+		EnableCmekBackupBilling:               true, // CMEK check skipped
+		EnableGcbdrBackupBilling:              false,
 	}
 
 	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
@@ -3322,13 +3322,13 @@ func Test_GetVolumeMetrics_ExpertModeVolumes_GCBDRDisabledVaultNotInMapSkipped(t
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:                           "us-east-1",
-		EnableBackupBillingMetrics:           true,
-		EnableFilesBackupBilling:             true,
-		EnableExpertModeBackupBilling:        true,
+		RegionName:                            "us-east-1",
+		EnableBackupBillingMetrics:            true,
+		EnableFilesBackupBilling:              true,
+		EnableExpertModeBackupBilling:         true,
 		EnableCrossRegionBackupBillingMetrics: true, // CRB check skipped
-		EnableCmekBackupBilling:              true,  // CMEK check skipped
-		EnableGcbdrBackupBilling:             false,
+		EnableCmekBackupBilling:               true, // CMEK check skipped
+		EnableGcbdrBackupBilling:              false,
 	}
 
 	poolMetadataMap := map[int64]metadata.ResourceMetadata{}
@@ -3369,13 +3369,13 @@ func Test_GetVolumeMetrics_ExpertModeVolumes_CRBVaultSetsCrossRegionMetadata(t *
 	ctx := context.Background()
 	backupRegion := "us-west-1"
 	config := &common.TelemetryConfig{
-		RegionName:                           "us-east-1",
-		EnableBackupBillingMetrics:           true,
-		EnableFilesBackupBilling:             true,
-		EnableExpertModeBackupBilling:        true,
-		EnableCrossRegionBackupBillingMetrics: true, // CRB billing check skipped; vault map still populated via GCBDR=false
-		EnableCmekBackupBilling:              true,  // CMEK check skipped
-		EnableGcbdrBackupBilling:             false, // ensures vaults are fetched and GCBDR check runs (vault is not CrossProject, so not skipped)
+		RegionName:                            "us-east-1",
+		EnableBackupBillingMetrics:            true,
+		EnableFilesBackupBilling:              true,
+		EnableExpertModeBackupBilling:         true,
+		EnableCrossRegionBackupBillingMetrics: true,  // CRB billing check skipped; vault map still populated via GCBDR=false
+		EnableCmekBackupBilling:               true,  // CMEK check skipped
+		EnableGcbdrBackupBilling:              false, // ensures vaults are fetched and GCBDR check runs (vault is not CrossProject, so not skipped)
 	}
 
 	poolMetadataMap := map[int64]metadata.ResourceMetadata{}

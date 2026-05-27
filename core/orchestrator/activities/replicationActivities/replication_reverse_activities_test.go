@@ -8,15 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -1860,18 +1859,18 @@ func TestRevertVolumeReplicationAttributesSrc(t *testing.T) {
 					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceLocation:             "src-location",
-							SourceReplicationUUID:      "src-replication-uuid",
-							SourceHostName:             "src-host",
-							SourceSvmName:              "src-svm",
-							SourceVolumeName:           "src-volume",
-							SourceVolumeUUID:           "src-volume-uuid",
-							SourcePoolUUID:             "src-pool-uuid",
-							DestinationHostName:        "dest-host",
-							DestinationSvmName:         "dest-svm",
-							DestinationVolumeName:      "dest-volume",
-							DestinationVolumeUUID:      "dest-volume-uuid",
-							DestinationPoolUUID:        "dest-pool-uuid",
+							SourceLocation:        "src-location",
+							SourceReplicationUUID: "src-replication-uuid",
+							SourceHostName:        "src-host",
+							SourceSvmName:         "src-svm",
+							SourceVolumeName:      "src-volume",
+							SourceVolumeUUID:      "src-volume-uuid",
+							SourcePoolUUID:        "src-pool-uuid",
+							DestinationHostName:   "dest-host",
+							DestinationSvmName:    "dest-svm",
+							DestinationVolumeName: "dest-volume",
+							DestinationVolumeUUID: "dest-volume-uuid",
+							DestinationPoolUUID:   "dest-pool-uuid",
 						},
 					},
 				},
@@ -1978,10 +1977,10 @@ func TestReleaseReplicationOnOldSrc(t *testing.T) {
 			NodeProvider: nodeProvider,
 		}
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2042,10 +2041,10 @@ func TestReleaseReplicationOnOldSrc(t *testing.T) {
 			NodeProvider: nodeProvider,
 		}
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2078,10 +2077,10 @@ func TestReleaseReplicationOnOldSrc(t *testing.T) {
 			NodeProvider: nil,
 		}
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("node provider is nil")
 		}
 
@@ -2113,10 +2112,10 @@ func TestReleaseReplicationOnOldSrc(t *testing.T) {
 			NodeProvider: nodeProvider,
 		}
 
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
 

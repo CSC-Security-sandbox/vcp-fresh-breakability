@@ -12,17 +12,17 @@ import (
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbUtils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hgoogle "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/oci"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -344,8 +344,8 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		defer mockProvider.AssertExpectations(t)
 
 		// Save and restore original GetProviderByNode
-		origGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 		jobUUID := "test-job-uuid"
 		node := &models2.Node{}
@@ -356,7 +356,7 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		expectedJob := &vsa.OntapJob{}
 
 		// Success case
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		mockProvider.On("JobGet", mock.Anything).Return(expectedJob, nil)
@@ -376,8 +376,8 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		defer mockProvider.AssertExpectations(t)
 
 		// Save and restore original GetProviderByNode
-		origGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 
 		jobUUID := "test-job-uuid"
 		node := &models2.Node{}
@@ -386,7 +386,7 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		env.RegisterActivity(&activity)
 
 		// Error from GetProviderByNode
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
 			return nil, errors.New("mock error")
 		}
 
@@ -403,14 +403,14 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		defer mockProvider.AssertExpectations(t)
 
 		// Save and restore original GetProviderByNode
-		origGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = origGetProviderByNode }()
 		node := &models2.Node{}
 
 		activity := CommonActivities{}
 		env.RegisterActivity(&activity)
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		mockProvider.On("JobGet", mock.Anything).Return(nil, errors.New("jobget error"))

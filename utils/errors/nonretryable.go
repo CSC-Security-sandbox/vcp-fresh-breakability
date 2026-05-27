@@ -1,6 +1,6 @@
 package errors
 
-import vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+import vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 
 // NonRetryableErr defines an error which cannot be retried
 type NonRetryableErr struct {

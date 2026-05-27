@@ -13,13 +13,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1794,9 +1794,9 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 		}
 		replicationWithPeer := &datamodel.VolumeReplication{
 			BaseModel:     datamodel.BaseModel{UUID: "repl-uuid", ID: 1},
-			VolumeID:     volume.ID,
-			AccountID:    volume.AccountID,
-			State:        common.ResourceStateEnabled,
+			VolumeID:      volume.ID,
+			AccountID:     volume.AccountID,
+			State:         common.ResourceStateEnabled,
 			ClusterPeerId: sql.NullInt64{Int64: 42, Valid: true},
 		}
 
@@ -1826,9 +1826,9 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 		}
 		replicationWithPeer := &datamodel.VolumeReplication{
 			BaseModel:     datamodel.BaseModel{UUID: "repl-uuid", ID: 1},
-			VolumeID:     volume.ID,
-			AccountID:    volume.AccountID,
-			State:        common.ResourceStateEnabled,
+			VolumeID:      volume.ID,
+			AccountID:     volume.AccountID,
+			State:         common.ResourceStateEnabled,
 			ClusterPeerId: sql.NullInt64{Int64: 42, Valid: true},
 		}
 

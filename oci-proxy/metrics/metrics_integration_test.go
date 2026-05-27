@@ -68,10 +68,10 @@ func TestMetricsEndpoint_ContainsOnlyExpectedMetricFamilies(t *testing.T) {
 	output := string(body)
 
 	allowed := map[string]bool{
-		"api_requests_total":           false,
-		"api_request_duration_seconds": false,
-		"oci_workflow_stage_total":         false,
-		"oci_workflow_duration_seconds":    false,
+		"api_requests_total":            false,
+		"api_request_duration_seconds":  false,
+		"oci_workflow_stage_total":      false,
+		"oci_workflow_duration_seconds": false,
 	}
 
 	for _, line := range strings.Split(output, "\n") {

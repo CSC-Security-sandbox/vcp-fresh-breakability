@@ -27,26 +27,26 @@ type GetSecurityLogForwardingResponse struct {
 }
 
 type CreateEMSEventForwardingParams struct {
-	DestinationName      string
-	DestinationIP        string
-	DestinationPort      int64
-	Transport            string // "tcp-unencrypted", "udp_unencrypted", "tcp_encrypted"
-	TimestampFormat      string // "rfc-3164", "rfc-5424", "no-override"
-	MessageFormat        string // "legacy-netapp", "rfc-5424"
-	FilterName           string
-	Severities           []string // "EMERGENCY", "ALERT", "ERROR", "NOTICE", "INFORMATIONAL"
+	DestinationName string
+	DestinationIP   string
+	DestinationPort int64
+	Transport       string // "tcp-unencrypted", "udp_unencrypted", "tcp_encrypted"
+	TimestampFormat string // "rfc-3164", "rfc-5424", "no-override"
+	MessageFormat   string // "legacy-netapp", "rfc-5424"
+	FilterName      string
+	Severities      []string // "EMERGENCY", "ALERT", "ERROR", "NOTICE", "INFORMATIONAL"
 }
 
 type EMSEventDestination struct {
-	Name    string
-	Type    string
-	Syslog  *EMSEventDestinationSyslog
+	Name   string
+	Type   string
+	Syslog *EMSEventDestinationSyslog
 }
 
 type EMSEventDestinationSyslog struct {
-	Host              string
-	Port              int64
-	Transport         string
-	TimestampFormat   string
-	MessageFormat     string
+	Host            string
+	Port            int64
+	Transport       string
+	TimestampFormat string
+	MessageFormat   string
 }

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -223,7 +223,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 						billingAccountName := accountName
 						if config.EnableGcbdrBackupBilling && volume.DataProtection.BackupVaultID != "" {
 							if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists &&
-								bv.ServiceType == models.ServiceTypeCrossProject &&
+								bv.ServiceType == datamodel.ServiceTypeCrossProject &&
 								bv.Account != nil && bv.Account.Name != "" {
 								billingAccountName = bv.Account.Name
 							}

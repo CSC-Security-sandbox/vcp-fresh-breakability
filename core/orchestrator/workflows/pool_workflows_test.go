@@ -16,8 +16,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
@@ -25,9 +23,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -98,14 +97,14 @@ func setEnableSyncPoolZIZSTrue() func() {
 	}
 }
 
-// setupMockProvider sets up mocks for hyperscaler2.GetProviderByNode to prevent real HTTP calls to ONTAP.
+// setupMockProvider sets up mocks for vsa.GetProviderByNode to prevent real HTTP calls to ONTAP.
 // Returns the mock provider and a cleanup function to restore the original function.
 func setupMockProvider() (*vsa.MockProvider, func()) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetProviderByNode := vsa.GetProviderByNode
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -116,7 +115,7 @@ func setupMockProvider() (*vsa.MockProvider, func()) {
 
 	// Cleanup function to restore original
 	cleanup := func() {
-		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		vsa.GetProviderByNode = originalGetProviderByNode
 	}
 
 	return mockProvider, cleanup

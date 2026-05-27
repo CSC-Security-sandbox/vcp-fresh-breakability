@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -288,7 +288,7 @@ func (h Handler) V1betaUpdateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 	}
 
 	return &gcpgenserver.OperationV1beta{
-		Name:     gcpgenserver.NewOptString(hyperscaler.PrepareOperationID(params.ProjectNumber, params.LocationId, jobId)),
+		Name:     gcpgenserver.NewOptString(vsa.PrepareOperationID(params.ProjectNumber, params.LocationId, jobId)),
 		Response: resp,
 		Done:     gcpgenserver.NewOptBool(false),
 	}, nil

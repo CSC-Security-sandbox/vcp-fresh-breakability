@@ -8,12 +8,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	cvpClientModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -105,7 +104,7 @@ func (j *KmsConfigActivity) CreateDnsActivity(ctx context.Context, node *models.
 	activity.RecordHeartbeat(ctx, "Starting CreateDnsActivity")
 	defer activity.RecordHeartbeat(ctx, "Finished CreateDnsActivity")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return err
 	}
@@ -137,7 +136,7 @@ func (j *KmsConfigActivity) EnableAutoVolOfflineCronForGCPKMSActivity(ctx contex
 	activity.RecordHeartbeat(ctx, "Starting EnableAutoVolOfflineCronForGCPKMSActivity")
 	defer activity.RecordHeartbeat(ctx, "Finished EnableAutoVolOfflineCronForGCPKMSActivity")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return err
 	}

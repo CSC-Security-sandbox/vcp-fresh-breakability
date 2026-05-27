@@ -6,7 +6,7 @@ globs: ["**/database/**", "**/migrations/**", "**/migrate*", "**/models.go"]
 
 # Database Development Best Practices
 
-Database code uses **GORM** and versioned **migrations**. Follow **core/errors** for error codes in the 2000–2999 range (see **doc/api/error-taxonomy.md**).
+Database code uses **GORM** and versioned **migrations**. Follow **lib/errors** for error codes in the 2000–2999 range (see **doc/api/error-taxonomy.md**).
 
 ## Data model and GORM
 - **Struct tags**: Use GORM struct tags for mapping; define primary keys, foreign keys, and indexes explicitly. Use meaningful table and column names.
@@ -24,7 +24,7 @@ Database code uses **GORM** and versioned **migrations**. Follow **core/errors**
 - **Tooling**: Use the project’s migrate tool (e.g. **tools/migrate**); see config for migration path and DB connection.
 
 ## Error handling
-- **VCP errors**: Use **core/errors** with DB error range (2000–2999) for connection failures, constraint violations, and transaction errors. Mark retriable (e.g. connection lost) vs non-retriable (e.g. constraint violation) appropriately.
+- **VCP errors**: Use **lib/errors** with DB error range (2000–2999) for connection failures, constraint violations, and transaction errors. Mark retriable (e.g. connection lost) vs non-retriable (e.g. constraint violation) appropriately.
 - **Logging**: Log DB errors with context (operation, table/resource); no credentials or full row data in logs.
 - **Retries**: Use retry for transient failures (e.g. connection timeout) as per project patterns; do not retry non-retriable errors.
 
@@ -35,6 +35,6 @@ Database code uses **GORM** and versioned **migrations**. Follow **core/errors**
 
 ## Repo pointers
 - **doc/api/error-taxonomy.md** — DB error range (2000–2999) and HTTP mapping.
-- **core/errors/README.md** — error creation and wrapping.
+- **lib/errors/README.md** — error creation and wrapping.
 - **CODING_GUIDELINES.md** — context, error handling, DI.
 - **database/** — storage interfaces and implementations; **tools/migrate** — migration runner.

@@ -2,8 +2,9 @@ package vsa
 
 import (
 	"fmt"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 )
 
 // GetCIFSService retrieves CIFS service configuration for the specified SVM

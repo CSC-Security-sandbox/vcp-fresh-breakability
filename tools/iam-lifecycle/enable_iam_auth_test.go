@@ -57,11 +57,11 @@ func TestEnableAll_ConfigValidation(t *testing.T) {
 		{
 			name: "temporal enabled without IAM_TEMPORAL",
 			cfg: config{
-				vcpDBName:      "vcp",
-				iamVcpCore:     "vcp-core@project.iam",
-				iamVcpWorker:   "vcp-worker@project.iam",
+				vcpDBName:       "vcp",
+				iamVcpCore:      "vcp-core@project.iam",
+				iamVcpWorker:    "vcp-worker@project.iam",
 				temporalEnabled: true,
-				iamTemporal:    "",
+				iamTemporal:     "",
 			},
 			expectError: true,
 			errorMsg:    "IAM_TEMPORAL",
@@ -97,7 +97,7 @@ func TestEnableAll_ConfigValidation(t *testing.T) {
 func TestNeedsOwnershipTransfer_Logic(t *testing.T) {
 	// Test the logic for determining if ownership transfer is needed
 	// This validates the expected SQL query behavior
-	
+
 	tests := []struct {
 		name             string
 		wrongOwnerCount  int
@@ -131,23 +131,23 @@ func TestNeedsOwnershipTransfer_Logic(t *testing.T) {
 func TestTransferOwnershipSQL_Construction(t *testing.T) {
 	// Test SQL construction for ownership transfer
 	tests := []struct {
-		name         string
-		targetOwner  string
+		name              string
+		targetOwner       string
 		expectedSubstring string
 	}{
 		{
-			name:         "simple role name",
-			targetOwner:  "vcp-core",
+			name:              "simple role name",
+			targetOwner:       "vcp-core",
 			expectedSubstring: "ALTER TABLE",
 		},
 		{
-			name:         "IAM service account",
-			targetOwner:  "vcp-core@project.iam",
+			name:              "IAM service account",
+			targetOwner:       "vcp-core@project.iam",
 			expectedSubstring: "ALTER TABLE",
 		},
 		{
-			name:         "role with special characters",
-			targetOwner:  "vcp-core@project.iam.gserviceaccount.com",
+			name:              "role with special characters",
+			targetOwner:       "vcp-core@project.iam.gserviceaccount.com",
 			expectedSubstring: "ALTER TABLE",
 		},
 	}
@@ -200,15 +200,15 @@ func TestDefaultPrivilegesSQL_Construction(t *testing.T) {
 		expectedSQL string
 	}{
 		{
-			name:       "single grant user",
-			ownerRole:  "vcp-core@project.iam",
-			grantUsers: []string{"user1"},
+			name:        "single grant user",
+			ownerRole:   "vcp-core@project.iam",
+			grantUsers:  []string{"user1"},
 			expectedSQL: "ALTER DEFAULT PRIVILEGES FOR ROLE",
 		},
 		{
-			name:       "multiple grant users",
-			ownerRole:  "vcp-core@project.iam",
-			grantUsers: []string{"user1", "user2"},
+			name:        "multiple grant users",
+			ownerRole:   "vcp-core@project.iam",
+			grantUsers:  []string{"user1", "user2"},
 			expectedSQL: "ALTER DEFAULT PRIVILEGES FOR ROLE",
 		},
 	}
@@ -226,7 +226,7 @@ func TestIsDBInTargetState_EmptyDatabase(t *testing.T) {
 	// Test that empty databases (zero tables) pass state check naturally
 	// When tableCount is 0, the function should return true
 	tableCount := 0
-	
+
 	// Empty database should be considered in target state
 	if tableCount == 0 {
 		assert.True(t, true, "Empty database should be in target state")
@@ -236,13 +236,13 @@ func TestIsDBInTargetState_EmptyDatabase(t *testing.T) {
 func TestGrantRoleMemberships_DuplicateHandling(t *testing.T) {
 	// Test that duplicate role memberships are handled gracefully
 	users := []string{"user1", "user2", "user1"}
-	
+
 	// Should handle duplicates without error
 	uniqueUsers := make(map[string]bool)
 	for _, u := range users {
 		uniqueUsers[u] = true
 	}
-	
+
 	assert.Equal(t, 2, len(uniqueUsers), "Should deduplicate users")
 }
 
@@ -250,19 +250,19 @@ func TestGrantSchemaUsage_MissingUsers(t *testing.T) {
 	// Test that only missing users get USAGE grant
 	allUsers := []string{"user1", "user2", "user3"}
 	usersWithUsage := []string{"user1"}
-	
+
 	var missing []string
 	hasUsageMap := make(map[string]bool)
 	for _, u := range usersWithUsage {
 		hasUsageMap[u] = true
 	}
-	
+
 	for _, u := range allUsers {
 		if !hasUsageMap[u] {
 			missing = append(missing, u)
 		}
 	}
-	
+
 	// Should only grant to user2 and user3
 	assert.Equal(t, 2, len(missing))
 	assert.Contains(t, missing, "user2")
@@ -273,28 +273,28 @@ func TestGrantSchemaUsage_MissingUsers(t *testing.T) {
 func TestEnableDB_ProcessingOrder(t *testing.T) {
 	// Test that databases are processed in correct order
 	databaseOrder := []string{"vcp", "metrics", "temporal", "temporal_visibility"}
-	
+
 	expectedOrder := []string{"vcp", "metrics", "temporal", "temporal_visibility"}
-	
+
 	assert.Equal(t, expectedOrder, databaseOrder)
 }
 
 func TestCreateDBPrivilege(t *testing.T) {
 	// Test CREATEDB privilege for temporal user
 	tests := []struct {
-		name         string
-		hasCreateDB  bool
-		shouldGrant  bool
+		name        string
+		hasCreateDB bool
+		shouldGrant bool
 	}{
 		{
-			name:         "already has CREATEDB",
-			hasCreateDB:  true,
-			shouldGrant:  false,
+			name:        "already has CREATEDB",
+			hasCreateDB: true,
+			shouldGrant: false,
 		},
 		{
-			name:         "needs CREATEDB",
-			hasCreateDB:  false,
-			shouldGrant:  true,
+			name:        "needs CREATEDB",
+			hasCreateDB: false,
+			shouldGrant: true,
 		},
 	}
 
@@ -309,14 +309,14 @@ func TestCreateDBPrivilege(t *testing.T) {
 func TestOwnershipTransfer_ExceptionHandling(t *testing.T) {
 	// Test that insufficient_privilege exceptions are handled gracefully
 	// The DO block should catch and log but not fail on these exceptions
-	
+
 	sqlTemplate := `DO $$ DECLARE r text; BEGIN
   FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
     BEGIN EXECUTE format('ALTER TABLE public.%%I OWNER TO owner', r);
     EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'skip table %%', r; END;
   END LOOP;
 END $$`
-	
+
 	// Verify exception handling is present
 	assert.Contains(t, sqlTemplate, "EXCEPTION WHEN insufficient_privilege")
 	assert.Contains(t, sqlTemplate, "RAISE NOTICE")
@@ -325,52 +325,52 @@ END $$`
 func TestStateCheckLogic(t *testing.T) {
 	// Test state check conditions
 	tests := []struct {
-		name              string
-		schemaOwnerOK     bool
-		wrongOwners       int
-		missingDML        int
-		defAclCount       int
-		expectedInTarget  bool
+		name             string
+		schemaOwnerOK    bool
+		wrongOwners      int
+		missingDML       int
+		defAclCount      int
+		expectedInTarget bool
 	}{
 		{
-			name:              "all checks pass",
-			schemaOwnerOK:     true,
-			wrongOwners:       0,
-			missingDML:        0,
-			defAclCount:       2,
-			expectedInTarget:  true,
+			name:             "all checks pass",
+			schemaOwnerOK:    true,
+			wrongOwners:      0,
+			missingDML:       0,
+			defAclCount:      2,
+			expectedInTarget: true,
 		},
 		{
-			name:              "schema owner wrong",
-			schemaOwnerOK:     false,
-			wrongOwners:       0,
-			missingDML:        0,
-			defAclCount:       2,
-			expectedInTarget:  false,
+			name:             "schema owner wrong",
+			schemaOwnerOK:    false,
+			wrongOwners:      0,
+			missingDML:       0,
+			defAclCount:      2,
+			expectedInTarget: false,
 		},
 		{
-			name:              "wrong table owners",
-			schemaOwnerOK:     true,
-			wrongOwners:       1,
-			missingDML:        0,
-			defAclCount:       2,
-			expectedInTarget:  false,
+			name:             "wrong table owners",
+			schemaOwnerOK:    true,
+			wrongOwners:      1,
+			missingDML:       0,
+			defAclCount:      2,
+			expectedInTarget: false,
 		},
 		{
-			name:              "missing DML privileges",
-			schemaOwnerOK:     true,
-			wrongOwners:       0,
-			missingDML:        1,
-			defAclCount:       2,
-			expectedInTarget:  false,
+			name:             "missing DML privileges",
+			schemaOwnerOK:    true,
+			wrongOwners:      0,
+			missingDML:       1,
+			defAclCount:      2,
+			expectedInTarget: false,
 		},
 		{
-			name:              "missing default ACLs",
-			schemaOwnerOK:     true,
-			wrongOwners:       0,
-			missingDML:        0,
-			defAclCount:       0,
-			expectedInTarget:  false,
+			name:             "missing default ACLs",
+			schemaOwnerOK:    true,
+			wrongOwners:      0,
+			missingDML:       0,
+			defAclCount:      0,
+			expectedInTarget: false,
 		},
 	}
 

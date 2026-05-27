@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"gorm.io/gorm"
 )
@@ -29,7 +28,7 @@ func TestAccountSoftDelete(t *testing.T) {
 				UUID: "test-account-uuid",
 			},
 			Name:  "test_account",
-			State: models.AccountStateEnabled,
+			State: datamodel.AccountStateEnabled,
 		}
 		err = store.db.Create(account).Error()
 		assert.NoError(tt, err, "Failed to create account")
@@ -44,7 +43,7 @@ func TestAccountSoftDelete(t *testing.T) {
 		assert.NoError(tt, err, "Failed to retrieve soft deleted account")
 		assert.NotNil(tt, deletedAccount.DeletedAt, "DeletedAt should not be nil")
 		assert.True(tt, deletedAccount.DeletedAt.Valid, "DeletedAt should be valid")
-		assert.Equal(tt, models.AccountStateDeleted, deletedAccount.State, "Account state should be deleted")
+		assert.Equal(tt, datamodel.AccountStateDeleted, deletedAccount.State, "Account state should be deleted")
 		assert.Equal(tt, "Deleted", deletedAccount.StateDetails, "State details should match")
 	})
 
@@ -188,7 +187,7 @@ func TestRollBackDeletedAccount(t *testing.T) {
 				UUID: "test-account-uuid",
 			},
 			Name:  "test_account",
-			State: models.AccountStateDeleted,
+			State: datamodel.AccountStateDeleted,
 		}
 		err = store.db.Create(account).Error()
 		assert.NoError(tt, err, "Failed to create account")
@@ -206,8 +205,8 @@ func TestRollBackDeletedAccount(t *testing.T) {
 		err = store.db.GORM().First(&restoredAccount, account.ID).Error
 		assert.NoError(tt, err, "Failed to retrieve restored account")
 		assert.Nil(tt, restoredAccount.DeletedAt, "DeletedAt should be nil after rollback")
-		assert.Equal(tt, models.AccountStateHyperscalerDisabled, restoredAccount.State, "Account state should be hyperscalerDisabled")
-		assert.Equal(tt, models.LifeCycleStateHyperscalerDisabledDetails, restoredAccount.StateDetails, "State details should match")
+		assert.Equal(tt, datamodel.AccountStateHyperscalerDisabled, restoredAccount.State, "Account state should be hyperscalerDisabled")
+		assert.Equal(tt, datamodel.LifeCycleStateHyperscalerDisabledDetails, restoredAccount.StateDetails, "State details should match")
 	})
 
 	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {

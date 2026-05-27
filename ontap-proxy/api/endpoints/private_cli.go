@@ -20,9 +20,9 @@ import (
 var cliInputAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,:;/*><=!@+%'"? \t]+$`)
 
 var (
-	setupCredentialsForPrivateCLI       = middleware.SetupCredentialsForHandler
-	ensureCertificateOrPasswordForCLI   = middleware.EnsureCertificateOrPassword
-	newOntapClientFromContextForCLI     = handlers.NewOntapClientFromContext
+	setupCredentialsForPrivateCLI     = middleware.SetupCredentialsForHandler
+	ensureCertificateOrPasswordForCLI = middleware.EnsureCertificateOrPassword
+	newOntapClientFromContextForCLI   = handlers.NewOntapClientFromContext
 )
 
 // V1PrivateCli executes an ONTAP CLI command through the private CLI API.

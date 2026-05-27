@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -17,11 +16,11 @@ func TestGetExistingDeleteJobForDeletingState_ExistingJobInProgress_ReturnsJobUU
 	mockStorage := NewMockStorage(t)
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
-	deleteJobType := models.JobTypeDeleteVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	existingJob := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid-123"},
-		State:     string(models.JobsStatePROCESSING),
+		State:     string(datamodel.JobsStatePROCESSING),
 	}
 
 	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(deleteJobType)).Return(existingJob, nil)
@@ -39,11 +38,11 @@ func TestGetExistingDeleteJobForDeletingState_ExistingJobDone_ReturnsEmpty(t *te
 	mockStorage := NewMockStorage(t)
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
-	deleteJobType := models.JobTypeDeleteVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	existingJob := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid-123"},
-		State:     string(models.JobsStateDONE),
+		State:     string(datamodel.JobsStateDONE),
 	}
 
 	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(deleteJobType)).Return(existingJob, nil)
@@ -59,11 +58,11 @@ func TestGetExistingDeleteJobForDeletingState_ExistingJobError_ReturnsEmpty(t *t
 	mockStorage := NewMockStorage(t)
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
-	deleteJobType := models.JobTypeDeleteVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	existingJob := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "job-uuid-123"},
-		State:     string(models.JobsStateERROR),
+		State:     string(datamodel.JobsStateERROR),
 	}
 
 	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(deleteJobType)).Return(existingJob, nil)
@@ -79,7 +78,7 @@ func TestGetExistingDeleteJobForDeletingState_NoJobFound_ReturnsEmpty(t *testing
 	mockStorage := NewMockStorage(t)
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
-	deleteJobType := models.JobTypeDeleteVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(deleteJobType)).Return(nil, errors.New("not found"))
 
@@ -94,8 +93,8 @@ func TestValidateCorrelationIDForCreatingResource_EmptyCorrelationID_ReturnsErro
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
 	resourceType := "Volume"
-	createJobType := models.JobTypeCreateVolume
-	deleteJobType := models.JobTypeDeleteVolume
+	createJobType := datamodel.JobTypeCreateVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	// Create context without correlation ID
 	ctxWithoutCorrID := context.Background()
@@ -122,13 +121,13 @@ func TestValidateCorrelationIDForCreatingResource_ExistingDeleteJobCorrelationID
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
 	resourceType := "Volume"
-	createJobType := models.JobTypeCreateVolume
-	deleteJobType := models.JobTypeDeleteVolume
+	createJobType := datamodel.JobTypeCreateVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	existingDeleteJob := &datamodel.Job{
 		BaseModel:     datamodel.BaseModel{UUID: "delete-job-uuid"},
 		CorrelationID: "different-correlation-id",
-		State:         string(models.JobsStatePROCESSING),
+		State:         string(datamodel.JobsStatePROCESSING),
 	}
 
 	mockStorage.On("GetJobByResourceUUID", ctxWithCorrID, resourceUUID, string(deleteJobType)).Return(existingDeleteJob, nil)
@@ -155,13 +154,13 @@ func TestValidateCorrelationIDForCreatingResource_ExistingDeleteJobInProgress_Re
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
 	resourceType := "Volume"
-	createJobType := models.JobTypeCreateVolume
-	deleteJobType := models.JobTypeDeleteVolume
+	createJobType := datamodel.JobTypeCreateVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	existingDeleteJob := &datamodel.Job{
 		BaseModel:     datamodel.BaseModel{UUID: "delete-job-uuid"},
 		CorrelationID: correlationID,
-		State:         string(models.JobsStatePROCESSING),
+		State:         string(datamodel.JobsStatePROCESSING),
 	}
 
 	mockStorage.On("GetJobByResourceUUID", ctxWithCorrID, resourceUUID, string(deleteJobType)).Return(existingDeleteJob, nil)
@@ -188,8 +187,8 @@ func TestValidateCorrelationIDForCreatingResource_CreateJobNotFound_ReturnsError
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
 	resourceType := "Volume"
-	createJobType := models.JobTypeCreateVolume
-	deleteJobType := models.JobTypeDeleteVolume
+	createJobType := datamodel.JobTypeCreateVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	// No existing delete job
 	mockStorage.On("GetJobByResourceUUID", ctxWithCorrID, resourceUUID, string(deleteJobType)).Return(nil, nil)
@@ -218,8 +217,8 @@ func TestValidateCorrelationIDForCreatingResource_CreateJobCorrelationIDMismatch
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
 	resourceType := "Volume"
-	createJobType := models.JobTypeCreateVolume
-	deleteJobType := models.JobTypeDeleteVolume
+	createJobType := datamodel.JobTypeCreateVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	// No existing delete job
 	mockStorage.On("GetJobByResourceUUID", ctxWithCorrID, resourceUUID, string(deleteJobType)).Return(nil, nil)
@@ -252,8 +251,8 @@ func TestValidateCorrelationIDForCreatingResource_ValidCorrelationID_ReturnsClea
 	mockLogger := &log.MockLogger{}
 	resourceUUID := "resource-uuid-123"
 	resourceType := "Volume"
-	createJobType := models.JobTypeCreateVolume
-	deleteJobType := models.JobTypeDeleteVolume
+	createJobType := datamodel.JobTypeCreateVolume
+	deleteJobType := datamodel.JobTypeDeleteVolume
 
 	// No existing delete job
 	mockStorage.On("GetJobByResourceUUID", ctxWithCorrID, resourceUUID, string(deleteJobType)).Return(nil, nil)

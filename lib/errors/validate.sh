@@ -201,6 +201,6 @@ else
         echo "4. Fix JSON syntax in errors.json"
     fi
     echo ""
-    echo "After fixing issues, run validation again: ./core/errors/validate.sh"
+    echo "After fixing issues, run validation again: ./lib/errors/validate.sh"
     exit 1
 fi 

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicecontrol/v1"
 )

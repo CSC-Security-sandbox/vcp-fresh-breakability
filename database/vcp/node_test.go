@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"gorm.io/gorm"
 )
 
@@ -252,7 +251,7 @@ func TestErroredNode(t *testing.T) {
 			Name:      "test_node",
 			AccountID: int64(12),
 			PoolID:    1234,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(node).Error()
 		if err != nil {
@@ -266,7 +265,7 @@ func TestErroredNode(t *testing.T) {
 		updatedNode := &datamodel.Node{}
 		err = store.db.GORM().First(updatedNode, "uuid = ?", node.UUID).Error
 		assert.NoError(tt, err)
-		assert.Equal(tt, models.LifeCycleStateError, updatedNode.State)
+		assert.Equal(tt, datamodel.LifeCycleStateError, updatedNode.State)
 		assert.Equal(tt, errMsg, updatedNode.StateDetails)
 		assert.WithinDuration(tt, time.Now(), updatedNode.UpdatedAt, 2*time.Second)
 	})
@@ -288,7 +287,7 @@ func TestErroredNode(t *testing.T) {
 			Name:      "failing_node",
 			AccountID: int64(34),
 			PoolID:    5678,
-			State:     models.LifeCycleStateREADY,
+			State:     datamodel.LifeCycleStateREADY,
 		}
 		err = store.db.Create(node).Error()
 		if err != nil {
@@ -345,11 +344,11 @@ func TestDeletingNode(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to fetch updated node: %v", err)
 		}
-		if updatedNode.State != models.LifeCycleStateDeleting {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateDeleting, updatedNode.State)
+		if updatedNode.State != datamodel.LifeCycleStateDeleting {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateDeleting, updatedNode.State)
 		}
-		if updatedNode.StateDetails != models.LifeCycleStateDeletingDetails {
-			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateDeletingDetails, updatedNode.StateDetails)
+		if updatedNode.StateDetails != datamodel.LifeCycleStateDeletingDetails {
+			tt.Errorf("Expected state details %v, got %v", datamodel.LifeCycleStateDeletingDetails, updatedNode.StateDetails)
 		}
 	})
 }

@@ -2,14 +2,14 @@ package database
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -91,7 +91,7 @@ type backupChainHistoryUpdateParams struct {
 	ResourceName   string
 	ConsumerID     string
 	DeploymentName string
-	SkipCreate bool
+	SkipCreate     bool
 }
 
 // pickRowToTombstone returns the active row to tombstone for the given endpoint, or nil if none should be touched.
@@ -214,8 +214,8 @@ func (d *DataStoreRepository) CreateBackup(ctx context.Context, backup *datamode
 
 	if tx.Where("name = ?", backup.Name).Where("backup_vault_id = ?", backup.BackupVaultID).First(&backup).Error != nil {
 		backup.UUID = utils.RandomUUID()
-		backup.State = models.LifeCycleStateCreating
-		backup.StateDetails = models.LifeCycleStateCreatingDetails
+		backup.State = datamodel.LifeCycleStateCreating
+		backup.StateDetails = datamodel.LifeCycleStateCreatingDetails
 		backup.CreatedAt = time.Now()
 		backup.UpdatedAt = backup.CreatedAt
 
@@ -493,7 +493,7 @@ func (d *DataStoreRepository) IsBackupInCreatingorDeletingStateByVolume(ctx cont
 
 func isBackupInCreatingorDeletingStateByVolume(db *gorm.DB, volumeUUID string) (bool, error) {
 	var backups int64
-	err := db.Model(&datamodel.Backup{}).Where("volume_uuid = ?", volumeUUID).Where("state = ? OR state = ?", models.LifeCycleStateCreating, models.LifeCycleStateDeleting).Count(&backups).Error
+	err := db.Model(&datamodel.Backup{}).Where("volume_uuid = ?", volumeUUID).Where("state = ? OR state = ?", datamodel.LifeCycleStateCreating, datamodel.LifeCycleStateDeleting).Count(&backups).Error
 
 	if err != nil && err == gorm.ErrRecordNotFound {
 		return false, nil
@@ -512,7 +512,7 @@ func (d *DataStoreRepository) AreBackupsInProgressForVolume(ctx context.Context,
 func (d *DataStoreRepository) GetEarliestCreatingBackupTime(ctx context.Context, volumeUUID string) (*time.Time, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var backup datamodel.Backup
-	err := db.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateCreating).
+	err := db.Where("volume_uuid = ? AND state = ?", volumeUUID, datamodel.LifeCycleStateCreating).
 		Order("created_at ASC").
 		First(&backup).Error
 	if err != nil {
@@ -527,7 +527,7 @@ func (d *DataStoreRepository) GetEarliestCreatingBackupTime(ctx context.Context,
 
 func areBackupsInProgressForVolume(db *gorm.DB, volumeUUID string, excludeBackupUUIDs []string, createdBefore *time.Time) (bool, error) {
 	var backups int64
-	query := db.Model(&datamodel.Backup{}).Where("volume_uuid = ?", volumeUUID).Where("state = ? OR state = ?", models.LifeCycleStateCreating, models.LifeCycleStateDeleting)
+	query := db.Model(&datamodel.Backup{}).Where("volume_uuid = ?", volumeUUID).Where("state = ? OR state = ?", datamodel.LifeCycleStateCreating, datamodel.LifeCycleStateDeleting)
 
 	if len(excludeBackupUUIDs) > 0 {
 		query = query.Where("uuid NOT IN ?", excludeBackupUUIDs)
@@ -575,7 +575,7 @@ func _deleteBackup(ctx context.Context, db *gorm.DB, backupUUID string) (*datamo
 	}
 
 	backup.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	backup.State = models.LifeCycleStateDeleted
+	backup.State = datamodel.LifeCycleStateDeleted
 	backup.StateDetails = ""
 	err = tx.Save(backup).Error
 	if err != nil {
@@ -630,8 +630,8 @@ func (d *DataStoreRepository) FinishBackup(ctx context.Context, backup *datamode
 
 	err = tx.Model(&dbBackup).Updates(datamodel.Backup{
 		Description:             backup.Description,
-		State:                   models.LifeCycleStateAvailable,
-		StateDetails:            models.LifeCycleStateAvailableDetails,
+		State:                   datamodel.LifeCycleStateAvailable,
+		StateDetails:            datamodel.LifeCycleStateAvailableDetails,
 		Attributes:              backup.Attributes,
 		AssetMetadata:           backup.AssetMetadata,
 		SizeInBytes:             backup.SizeInBytes,
@@ -698,8 +698,8 @@ func (d *DataStoreRepository) UpdateBackup(ctx context.Context, backup *datamode
 		Description: backup.Description,
 	}
 
-	updateFields.State = models.LifeCycleStateAvailable
-	updateFields.StateDetails = models.LifeCycleStateAvailableDetails
+	updateFields.State = datamodel.LifeCycleStateAvailable
+	updateFields.StateDetails = datamodel.LifeCycleStateAvailableDetails
 
 	err = tx.Model(&dbBackup).Updates(updateFields).Error
 	if err != nil {
@@ -760,7 +760,7 @@ func (d *DataStoreRepository) IsLatestBackup(ctx context.Context, backupUUID, vo
 	db := d.db.GORM().WithContext(ctx)
 	backup := &datamodel.Backup{}
 	// get backup by created_at timestamp under a volume
-	err := db.Where("volume_uuid = ? and (state = ? or (state = ? and attributes->>'delete_initiated' = 'true'))", volumeUUID, models.LifeCycleStateAvailable, models.LifeCycleStateError).Order("created_at desc").First(&backup).Error
+	err := db.Where("volume_uuid = ? and (state = ? or (state = ? and attributes->>'delete_initiated' = 'true'))", volumeUUID, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateError).Order("created_at desc").First(&backup).Error
 	if err != nil {
 		return false, err
 	}
@@ -808,7 +808,7 @@ func (d *DataStoreRepository) IsLatestBackupInVaultAndInEndpoint(ctx context.Con
 	endpointUUID = strings.TrimSpace(endpointUUID)
 	q := db.Where(
 		"volume_uuid = ? AND backup_vault_id = ? AND (state = ? OR (state = ? AND attributes->>'delete_initiated' = 'true'))",
-		volumeUUID, backupVaultID, models.LifeCycleStateAvailable, models.LifeCycleStateError,
+		volumeUUID, backupVaultID, datamodel.LifeCycleStateAvailable, datamodel.LifeCycleStateError,
 	)
 	if endpointUUID == "" {
 		q = q.Where("TRIM(COALESCE(attributes->>'endpoint_uuid', '')) = ''")
@@ -825,7 +825,7 @@ func (d *DataStoreRepository) IsLatestBackupInVaultAndInEndpoint(ctx context.Con
 func (d *DataStoreRepository) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var count int64
-	err := db.Model(&datamodel.Backup{}).Where("volume_uuid = ? and state != ?", volumeUUID, models.LifeCycleStateError).Count(&count).Error
+	err := db.Model(&datamodel.Backup{}).Where("volume_uuid = ? and state != ?", volumeUUID, datamodel.LifeCycleStateError).Count(&count).Error
 	if err != nil {
 		return 0, err
 	}
@@ -841,7 +841,7 @@ func (d *DataStoreRepository) BackupCountByVolumeIDVaultAndEndpoint(ctx context.
 	var count int64
 	endpointUUID = strings.TrimSpace(endpointUUID)
 	q := db.Model(&datamodel.Backup{}).
-		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, models.LifeCycleStateError)
+		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, datamodel.LifeCycleStateError)
 	if endpointUUID == "" {
 		q = q.Where("TRIM(COALESCE(attributes->>'endpoint_uuid', '')) = ''")
 	} else {
@@ -877,7 +877,7 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Daily).
-		Where("state != ?", models.LifeCycleStateCreating).
+		Where("state != ?", datamodel.LifeCycleStateCreating).
 		Order("id desc").
 		Offset(int(backupPolicy.DailyBackupsToKeep)).
 		Find(&dailyBackups).Error
@@ -890,7 +890,7 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Weekly).
-		Where("state != ?", models.LifeCycleStateCreating).
+		Where("state != ?", datamodel.LifeCycleStateCreating).
 		Order("id desc").
 		Offset(int(backupPolicy.WeeklyBackupsToKeep)).
 		Find(&weeklyBackups).Error
@@ -903,7 +903,7 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Monthly).
-		Where("state != ?", models.LifeCycleStateCreating).
+		Where("state != ?", datamodel.LifeCycleStateCreating).
 		Order("id desc").
 		Offset(int(backupPolicy.MonthlyBackupsToKeep)).
 		Find(&monthlyBackups).Error
@@ -963,7 +963,7 @@ func (d *DataStoreRepository) GetBackupCountByVolumeAndVault(ctx context.Context
 	var count int64
 	db := d.db.GORM().WithContext(ctx)
 	err := db.Model(&datamodel.Backup{}).
-		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, models.LifeCycleStateDeleted).
+		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, datamodel.LifeCycleStateDeleted).
 		Count(&count).Error
 	if err != nil {
 		return 0, err
@@ -980,7 +980,7 @@ func (d *DataStoreRepository) GetBackupCountByVolumeVaultAndEndpoint(ctx context
 	db := d.db.GORM().WithContext(ctx)
 	endpointUUID = strings.TrimSpace(endpointUUID)
 	q := db.Model(&datamodel.Backup{}).
-		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, models.LifeCycleStateDeleted)
+		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, datamodel.LifeCycleStateDeleted)
 	if endpointUUID == "" {
 		q = q.Where("TRIM(COALESCE(attributes->>'endpoint_uuid', '')) = ''")
 	} else {
@@ -999,7 +999,7 @@ func (d *DataStoreRepository) GetDistinctBackupVaultIDsByVolumeUUID(ctx context.
 	var ids []int64
 	db := d.db.GORM().WithContext(ctx)
 	err := db.Model(&datamodel.Backup{}).
-		Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).
+		Where("volume_uuid = ? AND state = ?", volumeUUID, datamodel.LifeCycleStateAvailable).
 		Distinct("backup_vault_id").
 		Pluck("backup_vault_id", &ids).Error
 	if err != nil {
@@ -1088,7 +1088,7 @@ func (d *DataStoreRepository) UpdateBackupLatestLogicalBackupSizeByVolume(ctx co
 func (d *DataStoreRepository) GetLatestBackupByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.Backup, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var b datamodel.Backup
-	err := db.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).Last(&b).Error
+	err := db.Where("volume_uuid = ? AND state = ?", volumeUUID, datamodel.LifeCycleStateAvailable).Last(&b).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1100,7 +1100,7 @@ func (d *DataStoreRepository) GetLatestBackupByVolumeUUID(ctx context.Context, v
 func (d *DataStoreRepository) GetLatestBackupByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (*datamodel.Backup, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var b datamodel.Backup
-	err := db.Where("volume_uuid = ? AND backup_vault_id = ? AND state = ?", volumeUUID, backupVaultID, models.LifeCycleStateAvailable).Last(&b).Error
+	err := db.Where("volume_uuid = ? AND backup_vault_id = ? AND state = ?", volumeUUID, backupVaultID, datamodel.LifeCycleStateAvailable).Last(&b).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1118,7 +1118,7 @@ func (d *DataStoreRepository) GetLatestBackupsPerVaultByVolumeUUID(ctx context.C
 	var out []*datamodel.Backup
 	for _, vaultID := range vaultIDs {
 		var b datamodel.Backup
-		err = db.Where("volume_uuid = ? AND backup_vault_id = ? AND state = ?", volumeUUID, vaultID, models.LifeCycleStateAvailable).Last(&b).Error
+		err = db.Where("volume_uuid = ? AND backup_vault_id = ? AND state = ?", volumeUUID, vaultID, datamodel.LifeCycleStateAvailable).Last(&b).Error
 		if err != nil {
 			return nil, err
 		}
@@ -1138,10 +1138,10 @@ func (d *DataStoreRepository) GetBackupMetrics(ctx context.Context, conditions [
 	err := db.Preload("BackupVault", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id, uuid, name, account_id, backup_vault_type, cmek_attributes, backup_region_name, service_type")
 	}).
-		Where("state = ?", models.LifeCycleStateAvailable).
+		Where("state = ?", datamodel.LifeCycleStateAvailable).
 		Where("id IN (?)", db.Table("backups").
 			Select("MAX(id)").
-			Where("state = ?", models.LifeCycleStateAvailable).
+			Where("state = ?", datamodel.LifeCycleStateAvailable).
 			Group("volume_uuid")).
 		Scopes(dbutils.Paginate(pagination)).
 		Find(&results).Error
@@ -1293,7 +1293,7 @@ func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context,
 
 	// Find the latest backup for the volume (by id)
 	var latestBackup datamodel.Backup
-	err = tx.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).Last(&latestBackup).Error
+	err = tx.Where("volume_uuid = ? AND state = ?", volumeUUID, datamodel.LifeCycleStateAvailable).Last(&latestBackup).Error
 	if err != nil {
 		return err
 	}
@@ -1358,7 +1358,7 @@ func (d *DataStoreRepository) GetVolumeLatestBackupMap(ctx context.Context) (map
 		}
 		regularConditions := [][]interface{}{
 			{"uuid in ?", regularVolumeUUIDs},
-			{"state = ?", models.LifeCycleStateREADY},
+			{"state = ?", datamodel.LifeCycleStateREADY},
 		}
 		logger.Info("Fetching regular volumes with pool preloaded")
 		volumes, err2 := d.GetMultipleVolumes(ctx, regularConditions)
@@ -1387,7 +1387,7 @@ func (d *DataStoreRepository) GetVolumeLatestBackupMap(ctx context.Context) (map
 		}
 		expertModeConditions := [][]interface{}{
 			{"external_uuid in ?", expertModeUUIDs},
-			{"state = ?", models.LifeCycleStateREADY},
+			{"state = ?", datamodel.LifeCycleStateREADY},
 		}
 		logger.Info("Fetching expert mode volumes with pool preloaded")
 		expertModeVolumes, err3 := d.GetMultipleVolumesWithExpertMode(ctx, expertModeConditions)
@@ -1457,7 +1457,7 @@ func (d *DataStoreRepository) GetLatestBackupsGroupedByVolumeUUID(ctx context.Co
 			  AND (v.uuid IS NULL OR v.data_protection->>'backup_vault_id' IS NULL OR bv.uuid = v.data_protection->>'backup_vault_id')
 		) ranked
 		WHERE rn = 1
-	`, models.LifeCycleStateAvailable).Scan(&rows).Error
+	`, datamodel.LifeCycleStateAvailable).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1735,7 +1735,7 @@ func (d *DataStoreRepository) GetExpertModeBackupsByVolumeExternalUUID(ctx conte
 	db := d.db.GORM().WithContext(ctx)
 	var backups []*datamodel.Backup
 
-	err := db.Where("volume_uuid = ? AND state != ?", volumeExternalUUID, models.LifeCycleStateError).
+	err := db.Where("volume_uuid = ? AND state != ?", volumeExternalUUID, datamodel.LifeCycleStateError).
 		Order("created_at DESC").
 		Find(&backups).Error
 	if err != nil {

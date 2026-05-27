@@ -9,13 +9,12 @@ import (
 
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -57,9 +56,9 @@ func (a *AutoTierSyncActivity) UpdateAggregatesInOntap(ctx context.Context, node
 	var provider vsa.Provider
 	var err error
 	if autoTieringFastOntapConnection {
-		provider, err = hyperscaler.GetProviderByNodeWithFastConnection(ctx, node)
+		provider, err = vsa.GetProviderByNodeWithFastConnection(ctx, node)
 	} else {
-		provider, err = hyperscaler.GetProviderByNode(ctx, node)
+		provider, err = vsa.GetProviderByNode(ctx, node)
 	}
 	activity.RecordHeartbeat(ctx, "Retrieved provider for node")
 	if err != nil {

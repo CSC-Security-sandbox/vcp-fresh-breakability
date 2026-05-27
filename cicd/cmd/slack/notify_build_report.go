@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
 	"main/cmd/jira"
 	"net/http"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 var NotifyBuildReportCommand = &cobra.Command{

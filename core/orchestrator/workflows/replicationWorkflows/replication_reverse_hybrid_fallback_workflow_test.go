@@ -5,14 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -51,7 +51,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &commonparams.ReverseAndResumeReplicationParams{
-			AccountName:    "test-account",
+			AccountName:   "test-account",
 			CorrelationId: "test-correlation-id",
 		}
 
@@ -67,21 +67,21 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceLocation:           "us-central1",
-						SourceSvmName:           "source-svm",
-						SourceVolumeName:        "source-volume",
-						SourceReplicationUUID:    "source-replication-uuid",
-						SourceHostName:           "source-host",
-						SourceVolumeUUID:        "source-volume-uuid",
-						SourcePoolUUID:          "source-pool-uuid",
-						DestinationSvmName:      "dest-svm",
-						DestinationVolumeName:   "dest-volume",
+						SourceLocation:             "us-central1",
+						SourceSvmName:              "source-svm",
+						SourceVolumeName:           "source-volume",
+						SourceReplicationUUID:      "source-replication-uuid",
+						SourceHostName:             "source-host",
+						SourceVolumeUUID:           "source-volume-uuid",
+						SourcePoolUUID:             "source-pool-uuid",
+						DestinationSvmName:         "dest-svm",
+						DestinationVolumeName:      "dest-volume",
 						DestinationReplicationUUID: "dest-replication-uuid",
-						DestinationHostName:      "dest-host",
-						DestinationVolumeUUID:    "dest-volume-uuid",
-						DestinationPoolUUID:     "dest-pool-uuid",
-						ReplicationSchedule:     vsa.VolumeReplicationScheduleHourly,
-						EndpointType:            "src",
+						DestinationHostName:        "dest-host",
+						DestinationVolumeUUID:      "dest-volume-uuid",
+						DestinationPoolUUID:        "dest-pool-uuid",
+						ReplicationSchedule:        vsa.VolumeReplicationScheduleHourly,
+						EndpointType:               "src",
 					},
 				},
 				SourceProjectNumber:      "123456789",
@@ -99,7 +99,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 			DbVolReplication: event.ReplicationModel,
 			SrcProjectNumber: &event.SourceProjectNumber,
 			DstProjectNumber: &event.DestinationProjectNumber,
-			NodeProvider:    nodeProvider,
+			NodeProvider:     nodeProvider,
 		}
 
 		reverseResult := &replication.ReverseReplicationResult{
@@ -107,7 +107,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 			SrcProjectNumber: &event.SourceProjectNumber,
 			DstProjectNumber: &event.DestinationProjectNumber,
 			DbVolReplication: event.ReplicationModel,
-			NodeProvider:    nodeProvider,
+			NodeProvider:     nodeProvider,
 		}
 
 		srcBasePath := "https://test-src-base-path"
@@ -853,20 +853,20 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceLocation:           "us-central1",
-						SourceSvmName:           "source-svm",
-						SourceVolumeName:        "source-volume",
-						SourceReplicationUUID:    "source-replication-uuid",
-						SourceHostName:           "source-host",
-						SourceVolumeUUID:        "source-volume-uuid",
-						SourcePoolUUID:          "source-pool-uuid",
-						DestinationSvmName:      "dest-svm",
-						DestinationVolumeName:   "dest-volume",
+						SourceLocation:             "us-central1",
+						SourceSvmName:              "source-svm",
+						SourceVolumeName:           "source-volume",
+						SourceReplicationUUID:      "source-replication-uuid",
+						SourceHostName:             "source-host",
+						SourceVolumeUUID:           "source-volume-uuid",
+						SourcePoolUUID:             "source-pool-uuid",
+						DestinationSvmName:         "dest-svm",
+						DestinationVolumeName:      "dest-volume",
 						DestinationReplicationUUID: "dest-replication-uuid",
-						DestinationHostName:      "dest-host",
-						DestinationVolumeUUID:    "dest-volume-uuid",
-						DestinationPoolUUID:     "dest-pool-uuid",
-						EndpointType:            "src",
+						DestinationHostName:        "dest-host",
+						DestinationVolumeUUID:      "dest-volume-uuid",
+						DestinationPoolUUID:        "dest-pool-uuid",
+						EndpointType:               "src",
 					},
 				},
 				SourceProjectNumber:      "123456789",
@@ -883,7 +883,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 			DbVolReplication: event.ReplicationModel,
 			SrcProjectNumber: &event.SourceProjectNumber,
 			DstProjectNumber: &event.DestinationProjectNumber,
-			NodeProvider:    nodeProvider,
+			NodeProvider:     nodeProvider,
 		}
 
 		reverseResult := &replication.ReverseReplicationResult{
@@ -891,7 +891,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 			SrcProjectNumber: &event.SourceProjectNumber,
 			DstProjectNumber: &event.DestinationProjectNumber,
 			DbVolReplication: event.ReplicationModel,
-			NodeProvider:    nodeProvider,
+			NodeProvider:     nodeProvider,
 		}
 
 		srcBasePath := "https://test-src-base-path"
@@ -981,20 +981,20 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 						},
 					},
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceLocation:           "us-central1",
-						SourceSvmName:           "source-svm",
-						SourceVolumeName:        "source-volume",
-						SourceReplicationUUID:    "source-replication-uuid",
-						SourceHostName:           "source-host",
-						SourceVolumeUUID:        "source-volume-uuid",
-						SourcePoolUUID:          "source-pool-uuid",
-						DestinationSvmName:      "dest-svm",
-						DestinationVolumeName:   "dest-volume",
+						SourceLocation:             "us-central1",
+						SourceSvmName:              "source-svm",
+						SourceVolumeName:           "source-volume",
+						SourceReplicationUUID:      "source-replication-uuid",
+						SourceHostName:             "source-host",
+						SourceVolumeUUID:           "source-volume-uuid",
+						SourcePoolUUID:             "source-pool-uuid",
+						DestinationSvmName:         "dest-svm",
+						DestinationVolumeName:      "dest-volume",
 						DestinationReplicationUUID: "dest-replication-uuid",
-						DestinationHostName:      "dest-host",
-						DestinationVolumeUUID:    "dest-volume-uuid",
-						DestinationPoolUUID:     "dest-pool-uuid",
-						EndpointType:            "src",
+						DestinationHostName:        "dest-host",
+						DestinationVolumeUUID:      "dest-volume-uuid",
+						DestinationPoolUUID:        "dest-pool-uuid",
+						EndpointType:               "src",
 					},
 				},
 				SourceProjectNumber:      "123456789",
@@ -1012,7 +1012,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 			DbVolReplication: event.ReplicationModel,
 			SrcProjectNumber: &event.SourceProjectNumber,
 			DstProjectNumber: &event.DestinationProjectNumber,
-			NodeProvider:    nodeProvider,
+			NodeProvider:     nodeProvider,
 		}
 
 		reverseResult := &replication.ReverseReplicationResult{
@@ -1020,7 +1020,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 			SrcProjectNumber: &event.SourceProjectNumber,
 			DstProjectNumber: &event.DestinationProjectNumber,
 			DbVolReplication: event.ReplicationModel,
-			NodeProvider:    nodeProvider,
+			NodeProvider:     nodeProvider,
 		}
 
 		srcBasePath := "https://test-src-base-path"
@@ -1127,4 +1127,3 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		assert.Error(tt, env.GetWorkflowError())
 	})
 }
-

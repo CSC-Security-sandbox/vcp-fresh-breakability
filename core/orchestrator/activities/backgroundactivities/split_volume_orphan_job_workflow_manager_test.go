@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 )
 
 func makeBaseSplitJob() *datamodel.Job {
@@ -152,9 +152,9 @@ func TestSplitVolumeArgs_PrepareWorkflowArgs_Success(t *testing.T) {
 	mockSE.On("GetNodesByPoolID", ctx, int64(10)).Return(dbNodes, nil)
 
 	fakeNode := &models.Node{DeploymentName: "test-deploy"}
-	originalCreateNode := hyperscaler.CreateNodeForProvider
-	defer func() { hyperscaler.CreateNodeForProvider = originalCreateNode }()
-	hyperscaler.CreateNodeForProvider = func(inp hyperscaler.NodeProviderInput) *models.Node {
+	originalCreateNode := vsa.CreateNodeForProvider
+	defer func() { vsa.CreateNodeForProvider = originalCreateNode }()
+	vsa.CreateNodeForProvider = func(inp vsa.NodeProviderInput) *models.Node {
 		return fakeNode
 	}
 

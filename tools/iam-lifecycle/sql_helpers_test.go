@@ -271,10 +271,10 @@ func TestExcludeUser(t *testing.T) {
 
 func TestIAMPort(t *testing.T) {
 	tests := []struct {
-		name           string
-		cfg            config
-		iamUser        string
-		expectedPort   string
+		name         string
+		cfg          config
+		iamUser      string
+		expectedPort string
 	}{
 		{
 			name: "temporal user with temporal port set",
@@ -348,13 +348,13 @@ func TestEnvOr(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-	t.Run(tt.name, func(t *testing.T) {
-		// Clean up
-		defer func() { _ = os.Unsetenv(tt.key) }()
+		t.Run(tt.name, func(t *testing.T) {
+			// Clean up
+			defer func() { _ = os.Unsetenv(tt.key) }()
 
-		if tt.envValue != "" {
-			_ = os.Setenv(tt.key, tt.envValue)
-		}
+			if tt.envValue != "" {
+				_ = os.Setenv(tt.key, tt.envValue)
+			}
 
 			result := envOr(tt.key, tt.fallback)
 			assert.Equal(t, tt.expected, result)
@@ -410,9 +410,9 @@ func TestEnvBool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clean up
-		defer func() { _ = os.Unsetenv(tt.key) }()
+			defer func() { _ = os.Unsetenv(tt.key) }()
 
-		_ = os.Setenv(tt.key, tt.envValue)
+			_ = os.Setenv(tt.key, tt.envValue)
 
 			result := envBool(tt.key)
 			assert.Equal(t, tt.expected, result)
@@ -426,7 +426,7 @@ func TestQI_SQLInjectionPrevention(t *testing.T) {
 	result := qi(maliciousInput)
 	expected := `"""; DROP TABLE users; --"`
 	assert.Equal(t, expected, result)
-	
+
 	// Verify that the escaped identifier can be safely used in SQL
 	// (would need actual DB connection to fully test, but escaping is validated)
 	assert.Contains(t, result, `""`) // Double quote should be escaped
@@ -438,7 +438,7 @@ func TestQS_SQLInjectionPrevention(t *testing.T) {
 	result := qs(maliciousInput)
 	expected := `'''; DROP TABLE users; --'`
 	assert.Equal(t, expected, result)
-	
+
 	// Verify that the escaped string can be safely used in SQL
 	assert.Contains(t, result, `''`) // Single quote should be escaped
 }

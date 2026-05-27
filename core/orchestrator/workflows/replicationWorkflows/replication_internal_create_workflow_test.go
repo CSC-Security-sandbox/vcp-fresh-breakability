@@ -5,12 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -50,16 +50,16 @@ func TestCreateInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		params := &commonparams.CreateVolumeReplicationInternalParams{
 			VolumeReplication: &models.VolumeReplication{
-				Account: &models.Account{BaseModel: models.BaseModel{ID: 1}, Name: "test-account"},
-				Name:    "test-replication",
+				Account:               &models.Account{BaseModel: models.BaseModel{ID: 1}, Name: "test-account"},
+				Name:                  "test-replication",
 				ReplicationAttributes: &models.ReplicationDetails{DestinationVolumeUUID: "test-volume-uuid"},
 				Volume:                &models.Volume{BaseModel: models.BaseModel{ID: 1}},
 			},
 		}
 		replicationDb := &datamodel.VolumeReplication{
-			Name: params.VolumeReplication.Name,
+			Name:                  params.VolumeReplication.Name,
 			ReplicationAttributes: &datamodel.ReplicationDetails{DestinationVolumeUUID: params.VolumeReplication.ReplicationAttributes.DestinationVolumeUUID},
-			AccountID: account.ID, Account: account, VolumeID: params.VolumeReplication.VolumeID, Volume: volume,
+			AccountID:             account.ID, Account: account, VolumeID: params.VolumeReplication.VolumeID, Volume: volume,
 		}
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}, State: "NEW"}, nil)

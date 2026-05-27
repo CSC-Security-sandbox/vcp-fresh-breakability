@@ -7,14 +7,13 @@ import (
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -149,7 +148,7 @@ func snapmirrorOntapRelationshipToCommon(snapmirror *ontapRest.SnapmirrorRelatio
 
 func (a BackupActivity) IsSnapmirrorDeleted(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (*commonparams.SnapmirrorDeletePrecheckResult, error) {
 	activity.RecordHeartbeat(ctx, "is snapmirror-deleted check started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -424,7 +423,7 @@ func (b *BackupActivity) CheckTransferStatusActivity(ctx context.Context, backup
 
 func (a BackupActivity) GetSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.SmObjectStoreEndpointSnapshot, error) {
 	activity.RecordHeartbeat(ctx, "GetSnapshotFromObjectStore started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -435,7 +434,7 @@ func (a BackupActivity) GetSnapshotFromObjectStore(ctx context.Context, node *mo
 
 func (a BackupActivity) GetObjectStoreEndpointInfo(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID string) (*vsa.SmObjectStoreEndpointt, error) {
 	activity.RecordHeartbeat(ctx, "GetObjectStoreEndpointInfo started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -618,7 +617,7 @@ func (b *BackupActivity) FinishBackupActivity(ctx context.Context, backupActivit
 
 func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models.Node, name, containerName string) (*commonparams.CloudTarget, error) {
 	activity.RecordHeartbeat(ctx, "GetOrCreateObjectStore started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -642,7 +641,7 @@ func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models
 func (a BackupActivity) SnapmirrorGetOrCreate(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (*commonparams.SnapmirrorRelationship, error) {
 	activity.RecordHeartbeat(ctx, "SnapmirrorGetOrCreate started")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -689,7 +688,7 @@ func (a BackupActivity) SnapmirrorGetOrCreate(ctx context.Context, node *models.
 
 func (a BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, name string) (*commonparams.CloudTarget, error) {
 	activity.RecordHeartbeat(ctx, "GetObjectStore started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -705,7 +704,7 @@ func (a BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, n
 
 func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
 	activity.RecordHeartbeat(ctx, "GetSnapmirror started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -723,7 +722,7 @@ func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, so
 }
 
 func (a BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, volumeUUID, name, comment string) (*vsa.SnapshotProviderResponse, error) {
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -737,7 +736,7 @@ func (a BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, v
 func (a BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
 	activity.RecordHeartbeat(ctx, "SnapmirrorTransfer started")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -764,7 +763,7 @@ func (a BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Nod
 func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) (*SnapmirrorTransferStatus, error) {
 	activity.RecordHeartbeat(ctx, "GetSnapmirrorTransferStatus started")
 	logger := util.GetLogger(ctx)
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return &SnapmirrorTransferStatus{Status: SmStatusFailed}, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -815,7 +814,7 @@ func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.N
 	if snapshotUUID == "" || volumeUUID == "" {
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(fmt.Errorf("invalid input: snapshotUUID and volumeUUID cannot be empty"))
 	}
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -823,7 +822,7 @@ func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.N
 }
 
 func (a BackupActivity) SnapshotGet(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) (*vsa.SnapshotProviderResponse, error) {
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -945,7 +944,7 @@ func (a BackupActivity) GetLatestBackupByVolumeAndVault(ctx context.Context, vol
 // DeleteSnapshotFromObjectStore Enhanced DeleteSnapshotFromObjectStore with idempotency
 func (a BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
 	activity.RecordHeartbeat(ctx, "delete snapshot from object store started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -961,7 +960,7 @@ func (a BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node 
 // Enhanced DeleteSnapmirror with idempotency
 func (a BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node, snapmirrorUUID string) (*vsa.OntapAsyncResponse, error) {
 	activity.RecordHeartbeat(ctx, "delete snapmirror started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -976,7 +975,7 @@ func (a BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node,
 // DeleteCloudEndpoint Enhanced DeleteCloudEndpoint with idempotency
 func (a BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.Node, objectStoreUUID string, EndpointUUID string) (*vsa.OntapAsyncResponse, error) {
 	activity.RecordHeartbeat(ctx, "delete cloud endpoint started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -992,7 +991,7 @@ func (a BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.No
 // Enhanced DeleteSnapshotForBackup with idempotency
 func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string, useExistingSnapshot bool) error {
 	activity.RecordHeartbeat(ctx, "delete snapshot started")
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -2064,7 +2063,7 @@ func (a *BackupActivity) GetSnapshotNameByUUIDActivity(ctx context.Context, back
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("node is nil"))
 	}
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get provider: %w", err))
 	}
@@ -2261,7 +2260,7 @@ func (b *BackupActivity) GetVolumesAndConstituentCountActivity(ctx context.Conte
 	volume := backupActivitiesContext.BackupWorkflowInit.Volume
 	node := backupActivitiesContext.Node
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("failed to get provider: %w", err)))
 	}
@@ -2403,7 +2402,7 @@ func (b *BackupActivity) GetVolumeProtocolsFromOntapActivity(ctx context.Context
 	volume := backupActivitiesContext.BackupWorkflowInit.Volume
 	node := backupActivitiesContext.Node
 
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	provider, err := vsa.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("failed to get provider: %w", err)))
 	}

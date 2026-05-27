@@ -6,11 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	vcputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
@@ -128,17 +127,17 @@ func TestUpdateJob(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			State: models.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 		}
 
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
-		err = store.UpdateJob(context.Background(), job.UUID, models.LifeCycleStateREADY, 0, "")
+		err = store.UpdateJob(context.Background(), job.UUID, datamodel.LifeCycleStateREADY, 0, "")
 		assert.NoError(tt, err, "Failed to update job: %v", err)
 		updatedJob, err := store.GetJob(context.Background(), job.UUID)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, job.UUID, updatedJob.UUID, "Expected job UUID %v, got %v", job.UUID, updatedJob.UUID)
-		assert.Equal(tt, models.LifeCycleStateREADY, updatedJob.State, "Expected job state %v, got %v", models.LifeCycleStateREADY, updatedJob.State)
+		assert.Equal(tt, datamodel.LifeCycleStateREADY, updatedJob.State, "Expected job state %v, got %v", datamodel.LifeCycleStateREADY, updatedJob.State)
 	})
 }
 
@@ -160,7 +159,7 @@ func TestDeleteJob(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			State: models.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 		}
 
 		_, err = store.CreateJob(context.Background(), job)
@@ -209,7 +208,7 @@ func TestGetJobsWithCondition(t *testing.T) {
 				ID:   1,
 				UUID: "job-1-uuid",
 			},
-			State: models.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 			Type:  "test-type",
 		}
 		job2 := &datamodel.Job{
@@ -217,7 +216,7 @@ func TestGetJobsWithCondition(t *testing.T) {
 				ID:   2,
 				UUID: "job-2-uuid",
 			},
-			State: models.LifeCycleStateREADY,
+			State: datamodel.LifeCycleStateREADY,
 			Type:  "test-type",
 		}
 		job3 := &datamodel.Job{
@@ -225,7 +224,7 @@ func TestGetJobsWithCondition(t *testing.T) {
 				ID:   3,
 				UUID: "job-3-uuid",
 			},
-			State: models.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 			Type:  "other-type",
 		}
 
@@ -238,7 +237,7 @@ func TestGetJobsWithCondition(t *testing.T) {
 
 		// Filter by state
 		filter := utils.CreateFilterWithConditions(
-			utils.NewFilterCondition("state", "=", models.LifeCycleStateCreating))
+			utils.NewFilterCondition("state", "=", datamodel.LifeCycleStateCreating))
 		jobs, err := store.GetJobsWithCondition(context.Background(), *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, jobs, 2, "Expected 2 jobs, got %d", len(jobs))
@@ -251,7 +250,7 @@ func TestGetJobsWithCondition(t *testing.T) {
 
 		// Filter by state and type
 		filter = utils.CreateFilterWithConditions(
-			utils.NewFilterCondition("state", "=", models.LifeCycleStateCreating),
+			utils.NewFilterCondition("state", "=", datamodel.LifeCycleStateCreating),
 			utils.NewFilterCondition("type", "=", "test-type"))
 		jobs, err = store.GetJobsWithCondition(context.Background(), *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
@@ -274,7 +273,7 @@ func TestGetJobsWithCondition(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			State: models.LifeCycleStateCreating,
+			State: datamodel.LifeCycleStateCreating,
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
@@ -333,8 +332,8 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		job := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-uuid"},
 			ResourceName: "test-pool",
-			State:        string(models.JobsStatePROCESSING),
-			Type:         string(string(models.JobTypeCreatePool)),
+			State:        string(datamodel.JobsStatePROCESSING),
+			Type:         string(string(datamodel.JobTypeCreatePool)),
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
@@ -366,8 +365,8 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		job := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "large-job-uuid"},
 			ResourceName: "test-large-pool",
-			State:        string(models.JobsStatePROCESSING),
-			Type:         string(models.JobTypeCreateLargePool), // Large capacity job type
+			State:        string(datamodel.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeCreateLargePool), // Large capacity job type
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
@@ -376,7 +375,7 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, jobs, 1, "Expected 1 job, got %d", len(jobs))
 		assert.Equal(tt, job.UUID, jobs[0].UUID, "Expected job UUID %v, got %v", job.UUID, jobs[0].UUID)
-		assert.Equal(tt, string(models.JobTypeCreateLargePool), jobs[0].Type, "Expected job type %v, got %v", models.JobTypeCreateLargePool, jobs[0].Type)
+		assert.Equal(tt, string(datamodel.JobTypeCreateLargePool), jobs[0].Type, "Expected job type %v, got %v", datamodel.JobTypeCreateLargePool, jobs[0].Type)
 	})
 
 	t.Run("WhenBothRegularAndLargeCapacityJobsExist", func(tt *testing.T) {
@@ -413,8 +412,8 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		regularJob := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "regular-job-uuid"},
 			ResourceName: "test-regular-pool",
-			State:        string(models.JobsStatePROCESSING),
-			Type:         string(string(models.JobTypeCreatePool)),
+			State:        string(datamodel.JobsStatePROCESSING),
+			Type:         string(string(datamodel.JobTypeCreatePool)),
 		}
 		_, err = store.CreateJob(context.Background(), regularJob)
 		assert.NoError(tt, err, "Failed to create regular job: %v", err)
@@ -422,8 +421,8 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		largeJob := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "large-job-uuid"},
 			ResourceName: "test-large-pool",
-			State:        string(models.JobsStatePROCESSING),
-			Type:         string(models.JobTypeCreateLargePool),
+			State:        string(datamodel.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeCreateLargePool),
 		}
 		_, err = store.CreateJob(context.Background(), largeJob)
 		assert.NoError(tt, err, "Failed to create large job: %v", err)
@@ -437,8 +436,8 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		for _, job := range jobs {
 			jobTypes[job.Type] = true
 		}
-		assert.True(tt, jobTypes[string(string(models.JobTypeCreatePool))], "Expected regular pool job type to be present")
-		assert.True(tt, jobTypes[string(models.JobTypeCreateLargePool)], "Expected large pool job type to be present")
+		assert.True(tt, jobTypes[string(string(datamodel.JobTypeCreatePool))], "Expected regular pool job type to be present")
+		assert.True(tt, jobTypes[string(datamodel.JobTypeCreateLargePool)], "Expected large pool job type to be present")
 	})
 
 	t.Run("WhenJobsExistButKmsIdDoesNotMatch", func(tt *testing.T) {
@@ -462,8 +461,8 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		job := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "job-uuid-2"},
 			ResourceName: "test-pool",
-			State:        string(models.JobsStatePROCESSING),
-			Type:         string(string(models.JobTypeCreatePool)),
+			State:        string(datamodel.JobsStatePROCESSING),
+			Type:         string(string(datamodel.JobTypeCreatePool)),
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
@@ -590,15 +589,15 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStateNEW),
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStateNEW),
 			CorrelationID: "test-correlation-id",
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
 
 		// Check for duplicate job
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
 		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
@@ -621,15 +620,15 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStatePROCESSING),
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStatePROCESSING),
 			CorrelationID: "test-correlation-id",
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
 
 		// Check for duplicate job
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
 		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
@@ -646,7 +645,7 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		// Check for duplicate job that doesn't exist
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "non-existent-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "non-existent-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Nil(tt, duplicateJob, "Expected no duplicate job to be found")
 	})
@@ -666,15 +665,15 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStateNEW),
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStateNEW),
 			CorrelationID: "different-correlation-id",
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
 
 		// Check for duplicate job with different correlation ID
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Nil(tt, duplicateJob, "Expected no duplicate job to be found")
 	})
@@ -694,15 +693,15 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreatePool)),
-			State:         string(models.JobsStateNEW),
+			Type:          string(string(datamodel.JobTypeCreatePool)),
+			State:         string(datamodel.JobsStateNEW),
 			CorrelationID: "test-correlation-id",
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
 
 		// Check for duplicate job with different job type
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Nil(tt, duplicateJob, "Expected no duplicate job to be found")
 	})
@@ -722,15 +721,15 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStateDONE),
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStateDONE),
 			CorrelationID: "test-correlation-id",
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
 
 		// Check for duplicate job - should find it because current implementation returns all jobs regardless of state
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
 		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
@@ -752,15 +751,15 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStateERROR),
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStateERROR),
 			CorrelationID: "test-correlation-id",
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
 
 		// Check for duplicate job - should find it because current implementation returns all jobs regardless of state
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
 		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
@@ -782,8 +781,8 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "job-1-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStateDONE), // Non-transient state
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStateDONE), // Non-transient state
 			CorrelationID: "test-correlation-id",
 		}
 		job2 := &datamodel.Job{
@@ -791,8 +790,8 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   2,
 				UUID: "job-2-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStateNEW), // Transient state
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStateNEW), // Transient state
 			CorrelationID: "test-correlation-id",
 		}
 		job3 := &datamodel.Job{
@@ -800,8 +799,8 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   3,
 				UUID: "job-3-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStatePROCESSING), // Transient state
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStatePROCESSING), // Transient state
 			CorrelationID: "test-correlation-id",
 		}
 
@@ -813,11 +812,11 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create job3: %v", err)
 
 		// Check for duplicate job - should find any job since current implementation returns all jobs regardless of state
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job")
 		assert.Contains(tt, []string{job1.UUID, job2.UUID, job3.UUID}, duplicateJob.UUID, "Expected to find any of the jobs")
-		assert.Contains(tt, []string{string(models.JobsStateDONE), string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}, duplicateJob.State, "Expected to find any job state")
+		assert.Contains(tt, []string{string(datamodel.JobsStateDONE), string(datamodel.JobsStateNEW), string(datamodel.JobsStatePROCESSING)}, duplicateJob.State, "Expected to find any job state")
 	})
 
 	t.Run("WhenEmptyCorrelationID", func(tt *testing.T) {
@@ -835,15 +834,15 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "test-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStateNEW),
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStateNEW),
 			CorrelationID: "",
 		}
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err, "Failed to create job: %v", err)
 
 		// Check for duplicate job with empty correlation ID
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, duplicateJob, "Expected to find duplicate job with empty correlation ID")
 		assert.Equal(tt, job.UUID, duplicateJob.UUID, "Expected job UUID %v, got %v", job.UUID, duplicateJob.UUID)
@@ -864,8 +863,8 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   1,
 				UUID: "replication-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreateVolumeReplication)),
-			State:         string(models.JobsStateNEW),
+			Type:          string(string(datamodel.JobTypeCreateVolumeReplication)),
+			State:         string(datamodel.JobsStateNEW),
 			CorrelationID: "test-correlation-id",
 		}
 		poolJob := &datamodel.Job{
@@ -873,8 +872,8 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 				ID:   2,
 				UUID: "pool-job-uuid",
 			},
-			Type:          string(string(models.JobTypeCreatePool)),
-			State:         string(models.JobsStateNEW),
+			Type:          string(string(datamodel.JobTypeCreatePool)),
+			State:         string(datamodel.JobsStateNEW),
 			CorrelationID: "test-correlation-id",
 		}
 
@@ -884,18 +883,18 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create pool job: %v", err)
 
 		// Check for duplicate replication job
-		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreateVolumeReplication), "test-correlation-id")
+		duplicateJob, err := store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreateVolumeReplication), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, duplicateJob, "Expected to find duplicate replication job")
 		assert.Equal(tt, replicationJob.UUID, duplicateJob.UUID, "Expected replication job UUID %v, got %v", replicationJob.UUID, duplicateJob.UUID)
-		assert.Equal(tt, string(string(models.JobTypeCreateVolumeReplication)), duplicateJob.Type, "Expected replication job type")
+		assert.Equal(tt, string(string(datamodel.JobTypeCreateVolumeReplication)), duplicateJob.Type, "Expected replication job type")
 
 		// Check for duplicate pool job
-		duplicateJob, err = store.CheckAndFetchDuplicateJobs(context.Background(), string(models.JobTypeCreatePool), "test-correlation-id")
+		duplicateJob, err = store.CheckAndFetchDuplicateJobs(context.Background(), string(datamodel.JobTypeCreatePool), "test-correlation-id")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, duplicateJob, "Expected to find duplicate pool job")
 		assert.Equal(tt, poolJob.UUID, duplicateJob.UUID, "Expected pool job UUID %v, got %v", poolJob.UUID, duplicateJob.UUID)
-		assert.Equal(tt, string(string(models.JobTypeCreatePool)), duplicateJob.Type, "Expected pool job type")
+		assert.Equal(tt, string(string(datamodel.JobTypeCreatePool)), duplicateJob.Type, "Expected pool job type")
 	})
 }
 
@@ -915,36 +914,36 @@ func TestCancelPrepopulateJobsForVolume(t *testing.T) {
 		job1 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-1-uuid"},
 			ResourceName: volumeUUID,
-			State:        string(models.JobsStateNEW),
-			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
 		}
 		// PROCESSING prepopulate job for target volume - should be cancelled
 		job2 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "job-2-uuid"},
 			ResourceName: volumeUUID,
-			State:        string(models.JobsStatePROCESSING),
-			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
 		}
 		// DONE prepopulate job for target volume - should NOT be changed
 		job3 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 3, UUID: "job-3-uuid"},
 			ResourceName: volumeUUID,
-			State:        string(models.JobsStateDONE),
-			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateDONE),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
 		}
 		// NEW prepopulate job for different volume - should NOT be changed
 		job4 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 4, UUID: "job-4-uuid"},
 			ResourceName: "other-volume-uuid",
-			State:        string(models.JobsStateNEW),
-			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
 		}
 		// NEW job of different type for target volume - should NOT be changed
 		job5 := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 5, UUID: "job-5-uuid"},
 			ResourceName: volumeUUID,
-			State:        string(models.JobsStateNEW),
-			Type:         string(models.JobTypeCreatePool),
+			State:        string(datamodel.JobsStateNEW),
+			Type:         string(datamodel.JobTypeCreatePool),
 		}
 
 		_, err = store.CreateJob(context.Background(), job1)
@@ -966,29 +965,29 @@ func TestCancelPrepopulateJobsForVolume(t *testing.T) {
 		// job1 (NEW prepopulate, target volume) → ERROR
 		updated1, err := store.GetJob(context.Background(), job1.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateERROR), updated1.State)
+		assert.Equal(tt, string(datamodel.JobsStateERROR), updated1.State)
 		assert.Equal(tt, expectedErrorDetails, updated1.ErrorDetails)
 
 		// job2 (PROCESSING prepopulate, target volume) → ERROR
 		updated2, err := store.GetJob(context.Background(), job2.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateERROR), updated2.State)
+		assert.Equal(tt, string(datamodel.JobsStateERROR), updated2.State)
 		assert.Equal(tt, expectedErrorDetails, updated2.ErrorDetails)
 
 		// job3 (DONE prepopulate, target volume) → unchanged
 		updated3, err := store.GetJob(context.Background(), job3.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateDONE), updated3.State)
+		assert.Equal(tt, string(datamodel.JobsStateDONE), updated3.State)
 
 		// job4 (NEW prepopulate, different volume) → unchanged
 		updated4, err := store.GetJob(context.Background(), job4.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateNEW), updated4.State)
+		assert.Equal(tt, string(datamodel.JobsStateNEW), updated4.State)
 
 		// job5 (NEW different type, target volume) → unchanged
 		updated5, err := store.GetJob(context.Background(), job5.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateNEW), updated5.State)
+		assert.Equal(tt, string(datamodel.JobsStateNEW), updated5.State)
 	})
 
 	t.Run("WhenNoActiveJobsExist_NoError", func(tt *testing.T) {
@@ -1020,14 +1019,14 @@ func TestCancelPrepopulateJobsForVolume(t *testing.T) {
 		doneJob := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "done-job-uuid"},
 			ResourceName: volumeUUID,
-			State:        string(models.JobsStateDONE),
-			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateDONE),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
 		}
 		errorJob := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "error-job-uuid"},
 			ResourceName: volumeUUID,
-			State:        string(models.JobsStateERROR),
-			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(datamodel.JobsStateERROR),
+			Type:         string(datamodel.JobTypeFlexCachePrePopulate),
 		}
 
 		_, err = store.CreateJob(context.Background(), doneJob)
@@ -1041,11 +1040,11 @@ func TestCancelPrepopulateJobsForVolume(t *testing.T) {
 		// Verify neither was changed
 		updatedDone, err := store.GetJob(context.Background(), doneJob.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateDONE), updatedDone.State)
+		assert.Equal(tt, string(datamodel.JobsStateDONE), updatedDone.State)
 
 		updatedError, err := store.GetJob(context.Background(), errorJob.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateERROR), updatedError.State)
+		assert.Equal(tt, string(datamodel.JobsStateERROR), updatedError.State)
 	})
 
 	t.Run("WhenDBIsClosed_ReturnsError", func(tt *testing.T) {
@@ -1077,8 +1076,8 @@ func TestCancelRunningJobsForResource(t *testing.T) {
 		jobDone := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-done-uuid"},
 			ResourceName: "test-resource",
-			State:        string(models.JobsStateDONE),
-			Type:         string(models.JobTypeFlexCacheCreateVolume),
+			State:        string(datamodel.JobsStateDONE),
+			Type:         string(datamodel.JobTypeFlexCacheCreateVolume),
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "resource-uuid",
 			},
@@ -1086,8 +1085,8 @@ func TestCancelRunningJobsForResource(t *testing.T) {
 		jobProcessing := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "job-processing-uuid"},
 			ResourceName: "test-resource",
-			State:        string(models.JobsStatePROCESSING),
-			Type:         string(models.JobTypeFlexCacheInternalPeering),
+			State:        string(datamodel.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeFlexCacheInternalPeering),
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "resource-uuid",
 			},
@@ -1095,8 +1094,8 @@ func TestCancelRunningJobsForResource(t *testing.T) {
 		jobNew := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 3, UUID: "job-new-uuid"},
 			ResourceName: "test-resource",
-			State:        string(models.JobsStateNEW),
-			Type:         string(models.JobTypeFlexCacheCreateVolume),
+			State:        string(datamodel.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCacheCreateVolume),
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "resource-uuid",
 			},
@@ -1113,15 +1112,15 @@ func TestCancelRunningJobsForResource(t *testing.T) {
 
 		updatedDone, err := store.GetJob(context.Background(), jobDone.UUID)
 		assert.NoError(tt, err, "Failed to get updated jobDone: %v", err)
-		assert.Equal(tt, string(models.JobsStateDONE), updatedDone.State, "Expected DONE job unchanged")
+		assert.Equal(tt, string(datamodel.JobsStateDONE), updatedDone.State, "Expected DONE job unchanged")
 
 		updatedProcessing, err := store.GetJob(context.Background(), jobProcessing.UUID)
 		assert.NoError(tt, err, "Failed to get updated jobProcessing: %v", err)
-		assert.Equal(tt, string(models.JobsStateCANCELLED), updatedProcessing.State, "Expected PROCESSING job cancelled")
+		assert.Equal(tt, string(datamodel.JobsStateCANCELLED), updatedProcessing.State, "Expected PROCESSING job cancelled")
 
 		updatedNew, err := store.GetJob(context.Background(), jobNew.UUID)
 		assert.NoError(tt, err, "Failed to get updated jobNew: %v", err)
-		assert.Equal(tt, string(models.JobsStateCANCELLED), updatedNew.State, "Expected NEW job cancelled")
+		assert.Equal(tt, string(datamodel.JobsStateCANCELLED), updatedNew.State, "Expected NEW job cancelled")
 	})
 
 	t.Run("WhenErrorOccursDuringUpdate", func(tt *testing.T) {
@@ -1151,8 +1150,8 @@ func TestGetJobByResourceUUID(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid-jsonb"},
-			Type:      string(models.JobTypeCreatePool),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreatePool),
+			State:     string(datamodel.JobsStateNEW),
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "res-jsonb",
 			},
@@ -1160,7 +1159,7 @@ func TestGetJobByResourceUUID(t *testing.T) {
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err)
 
-		result, err := store.GetJobByResourceUUID(context.Background(), "res-jsonb", string(models.JobTypeCreatePool))
+		result, err := store.GetJobByResourceUUID(context.Background(), "res-jsonb", string(datamodel.JobTypeCreatePool))
 		assert.NoError(tt, err)
 		assert.Equal(tt, job.UUID, result.UUID)
 	})
@@ -1179,8 +1178,8 @@ func TestGetJobByResourceUUID(t *testing.T) {
 
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid-col"},
-			Type:      string(models.JobTypeCreatePool),
-			State:     string(models.JobsStateNEW),
+			Type:      string(datamodel.JobTypeCreatePool),
+			State:     string(datamodel.JobsStateNEW),
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "res-col",
 			},
@@ -1188,7 +1187,7 @@ func TestGetJobByResourceUUID(t *testing.T) {
 		_, err = store.CreateJob(context.Background(), job)
 		assert.NoError(tt, err)
 
-		result, err := store.GetJobByResourceUUID(context.Background(), "res-col", string(models.JobTypeCreatePool))
+		result, err := store.GetJobByResourceUUID(context.Background(), "res-col", string(datamodel.JobTypeCreatePool))
 		assert.NoError(tt, err)
 		assert.Equal(tt, job.UUID, result.UUID)
 	})
@@ -1223,8 +1222,8 @@ func TestCancelRunningJobsForResource_WithIndexFlag(t *testing.T) {
 		jobProcessing := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-uuid-idx-processing"},
 			ResourceName: "test-resource",
-			State:        string(models.JobsStatePROCESSING),
-			Type:         string(models.JobTypeFlexCacheCreateVolume),
+			State:        string(datamodel.JobsStatePROCESSING),
+			Type:         string(datamodel.JobTypeFlexCacheCreateVolume),
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "resource-uuid-idx",
 			},
@@ -1232,8 +1231,8 @@ func TestCancelRunningJobsForResource_WithIndexFlag(t *testing.T) {
 		jobNew := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "job-uuid-idx-new"},
 			ResourceName: "test-resource",
-			State:        string(models.JobsStateNEW),
-			Type:         string(models.JobTypeFlexCacheInternalPeering),
+			State:        string(datamodel.JobsStateNEW),
+			Type:         string(datamodel.JobTypeFlexCacheInternalPeering),
 			JobAttributes: &datamodel.JobAttributes{
 				ResourceUUID: "resource-uuid-idx",
 			},
@@ -1248,10 +1247,10 @@ func TestCancelRunningJobsForResource_WithIndexFlag(t *testing.T) {
 
 		updatedProcessing, err := store.GetJob(context.Background(), jobProcessing.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateCANCELLED), updatedProcessing.State)
+		assert.Equal(tt, string(datamodel.JobsStateCANCELLED), updatedProcessing.State)
 
 		updatedNew, err := store.GetJob(context.Background(), jobNew.UUID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, string(models.JobsStateCANCELLED), updatedNew.State)
+		assert.Equal(tt, string(datamodel.JobsStateCANCELLED), updatedNew.State)
 	})
 }

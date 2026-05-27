@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 )
 
@@ -792,11 +792,11 @@ func TestUpdateVolumePerformanceGroup_WithDescriptionAndLabels(t *testing.T) {
 		assert.NoError(tt, store.db.Create(vpg).Error())
 
 		updatedVPG := &datamodel.VolumePerformanceGroup{
-			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-desc"},
-			Name:             "vpg-desc",
-			ThroughputMibps:  64,
-			Iops:             1000,
-			Description:      "new description",
+			BaseModel:       datamodel.BaseModel{UUID: "row-uuid-vpg-desc"},
+			Name:            "vpg-desc",
+			ThroughputMibps: 64,
+			Iops:            1000,
+			Description:     "new description",
 		}
 		err = store.UpdateVolumePerformanceGroup(context.Background(), updatedVPG)
 		assert.NoError(tt, err)

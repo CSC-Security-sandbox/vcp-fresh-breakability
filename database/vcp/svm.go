@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -88,8 +87,8 @@ func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm)
 		svm.UUID = utils.RandomUUID()
 		svm.CreatedAt = time.Now()
 		svm.UpdatedAt = svm.CreatedAt
-		svm.State = models.LifeCycleStateREADY
-		svm.StateDetails = models.LifeCycleStateAvailableDetails
+		svm.State = datamodel.LifeCycleStateREADY
+		svm.StateDetails = datamodel.LifeCycleStateAvailableDetails
 
 		err = tx.Create(svm).Error
 		if err != nil {
@@ -109,7 +108,7 @@ func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm)
 	}
 
 	switch dbSvm.State {
-	case models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		// Row was pre-allocated by CreateSvmInCreatingState; finalize it now that
 		// VLMConfig-derived fields are available.
 		dbSvm.SvmDetails = svm.SvmDetails
@@ -117,13 +116,13 @@ func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm)
 			dbSvm.SvmExternalIdentifier = svm.SvmExternalIdentifier
 		}
 		dbSvm.UpdatedAt = time.Now()
-		dbSvm.State = models.LifeCycleStateREADY
-		dbSvm.StateDetails = models.LifeCycleStateAvailableDetails
+		dbSvm.State = datamodel.LifeCycleStateREADY
+		dbSvm.StateDetails = datamodel.LifeCycleStateAvailableDetails
 		if err = tx.Save(&dbSvm).Error; err != nil {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 		}
 		return &dbSvm, nil
-	case models.LifeCycleStateREADY:
+	case datamodel.LifeCycleStateREADY:
 		// Idempotent retry: row already finalized.
 		return &dbSvm, nil
 	default:
@@ -172,7 +171,7 @@ func (d *DataStoreRepository) CreateSvmInCreatingState(ctx context.Context, svm 
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, res.Error)
 		}
 		if res.RowsAffected > 0 {
-			if dbSvm.State == models.LifeCycleStateCreating &&
+			if dbSvm.State == datamodel.LifeCycleStateCreating &&
 				dbSvm.SvmExternalIdentifier == svm.SvmExternalIdentifier {
 				return &dbSvm, nil
 			}
@@ -183,8 +182,8 @@ func (d *DataStoreRepository) CreateSvmInCreatingState(ctx context.Context, svm 
 	svm.UUID = utils.RandomUUID()
 	svm.CreatedAt = time.Now()
 	svm.UpdatedAt = svm.CreatedAt
-	svm.State = models.LifeCycleStateCreating
-	svm.StateDetails = models.LifeCycleStateCreatingDetails
+	svm.State = datamodel.LifeCycleStateCreating
+	svm.StateDetails = datamodel.LifeCycleStateCreatingDetails
 
 	if err = tx.Create(svm).Error; err != nil {
 		if svm.SvmExternalIdentifier != "" && isSvmExternalIdentifierUniqueViolation(err) {
@@ -206,7 +205,7 @@ func isIdempotentCreatingRetry(existing, incoming *datamodel.Svm) bool {
 	if existing.DeletedAt != nil && existing.DeletedAt.Valid {
 		return false
 	}
-	return existing.State == models.LifeCycleStateCreating &&
+	return existing.State == datamodel.LifeCycleStateCreating &&
 		existing.Name == incoming.Name &&
 		existing.PoolID == incoming.PoolID
 }
@@ -234,8 +233,8 @@ func (d *DataStoreRepository) DeleteSVM(ctx context.Context, svm *datamodel.Svm)
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 	svm.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	svm.State = models.LifeCycleStateDeleted
-	svm.StateDetails = models.LifeCycleStateDeletedDetails
+	svm.State = datamodel.LifeCycleStateDeleted
+	svm.StateDetails = datamodel.LifeCycleStateDeletedDetails
 	err = tx.Updates(svm).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -253,7 +252,7 @@ func (d *DataStoreRepository) ErroredSVM(ctx context.Context, svm *datamodel.Svm
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 	svm.UpdatedAt = time.Now()
-	svm.State = models.LifeCycleStateError
+	svm.State = datamodel.LifeCycleStateError
 	svm.StateDetails = errMsg
 	err = tx.Updates(svm).Error
 	if err != nil {
@@ -271,8 +270,8 @@ func (d *DataStoreRepository) DeletingSVM(ctx context.Context, svm *datamodel.Sv
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
-	svm.State = models.LifeCycleStateDeleting
-	svm.StateDetails = models.LifeCycleStateDeletingDetails
+	svm.State = datamodel.LifeCycleStateDeleting
+	svm.StateDetails = datamodel.LifeCycleStateDeletingDetails
 	err = tx.Updates(svm).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -301,14 +300,14 @@ func (d *DataStoreRepository) TransitionSvmToDeleting(ctx context.Context, svm *
 		Clauses(clause.Returning{}).
 		Where("id = ?", svm.ID).
 		Where("state NOT IN ?", []string{
-			models.LifeCycleStateDeleted,
-			models.LifeCycleStateDeleting,
-			models.LifeCycleStateCreating,
-			// models.LifeCycleStateError,(currently allowing error svm to delete)
+			datamodel.LifeCycleStateDeleted,
+			datamodel.LifeCycleStateDeleting,
+			datamodel.LifeCycleStateCreating,
+			// datamodel.LifeCycleStateError,(currently allowing error svm to delete)
 		}).
 		Updates(map[string]interface{}{
-			"state":         models.LifeCycleStateDeleting,
-			"state_details": models.LifeCycleStateDeletingDetails,
+			"state":         datamodel.LifeCycleStateDeleting,
+			"state_details": datamodel.LifeCycleStateDeletingDetails,
 			"updated_at":    time.Now(),
 		})
 	if res.Error != nil {
@@ -326,11 +325,11 @@ func (d *DataStoreRepository) TransitionSvmToDeleting(ctx context.Context, svm *
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, ferr)
 	}
 	switch current.State {
-	case models.LifeCycleStateDeleted:
+	case datamodel.LifeCycleStateDeleted:
 		return nil, customerrors.NewNotFoundErr("svm deleted already", nil)
-	case models.LifeCycleStateDeleting:
+	case datamodel.LifeCycleStateDeleting:
 		return nil, customerrors.NewConflictErr("SVM delete is already in progress")
-	case models.LifeCycleStateCreating:
+	case datamodel.LifeCycleStateCreating:
 		return nil, customerrors.NewConflictErr("SVM cannot be deleted while creation is in progress")
 	default:
 		return nil, customerrors.NewConflictErr("svm not in a state that allows delete")

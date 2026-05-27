@@ -10,10 +10,10 @@ import (
 
 func TestValidateIAMPermissions_ConfigValidation(t *testing.T) {
 	tests := []struct {
-		name          string
-		cfg           config
-		wantErr       bool
-		errContains   string
+		name        string
+		cfg         config
+		wantErr     bool
+		errContains string
 	}{
 		{
 			name: "valid config",

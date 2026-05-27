@@ -59,13 +59,13 @@ func (rc *OntapRestProvider) CreateEMSEventForwarding(params CreateEMSEventForwa
 
 	// Step 1: Create event notification destination
 	destinationParams := &ontapRest.EMSEventDestinationCreateParams{
-		Name:                    nillable.GetStringPtr(params.DestinationName),
-		Type:                    nillable.GetStringPtr("syslog"),
-		SyslogHost:              nillable.GetStringPtr(params.DestinationIP),
-		SyslogPort:              nillable.GetInt64Ptr(params.DestinationPort),
-		SyslogTransport:         nillable.GetStringPtr(params.Transport),
-		SyslogTimestampFormat:   nillable.GetStringPtr(params.TimestampFormat),
-		SyslogMessageFormat:     nillable.GetStringPtr(params.MessageFormat),
+		Name:                  nillable.GetStringPtr(params.DestinationName),
+		Type:                  nillable.GetStringPtr("syslog"),
+		SyslogHost:            nillable.GetStringPtr(params.DestinationIP),
+		SyslogPort:            nillable.GetInt64Ptr(params.DestinationPort),
+		SyslogTransport:       nillable.GetStringPtr(params.Transport),
+		SyslogTimestampFormat: nillable.GetStringPtr(params.TimestampFormat),
+		SyslogMessageFormat:   nillable.GetStringPtr(params.MessageFormat),
 	}
 
 	if err := supportClient.EMSEventDestinationCreate(destinationParams); err != nil {
@@ -143,11 +143,11 @@ func (rc *OntapRestProvider) GetEMSEventForwarding(destinationName string) (*EMS
 
 	if destination.Syslog != nil {
 		response.Syslog = &EMSEventDestinationSyslog{
-			Host:              destination.Syslog.Host,
-			Port:              destination.Syslog.Port,
-			Transport:         destination.Syslog.Transport,
-			TimestampFormat:   destination.Syslog.TimestampFormat,
-			MessageFormat:     destination.Syslog.MessageFormat,
+			Host:            destination.Syslog.Host,
+			Port:            destination.Syslog.Port,
+			Transport:       destination.Syslog.Transport,
+			TimestampFormat: destination.Syslog.TimestampFormat,
+			MessageFormat:   destination.Syslog.MessageFormat,
 		}
 	}
 

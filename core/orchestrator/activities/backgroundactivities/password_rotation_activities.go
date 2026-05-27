@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -58,11 +58,11 @@ func (a *RotateVcpToVsaCertificateActivity) GenerateNewPassword(ctx context.Cont
 	}
 
 	pool := ConvertPoolViewToPool(poolViews[0])
-	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s", 
+	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s",
 		pool.ID, pool.Name, pool.State, pool.DeploymentName)
-	
+
 	if pool.PoolCredentials != nil {
-		logger.Infof("Current Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s", 
+		logger.Infof("Current Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s",
 			pool.PoolCredentials.AuthType, pool.PoolCredentials.SecretID, pool.PoolCredentials.SecretIDNew)
 	} else {
 		logger.Warnf("Pool credentials are nil for pool %s", poolUUID)
@@ -71,7 +71,7 @@ func (a *RotateVcpToVsaCertificateActivity) GenerateNewPassword(ctx context.Cont
 	// Generate new password
 	timestamp := time.Now().Format("20060102-150405")
 	logger.Infof("Generating new password with timestamp: %s", timestamp)
-	
+
 	newPassword, err := utils.GenerateStrongPassword(16)
 	if err != nil {
 		logger.Errorf("Failed to generate new password: %v", err)
@@ -90,9 +90,9 @@ func (a *RotateVcpToVsaCertificateActivity) GenerateNewPassword(ctx context.Cont
 		Timestamp:   timestamp,
 		NewSecretID: newSecretID,
 	}
-	
+
 	logger.Infof("Password generation completed for pool: %s", poolUUID)
-	
+
 	return response, nil
 }
 
@@ -153,11 +153,11 @@ func (a *RotateVcpToVsaCertificateActivity) UpdateVSAPassword(ctx context.Contex
 	}
 
 	pool := ConvertPoolViewToPool(poolViews[0])
-	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s", 
+	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s",
 		pool.ID, pool.Name, pool.State, pool.DeploymentName)
 
 	if pool.PoolCredentials != nil {
-		logger.Infof("Current Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s", 
+		logger.Infof("Current Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s",
 			pool.PoolCredentials.AuthType, pool.PoolCredentials.SecretID, pool.PoolCredentials.SecretIDNew)
 	} else {
 		logger.Errorf("Pool credentials are nil for pool %s", poolUUID)
@@ -171,12 +171,11 @@ func (a *RotateVcpToVsaCertificateActivity) UpdateVSAPassword(ctx context.Contex
 	}
 
 	logger.Infof("Retrieving new password from Secret Manager using secret_id_new: %s", pool.PoolCredentials.SecretIDNew)
-	newPassword, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretIDNew)
+	newPassword, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretIDNew)
 	if err != nil {
 		logger.Errorf("Failed to retrieve new password from Secret Manager: %v", err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
-
 
 	// Update VSA cluster with new password using the existing method
 	logger.Infof("Updating VSA cluster with new password...")
@@ -215,11 +214,11 @@ func (a *RotateVcpToVsaCertificateActivity) SwapSecretIDs(ctx context.Context, p
 	}
 
 	pool := ConvertPoolViewToPool(poolViews[0])
-	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s", 
+	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s",
 		pool.ID, pool.Name, pool.State, pool.DeploymentName)
 
 	if pool.PoolCredentials != nil {
-		logger.Infof("BEFORE SWAP - Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s", 
+		logger.Infof("BEFORE SWAP - Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s",
 			pool.PoolCredentials.AuthType, pool.PoolCredentials.SecretID, pool.PoolCredentials.SecretIDNew)
 	} else {
 		logger.Errorf("Pool credentials are nil for pool %s", poolUUID)
@@ -241,7 +240,7 @@ func (a *RotateVcpToVsaCertificateActivity) SwapSecretIDs(ctx context.Context, p
 	} else if len(updatedPoolViews) > 0 {
 		updatedPool := ConvertPoolViewToPool(updatedPoolViews[0])
 		if updatedPool.PoolCredentials != nil {
-			logger.Infof("AFTER SWAP - Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s", 
+			logger.Infof("AFTER SWAP - Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s",
 				updatedPool.PoolCredentials.AuthType, updatedPool.PoolCredentials.SecretID, updatedPool.PoolCredentials.SecretIDNew)
 		}
 	}
@@ -272,7 +271,7 @@ func (a *RotateVcpToVsaCertificateActivity) UpdateCacheWithNewSecret(ctx context
 	}
 
 	pool := ConvertPoolViewToPool(poolViews[0])
-	
+
 	// Get the new secret ID from the database (should be in secret_id field after swap)
 	newSecretID := pool.PoolCredentials.SecretID
 	if newSecretID == "" {
@@ -284,12 +283,11 @@ func (a *RotateVcpToVsaCertificateActivity) UpdateCacheWithNewSecret(ctx context
 
 	// Retrieve new password from Secret Manager
 	logger.Infof("Retrieving new password from Secret Manager using secret_id: %s", newSecretID)
-	newPassword, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, newSecretID)
+	newPassword, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, newSecretID)
 	if err != nil {
 		logger.Errorf("Failed to retrieve new password from Secret Manager: %v", err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
-
 
 	// Update cache to use new secret ID
 	logger.Infof("Adding new secret to user auth cache...")
@@ -322,21 +320,21 @@ func (a *RotateVcpToVsaCertificateActivity) GetOldSecretID(ctx context.Context, 
 	}
 
 	pool := ConvertPoolViewToPool(poolViews[0])
-	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s", 
+	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s",
 		pool.ID, pool.Name, pool.State, pool.DeploymentName)
 
 	if pool.PoolCredentials != nil {
-		logger.Infof("Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s", 
+		logger.Infof("Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s",
 			pool.PoolCredentials.AuthType, pool.PoolCredentials.SecretID, pool.PoolCredentials.SecretIDNew)
 	} else {
 		logger.Errorf("Pool credentials are nil for pool %s", poolUUID)
 		return "", fmt.Errorf("pool credentials are nil for pool %s", poolUUID)
 	}
-	
+
 	// After swap, the old secret ID is stored in secret_id_new field
 	oldSecretID := pool.PoolCredentials.SecretIDNew
 	logger.Infof("Old secret ID retrieved from secret_id_new: %s", oldSecretID)
-	
+
 	logger.Infof("Retrieved old secret ID for pool: %s", poolUUID)
 	return oldSecretID, nil
 }
@@ -381,11 +379,11 @@ func (a *RotateVcpToVsaCertificateActivity) ValidateNewPasswordConnectivity(ctx 
 	}
 
 	pool := ConvertPoolViewToPool(poolViews[0])
-	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s", 
+	logger.Infof("Pool Details - ID: %d, Name: %s, State: %s, DeploymentName: %s",
 		pool.ID, pool.Name, pool.State, pool.DeploymentName)
 
 	if pool.PoolCredentials != nil {
-		logger.Infof("Current Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s", 
+		logger.Infof("Current Pool Credentials - AuthType: %d, SecretID: %s, SecretIDNew: %s",
 			pool.PoolCredentials.AuthType, pool.PoolCredentials.SecretID, pool.PoolCredentials.SecretIDNew)
 	} else {
 		logger.Errorf("Pool credentials are nil for pool %s", poolUUID)
@@ -399,12 +397,11 @@ func (a *RotateVcpToVsaCertificateActivity) ValidateNewPasswordConnectivity(ctx 
 	}
 
 	logger.Infof("Retrieving new password from Secret Manager using secret_id_new: %s", pool.PoolCredentials.SecretIDNew)
-	newPassword, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretIDNew)
+	newPassword, err := vsa.GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretIDNew)
 	if err != nil {
 		logger.Errorf("Failed to retrieve new password from Secret Manager: %v", err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
-
 
 	logger.Infof("Testing new password connectivity...")
 	// Test new password connectivity
@@ -447,4 +444,3 @@ func (a *RotateVcpToVsaCertificateActivity) ListPoolsWithPasswordAuth(ctx contex
 	logger.Debugf("Retrieved batch of %d password auth pools (hasMore=%v)", len(pools), hasMore)
 	return &ListPoolsBatchResult{Pools: pools, HasMore: hasMore}, nil
 }
-

@@ -376,7 +376,7 @@ Draw the ER diagram for the backup data model
 | **Location** | `.cursor/agents/error-manager.mdc` |
 | **Activation** | `add error`, `new error code`, `error code`, `create error` |
 
-Adds new error codes to the custom error framework (`core/errors/errors.go` + `core/errors/errors.json`) with correct category ranges and validation.
+Adds new error codes to the custom error framework (`lib/errors/errors.go` + `lib/errors/errors.json`) with correct category ranges and validation.
 
 **Error category ranges:**
 

@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonfactory "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -4328,9 +4328,9 @@ func Test_batchListActiveDirectories_CVP_ParallelFetchAndMerge(t *testing.T) {
 
 	vcpFromDB := []*datamodel.ActiveDirectory{
 		{
-			BaseModel: datamodel.BaseModel{UUID: "ad-1"},
-			AdName:    "vcp-ad",
-			State:     "UPDATING",
+			BaseModel:    datamodel.BaseModel{UUID: "ad-1"},
+			AdName:       "vcp-ad",
+			State:        "UPDATING",
 			StateDetails: "VCP updating",
 			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 				AdUsers: map[string][]string{},

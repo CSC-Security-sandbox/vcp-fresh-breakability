@@ -10,13 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/testsuite"
@@ -525,10 +524,10 @@ func TestGetOntapRestProviderForPool(t *testing.T) {
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{node}, nil)
 
 		// Patch activities.GetProviderByNode to return a mock provider
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 		mockProvider := new(vsa.MockProvider)
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1564,9 +1563,9 @@ func TestGetOntapRestProviderForPool_ProviderError(t *testing.T) {
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{node}, nil)
 
 	// Mock GetProviderByNode to return error
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider by node")
 	}
 
@@ -1985,12 +1984,12 @@ func TestGetOntapRestProviderForPoolFastConn(t *testing.T) {
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{node}, nil)
 
 		// Patch hyperscaler functions to return a mock provider
-		originalGetProviderByNodeWithFastConnection := hyperscaler.GetProviderByNodeWithFastConnection
-		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection }()
+		originalGetProviderByNodeWithFastConnection := vsa.GetProviderByNodeWithFastConnection
+		defer func() { vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection }()
 		mockProvider := new(vsa.MockProvider)
 
 		// Fast connection should succeed
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2069,14 +2068,14 @@ func TestGetOntapRestProviderForPoolFastConn(t *testing.T) {
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{node}, nil)
 
 		// Mock that fast connection fails
-		originalGetProviderByNodeWithFastConnection := hyperscaler.GetProviderByNodeWithFastConnection
+		originalGetProviderByNodeWithFastConnection := vsa.GetProviderByNodeWithFastConnection
 		defer func() {
-			hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection
+			vsa.GetProviderByNodeWithFastConnection = originalGetProviderByNodeWithFastConnection
 		}()
 
 		callCount := 0
 
-		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			callCount++
 			// Fast connection should fail
 			return nil, errors.New("fast connection failed")

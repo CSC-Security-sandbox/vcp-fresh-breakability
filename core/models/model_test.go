@@ -63,4 +63,3 @@ func TestUserCredentials_ParseCaURIWithFallback(t *testing.T) {
 		assert.Equal(t, "ca-789", caName)
 	})
 }
-

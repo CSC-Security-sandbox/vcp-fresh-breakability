@@ -5,8 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 )
 
@@ -41,7 +40,7 @@ func TestErroredResource(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			Account:   account,
-			State:     models.LifeCycleStateCreating,
+			State:     datamodel.LifeCycleStateCreating,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -55,8 +54,8 @@ func TestErroredResource(t *testing.T) {
 		}
 
 		updatedPool := res.(*datamodel.Pool)
-		if updatedPool.State != models.LifeCycleStateError {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateError, updatedPool.State)
+		if updatedPool.State != datamodel.LifeCycleStateError {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateError, updatedPool.State)
 		}
 		if updatedPool.StateDetails != errorMsg {
 			tt.Errorf("Expected state details %v, got %v", errorMsg, updatedPool.StateDetails)
@@ -93,8 +92,8 @@ func TestErroredResource(t *testing.T) {
 			Name:         "test_pool",
 			AccountID:    account.ID,
 			Account:      account,
-			State:        models.LifeCycleStateREADY,
-			StateDetails: models.LifeCycleStateReadyDetails,
+			State:        datamodel.LifeCycleStateREADY,
+			StateDetails: datamodel.LifeCycleStateReadyDetails,
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -108,8 +107,8 @@ func TestErroredResource(t *testing.T) {
 			Account:      account,
 			PoolID:       pool.ID,
 			Pool:         pool,
-			State:        models.LifeCycleStateCreating,
-			StateDetails: models.LifeCycleStateCreatingDetails,
+			State:        datamodel.LifeCycleStateCreating,
+			StateDetails: datamodel.LifeCycleStateCreatingDetails,
 		}
 		err = store.db.Create(volume).Error()
 		if err != nil {
@@ -123,8 +122,8 @@ func TestErroredResource(t *testing.T) {
 		}
 
 		updatedVolume := res.(*datamodel.Volume)
-		if updatedVolume.State != models.LifeCycleStateError {
-			tt.Errorf("Expected state %v, got %v", models.LifeCycleStateError, updatedVolume.State)
+		if updatedVolume.State != datamodel.LifeCycleStateError {
+			tt.Errorf("Expected state %v, got %v", datamodel.LifeCycleStateError, updatedVolume.State)
 		}
 		if updatedVolume.StateDetails != errorMsg {
 			tt.Errorf("Expected state details %v, got %v", errorMsg, updatedVolume.StateDetails)
@@ -207,7 +206,7 @@ func TestErroredResource(t *testing.T) {
 		}
 
 		errorMsg := "custom error message"
-		resource := struct{ State string }{models.LifeCycleStateError}
+		resource := struct{ State string }{datamodel.LifeCycleStateError}
 		res, err := store.ErroredResource(context.Background(), &resource, errorMsg)
 		assert.Error(tt, err)
 		assert.Equal(tt, err.Error(), "StateDetails field not found in the errored resource")

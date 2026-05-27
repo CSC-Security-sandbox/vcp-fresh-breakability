@@ -30,8 +30,6 @@ import (
 	networkpriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
 	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -42,11 +40,13 @@ import (
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	vmrs_oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/oci"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsEnv "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -515,11 +515,11 @@ func TestGetONTAPProvider_Success(t *testing.T) {
 
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -548,11 +548,11 @@ func TestGetONTAPProvider_Failure(t *testing.T) {
 
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -1058,11 +1058,11 @@ func Test_validateVlmConfigInputs(t *testing.T) {
 func Test_SaveNodeDetails_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -1099,11 +1099,11 @@ func Test_SaveNodeDetails_Success(t *testing.T) {
 func Test_SaveNodeDetails_FailsToCreateNode(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -1138,11 +1138,11 @@ func Test_SaveNodeDetails_FailsToCreateNode(t *testing.T) {
 func Test_SaveNodeDetails_FailsToFetchNodeByName(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -1351,10 +1351,10 @@ func Test_SaveNodeDetails_PropagatesExternalCredsForOCI(t *testing.T) {
 	// Capture the *coremodel.Node that arrives at GetProviderByNode — that is
 	// the assertion target. The contract is: ExternalSecret / ExternalCertificate
 	// on PoolCredentials must surface on the built node, by reference.
-	origGetProvider := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = origGetProvider }()
+	origGetProvider := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = origGetProvider }()
 	var capturedNode *coremodel.Node
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		capturedNode = node
 		return mockProvider, nil
 	}
@@ -3887,7 +3887,7 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 func TestGenerateCSR(t *testing.T) {
 	commonName := "test.example.com"
 	domains := []string{"test.example.com", "www.test.example.com"}
-	csrDER, key, err := hyperscaler2.GenerateCSR(commonName, domains, true)
+	csrDER, key, err := vsa.GenerateCSR(commonName, domains, true)
 	if err != nil {
 		t.Fatalf("GenerateCSR returned error: %v", err)
 	}
@@ -3921,12 +3921,12 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 	env.RegisterActivity(activity.IdentifyVMs)
 
 	prepareVLMConfig := activities.PrepareVlmConfig
-	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	originalGetPasswordForVSACluster := vsa.GetPasswordForVSACluster
 	defer func() {
 		activities.PrepareVlmConfig = prepareVLMConfig
-		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+		vsa.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+	vsa.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
@@ -3961,12 +3961,12 @@ func Test_IdentifyVMs_SetsClusterName_DeploymentNameOnlyWhenNoRegionCode(t *test
 	env.RegisterActivity(activity.IdentifyVMs)
 
 	prepareVLMConfig := activities.PrepareVlmConfig
-	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	originalGetPasswordForVSACluster := vsa.GetPasswordForVSACluster
 	defer func() {
 		activities.PrepareVlmConfig = prepareVLMConfig
-		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+		vsa.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+	vsa.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string, isOntapMode bool) error {
@@ -4005,13 +4005,13 @@ func Test_IdentifyVMs_SetsClusterName_FormatDeploymentNameAndRegionCode(t *testi
 	activities.Region = "us-central1"
 
 	prepareVLMConfig := activities.PrepareVlmConfig
-	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	originalGetPasswordForVSACluster := vsa.GetPasswordForVSACluster
 	defer func() {
 		activities.PrepareVlmConfig = prepareVLMConfig
-		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+		vsa.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 		activities.Region = utilsEnv.GetString("LOCAL_REGION", "")
 	}()
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+	vsa.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string, isOntapMode bool) error {
@@ -4051,12 +4051,12 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig_LargeVolume(t *testing.T) {
 	env.RegisterActivity(activity.IdentifyVMs)
 
 	prepareVLMConfig := activities.PrepareVlmConfig
-	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	originalGetPasswordForVSACluster := vsa.GetPasswordForVSACluster
 	defer func() {
 		activities.PrepareVlmConfig = prepareVLMConfig
-		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+		vsa.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+	vsa.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
@@ -4094,12 +4094,12 @@ func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
 	env.RegisterActivity(activity.IdentifyVMs)
 
 	prepareVLMConfig := activities.PrepareVlmConfig
-	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	originalGetPasswordForVSACluster := vsa.GetPasswordForVSACluster
 	defer func() {
 		activities.PrepareVlmConfig = prepareVLMConfig
-		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+		vsa.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler_models.CustomSecret, error) {
+	vsa.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler_models.CustomSecret, error) {
 		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
@@ -4134,15 +4134,15 @@ func Test_IdentifyVMs_FailsToPrepareConfig_LargeVolume(t *testing.T) {
 	env.RegisterActivity(activity.IdentifyVMs)
 
 	prepareVLMConfig := activities.PrepareVlmConfig
-	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	originalGetPasswordForVSACluster := vsa.GetPasswordForVSACluster
 	defer func() {
 		activities.PrepareVlmConfig = prepareVLMConfig
-		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+		vsa.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string, isOntapMode bool) error {
 		return errors.New("failed to prepare VLM config for large volume")
 	}
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler_models.CustomSecret, error) {
+	vsa.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler_models.CustomSecret, error) {
 		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
@@ -4493,7 +4493,7 @@ func Test_getCertificateAndPrivateKeyByID(t *testing.T) {
 		mockService := new(hyperscaler2.MockGoogleServices)
 		mockService.On("GetCertificate", caDeployedProjectID, region, caPoolName, certificateID).Return(cert, nil)
 		mockService.On("GetSecretWithLatestVersion", secretManagerProjectID, certificateID).Return(secret, nil)
-		resp, err := hyperscaler2.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
+		resp, err := vsa.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.Equal(t, cert, resp.Certificate)
@@ -4504,7 +4504,7 @@ func Test_getCertificateAndPrivateKeyByID(t *testing.T) {
 	t.Run("certificate not found", func(t *testing.T) {
 		mockService := new(hyperscaler2.MockGoogleServices)
 		mockService.On("GetCertificate", caDeployedProjectID, region, caPoolName, certificateID).Return(nil, fmt.Errorf("not found"))
-		resp, err := hyperscaler2.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
+		resp, err := vsa.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 		mockService.AssertExpectations(t)
@@ -4514,7 +4514,7 @@ func Test_getCertificateAndPrivateKeyByID(t *testing.T) {
 		mockService := new(hyperscaler2.MockGoogleServices)
 		mockService.On("GetCertificate", caDeployedProjectID, region, caPoolName, certificateID).Return(cert, nil)
 		mockService.On("GetSecretWithLatestVersion", secretManagerProjectID, certificateID).Return(nil, fmt.Errorf("not found"))
-		resp, err := hyperscaler2.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
+		resp, err := vsa.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 		mockService.AssertExpectations(t)
@@ -4525,7 +4525,7 @@ func Test_getCertificateAndPrivateKeyByID(t *testing.T) {
 		secretNoVersion := &hyperscaler_models.CustomSecret{}
 		mockService.On("GetCertificate", caDeployedProjectID, region, caPoolName, certificateID).Return(cert, nil)
 		mockService.On("GetSecretWithLatestVersion", secretManagerProjectID, certificateID).Return(secretNoVersion, nil)
-		resp, err := hyperscaler2.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
+		resp, err := vsa.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 		mockService.AssertExpectations(t)
@@ -4543,7 +4543,7 @@ func Test_GetAndCreateCloudDNSRecord(t *testing.T) {
 		mockService.On("CreateResourceRecordSet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(expectedRecord, nil)
 
-		record, err := hyperscaler2.GetOrCreateCloudDNSRecord(mockService, recordName, ipAddress)
+		record, err := vsa.GetOrCreateCloudDNSRecord(mockService, recordName, ipAddress)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedRecord, record)
 		mockService.AssertExpectations(t)
@@ -4555,7 +4555,7 @@ func Test_GetAndCreateCloudDNSRecord(t *testing.T) {
 		mockService.On("CreateResourceRecordSet", env.CaPoolDeployedProjectID, env.VsaManagedZone, ipAddress, recordName).
 			Return(nil, errors.New("dns error"))
 
-		record, err := hyperscaler2.GetOrCreateCloudDNSRecord(mockService, recordName, ipAddress)
+		record, err := vsa.GetOrCreateCloudDNSRecord(mockService, recordName, ipAddress)
 		assert.Nil(t, record)
 		assert.Error(t, err)
 		mockService.AssertExpectations(t)
@@ -4621,16 +4621,16 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		activity := &activities.PoolActivity{}
 		testEnv.RegisterActivity(activity.DeleteCloudDNSRecords)
 		originalGetGCPService := hyperscaler2.GetGCPService
-		originalDeleteCloudDNSRecord := hyperscaler2.DeleteCloudDNSRecord
+		originalDeleteCloudDNSRecord := vsa.DeleteCloudDNSRecord
 		defer func() {
 			hyperscaler2.GetGCPService = originalGetGCPService
-			hyperscaler2.DeleteCloudDNSRecord = originalDeleteCloudDNSRecord
+			vsa.DeleteCloudDNSRecord = originalDeleteCloudDNSRecord
 		}()
 
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{Logger: log.NewLogger()}, nil
 		}
-		hyperscaler2.DeleteCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, recordName string) error {
+		vsa.DeleteCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, recordName string) error {
 			return nil
 		}
 		_, err := testEnv.ExecuteActivity(activity.DeleteCloudDNSRecords, hostMap, env.USER_CERTIFICATE)
@@ -4661,16 +4661,16 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		activity := &activities.PoolActivity{}
 		testEnv.RegisterActivity(activity.DeleteCloudDNSRecords)
 		originalGetGCPService := hyperscaler2.GetGCPService
-		originalDeleteCloudDNSRecord := hyperscaler2.DeleteCloudDNSRecord
+		originalDeleteCloudDNSRecord := vsa.DeleteCloudDNSRecord
 		defer func() {
 			hyperscaler2.GetGCPService = originalGetGCPService
-			hyperscaler2.DeleteCloudDNSRecord = originalDeleteCloudDNSRecord
+			vsa.DeleteCloudDNSRecord = originalDeleteCloudDNSRecord
 		}()
 
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{Logger: log.NewLogger()}, nil
 		}
-		hyperscaler2.DeleteCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, recordName string) error {
+		vsa.DeleteCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, recordName string) error {
 			return fmt.Errorf("delete error")
 		}
 		_, err := testEnv.ExecuteActivity(activity.DeleteCloudDNSRecords, hostMap, env.USER_CERTIFICATE)
@@ -4692,13 +4692,13 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 	env.VsaDeployedDnsName = "example.com"
 
 	// Mock CreateCloudDNSRecord
-	originalCreateCloudDNSRecord := hyperscaler2.GetOrCreateCloudDNSRecord
+	originalCreateCloudDNSRecord := vsa.GetOrCreateCloudDNSRecord
 	originalGCPService := hyperscaler2.GetGCPService
 	defer func() {
-		hyperscaler2.GetOrCreateCloudDNSRecord = originalCreateCloudDNSRecord
+		vsa.GetOrCreateCloudDNSRecord = originalCreateCloudDNSRecord
 		hyperscaler2.GetGCPService = originalGCPService
 	}()
-	hyperscaler2.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
+	vsa.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
 		return &hyperscaler_models.CustomCloudDNSRecord{RecordName: recordName}, nil
 	}
 
@@ -4779,7 +4779,7 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 		testEnv := testSuite.NewTestActivityEnvironment()
 		pa := &activities.PoolActivity{}
 		testEnv.RegisterActivity(pa.CreateCloudDNSRecords)
-		hyperscaler2.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
+		vsa.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("dns error"))
 		}
 		vlmConfig := &vlm.VLMConfig{
@@ -4809,12 +4809,12 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	activity := &activities.PoolActivity{}
 
 	origGetGCPService := hyperscaler2.GetGCPService
-	origRevokeCert := hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager
-	origDeletePwd := hyperscaler2.DeletePasswordFromCacheAndSecretManager
+	origRevokeCert := vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager
+	origDeletePwd := vsa.DeletePasswordFromCacheAndSecretManager
 	defer func() {
 		hyperscaler2.GetGCPService = origGetGCPService
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = origRevokeCert
-		hyperscaler2.DeletePasswordFromCacheAndSecretManager = origDeletePwd
+		vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager = origRevokeCert
+		vsa.DeletePasswordFromCacheAndSecretManager = origDeletePwd
 	}()
 
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -4835,11 +4835,11 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+		vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			assert.Equal(t, "cert-id", poolCredentials.CertificateID)
 			return nil
 		}
-		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
+		vsa.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			assert.Equal(t, "secret-id", secretID)
 			return nil
 		}
@@ -4861,11 +4861,11 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+		vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			assert.Equal(t, "cert-id", poolCredentials.CertificateID)
 			return nil
 		}
-		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
+		vsa.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			return errors.New("delete error")
 		}
 		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
@@ -4887,7 +4887,7 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+		vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return errors.New("revoke error")
 		}
 		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
@@ -4909,7 +4909,7 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USERNAME_PWD_SEC_MGR,
 			},
 		}
-		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
+		vsa.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			assert.Equal(t, "secret-id", secretID)
 			return nil
 		}
@@ -4931,7 +4931,7 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USERNAME_PWD_SEC_MGR,
 			},
 		}
-		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
+		vsa.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			return errors.New("delete error")
 		}
 		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
@@ -4986,12 +4986,12 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	username := "admin"
 
 	origGetGCPService := hyperscaler2.GetGCPService
-	origGenerateAndCreateCertificateForVSACluster := hyperscaler2.GenerateAndCreateCertificateForVSACluster
-	origGeneratePasswordForVSACluster := hyperscaler2.GeneratePasswordForVSACluster
+	origGenerateAndCreateCertificateForVSACluster := vsa.GenerateAndCreateCertificateForVSACluster
+	origGeneratePasswordForVSACluster := vsa.GeneratePasswordForVSACluster
 	defer func() {
 		hyperscaler2.GetGCPService = origGetGCPService
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = origGenerateAndCreateCertificateForVSACluster
-		hyperscaler2.GeneratePasswordForVSACluster = origGeneratePasswordForVSACluster
+		vsa.GenerateAndCreateCertificateForVSACluster = origGenerateAndCreateCertificateForVSACluster
+		vsa.GeneratePasswordForVSACluster = origGeneratePasswordForVSACluster
 	}()
 
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -5014,7 +5014,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+		vsa.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return &hyperscaler_models.CustomCertificateResponse{
 				Certificate: &hyperscaler_models.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -5026,7 +5026,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				},
 			}, nil
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		vsa.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return &hyperscaler_models.CustomSecret{
 				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
@@ -5059,7 +5059,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+		vsa.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return &hyperscaler_models.CustomCertificateResponse{
 				Certificate: &hyperscaler_models.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -5071,7 +5071,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				},
 			}, nil
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		vsa.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
 		_, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
@@ -5094,7 +5094,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+		vsa.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
 		_, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
@@ -5117,7 +5117,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		vsa.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return &hyperscaler_models.CustomSecret{
 				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
@@ -5146,7 +5146,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		vsa.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
 		_, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
@@ -5440,12 +5440,12 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	originalGetGCPService := hyperscaler2.GetGCPService
-	originalGenerateAndCreateCertificate := hyperscaler2.GenerateAndCreateCertificateForVSACluster
-	originalGeneratePassword := hyperscaler2.GeneratePasswordForVSACluster
+	originalGenerateAndCreateCertificate := vsa.GenerateAndCreateCertificateForVSACluster
+	originalGeneratePassword := vsa.GeneratePasswordForVSACluster
 	defer func() {
 		hyperscaler2.GetGCPService = originalGetGCPService
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = originalGenerateAndCreateCertificate
-		hyperscaler2.GeneratePasswordForVSACluster = originalGeneratePassword
+		vsa.GenerateAndCreateCertificateForVSACluster = originalGenerateAndCreateCertificate
+		vsa.GeneratePasswordForVSACluster = originalGeneratePassword
 	}()
 
 	// Create Temporal test environment for activity context
@@ -5459,7 +5459,7 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Mock certificate generation
-	hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+	vsa.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 		return &hyperscaler_models.CustomCertificateResponse{
 			Certificate: &hyperscaler_models.CustomCertificate{
 				SubjectCommonName:   "test-cn",
@@ -5475,7 +5475,7 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Mock password generation
-	hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+	vsa.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 		return &hyperscaler_models.CustomSecret{
 			SecretVersion: &hyperscaler_models.CustomSecretVersion{
 				Value: "test-password",
@@ -9128,13 +9128,13 @@ func TestFetchOnTapCredentials_WithUserCertificate_Success(t *testing.T) {
 			SecretID:      "secret-id",
 		},
 	}
-	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
-	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+	originalGetCertificate := vsa.GetCertificateFromCacheOrSecretManager
+	originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 	defer func() {
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+		vsa.GetCertificateFromCacheOrSecretManager = originalGetCertificate
+		vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 	}()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
+	vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return &coremodel.Certificate{
 			CommonName:               "CN",
 			SignedCertificate:        "cert",
@@ -9142,7 +9142,7 @@ func TestFetchOnTapCredentials_WithUserCertificate_Success(t *testing.T) {
 			InterMediateCertificates: []string{"intermediate"},
 		}, nil
 	}
-	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+	vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 		return "admin-password", nil
 	}
 
@@ -9173,9 +9173,9 @@ func TestFetchOnTapCredentials_WithUserCertificate_CertificateError(t *testing.T
 			SecretID:      "secret-id",
 		},
 	}
-	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
-	defer func() { hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate }()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
+	originalGetCertificate := vsa.GetCertificateFromCacheOrSecretManager
+	defer func() { vsa.GetCertificateFromCacheOrSecretManager = originalGetCertificate }()
+	vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return nil, errors.New("certificate error")
 	}
 
@@ -9199,13 +9199,13 @@ func TestFetchOnTapCredentials_WithUserCertificate_SecretError(t *testing.T) {
 			CertificateID: "cert-id",
 		},
 	}
-	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
-	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+	originalGetCertificate := vsa.GetCertificateFromCacheOrSecretManager
+	originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 	defer func() {
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+		vsa.GetCertificateFromCacheOrSecretManager = originalGetCertificate
+		vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 	}()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
+	vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return &coremodel.Certificate{
 			CommonName:               "CN",
 			SignedCertificate:        "cert",
@@ -9213,7 +9213,7 @@ func TestFetchOnTapCredentials_WithUserCertificate_SecretError(t *testing.T) {
 			InterMediateCertificates: []string{"intermediate"},
 		}, nil
 	}
-	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+	vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 		return "", errors.New("Invalid resource field value")
 	}
 
@@ -9236,9 +9236,9 @@ func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) {
 			SecretID: "secret-id",
 		},
 	}
-	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-	defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
-	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+	originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+	defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+	vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 		return "admin-password", nil
 	}
 
@@ -9265,9 +9265,9 @@ func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_SecretError(t *testing.T) {
 			SecretID: "secret-id",
 		},
 	}
-	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-	defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
-	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+	originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+	defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+	vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 		return "", errors.New("Invalid resource field value")
 	}
 
@@ -11864,10 +11864,10 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 	username := "admin"
 
 	origGetGCPService := hyperscaler2.GetGCPService
-	origGenerateAndCreateCertificateForVSACluster := hyperscaler2.GenerateAndCreateCertificateForVSACluster
+	origGenerateAndCreateCertificateForVSACluster := vsa.GenerateAndCreateCertificateForVSACluster
 	defer func() {
 		hyperscaler2.GetGCPService = origGetGCPService
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = origGenerateAndCreateCertificateForVSACluster
+		vsa.GenerateAndCreateCertificateForVSACluster = origGenerateAndCreateCertificateForVSACluster
 	}()
 
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -11892,7 +11892,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+		vsa.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return &hyperscaler_models.CustomCertificateResponse{
 				Certificate: &hyperscaler_models.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -11949,7 +11949,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+		vsa.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
 		_, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
@@ -11975,7 +11975,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 			},
 			PoolCredentials: &datamodel.PoolCredentials{},
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		vsa.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return &hyperscaler_models.CustomSecret{
 				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
@@ -12006,7 +12006,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		vsa.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
 		_, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
@@ -12065,12 +12065,12 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 	activity := &activities.PoolActivity{}
 
 	origGetGCPService := hyperscaler2.GetGCPService
-	origRevokeCert := hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager
-	origDeletePwd := hyperscaler2.DeletePasswordFromCacheAndSecretManager
+	origRevokeCert := vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager
+	origDeletePwd := vsa.DeletePasswordFromCacheAndSecretManager
 	defer func() {
 		hyperscaler2.GetGCPService = origGetGCPService
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = origRevokeCert
-		hyperscaler2.DeletePasswordFromCacheAndSecretManager = origDeletePwd
+		vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager = origRevokeCert
+		vsa.DeletePasswordFromCacheAndSecretManager = origDeletePwd
 	}()
 
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -12095,7 +12095,7 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+		vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			assert.Equal(t, "cert-id", poolCredentials.CertificateID)
 			return nil
 		}
@@ -12135,7 +12135,7 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+		vsa.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return errors.New("revoke error")
 		}
 		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
@@ -12161,7 +12161,7 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
+		vsa.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			assert.Equal(t, "secret-id", secretID)
 			return nil
 		}
@@ -12187,7 +12187,7 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
+		vsa.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			return errors.New("delete error")
 		}
 		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
@@ -12259,11 +12259,11 @@ func TestFetchExpertModeCredentials_WithUserCertificate_Success(t *testing.T) {
 			},
 		},
 	}
-	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
+	originalGetCertificate := vsa.GetCertificateFromCacheOrSecretManager
 	defer func() {
-		hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate
+		vsa.GetCertificateFromCacheOrSecretManager = originalGetCertificate
 	}()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
+	vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return &coremodel.Certificate{
 			CommonName:               "CN",
 			SignedCertificate:        "cert",
@@ -12303,9 +12303,9 @@ func TestFetchExpertModeCredentials_WithUserCertificate_CertificateError(t *test
 			},
 		},
 	}
-	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
-	defer func() { hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate }()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
+	originalGetCertificate := vsa.GetCertificateFromCacheOrSecretManager
+	defer func() { vsa.GetCertificateFromCacheOrSecretManager = originalGetCertificate }()
+	vsa.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return nil, errors.New("certificate error")
 	}
 
@@ -12334,9 +12334,9 @@ func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) 
 			},
 		},
 	}
-	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-	defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
-	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+	originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+	defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+	vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 		return "admin-password", nil
 	}
 
@@ -12369,9 +12369,9 @@ func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_SecretError(t *testing
 			},
 		},
 	}
-	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-	defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
-	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+	originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+	defer func() { vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+	vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 		return "", errors.New("Invalid resource field value")
 	}
 
@@ -12431,10 +12431,10 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 	})
 
 	t.Run("WhenGetProviderByNodeFails_ThenReturnNil", func(tt *testing.T) {
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
 
@@ -12453,10 +12453,10 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 	t.Run("WhenCreateRESTClientFails_ThenReturnNil", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -12478,10 +12478,10 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 	t.Run("WhenRESTClientIsNil_ThenReturnNil", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -12504,10 +12504,10 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 	t.Run("WhenNetworkingClientIsNil_ThenReturnNil", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockRESTClient := new(ontap_rest.MockRESTClient)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -12533,10 +12533,10 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockRESTClient := new(ontap_rest.MockRESTClient)
 		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -12564,10 +12564,10 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockRESTClient := new(ontap_rest.MockRESTClient)
 		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -12595,10 +12595,10 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockRESTClient := new(ontap_rest.MockRESTClient)
 		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -12627,10 +12627,10 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockRESTClient := new(ontap_rest.MockRESTClient)
 		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := vsa.GetProviderByNode
+		defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
 
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -12689,13 +12689,13 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_AndGetPasswordFails_ThenReturnError", func(tt *testing.T) {
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
 		}()
 
 		// Mock secret manager to return error
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return "", errors.New("secret manager error")
 		}
 
@@ -12721,16 +12721,16 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_AndGetPasswordSucceeds_ThenOverrideAuthTypeAndPassword", func(tt *testing.T) {
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
-			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		// Mock secret manager to return password
 		expectedPassword := "secret-manager-password"
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			return expectedPassword, nil
 		}
 
@@ -12740,7 +12740,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 		// Capture the node passed to GetProviderByNode to verify AuthType and Password were overridden
 		var capturedNode *coremodel.Node
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			capturedNode = node
 			return mockProvider, nil
 		}
@@ -12785,16 +12785,16 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_WithUSERNAME_PWD_SEC_MGR_Credentials_ThenOverrideAuthTypeAndPassword", func(tt *testing.T) {
 		// Save original function
-		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		originalGetPassword := vsa.GetPasswordFromCacheOrSecretManager
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
-			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+			vsa.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		// Mock secret manager to return password
 		expectedPassword := "secret-password"
-		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		vsa.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
 			assert.Equal(tt, "test-secret-id", secretID)
 			return expectedPassword, nil
 		}
@@ -12805,7 +12805,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 		// Capture the node passed to GetProviderByNode to verify AuthType and Password were overridden
 		var capturedNode *coremodel.Node
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			capturedNode = node
 			return mockProvider, nil
 		}
@@ -12850,9 +12850,9 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_WithDirectPassword_ThenOverrideAuthTypeAndPassword", func(tt *testing.T) {
 		// Save original function
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		mockProvider := new(vsa.MockProvider)
@@ -12861,7 +12861,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 		// Capture the node passed to GetProviderByNode to verify AuthType and Password were overridden
 		var capturedNode *coremodel.Node
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			capturedNode = node
 			return mockProvider, nil
 		}
@@ -12907,9 +12907,9 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 	t.Run("WhenNodeHasEndpointAddressesToHostNameMap_ThenDeepCopyIsCreated", func(tt *testing.T) {
 		// Save original function
-		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		originalGetProviderByNode := vsa.GetProviderByNode
 		defer func() {
-			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+			vsa.GetProviderByNode = originalGetProviderByNode
 		}()
 
 		mockProvider := new(vsa.MockProvider)
@@ -12918,7 +12918,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 
 		// Capture the node passed to GetProviderByNode to verify the map was deep copied
 		var capturedNode *coremodel.Node
-		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 			capturedNode = node
 			// Simulate GetProviderByNode potentially modifying the map (as it does in real code)
 			// Add a new entry to verify it doesn't affect the original
@@ -15123,9 +15123,9 @@ func Test_DeleteAllPoolVPGs_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -15182,9 +15182,9 @@ func Test_DeleteAllPoolVPGs_OntapFailureContinues(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -15221,9 +15221,9 @@ func Test_DeleteAllPoolVPGs_DBHardDeleteFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -15261,9 +15261,9 @@ func Test_DeleteAllPoolVPGs_NotFoundSkipped(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 
-	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
-	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -16299,7 +16299,7 @@ func TestMarkAddressRangesCreated_UpdateStateToCreated_Error(t *testing.T) {
 // These activities are the OCI-equivalent counterparts to the GCP credential
 // helpers. The tests below stub the package-level indirection variables that
 // the activity reaches through (hyperscaler2.GetOCIService,
-// hyperscaler2.GeneratePasswordForVSAClusterOCI, etc.) so behaviour can be
+// vsa.GeneratePasswordForVSAClusterOCI, etc.) so behaviour can be
 // asserted without an OCI backend. We exercise the activities through the
 // Temporal test environment to cover the actual call site, including the
 // vsaerrors.WrapAsTemporalApplicationError wrapping that production code
@@ -16348,9 +16348,9 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_NilPoolCredentials(t *testing
 		return nil, nil
 	}
 
-	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
-	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	origGen := vsa.GeneratePasswordForVSAClusterOCI
+	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		t.Fatalf("OCI Vault password generation must not be invoked when pool.PoolCredentials is nil")
 		return nil, nil
 	}
@@ -16381,9 +16381,9 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_DefaultPassword(t *testing.T)
 		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 	}
 
-	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
-	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	origGen := vsa.GeneratePasswordForVSAClusterOCI
+	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		t.Fatalf("OCI Vault password generation must not be invoked for the default (USERNAME_PWD) branch")
 		return nil, nil
 	}
@@ -16422,9 +16422,9 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_UserCertificateNoop(t *testin
 		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 	}
 
-	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
-	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	origGen := vsa.GeneratePasswordForVSAClusterOCI
+	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		t.Fatalf("password generation must not be invoked for the certificate branch")
 		return nil, nil
 	}
@@ -16465,10 +16465,10 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrSuccess(t *testing.T) {
 		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 	}
 
-	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
+	origGen := vsa.GeneratePasswordForVSAClusterOCI
+	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
 	var capturedSecretName string
-	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		capturedSecretName = secretName
 		return &oci.OCICustomSecret{
 			Ocid:    "ocid1.vaultsecret.oc1..abc",
@@ -16516,9 +16516,9 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrGenerateFails(t *testin
 		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 	}
 
-	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
-	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	origGen := vsa.GeneratePasswordForVSAClusterOCI
+	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		return nil, fmt.Errorf("vault: insufficient permissions")
 	}
 
@@ -16563,9 +16563,9 @@ func TestPoolActivity_CreateOnTapCredentialsForOCI_SecMgrNilSecret(t *testing.T)
 	}
 
 	var generatorCalled bool
-	origGen := hyperscaler2.GeneratePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.GeneratePasswordForVSAClusterOCI = origGen }()
-	hyperscaler2.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
+	origGen := vsa.GeneratePasswordForVSAClusterOCI
+	defer func() { vsa.GeneratePasswordForVSAClusterOCI = origGen }()
+	vsa.GeneratePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) (*oci.OCICustomSecret, error) {
 		generatorCalled = true
 		return nil, nil
 	}
@@ -16639,9 +16639,9 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_NilPoolCredentials(t *testing
 		return nil, nil
 	}
 
-	origDel := hyperscaler2.DeletePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.DeletePasswordForVSAClusterOCI = origDel }()
-	hyperscaler2.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
+	origDel := vsa.DeletePasswordForVSAClusterOCI
+	defer func() { vsa.DeletePasswordForVSAClusterOCI = origDel }()
+	vsa.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
 		t.Fatalf("OCI Vault password deletion must not be invoked when pool.PoolCredentials is nil")
 		return nil
 	}
@@ -16674,10 +16674,10 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_Success(t *testing.T) {
 		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 	}
 
-	origDel := hyperscaler2.DeletePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.DeletePasswordForVSAClusterOCI = origDel }()
+	origDel := vsa.DeletePasswordForVSAClusterOCI
+	defer func() { vsa.DeletePasswordForVSAClusterOCI = origDel }()
 	var capturedSecretName string
-	hyperscaler2.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
+	vsa.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
 		capturedSecretName = secretName
 		return nil
 	}
@@ -16710,9 +16710,9 @@ func TestPoolActivity_DeleteOnTapCredentialsForOCI_DeleteFails(t *testing.T) {
 		return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
 	}
 
-	origDel := hyperscaler2.DeletePasswordForVSAClusterOCI
-	defer func() { hyperscaler2.DeletePasswordForVSAClusterOCI = origDel }()
-	hyperscaler2.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
+	origDel := vsa.DeletePasswordForVSAClusterOCI
+	defer func() { vsa.DeletePasswordForVSAClusterOCI = origDel }()
+	vsa.DeletePasswordForVSAClusterOCI = func(ociService oci.OciServices, secretName string) error {
 		return fmt.Errorf("vault: conflict")
 	}
 
@@ -16829,9 +16829,9 @@ func TestPoolActivity_GetOnTapCredentialsForOCI(t *testing.T) {
 		// Any auth type not matched by USER_CERTIFICATE or USERNAME_PWD_SEC_MGR
 		// must hit the default branch and use PoolCredentials.Password without
 		// consulting OCI Vault.
-		origGetPW := hyperscaler2.GetPasswordFromCacheOrOCIVault
-		defer func() { hyperscaler2.GetPasswordFromCacheOrOCIVault = origGetPW }()
-		hyperscaler2.GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+		origGetPW := vsa.GetPasswordFromCacheOrOCIVault
+		defer func() { vsa.GetPasswordFromCacheOrOCIVault = origGetPW }()
+		vsa.GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
 			t.Fatalf("OCI Vault must not be consulted for unknown auth types")
 			return "", nil
 		}
@@ -16867,9 +16867,9 @@ func TestPoolActivity_GetOnTapCredentialsForOCI(t *testing.T) {
 		// without a test failure.
 		const expectedPW = "cert-fallthrough-pw"
 		var capturedRef *datamodel.ExternalCredRef
-		origGetPW := hyperscaler2.GetPasswordFromCacheOrOCIVault
-		defer func() { hyperscaler2.GetPasswordFromCacheOrOCIVault = origGetPW }()
-		hyperscaler2.GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
+		origGetPW := vsa.GetPasswordFromCacheOrOCIVault
+		defer func() { vsa.GetPasswordFromCacheOrOCIVault = origGetPW }()
+		vsa.GetPasswordFromCacheOrOCIVault = func(ctx context.Context, ref *datamodel.ExternalCredRef) (string, error) {
 			capturedRef = ref
 			return expectedPW, nil
 		}
@@ -17129,11 +17129,11 @@ type ociServiceError struct {
 	message    string
 }
 
-func (e *ociServiceError) Error() string                 { return e.message }
-func (e *ociServiceError) GetHTTPStatusCode() int        { return e.statusCode }
-func (e *ociServiceError) GetMessage() string            { return e.message }
-func (e *ociServiceError) GetCode() string               { return e.code }
-func (e *ociServiceError) GetOpcRequestID() string       { return "test-opc-req-id" }
+func (e *ociServiceError) Error() string           { return e.message }
+func (e *ociServiceError) GetHTTPStatusCode() int  { return e.statusCode }
+func (e *ociServiceError) GetMessage() string      { return e.message }
+func (e *ociServiceError) GetCode() string         { return e.code }
+func (e *ociServiceError) GetOpcRequestID() string { return "test-opc-req-id" }
 
 // ---------------------------------------------------------------------------
 // TestPoolActivity_UpdateRbacInPoolWithURL

@@ -5,12 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -55,27 +55,27 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 						Name:      "test-replication",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceSvmName:      "source-svm",
-							SourceVolumeName:   "source-volume",
-							DestinationSvmName: "dest-svm",
-							DestinationVolumeName: "dest-volume",
-							DestinationLocation: "us-central1",
+							SourceSvmName:              "source-svm",
+							SourceVolumeName:           "source-volume",
+							DestinationSvmName:         "dest-svm",
+							DestinationVolumeName:      "dest-volume",
+							DestinationLocation:        "us-central1",
 							DestinationReplicationUUID: "test-dest-replication-uuid",
 						},
 					},
 					DestinationProjectNumber: "987654321",
-					XCorrelationID:          stringPtr("test-correlation-id"),
+					XCorrelationID:           stringPtr("test-correlation-id"),
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 				Name:      "test-replication",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
-					SourceSvmName:      "source-svm",
-					SourceVolumeName:   "source-volume",
-					DestinationSvmName: "dest-svm",
-					DestinationVolumeName: "dest-volume",
-					DestinationLocation: "us-central1",
+					SourceSvmName:              "source-svm",
+					SourceVolumeName:           "source-volume",
+					DestinationSvmName:         "dest-svm",
+					DestinationVolumeName:      "dest-volume",
+					DestinationLocation:        "us-central1",
 					DestinationReplicationUUID: "test-dest-replication-uuid",
 				},
 			},
@@ -158,9 +158,9 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 						Name:      "test-replication",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceSvmName:      "source-svm",
-							SourceVolumeName:   "source-volume",
-							DestinationSvmName: "dest-svm",
+							SourceSvmName:         "source-svm",
+							SourceVolumeName:      "source-volume",
+							DestinationSvmName:    "dest-svm",
 							DestinationVolumeName: "dest-volume",
 						},
 					},
@@ -209,9 +209,9 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 						Name:      "test-replication",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceSvmName:      "source-svm",
-							SourceVolumeName:   "source-volume",
-							DestinationSvmName: "dest-svm",
+							SourceSvmName:         "source-svm",
+							SourceVolumeName:      "source-volume",
+							DestinationSvmName:    "dest-svm",
 							DestinationVolumeName: "dest-volume",
 						},
 					},
@@ -269,27 +269,27 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 						Name:      "test-replication",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceSvmName:      "source-svm",
-							SourceVolumeName:   "source-volume",
-							DestinationSvmName: "dest-svm",
-							DestinationVolumeName: "dest-volume",
-							DestinationLocation: "us-central1",
+							SourceSvmName:              "source-svm",
+							SourceVolumeName:           "source-volume",
+							DestinationSvmName:         "dest-svm",
+							DestinationVolumeName:      "dest-volume",
+							DestinationLocation:        "us-central1",
 							DestinationReplicationUUID: "test-dest-replication-uuid",
 						},
 					},
 					DestinationProjectNumber: "987654321",
-					XCorrelationID:          stringPtr("test-correlation-id"),
+					XCorrelationID:           stringPtr("test-correlation-id"),
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 				Name:      "test-replication",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
-					SourceSvmName:      "source-svm",
-					SourceVolumeName:   "source-volume",
-					DestinationSvmName: "dest-svm",
-					DestinationVolumeName: "dest-volume",
-					DestinationLocation: "us-central1",
+					SourceSvmName:              "source-svm",
+					SourceVolumeName:           "source-volume",
+					DestinationSvmName:         "dest-svm",
+					DestinationVolumeName:      "dest-volume",
+					DestinationLocation:        "us-central1",
 					DestinationReplicationUUID: "test-dest-replication-uuid",
 				},
 			},
@@ -362,27 +362,27 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 						Name:      "test-replication",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceSvmName:      "source-svm",
-							SourceVolumeName:   "source-volume",
-							DestinationSvmName: "dest-svm",
-							DestinationVolumeName: "dest-volume",
-							DestinationLocation: "us-central1",
+							SourceSvmName:              "source-svm",
+							SourceVolumeName:           "source-volume",
+							DestinationSvmName:         "dest-svm",
+							DestinationVolumeName:      "dest-volume",
+							DestinationLocation:        "us-central1",
 							DestinationReplicationUUID: "test-dest-replication-uuid",
 						},
 					},
 					DestinationProjectNumber: "987654321",
-					XCorrelationID:          stringPtr("test-correlation-id"),
+					XCorrelationID:           stringPtr("test-correlation-id"),
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 				Name:      "test-replication",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
-					SourceSvmName:      "source-svm",
-					SourceVolumeName:   "source-volume",
-					DestinationSvmName: "dest-svm",
-					DestinationVolumeName: "dest-volume",
-					DestinationLocation: "us-central1",
+					SourceSvmName:              "source-svm",
+					SourceVolumeName:           "source-volume",
+					DestinationSvmName:         "dest-svm",
+					DestinationVolumeName:      "dest-volume",
+					DestinationLocation:        "us-central1",
 					DestinationReplicationUUID: "test-dest-replication-uuid",
 				},
 			},
@@ -465,27 +465,27 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 						Name:      "test-replication",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							SourceSvmName:      "source-svm",
-							SourceVolumeName:   "source-volume",
-							DestinationSvmName: "dest-svm",
-							DestinationVolumeName: "dest-volume",
-							DestinationLocation: "us-central1",
+							SourceSvmName:              "source-svm",
+							SourceVolumeName:           "source-volume",
+							DestinationSvmName:         "dest-svm",
+							DestinationVolumeName:      "dest-volume",
+							DestinationLocation:        "us-central1",
 							DestinationReplicationUUID: "test-dest-replication-uuid",
 						},
 					},
 					DestinationProjectNumber: "987654321",
-					XCorrelationID:          stringPtr("test-correlation-id"),
+					XCorrelationID:           stringPtr("test-correlation-id"),
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
 				Name:      "test-replication",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
-					SourceSvmName:      "source-svm",
-					SourceVolumeName:   "source-volume",
-					DestinationSvmName: "dest-svm",
-					DestinationVolumeName: "dest-volume",
-					DestinationLocation: "us-central1",
+					SourceSvmName:              "source-svm",
+					SourceVolumeName:           "source-volume",
+					DestinationSvmName:         "dest-svm",
+					DestinationVolumeName:      "dest-volume",
+					DestinationLocation:        "us-central1",
 					DestinationReplicationUUID: "test-dest-replication-uuid",
 				},
 			},
@@ -586,4 +586,3 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 func stringPtr(s string) *string {
 	return &s
 }
-

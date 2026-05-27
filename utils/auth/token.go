@@ -8,7 +8,7 @@ import (
 	"time"
 
 	credentials2 "cloud.google.com/go/iam/credentials/apiv1/credentialspb"
-	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )

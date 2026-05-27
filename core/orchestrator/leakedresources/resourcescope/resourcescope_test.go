@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
@@ -42,8 +42,8 @@ func TestGroupPoolsByProjectLocation_SkipsIncompletePools(t *testing.T) {
 	pools := []*datamodel.PoolView{
 		mkPool("u1", "p1", "proj-a", "us-central1-a", false, true, true),
 		mkPool("u2", "p2", "", "us-central1-a", false, false, true),       // no Account
-		mkPool("u3", "p3", "proj-a", "", false, true, true),                // empty PrimaryZone
-		mkPool("u4", "p4", "proj-a", "us-central1-a", false, true, false),  // no PoolAttributes
+		mkPool("u3", "p3", "proj-a", "", false, true, true),               // empty PrimaryZone
+		mkPool("u4", "p4", "proj-a", "us-central1-a", false, true, false), // no PoolAttributes
 	}
 
 	groups := GroupPoolsByProjectLocation(ctx, pools)

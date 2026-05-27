@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -78,4 +78,3 @@ func (h *KmsDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, event
 	logger.Infof("workflow-supervisor-task: reverted KMS config %s from DELETING to %s", kmsConfig.UUID, previousState)
 	return nil
 }
-

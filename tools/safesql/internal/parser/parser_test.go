@@ -391,46 +391,46 @@ func TestExtractTables(t *testing.T) {
 
 func TestExtractWhereClause(t *testing.T) {
 	tests := []struct {
-		name         string
-		sql          string
-		expectedSQL  string
-		expectedHas  bool
+		name        string
+		sql         string
+		expectedSQL string
+		expectedHas bool
 	}{
 		{
-			name:         "simple where",
-			sql:          "SELECT * FROM users WHERE id = 1",
-			expectedSQL:  "id = 1",
-			expectedHas:  true,
+			name:        "simple where",
+			sql:         "SELECT * FROM users WHERE id = 1",
+			expectedSQL: "id = 1",
+			expectedHas: true,
 		},
 		{
-			name:         "where with order by",
-			sql:          "SELECT * FROM users WHERE id = 1 ORDER BY name",
-			expectedSQL:  "id = 1",
-			expectedHas:  true,
+			name:        "where with order by",
+			sql:         "SELECT * FROM users WHERE id = 1 ORDER BY name",
+			expectedSQL: "id = 1",
+			expectedHas: true,
 		},
 		{
-			name:         "where with limit",
-			sql:          "SELECT * FROM users WHERE id = 1 LIMIT 10",
-			expectedSQL:  "id = 1",
-			expectedHas:  true,
+			name:        "where with limit",
+			sql:         "SELECT * FROM users WHERE id = 1 LIMIT 10",
+			expectedSQL: "id = 1",
+			expectedHas: true,
 		},
 		{
-			name:         "where with group by",
-			sql:          "SELECT * FROM users WHERE id = 1 GROUP BY name",
-			expectedSQL:  "id = 1",
-			expectedHas:  true,
+			name:        "where with group by",
+			sql:         "SELECT * FROM users WHERE id = 1 GROUP BY name",
+			expectedSQL: "id = 1",
+			expectedHas: true,
 		},
 		{
-			name:         "no where clause",
-			sql:          "SELECT * FROM users",
-			expectedSQL:  "",
-			expectedHas:  false,
+			name:        "no where clause",
+			sql:         "SELECT * FROM users",
+			expectedSQL: "",
+			expectedHas: false,
 		},
 		{
-			name:         "complex where",
-			sql:          "SELECT * FROM users WHERE status = 'active' AND age > 18",
-			expectedSQL:  "status = 'active' AND age > 18",
-			expectedHas:  true,
+			name:        "complex where",
+			sql:         "SELECT * FROM users WHERE status = 'active' AND age > 18",
+			expectedSQL: "status = 'active' AND age > 18",
+			expectedHas: true,
 		},
 	}
 

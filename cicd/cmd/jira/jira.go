@@ -3,8 +3,6 @@ package jira
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/andygrunwald/go-jira"
-	"github.com/spf13/cobra"
 	"io"
 	"log"
 	ghutils "main/cmd/github"
@@ -13,6 +11,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/andygrunwald/go-jira"
+	"github.com/spf13/cobra"
 )
 
 var (

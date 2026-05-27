@@ -7,10 +7,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -197,10 +197,10 @@ func (j *FinishProjectEventActivity) DeleteAccountActivity(ctx context.Context, 
 
 func (j *FinishProjectEventActivity) VerifySoftDeletedResourcesForAccount(ctx context.Context, projectNumber string) (bool, error) {
 	var (
-		softDelVolume             = true
-		softDelPool               = true
-		softDelSvms               = true
-		softDelExpertModeVolumes  = true
+		softDelVolume            = true
+		softDelPool              = true
+		softDelSvms              = true
+		softDelExpertModeVolumes = true
 	)
 	logger := util.GetLogger(ctx)
 	se := j.SE

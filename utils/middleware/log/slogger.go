@@ -3,8 +3,8 @@ package log
 import (
 	"context"
 	"fmt"
-	"strings"
 	"log/slog"
+	"strings"
 
 	"go.opentelemetry.io/otel/trace"
 )

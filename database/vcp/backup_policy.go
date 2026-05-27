@@ -5,10 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
@@ -189,8 +188,8 @@ func (d *DataStoreRepository) DeleteBackupPolicy(ctx context.Context, backupPoli
 	}
 
 	dbBackupPolicy.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	dbBackupPolicy.LifeCycleState = models.LifeCycleStateDeleted
-	dbBackupPolicy.LifeCycleStateDetails = models.LifeCycleStateDeletedDetails
+	dbBackupPolicy.LifeCycleState = datamodel.LifeCycleStateDeleted
+	dbBackupPolicy.LifeCycleStateDetails = datamodel.LifeCycleStateDeletedDetails
 	err = tx.Save(dbBackupPolicy).Error
 	if err != nil {
 		return nil, err
