@@ -903,3 +903,356 @@ func TestEncodeVolumeResponse_AllFields(t *testing.T) {
 	assert.Contains(t, string(data), "my-volume")
 	assert.Contains(t, string(data), "parent-uuid")
 }
+
+// ============================================================================
+// V1SplitStopVolume handler tests
+//
+// Mirror the V1SplitStartVolume test matrix so every branch of the
+// synchronous splitStop handler is covered:
+//   - invalid LocationId -> 400 BadRequest
+//   - orchestrator NotFound / 400 / Conflict / VCPError(400) /
+//     VCPError(409) / VCPError(other) / VCPError(no httpCode) / raw 500
+//   - success with explicit zone (LocationId is a zone)
+//   - success with empty zone (LocationId is a region; Zone falls back)
+// ============================================================================
+
+func TestV1SplitStopVolume_InvalidLocation(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "invalid-location-no-region",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	badReq, ok := result.(*oasgenserver.V1SplitStopVolumeBadRequest)
+	assert.True(t, ok, "expected BadRequest response")
+	assert.NotNil(t, badReq)
+}
+
+func TestV1SplitStopVolume_NotFound(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "non-existent-volume",
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.MatchedBy(func(p *commonparams.SplitStopVolumeParams) bool {
+		return p.VolumeID == "non-existent-volume" &&
+			p.AccountName == "test-project" &&
+			p.Region == "us-east4"
+	})).Return(nil, errors.NewNotFoundErr("volume", nil))
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	notFound, ok := result.(*oasgenserver.V1SplitStopVolumeNotFound)
+	assert.True(t, ok, "expected NotFound response")
+	assert.NotNil(t, notFound)
+	assert.Equal(t, float64(404), notFound.Code)
+}
+
+func TestV1SplitStopVolume_UserInputValidationErr(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).
+		Return(nil, errors.NewUserInputValidationErr("volume is not a thin clone"))
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	badReq, ok := result.(*oasgenserver.V1SplitStopVolumeBadRequest)
+	assert.True(t, ok, "expected BadRequest response")
+	assert.NotNil(t, badReq)
+	assert.Equal(t, float64(400), badReq.Code)
+}
+
+func TestV1SplitStopVolume_BadRequestErr(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).
+		Return(nil, errors.NewBadRequestErr("bad request"))
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	badReq, ok := result.(*oasgenserver.V1SplitStopVolumeBadRequest)
+	assert.True(t, ok, "expected BadRequest response")
+	assert.NotNil(t, badReq)
+	assert.Equal(t, float64(400), badReq.Code)
+}
+
+func TestV1SplitStopVolume_ConflictErr(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).
+		Return(nil, errors.NewConflictErr("volume split is not in progress"))
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	conflict, ok := result.(*oasgenserver.V1SplitStopVolumeConflict)
+	assert.True(t, ok, "expected Conflict response")
+	assert.NotNil(t, conflict)
+	assert.Equal(t, float64(409), conflict.Code)
+}
+
+func TestV1SplitStopVolume_CustomErr_400(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	httpCode := 400
+	customErr := &vsaerrors.CustomError{
+		TrackingID:  vsaerrors.ErrInputValidationError,
+		Message:     "custom bad request",
+		HttpCode:    &httpCode,
+		OriginalErr: stderrors.New("custom bad request"),
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).Return(nil, customErr)
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	badReq, ok := result.(*oasgenserver.V1SplitStopVolumeBadRequest)
+	assert.True(t, ok, "expected BadRequest response for custom 400 error")
+	assert.NotNil(t, badReq)
+	assert.Equal(t, float64(400), badReq.Code)
+	// Custom error path returns the CustomError.Message, NOT err.Error().
+	assert.Equal(t, "custom bad request", badReq.Message)
+}
+
+func TestV1SplitStopVolume_CustomErr_409(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	httpCode := 409
+	customErr := &vsaerrors.CustomError{
+		TrackingID:  vsaerrors.ErrResourceStateConflictError,
+		Message:     "custom conflict",
+		HttpCode:    &httpCode,
+		OriginalErr: stderrors.New("custom conflict"),
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).Return(nil, customErr)
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	conflict, ok := result.(*oasgenserver.V1SplitStopVolumeConflict)
+	assert.True(t, ok, "expected Conflict response for custom 409 error")
+	assert.NotNil(t, conflict)
+	assert.Equal(t, float64(409), conflict.Code)
+	assert.Equal(t, "custom conflict", conflict.Message)
+}
+
+func TestV1SplitStopVolume_CustomErr_OtherHttpCode(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	// Anything other than 400/409 falls through to the default 500 branch.
+	httpCode := 503
+	customErr := &vsaerrors.CustomError{
+		TrackingID:  vsaerrors.ErrInternalServerError,
+		Message:     "service unavailable",
+		HttpCode:    &httpCode,
+		OriginalErr: stderrors.New("service unavailable"),
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).Return(nil, customErr)
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	serverErr, ok := result.(*oasgenserver.V1SplitStopVolumeInternalServerError)
+	assert.True(t, ok, "expected InternalServerError for unrecognized custom http code")
+	assert.NotNil(t, serverErr)
+	assert.Equal(t, float64(500), serverErr.Code)
+}
+
+func TestV1SplitStopVolume_CustomErr_NoHttpCode(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	// CustomError without an HttpCode must also fall through to 500.
+	customErr := &vsaerrors.CustomError{
+		TrackingID:  vsaerrors.ErrInternalServerError,
+		Message:     "custom error without http code",
+		OriginalErr: stderrors.New("custom error without http code"),
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).Return(nil, customErr)
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	serverErr, ok := result.(*oasgenserver.V1SplitStopVolumeInternalServerError)
+	assert.True(t, ok, "expected InternalServerError for custom error without http code")
+	assert.NotNil(t, serverErr)
+	assert.Equal(t, float64(500), serverErr.Code)
+}
+
+func TestV1SplitStopVolume_InternalServerError(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).
+		Return(nil, stderrors.New("internal error"))
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	serverErr, ok := result.(*oasgenserver.V1SplitStopVolumeInternalServerError)
+	assert.True(t, ok, "expected InternalServerError response for plain stdlib error")
+	assert.NotNil(t, serverErr)
+	assert.Equal(t, float64(500), serverErr.Code)
+}
+
+func TestV1SplitStopVolume_Success_WithZone(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	// LocationId is a zone: parseAndValidateRegionAndZone returns both region and zone.
+	mockParseAndValidateRegionAndZone(t, "us-east4", "us-east4-a")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4-a",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	volume := &coremodels.Volume{
+		BaseModel:      coremodels.BaseModel{UUID: "test-volume-uuid"},
+		LifeCycleState: coremodels.LifeCycleStateREADY,
+		DisplayName:    "test-volume",
+		CreationToken:  "test-token",
+		PoolID:         "test-pool-uuid",
+		QuotaInBytes:   1073741824,
+		ProtocolTypes:  []string{"NFSv3"},
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).Return(volume, nil)
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	op, ok := result.(*oasgenserver.OperationV1)
+	assert.True(t, ok, "expected OperationV1 response")
+	assert.NotNil(t, op)
+	// Stop is synchronous; done must always be true.
+	assert.Equal(t, true, op.Done.Or(false))
+	// Operation name must embed the project+location for client correlation.
+	assert.Contains(t, op.Name.Or(""), "/v1beta/projects/test-project/locations/us-east4-a/operations/")
+	// When a zone suffix was parsed it must appear in the response payload.
+	assert.Contains(t, string(op.Response), "us-east4-a")
+}
+
+func TestV1SplitStopVolume_Success_NoZone_FallsBackToRegion(t *testing.T) {
+	mockOrch := factory.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+	// LocationId is a region only: zone returned is empty so the handler must
+	// fall back to using the region as the response Zone.
+	mockParseAndValidateRegionAndZone(t, "us-east4", "")
+
+	params := oasgenserver.V1SplitStopVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-east4",
+		VolumeId:      "test-volume-uuid",
+	}
+
+	volume := &coremodels.Volume{
+		BaseModel:      coremodels.BaseModel{UUID: "test-volume-uuid"},
+		LifeCycleState: coremodels.LifeCycleStateREADY,
+		DisplayName:    "test-volume",
+	}
+
+	mockOrch.EXPECT().SplitStopVolume(mock.Anything, mock.Anything).Return(volume, nil)
+
+	ctx := context.Background()
+	result, err := handler.V1SplitStopVolume(ctx, params)
+
+	assert.NoError(t, err)
+	op, ok := result.(*oasgenserver.OperationV1)
+	assert.True(t, ok, "expected OperationV1 response")
+	assert.NotNil(t, op)
+	assert.Equal(t, true, op.Done.Or(false))
+	// Region fallback must surface in the response JSON.
+	assert.Contains(t, string(op.Response), "us-east4")
+}

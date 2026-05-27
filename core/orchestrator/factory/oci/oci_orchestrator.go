@@ -789,6 +789,10 @@ func (o *OCIOrchestrator) SplitStartVolume(ctx context.Context, params *commonpa
 	return nil, "", utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) SplitStopVolume(ctx context.Context, params *commonparams.SplitStopVolumeParams) (*models.Volume, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

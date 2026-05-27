@@ -439,6 +439,21 @@ type VolumeAttributes struct {
 	DeploymentName                     string           `json:"deployment_name"`
 	IsRegionalHA                       bool             `json:"is_regional_ha"`
 	CloneParentInfo                    *CloneParentInfo `json:"clone_parent_info"`
+	// OriginalSharedBytes captures the parent-snapshot logical size at clone
+	// creation time. It is the immutable baseline used by the synchronous
+	// splitStop API to derive a meaningful remaining-shared-bytes value after a
+	// partial split: splitStart zeroes the volume row's clones_shared_bytes to
+	// reserve pool capacity, so the at-creation value cannot be recovered from
+	// that column alone once a split has been initiated.
+	//
+	// Placed as a sibling of CloneParentInfo (not inside it) so the shallow-
+	// copy + selective-overwrite pattern used by the refresh activity and
+	// UpdateCloneParentStateInDB preserves it automatically without explicit
+	// handling.
+	//
+	// Pointer + omitempty so legacy rows (created before this field existed)
+	// can be detected and degrade gracefully in splitStop.
+	OriginalSharedBytes                *uint64          `json:"original_shared_bytes,omitempty"`
 	SplitRegularVolumeHydrationPending bool             `json:"split_regular_volume_hydration_pending,omitempty"`
 	SecurityStyle                      string           `json:"security_style"`
 	// SplitJobUUID holds the ONTAP job UUID returned by InitiateSplitVolume.

@@ -3458,6 +3458,102 @@ func TestV1SplitStartVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1SplitStartVolumeUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1SplitStopVolumeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1SplitStopVolumeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SplitStopVolumeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SplitStopVolumeConflict_EncodeDecode(t *testing.T) {
+	var typ V1SplitStopVolumeConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SplitStopVolumeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SplitStopVolumeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1SplitStopVolumeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SplitStopVolumeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SplitStopVolumeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1SplitStopVolumeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SplitStopVolumeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SplitStopVolumeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1SplitStopVolumeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SplitStopVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SplitStopVolumeTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1SplitStopVolumeTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SplitStopVolumeTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SplitStopVolumeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1SplitStopVolumeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SplitStopVolumeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SplitStopVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1SplitStopVolumeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SplitStopVolumeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1UpdateAddressRangeBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1UpdateAddressRangeBadRequest
 	typ.SetFake()

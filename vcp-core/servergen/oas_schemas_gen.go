@@ -2463,6 +2463,7 @@ func (*OperationV1) v1DeletePoolRes()                       {}
 func (*OperationV1) v1RefreshRbacForExpertModePoolByIdRes() {}
 func (*OperationV1) v1RefreshRbacForExpertModePoolsRes()    {}
 func (*OperationV1) v1SplitStartVolumeRes()                 {}
+func (*OperationV1) v1SplitStopVolumeRes()                  {}
 func (*OperationV1) v1UpdatePoolRes()                       {}
 
 // NewOptAddressRangeUpdateV1LifeCycleState returns new OptAddressRangeUpdateV1LifeCycleState with value set to v.
@@ -6225,6 +6226,38 @@ func (*V1SplitStartVolumeUnauthorized) v1SplitStartVolumeRes() {}
 type V1SplitStartVolumeUnprocessableEntity Error
 
 func (*V1SplitStartVolumeUnprocessableEntity) v1SplitStartVolumeRes() {}
+
+type V1SplitStopVolumeBadRequest Error
+
+func (*V1SplitStopVolumeBadRequest) v1SplitStopVolumeRes() {}
+
+type V1SplitStopVolumeConflict Error
+
+func (*V1SplitStopVolumeConflict) v1SplitStopVolumeRes() {}
+
+type V1SplitStopVolumeForbidden Error
+
+func (*V1SplitStopVolumeForbidden) v1SplitStopVolumeRes() {}
+
+type V1SplitStopVolumeInternalServerError Error
+
+func (*V1SplitStopVolumeInternalServerError) v1SplitStopVolumeRes() {}
+
+type V1SplitStopVolumeNotFound Error
+
+func (*V1SplitStopVolumeNotFound) v1SplitStopVolumeRes() {}
+
+type V1SplitStopVolumeTooManyRequests Error
+
+func (*V1SplitStopVolumeTooManyRequests) v1SplitStopVolumeRes() {}
+
+type V1SplitStopVolumeUnauthorized Error
+
+func (*V1SplitStopVolumeUnauthorized) v1SplitStopVolumeRes() {}
+
+type V1SplitStopVolumeUnprocessableEntity Error
+
+func (*V1SplitStopVolumeUnprocessableEntity) v1SplitStopVolumeRes() {}
 
 type V1UpdateAddressRangeBadRequest Error
 

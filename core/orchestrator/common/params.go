@@ -1041,6 +1041,15 @@ type SplitStartVolumeParams struct {
 	VolumeID    string
 }
 
+// SplitStopVolumeParams carries the inputs required to synchronously stop an
+// in-progress thin clone split. The stop is performed on ONTAP directly (no
+// Temporal workflow) and the VCP database is updated in the same handler call.
+type SplitStopVolumeParams struct {
+	AccountName string
+	Region      string
+	VolumeID    string
+}
+
 type VolumeFetchOptions struct {
 	NeedActiveDirectory        bool
 	NeedKmsConfig              bool

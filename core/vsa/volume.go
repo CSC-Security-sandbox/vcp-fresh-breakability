@@ -602,6 +602,70 @@ func (rc *OntapRestProvider) InitiateSplitVolume(volumeUUID string) (string, err
 	return job.JobUUID, nil
 }
 
+// StopSplitVolume sends a stop-split request to ONTAP for the given volume UUID by
+// PATCHing volume.split_initiated=false. The operation is synchronous from ONTAP's
+// perspective: ONTAP halts the background data-movement, partial split progress is
+// preserved, and the volume remains a thin clone of its parent. Callers should
+// validate that a split is currently in progress before invoking this; ONTAP will
+// return an error like "Operation is not in progress" otherwise.
+func (rc *OntapRestProvider) StopSplitVolume(volumeUUID string) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	splitInitiated := false
+	volumeModifyParams := &ontapRest.VolumeModifyParams{
+		UUID:                   volumeUUID,
+		SplitInitiated:         &splitInitiated,
+		MatchParentStorageTier: false,
+	}
+	_, _, err = client.Storage().VolumeModify(volumeModifyParams)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetVolumeCloneInfo fetches just the clone-related fields for a volume identified
+// by its UUID. Used by the synchronous splitStop path to read split progress
+// (split_complete_percent, split_initiated) immediately before issuing the stop so
+// the caller can return a meaningful CloneDetails in the API response.
+func (rc *OntapRestProvider) GetVolumeCloneInfo(volumeUUID string) (*VolumeResponseClone, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	vol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
+		UUID: volumeUUID,
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"clone.*"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if vol == nil || vol.Clone == nil {
+		return nil, nil
+	}
+	res := &VolumeResponseClone{
+		SplitInitiated:       vol.Clone.SplitInitiated,
+		SplitCompletePercent: vol.Clone.SplitCompletePercent,
+	}
+	if vol.Clone.ParentVolume != nil {
+		res.ParentVolumeName = nillable.FromPointer(vol.Clone.ParentVolume.Name)
+		res.ParentVolumeUUID = nillable.FromPointer(vol.Clone.ParentVolume.UUID)
+	}
+	if vol.Clone.ParentSnapshot != nil {
+		res.ParentSnapshotName = nillable.FromPointer(vol.Clone.ParentSnapshot.Name)
+		res.ParentSnapshotUUID = nillable.FromPointer(vol.Clone.ParentSnapshot.UUID)
+	}
+	if vol.Clone.IsFlexclone != nil {
+		isFlexclone := *vol.Clone.IsFlexclone
+		res.IsFlexclone = &isFlexclone
+	}
+	return res, nil
+}
+
 // UnassignQoSPolicyFromVolume unassigns the QoS policy from a volume by setting it to "none".
 // This is a convenience function that wraps UpdateVolume with the correct "none" value
 // as required by the ONTAP API specification.

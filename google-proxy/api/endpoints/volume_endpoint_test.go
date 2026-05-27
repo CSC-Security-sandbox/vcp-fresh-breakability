@@ -17211,3 +17211,393 @@ func TestSplitStartVolume_EmptyOperationIDGeneratesUUID(t *testing.T) {
 	assert.Contains(t, op.Name.Value, "us-east4")
 	inv.AssertExpectations(t)
 }
+
+// setupSplitStopHappyPath wires up the THIN_CLONE_GA_SUPPORT flag, CORE_API_HOST,
+// and the createCoreAPIClient factory to use the supplied mockInvoker. Returns a
+// cleanup function the caller must defer to restore originals.
+func setupSplitStopHappyPath(inv *mockInvoker) func() {
+	origThinCloneGASupport := thinCloneGASupport
+	origCoreAPIHost := coreAPIHost
+	origCreateCoreAPIClient := createCoreAPIClient
+
+	thinCloneGASupport = true
+	coreAPIHost = "http://core-api:8080"
+	createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+		return &coreapi.CoreAPIClient{Invoker: inv}
+	}
+	return func() {
+		thinCloneGASupport = origThinCloneGASupport
+		coreAPIHost = origCoreAPIHost
+		createCoreAPIClient = origCreateCoreAPIClient
+	}
+}
+
+func TestV1betaSplitStopVolume(t *testing.T) {
+	baseParams := gcpgenserver.V1betaSplitStopVolumeParams{
+		LocationId:    "location-id",
+		ProjectNumber: "project-number",
+		VolumeId:      "vol-1",
+	}
+
+	t.Run("FeatureDisabled_Returns403Forbidden", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = false
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		forbidden, ok := result.(*gcpgenserver.V1betaSplitStopVolumeForbidden)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(403), forbidden.Code)
+		assert.Contains(tt, forbidden.Message, "Thin clone split feature is currently not enabled")
+	})
+
+	t.Run("WhenCoreAPIHostNotSet_Returns500", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = ""
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStopVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "Core API host not configured")
+	})
+
+	t.Run("WhenCoreAPIClientCreationFails_Returns500", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
+
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return nil
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStopVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "Failed to create core API client")
+	})
+
+	t.Run("ValidSplitStopVolume_CoreAPIReturnsOperation_Done", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		operationID := "/v1beta/projects/project-number/locations/location-id/operations/stop-op-uuid"
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.OperationV1{
+				Name: coreapi.NewOptString(operationID),
+				Done: coreapi.NewOptBool(true),
+			}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, operationID, op.Name.Value)
+		// Stop is synchronous on the core side, so done MUST always be true.
+		assert.True(tt, op.Done.Value)
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturnsOperation_DoneUnset_DefaultsToTrue", func(tt *testing.T) {
+		// splitStop differs from splitStart: the operation is synchronous, so when
+		// core-api returns OperationV1 with Done unset, the proxy must default to
+		// true (Or(true)) rather than false.
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		operationID := "/v1beta/projects/project-number/locations/location-id/operations/stop-op-uuid"
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.OperationV1{
+				Name: coreapi.NewOptString(operationID),
+				// Done intentionally unset.
+			}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, op.Done.Value, "splitStop must default Done to true when core-api omits it")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturns400BadRequest", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStopVolumeBadRequest{Code: 400, Message: "invalid input"}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaSplitStopVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "invalid input")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturns401Unauthorized", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStopVolumeUnauthorized{Code: 401, Message: "token expired"}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		unauthorized, ok := result.(*gcpgenserver.V1betaSplitStopVolumeUnauthorized)
+		assert.True(tt, ok, "401 from core-api must propagate as V1betaSplitStopVolumeUnauthorized, not be downgraded to 500")
+		assert.Equal(tt, float64(401), unauthorized.Code)
+		assert.Contains(tt, unauthorized.Message, "token expired")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturns403Forbidden", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStopVolumeForbidden{Code: 403, Message: "core feature disabled"}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		forbidden, ok := result.(*gcpgenserver.V1betaSplitStopVolumeForbidden)
+		assert.True(tt, ok, "403 from core-api must propagate as V1betaSplitStopVolumeForbidden, not be downgraded to 500")
+		assert.Equal(tt, float64(403), forbidden.Code)
+		assert.Contains(tt, forbidden.Message, "core feature disabled")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturns404NotFound", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStopVolumeNotFound{Code: 404, Message: "Volume not found"}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		notFound, ok := result.(*gcpgenserver.V1betaSplitStopVolumeNotFound)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), notFound.Code)
+		assert.Contains(tt, notFound.Message, "Volume not found")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturns409Conflict", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStopVolumeConflict{Code: 409, Message: "volume split is not in progress"}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		conflict, ok := result.(*gcpgenserver.V1betaSplitStopVolumeConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), conflict.Code)
+		assert.Contains(tt, conflict.Message, "not in progress")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturns422UnprocessableEntity", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStopVolumeUnprocessableEntity{Code: 422, Message: "validation failed"}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		unproc, ok := result.(*gcpgenserver.V1betaSplitStopVolumeUnprocessableEntity)
+		assert.True(tt, ok, "422 from core-api must propagate as V1betaSplitStopVolumeUnprocessableEntity, not be downgraded to 500")
+		assert.Equal(tt, float64(422), unproc.Code)
+		assert.Contains(tt, unproc.Message, "validation failed")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturns429TooManyRequests", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStopVolumeTooManyRequests{Code: 429, Message: "rate limited"}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		tooMany, ok := result.(*gcpgenserver.V1betaSplitStopVolumeTooManyRequests)
+		assert.True(tt, ok, "429 from core-api must propagate as V1betaSplitStopVolumeTooManyRequests, not be downgraded to 500")
+		assert.Equal(tt, float64(429), tooMany.Code)
+		assert.Contains(tt, tooMany.Message, "rate limited")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturns500InternalServerError", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStopVolumeInternalServerError{Code: 500, Message: "An error occurred"}, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStopVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPICallFails_Returns500", func(tt *testing.T) {
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("connection refused"))
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStopVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "Core API call failed")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturnsUnexpectedType_Returns500", func(tt *testing.T) {
+		// A nil response with nil error exercises the default branch of the
+		// response-type switch: there is no typed response to map, so the
+		// proxy must synthesise a generic 500.
+		inv := &mockInvoker{}
+		cleanup := setupSplitStopHappyPath(inv)
+		defer cleanup()
+
+		inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(nil, nil)
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+
+		result, err := handler.V1betaSplitStopVolume(context.Background(), baseParams)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStopVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "internal error")
+		inv.AssertExpectations(tt)
+	})
+}
+
+func TestSplitStopVolume_XCorrelationIDPropagation(t *testing.T) {
+	// The proxy must forward the caller's x-correlation-id to the core-api call
+	// so cross-service log correlation works.
+	inv := &mockInvoker{}
+	cleanup := setupSplitStopHappyPath(inv)
+	defer cleanup()
+
+	var capturedParams coreapi.V1SplitStopVolumeParams
+	inv.On("V1SplitStopVolume", mock.Anything, mock.MatchedBy(func(p coreapi.V1SplitStopVolumeParams) bool {
+		capturedParams = p
+		return true
+	})).Return(&coreapi.OperationV1{
+		Name: coreapi.NewOptString("/v1beta/projects/proj/locations/loc/operations/op-id"),
+		Done: coreapi.NewOptBool(true),
+	}, nil)
+
+	handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(t)}
+	params := gcpgenserver.V1betaSplitStopVolumeParams{
+		LocationId:     "loc",
+		ProjectNumber:  "proj",
+		VolumeId:       "vol-1",
+		XCorrelationID: gcpgenserver.NewOptString("corr-id-xyz"),
+	}
+
+	result, err := handler.V1betaSplitStopVolume(context.Background(), params)
+	assert.NoError(t, err)
+	_, ok := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, ok)
+	assert.True(t, capturedParams.XCorrelationID.IsSet())
+	assert.Equal(t, "corr-id-xyz", capturedParams.XCorrelationID.Value)
+	inv.AssertExpectations(t)
+}
+
+func TestSplitStopVolume_EmptyOperationIDGeneratesUUID(t *testing.T) {
+	// When the core API returns an OperationV1 with an empty Name, the proxy
+	// must synthesise an operation ID embedding the project and location so
+	// the response is still well-formed for the client.
+	inv := &mockInvoker{}
+	cleanup := setupSplitStopHappyPath(inv)
+	defer cleanup()
+
+	inv.On("V1SplitStopVolume", mock.Anything, mock.Anything).Return(&coreapi.OperationV1{
+		// Name intentionally unset.
+		Done: coreapi.NewOptBool(true),
+	}, nil)
+
+	handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(t)}
+	params := gcpgenserver.V1betaSplitStopVolumeParams{
+		LocationId:    "us-east4",
+		ProjectNumber: "my-project",
+		VolumeId:      "vol-1",
+	}
+
+	result, err := handler.V1betaSplitStopVolume(context.Background(), params)
+	assert.NoError(t, err)
+	op, ok := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, ok)
+	assert.True(t, op.Name.IsSet())
+	assert.Contains(t, op.Name.Value, "my-project")
+	assert.Contains(t, op.Name.Value, "us-east4")
+	inv.AssertExpectations(t)
+}

@@ -171,6 +171,15 @@ type Invoker interface {
 	//
 	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
 	V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (V1SplitStartVolumeRes, error)
+	// V1SplitStopVolume invokes v1_splitStopVolume operation.
+	//
+	// Synchronously stops an in-progress thin clone split. Reads the current split
+	// progress from ONTAP, issues the stop, and updates the VCP database. Returns
+	// 200 with a fully-resolved Operation envelope (done=true) so callers do not
+	// need to poll. This endpoint does not start a Temporal workflow.
+	//
+	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop
+	V1SplitStopVolume(ctx context.Context, params V1SplitStopVolumeParams) (V1SplitStopVolumeRes, error)
 	// V1UpdateAddressRange invokes v1_updateAddressRange operation.
 	//
 	// Updates the address range resource.
@@ -1919,6 +1928,118 @@ func (c *Client) sendV1SplitStartVolume(ctx context.Context, params V1SplitStart
 	defer resp.Body.Close()
 
 	result, err := decodeV1SplitStartVolumeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1SplitStopVolume invokes v1_splitStopVolume operation.
+//
+// Synchronously stops an in-progress thin clone split. Reads the current split
+// progress from ONTAP, issues the stop, and updates the VCP database. Returns
+// 200 with a fully-resolved Operation envelope (done=true) so callers do not
+// need to poll. This endpoint does not start a Temporal workflow.
+//
+// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop
+func (c *Client) V1SplitStopVolume(ctx context.Context, params V1SplitStopVolumeParams) (V1SplitStopVolumeRes, error) {
+	res, err := c.sendV1SplitStopVolume(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1SplitStopVolume(ctx context.Context, params V1SplitStopVolumeParams) (res V1SplitStopVolumeRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/splitstop"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1SplitStopVolumeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

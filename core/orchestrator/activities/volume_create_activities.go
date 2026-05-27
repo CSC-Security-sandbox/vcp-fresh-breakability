@@ -1793,6 +1793,11 @@ func (a VolumeCreateActivity) UpdateCloneParentStateInDB(ctx context.Context, vo
 			// cloneDetails block entirely.
 			// Mark it for hydration pending
 			updatedAttributes.CloneParentInfo = nil
+			// OriginalSharedBytes is only meaningful while a volume is still a
+			// thin clone (it scopes the splitStop response math). Clear it
+			// alongside CloneParentInfo so a fully-split, now-independent
+			// volume does not carry stale clone metadata.
+			updatedAttributes.OriginalSharedBytes = nil
 			updatedAttributes.SplitRegularVolumeHydrationPending = true
 			logger.Debugf("Removing CloneParentInfo for volume %s after successful split", volumeUUID)
 		} else if volume.VolumeAttributes.CloneParentInfo != nil {

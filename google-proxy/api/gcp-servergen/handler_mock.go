@@ -7100,6 +7100,65 @@ func (_c *MockHandler_V1betaSplitStartVolume_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// V1betaSplitStopVolume provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaSplitStopVolume(ctx context.Context, params V1betaSplitStopVolumeParams) (V1betaSplitStopVolumeRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaSplitStopVolume")
+	}
+
+	var r0 V1betaSplitStopVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaSplitStopVolumeParams) (V1betaSplitStopVolumeRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaSplitStopVolumeParams) V1betaSplitStopVolumeRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaSplitStopVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaSplitStopVolumeParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaSplitStopVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaSplitStopVolume'
+type MockHandler_V1betaSplitStopVolume_Call struct {
+	*mock.Call
+}
+
+// V1betaSplitStopVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaSplitStopVolumeParams
+func (_e *MockHandler_Expecter) V1betaSplitStopVolume(ctx interface{}, params interface{}) *MockHandler_V1betaSplitStopVolume_Call {
+	return &MockHandler_V1betaSplitStopVolume_Call{Call: _e.mock.On("V1betaSplitStopVolume", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaSplitStopVolume_Call) Run(run func(ctx context.Context, params V1betaSplitStopVolumeParams)) *MockHandler_V1betaSplitStopVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaSplitStopVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaSplitStopVolume_Call) Return(_a0 V1betaSplitStopVolumeRes, _a1 error) *MockHandler_V1betaSplitStopVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaSplitStopVolume_Call) RunAndReturn(run func(context.Context, V1betaSplitStopVolumeParams) (V1betaSplitStopVolumeRes, error)) *MockHandler_V1betaSplitStopVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaStartProjectEvent provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaStartProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error) {
 	ret := _m.Called(ctx, req, params)

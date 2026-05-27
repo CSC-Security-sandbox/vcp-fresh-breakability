@@ -4462,6 +4462,206 @@ func TestInitiateSplitVolume(t *testing.T) {
 	})
 }
 
+func TestStopSplitVolume(t *testing.T) {
+	t.Run("WhenGetOntapClientFails_ReturnsError", func(t *testing.T) {
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client error")
+		}
+
+		rc := &OntapRestProvider{}
+		err := rc.StopSplitVolume("vol-uuid")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "client error")
+	})
+
+	t.Run("WhenVolumeModifyFails_ReturnsError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		modifyErr := errors.New("modify failed")
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, modifyErr)
+
+		rc := &OntapRestProvider{}
+		err := rc.StopSplitVolume("vol-uuid")
+		assert.Error(t, err)
+		assert.Same(t, modifyErr, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeModifySucceeds_SendsSplitInitiatedFalse", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		// The decisive contract: ONTAP must receive split_initiated=false and the
+		// correct volume UUID. Anything else passing through MatchedBy fails the test.
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			if p == nil || p.SplitInitiated == nil {
+				return false
+			}
+			return p.UUID == "vol-uuid" && *p.SplitInitiated == false && p.MatchParentStorageTier == false
+		})).Return(true, nil, nil)
+
+		rc := &OntapRestProvider{}
+		err := rc.StopSplitVolume("vol-uuid")
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeModifyReturnsJob_StillSucceeds", func(t *testing.T) {
+		// ONTAP may return a job UUID even on stop. StopSplitVolume is fire-and-forget
+		// (the caller doesn't need to poll), so a returned job MUST NOT surface as an
+		// error or alter the success contract.
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, &ontaprest.JobAccepted{JobUUID: "stop-job"}, nil)
+
+		rc := &OntapRestProvider{}
+		err := rc.StopSplitVolume("vol-uuid")
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestGetVolumeCloneInfo(t *testing.T) {
+	t.Run("WhenGetOntapClientFails_ReturnsError", func(t *testing.T) {
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client error")
+		}
+
+		rc := &OntapRestProvider{}
+		info, err := rc.GetVolumeCloneInfo("vol-uuid")
+		assert.Error(t, err)
+		assert.Nil(t, info)
+		assert.Contains(t, err.Error(), "client error")
+	})
+
+	t.Run("WhenVolumeGetFails_ReturnsError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		getErr := errors.New("ontap get failed")
+		mockStorage.On("VolumeGet", mock.Anything).Return((*ontaprest.Volume)(nil), getErr)
+
+		rc := &OntapRestProvider{}
+		info, err := rc.GetVolumeCloneInfo("vol-uuid")
+		assert.Error(t, err)
+		assert.Same(t, getErr, err)
+		assert.Nil(t, info)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeHasNoClone_ReturnsNilInfoNoError", func(t *testing.T) {
+		// A volume that is not a clone returns nil clone info with no error so
+		// the caller can decide whether the absence is acceptable for its flow.
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(&ontaprest.Volume{
+			Volume: models.Volume{Clone: nil},
+		}, nil)
+
+		rc := &OntapRestProvider{}
+		info, err := rc.GetVolumeCloneInfo("vol-uuid")
+		assert.NoError(t, err)
+		assert.Nil(t, info)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeIsClone_ReturnsCloneFields", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		parentName := "parent-vol"
+		parentUUID := "parent-uuid"
+		snapName := "snap-1"
+		snapUUID := "snap-uuid"
+		isFlex := true
+		splitInitiated := true
+		var splitPct int64 = 47
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(&ontaprest.Volume{
+			Volume: models.Volume{
+				Clone: &models.VolumeInlineClone{
+					ParentVolume: &models.VolumeInlineCloneInlineParentVolume{
+						Name: &parentName,
+						UUID: &parentUUID,
+					},
+					ParentSnapshot: &models.SnapshotReference{
+						Name: &snapName,
+						UUID: &snapUUID,
+					},
+					IsFlexclone:          &isFlex,
+					SplitInitiated:       &splitInitiated,
+					SplitCompletePercent: &splitPct,
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{}
+		info, err := rc.GetVolumeCloneInfo("vol-uuid")
+		assert.NoError(t, err)
+		require.NotNil(t, info)
+		assert.Equal(t, parentName, info.ParentVolumeName)
+		assert.Equal(t, parentUUID, info.ParentVolumeUUID)
+		assert.Equal(t, snapName, info.ParentSnapshotName)
+		assert.Equal(t, snapUUID, info.ParentSnapshotUUID)
+		require.NotNil(t, info.IsFlexclone)
+		assert.True(t, *info.IsFlexclone)
+		require.NotNil(t, info.SplitInitiated)
+		assert.True(t, *info.SplitInitiated)
+		require.NotNil(t, info.SplitCompletePercent)
+		assert.Equal(t, int64(47), *info.SplitCompletePercent)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
 func TestGetVolumeSANDetails(t *testing.T) {
 	makeSANMocks := func() (*ontaprest.MockSANClient, *ontaprest.MockNVMeClient, *ontaprest.MockRESTClient) {
 		mockSAN := new(ontaprest.MockSANClient)

@@ -10254,6 +10254,7 @@ func (*ErrorStatusCode) v1betaReverseAndResumeReplicationRes()               {}
 func (*ErrorStatusCode) v1betaRevertVolumeRes()                              {}
 func (*ErrorStatusCode) v1betaRotateCmekBackupsRes()                         {}
 func (*ErrorStatusCode) v1betaSplitStartVolumeRes()                          {}
+func (*ErrorStatusCode) v1betaSplitStopVolumeRes()                           {}
 func (*ErrorStatusCode) v1betaStartProjectEventRes()                         {}
 func (*ErrorStatusCode) v1betaStopReplicationRes()                           {}
 func (*ErrorStatusCode) v1betaSyncReplicationRes()                           {}
@@ -14276,6 +14277,7 @@ func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
 func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
 func (*OperationV1beta) v1betaRotateCmekBackupsRes()                         {}
 func (*OperationV1beta) v1betaSplitStartVolumeRes()                          {}
+func (*OperationV1beta) v1betaSplitStopVolumeRes()                           {}
 func (*OperationV1beta) v1betaStopReplicationRes()                           {}
 func (*OperationV1beta) v1betaSyncReplicationRes()                           {}
 func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                     {}
@@ -35790,6 +35792,38 @@ func (*V1betaSplitStartVolumeUnauthorized) v1betaSplitStartVolumeRes() {}
 type V1betaSplitStartVolumeUnprocessableEntity Error
 
 func (*V1betaSplitStartVolumeUnprocessableEntity) v1betaSplitStartVolumeRes() {}
+
+type V1betaSplitStopVolumeBadRequest Error
+
+func (*V1betaSplitStopVolumeBadRequest) v1betaSplitStopVolumeRes() {}
+
+type V1betaSplitStopVolumeConflict Error
+
+func (*V1betaSplitStopVolumeConflict) v1betaSplitStopVolumeRes() {}
+
+type V1betaSplitStopVolumeForbidden Error
+
+func (*V1betaSplitStopVolumeForbidden) v1betaSplitStopVolumeRes() {}
+
+type V1betaSplitStopVolumeInternalServerError Error
+
+func (*V1betaSplitStopVolumeInternalServerError) v1betaSplitStopVolumeRes() {}
+
+type V1betaSplitStopVolumeNotFound Error
+
+func (*V1betaSplitStopVolumeNotFound) v1betaSplitStopVolumeRes() {}
+
+type V1betaSplitStopVolumeTooManyRequests Error
+
+func (*V1betaSplitStopVolumeTooManyRequests) v1betaSplitStopVolumeRes() {}
+
+type V1betaSplitStopVolumeUnauthorized Error
+
+func (*V1betaSplitStopVolumeUnauthorized) v1betaSplitStopVolumeRes() {}
+
+type V1betaSplitStopVolumeUnprocessableEntity Error
+
+func (*V1betaSplitStopVolumeUnprocessableEntity) v1betaSplitStopVolumeRes() {}
 
 type V1betaStartProjectEventAccepted OperationV1beta
 

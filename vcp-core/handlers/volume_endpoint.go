@@ -199,6 +199,99 @@ func (h Handler) V1SplitStartVolume(ctx context.Context, params oasgenserver.V1S
 	}, nil
 }
 
+// V1SplitStopVolume implements the synchronous split stop volume endpoint.
+//
+// Unlike splitStart, this endpoint does NOT spawn a Temporal workflow. The stop
+// is issued directly to ONTAP and the VCP database is updated in the same
+// request, so the response always carries `done: true` with the post-stop
+// volume state embedded under `response`.
+func (h Handler) V1SplitStopVolume(ctx context.Context, params oasgenserver.V1SplitStopVolumeParams) (oasgenserver.V1SplitStopVolumeRes, error) {
+	logger := util.GetLogger(ctx)
+
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &oasgenserver.V1SplitStopVolumeBadRequest{
+			Code:    float64(parsingErr.Code),
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	stopParams := &commonparams.SplitStopVolumeParams{
+		AccountName: params.ProjectNumber,
+		Region:      region,
+		VolumeID:    params.VolumeId,
+	}
+
+	volume, err := h.Orchestrator.SplitStopVolume(ctx, stopParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &oasgenserver.V1SplitStopVolumeNotFound{
+				Code:    404,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) || errors.IsBadRequestErr(err) {
+			return &oasgenserver.V1SplitStopVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsConflictErr(err) {
+			return &oasgenserver.V1SplitStopVolumeConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			if hasCode, httpCode := customErr.GetHttpCode(); hasCode {
+				message := customErr.GetMessage()
+				if httpCode == 400 {
+					return &oasgenserver.V1SplitStopVolumeBadRequest{
+						Code:    400,
+						Message: message,
+					}, nil
+				} else if httpCode == 409 {
+					return &oasgenserver.V1SplitStopVolumeConflict{
+						Code:    409,
+						Message: message,
+					}, nil
+				}
+			}
+		}
+
+		logger.Errorf("Failed to stop volume split: %v", err)
+		return &oasgenserver.V1SplitStopVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	volResp := convertModelToVolumeResponse(volume)
+	if zone != "" {
+		volResp.Zone = zone
+	} else {
+		volResp.Zone = region
+	}
+
+	resp, err := encodeVolumeResponse(volResp)
+	if err != nil {
+		// Return the typed 500 response with a nil error so the generated server
+		// wrapper encodes our structured JSON body. A non-nil error here would
+		// short-circuit ogen into its generic NewError path and drop the typed
+		// response we just constructed.
+		logger.Errorf("Failed to encode volume response: %v", err)
+		return &oasgenserver.V1SplitStopVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	operationUUID := uuid.UUID{}.String()
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + operationUUID
+	// Stop is synchronous: the work is already done by the time we get here, so
+	// done=true is always set. This mirrors the splitStart response shape so
+	// callers can use the same Operation_v1 envelope handling for both flows.
+	return &oasgenserver.OperationV1{
+		Name:     oasgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     oasgenserver.NewOptBool(true),
+	}, nil
+}
+
 // convertModelToVolumeResponse converts core model volume to volume response format
 func convertModelToVolumeResponse(volume *coremodels.Volume) *volumeResponse {
 	if volume == nil {

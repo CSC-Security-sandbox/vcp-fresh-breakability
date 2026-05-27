@@ -158,6 +158,15 @@ type Handler interface {
 	//
 	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
 	V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (V1SplitStartVolumeRes, error)
+	// V1SplitStopVolume implements v1_splitStopVolume operation.
+	//
+	// Synchronously stops an in-progress thin clone split. Reads the current split
+	// progress from ONTAP, issues the stop, and updates the VCP database. Returns
+	// 200 with a fully-resolved Operation envelope (done=true) so callers do not
+	// need to poll. This endpoint does not start a Temporal workflow.
+	//
+	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop
+	V1SplitStopVolume(ctx context.Context, params V1SplitStopVolumeParams) (V1SplitStopVolumeRes, error)
 	// V1UpdateAddressRange implements v1_updateAddressRange operation.
 	//
 	// Updates the address range resource.

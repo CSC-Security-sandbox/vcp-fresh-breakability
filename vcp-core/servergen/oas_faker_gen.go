@@ -3038,6 +3038,78 @@ func (s *V1SplitStartVolumeUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1SplitStopVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SplitStopVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SplitStopVolumeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SplitStopVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SplitStopVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SplitStopVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SplitStopVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SplitStopVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SplitStopVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SplitStopVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SplitStopVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SplitStopVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SplitStopVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SplitStopVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SplitStopVolumeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SplitStopVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1UpdateAddressRangeBadRequest) SetFake() {
 	var unwrapped Error
 	{

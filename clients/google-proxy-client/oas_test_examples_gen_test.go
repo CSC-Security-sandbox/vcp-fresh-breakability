@@ -4065,6 +4065,7 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"createdTime\":\"2024-02-07T14:55:52.441Z\",\"description\":\"My kms description\",\"keyFullPath\":\"projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"CREATING\",\"kmsStateDetails\":\"Creating Kms config settings\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2024-02-07T14:55:52.441Z\",\"uuid\":\"06048ff8-98e8-7090-5559-f671bc440d67\"}}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}}"},
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"DNS\":\"101.102.103.104\",\"activeDirectoryId\":\"9fbf76ef-9964-07d1-5f57-0e8f867e0367\",\"activeDirectoryState\":\"READY\",\"activeDirectoryStateDetails\":\"Credentials saved and available for use\",\"administrators\":[\"batman\",\"clarkkent\"],\"aesEncryption\":false,\"allowLocalNFSUsersWithLdap\":false,\"backupOperators\":[\"batman\",\"clarkkent\"],\"createdAt\":\"2024-01-26T16:08:38.841Z\",\"description\":\"My active directory description\",\"domain\":\"krypton.com\",\"encryptDCConnections\":false,\"kdcHostname\":\"2BOVAEKB44B\",\"kdcIP\":\"101.102.103.104\",\"ldapSigning\":false,\"netBIOS\":\"cvserver\",\"organizationalUnit\":\"CN=Computers\",\"password\":\"******************\",\"resourceId\":\"my-active-directory\",\"securityOperators\":[\"batman\"],\"site\":\"Default-First-Site-Name\",\"updatedAt\":\"2024-01-26T16:08:38.841Z\",\"username\":\"superman\"}}}"},
+		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"parentSnapshotId\":\"9760acf5-4638-11e7-9bdb-020073ca3333\",\"parentVolumeId\":\"49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E\",\"sharedBytes\":50000000000,\"splitCompletePercent\":47,\"state\":\"SPLIT_STATE_NOT_SPLITTING\"}}}"},
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\"}}"},
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\"}}"},
 		{Input: "{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"done\":true,\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"response\":null,\"state\":\"READY\",\"stateDetails\":\"available for use\",\"type\":\"ISCSI_INITIATOR\"}"},
@@ -17341,6 +17342,102 @@ func TestV1betaSplitStartVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaSplitStartVolumeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitStopVolumeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitStopVolumeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitStopVolumeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitStopVolumeConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitStopVolumeConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitStopVolumeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitStopVolumeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitStopVolumeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitStopVolumeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitStopVolumeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitStopVolumeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitStopVolumeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitStopVolumeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitStopVolumeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitStopVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitStopVolumeTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitStopVolumeTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitStopVolumeTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitStopVolumeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitStopVolumeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitStopVolumeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitStopVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitStopVolumeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitStopVolumeUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaStartProjectEventAccepted_EncodeDecode(t *testing.T) {

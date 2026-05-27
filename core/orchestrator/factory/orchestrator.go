@@ -55,6 +55,7 @@ type OrchestratorFactory interface {
 	RestoreOntapModeBackup(ctx context.Context, params *commonparams.RestoreOntapModeBackupParams) (string, error)
 	SFROntapModeBackup(ctx context.Context, params *commonparams.RestoreOntapModeBackupParams) (string, error)
 	SplitStartVolume(ctx context.Context, params *commonparams.SplitStartVolumeParams) (*models.Volume, string, error)
+	SplitStopVolume(ctx context.Context, params *commonparams.SplitStopVolumeParams) (*models.Volume, error)
 
 	GetJob(ctx context.Context, operationId string) (*models.Job, error)
 	GetReplicationJobs(ctx context.Context, projectName string, poolUUID string) ([]*models.Job, error)

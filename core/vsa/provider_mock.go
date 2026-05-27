@@ -4416,6 +4416,64 @@ func (_c *MockProvider_GetVolume_Call) RunAndReturn(run func(GetVolumeParams) (*
 	return _c
 }
 
+// GetVolumeCloneInfo provides a mock function with given fields: volumeUUID
+func (_m *MockProvider) GetVolumeCloneInfo(volumeUUID string) (*VolumeResponseClone, error) {
+	ret := _m.Called(volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeCloneInfo")
+	}
+
+	var r0 *VolumeResponseClone
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*VolumeResponseClone, error)); ok {
+		return rf(volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string) *VolumeResponseClone); ok {
+		r0 = rf(volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeResponseClone)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetVolumeCloneInfo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeCloneInfo'
+type MockProvider_GetVolumeCloneInfo_Call struct {
+	*mock.Call
+}
+
+// GetVolumeCloneInfo is a helper method to define mock.On call
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) GetVolumeCloneInfo(volumeUUID interface{}) *MockProvider_GetVolumeCloneInfo_Call {
+	return &MockProvider_GetVolumeCloneInfo_Call{Call: _e.mock.On("GetVolumeCloneInfo", volumeUUID)}
+}
+
+func (_c *MockProvider_GetVolumeCloneInfo_Call) Run(run func(volumeUUID string)) *MockProvider_GetVolumeCloneInfo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeCloneInfo_Call) Return(_a0 *VolumeResponseClone, _a1 error) *MockProvider_GetVolumeCloneInfo_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeCloneInfo_Call) RunAndReturn(run func(string) (*VolumeResponseClone, error)) *MockProvider_GetVolumeCloneInfo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeEncryptionStatus provides a mock function with given fields: params
 func (_m *MockProvider) GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error) {
 	ret := _m.Called(params)
@@ -7349,6 +7407,52 @@ func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) Return(_a0 *ontap
 }
 
 func (_c *MockProvider_SnapmirrorRelationshipTransferGet_Call) RunAndReturn(run func(string, string) (*ontap_rest.SnapmirrorTransfer, error)) *MockProvider_SnapmirrorRelationshipTransferGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StopSplitVolume provides a mock function with given fields: volumeUUID
+func (_m *MockProvider) StopSplitVolume(volumeUUID string) error {
+	ret := _m.Called(volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StopSplitVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(volumeUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_StopSplitVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StopSplitVolume'
+type MockProvider_StopSplitVolume_Call struct {
+	*mock.Call
+}
+
+// StopSplitVolume is a helper method to define mock.On call
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) StopSplitVolume(volumeUUID interface{}) *MockProvider_StopSplitVolume_Call {
+	return &MockProvider_StopSplitVolume_Call{Call: _e.mock.On("StopSplitVolume", volumeUUID)}
+}
+
+func (_c *MockProvider_StopSplitVolume_Call) Run(run func(volumeUUID string)) *MockProvider_StopSplitVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_StopSplitVolume_Call) Return(_a0 error) *MockProvider_StopSplitVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_StopSplitVolume_Call) RunAndReturn(run func(string) error) *MockProvider_StopSplitVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

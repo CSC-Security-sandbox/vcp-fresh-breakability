@@ -1272,6 +1272,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop:
+    post:
+      operationId: v1_splitStopVolume
+      summary: Stop an in-progress thin clone split
+      description: |
+        Synchronously stops an in-progress thin clone split. Reads the current split
+        progress from ONTAP, issues the stop, and updates the VCP database. Returns
+        200 with a fully-resolved Operation envelope (done=true) so callers do not
+        need to poll. This endpoint does not start a Temporal workflow.
+      tags:
+        - volumes
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: Split successfully stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots:
     post:
       operationId: v1_createSnapshot

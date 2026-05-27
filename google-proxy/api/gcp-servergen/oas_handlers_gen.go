@@ -18784,6 +18784,171 @@ func (s *Server) handleV1betaSplitStartVolumeRequest(args [3]string, argsEscaped
 	}
 }
 
+// handleV1betaSplitStopVolumeRequest handles v1beta_splitStopVolume operation.
+//
+// Stops an in-progress thin clone split on the volume.
+// The stop is *not* a rollback: blocks that were already split are retained by the
+// clone, and the volume remains a thin clone of its parent (clone-parent relationship
+// and clone-source snapshot dependency are preserved). A subsequent splitStart on
+// the same volume will resume from where the previous split left off.
+// Implementation reads the current split progress from the underlying storage,
+// issues the stop, and returns immediately. The operation is synchronous on the
+// server side and the response carries `done: true`. The captured split progress
+// and post-stop shared-bytes are returned in `response` as a `CloneDetails_v1beta`
+// object so the caller does not need to issue a follow-up describeVolume call.
+// Returns:
+// - 200 with `Operation_v1beta` (`done: true`, `response` set to `CloneDetails_v1beta`).
+// The response shape mirrors splitStart for consistency, but the status code is
+// 200 (not 202) because the work has already completed by the time the call returns.
+// - 409 if the volume is not a thin clone, or no split is currently in progress.
+// - 422 if the thin-clone GA feature is not enabled in this environment.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop
+func (s *Server) handleV1betaSplitStopVolumeRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_splitStopVolume"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaSplitStopVolumeOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaSplitStopVolumeOperation,
+			ID:   "v1beta_splitStopVolume",
+		}
+	)
+	params, err := decodeV1betaSplitStopVolumeParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaSplitStopVolumeRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaSplitStopVolumeOperation,
+			OperationSummary: "Stop an in-progress split of a thin clone volume",
+			OperationID:      "v1beta_splitStopVolume",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaSplitStopVolumeParams
+			Response = V1betaSplitStopVolumeRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaSplitStopVolumeParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaSplitStopVolume(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaSplitStopVolume(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaSplitStopVolumeResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaStartProjectEventRequest handles v1beta_startProjectEvent operation.
 //
 // Updates the project state for a 1P account based on the path parameter and project state value.

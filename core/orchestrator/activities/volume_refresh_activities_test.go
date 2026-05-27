@@ -2661,18 +2661,20 @@ func Test_syncUpdatedVolumesToDatabase_PreservesAllVolumeAttributeFields(t *test
 	}
 
 	// Existing DB record has SplitJobUUID and other fields that must survive the merge.
+	existingBaseline := uint64(16384)
 	existingVolume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID:       "external-uuid-1",
-			CreationToken:      "my-token",
-			SplitJobUUID:       "ontap-job-uuid-123",
-			AccountName:        "my-account",
-			DeploymentName:     "my-deployment",
-			IsRegionalHA:       true,
-			SecurityStyle:      "unix",
-			RestoredBackupID:   "backup-id-1",
-			RestoredBackupPath: "backup/path",
+			ExternalUUID:        "external-uuid-1",
+			CreationToken:       "my-token",
+			SplitJobUUID:        "ontap-job-uuid-123",
+			AccountName:         "my-account",
+			DeploymentName:      "my-deployment",
+			IsRegionalHA:        true,
+			SecurityStyle:       "unix",
+			RestoredBackupID:    "backup-id-1",
+			RestoredBackupPath:  "backup/path",
+			OriginalSharedBytes: &existingBaseline,
 		},
 	}
 
@@ -2697,6 +2699,10 @@ func Test_syncUpdatedVolumesToDatabase_PreservesAllVolumeAttributeFields(t *test
 				attrs.SecurityStyle == "unix" &&
 				attrs.RestoredBackupID == "backup-id-1" &&
 				attrs.RestoredBackupPath == "backup/path" &&
+				// The clone-baseline must survive a clone-info refresh because
+				// the volume is still a clone (CloneParentInfo non-nil).
+				attrs.OriginalSharedBytes != nil &&
+				*attrs.OriginalSharedBytes == existingBaseline &&
 				// CloneParentInfo must be overwritten with the new value.
 				attrs.CloneParentInfo != nil &&
 				attrs.CloneParentInfo.ParentVolumeUUID == "parent-vol-uuid" &&
@@ -2759,5 +2765,69 @@ func Test_syncUpdatedVolumesToDatabase_WithCloneInfo_UpdateError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "update failed")
+	mockStorage.AssertExpectations(t)
+}
+
+// Test_syncUpdatedVolumesToDatabase_TransitionOutOfClone_ClearsBaseline
+// verifies the refresh-side cleanup rule: when ONTAP reports that a volume is
+// no longer a flexclone (signalled by the refresh producer setting
+// VolumeAttributes.CloneParentInfo = nil), the stale OriginalSharedBytes
+// baseline on the existing DB row must also be cleared. Leaving it would
+// later mislead splitStop on an unrelated, re-cloned descendant.
+func Test_syncUpdatedVolumesToDatabase_TransitionOutOfClone_ClearsBaseline(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+
+	// Producer signals "no longer a clone" via an explicit nil CloneParentInfo
+	// inside a non-nil VolumeAttributes.
+	dbVols := map[string]*datamodel.Volume{
+		"vol-1": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			UsedBytes: 1024,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: nil,
+			},
+		},
+	}
+
+	staleBaseline := uint64(2048)
+	existingVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:  "external-uuid-1",
+			CreationToken: "tok",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "old-parent",
+			},
+			OriginalSharedBytes: &staleBaseline,
+		},
+	}
+
+	mockStorage.On("GetVolume", mock.Anything, "vol-1").Return(existingVolume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1",
+		mock.MatchedBy(func(fields map[string]interface{}) bool {
+			attrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+			if !ok {
+				return false
+			}
+			// Unrelated fields preserved, clone metadata fully cleared.
+			return attrs.ExternalUUID == "external-uuid-1" &&
+				attrs.CreationToken == "tok" &&
+				attrs.CloneParentInfo == nil &&
+				attrs.OriginalSharedBytes == nil
+		}),
+	).Return(nil)
+
+	wrapper := &testSyncActivityWrapper{
+		SE:     mockStorage,
+		DBVols: dbVols,
+	}
+	env.RegisterActivity(wrapper.TestSyncActivity)
+
+	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
+
+	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }

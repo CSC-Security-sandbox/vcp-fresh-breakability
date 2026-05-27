@@ -640,6 +640,14 @@ func _syncUpdatedVolumesToDatabase(ctx context.Context, se database.Storage, dbV
 				// If vol.VolumeAttributes.CloneParentInfo is nil, remove it from DB (set to nil).
 				// If it's not nil, update it.
 				updatedAttributes.CloneParentInfo = vol.VolumeAttributes.CloneParentInfo
+				// OriginalSharedBytes is only meaningful while a volume is still
+				// a thin clone. When the refresh transitions the volume out of
+				// clone state (ONTAP no longer reports it as a flexclone), drop
+				// the now-orphaned baseline so it cannot mislead a future
+				// splitStop response.
+				if vol.VolumeAttributes.CloneParentInfo == nil {
+					updatedAttributes.OriginalSharedBytes = nil
+				}
 			} else {
 				// No existing attributes; create new with clone info only.
 				updatedAttributes = &datamodel.VolumeAttributes{

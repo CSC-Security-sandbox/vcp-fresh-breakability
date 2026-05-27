@@ -769,6 +769,27 @@ type Invoker interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
 	V1betaSplitStartVolume(ctx context.Context, params V1betaSplitStartVolumeParams) (V1betaSplitStartVolumeRes, error)
+	// V1betaSplitStopVolume invokes v1beta_splitStopVolume operation.
+	//
+	// Stops an in-progress thin clone split on the volume.
+	// The stop is *not* a rollback: blocks that were already split are retained by the
+	// clone, and the volume remains a thin clone of its parent (clone-parent relationship
+	// and clone-source snapshot dependency are preserved). A subsequent splitStart on
+	// the same volume will resume from where the previous split left off.
+	// Implementation reads the current split progress from the underlying storage,
+	// issues the stop, and returns immediately. The operation is synchronous on the
+	// server side and the response carries `done: true`. The captured split progress
+	// and post-stop shared-bytes are returned in `response` as a `CloneDetails_v1beta`
+	// object so the caller does not need to issue a follow-up describeVolume call.
+	// Returns:
+	// - 200 with `Operation_v1beta` (`done: true`, `response` set to `CloneDetails_v1beta`).
+	// The response shape mirrors splitStart for consistency, but the status code is
+	// 200 (not 202) because the work has already completed by the time the call returns.
+	// - 409 if the volume is not a thin clone, or no split is currently in progress.
+	// - 422 if the thin-clone GA feature is not enabled in this environment.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop
+	V1betaSplitStopVolume(ctx context.Context, params V1betaSplitStopVolumeParams) (V1betaSplitStopVolumeRes, error)
 	// V1betaStartProjectEvent invokes v1beta_startProjectEvent operation.
 	//
 	// Updates the project state for a 1P account based on the path parameter and project state value.
@@ -14631,6 +14652,130 @@ func (c *Client) sendV1betaSplitStartVolume(ctx context.Context, params V1betaSp
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaSplitStartVolumeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaSplitStopVolume invokes v1beta_splitStopVolume operation.
+//
+// Stops an in-progress thin clone split on the volume.
+// The stop is *not* a rollback: blocks that were already split are retained by the
+// clone, and the volume remains a thin clone of its parent (clone-parent relationship
+// and clone-source snapshot dependency are preserved). A subsequent splitStart on
+// the same volume will resume from where the previous split left off.
+// Implementation reads the current split progress from the underlying storage,
+// issues the stop, and returns immediately. The operation is synchronous on the
+// server side and the response carries `done: true`. The captured split progress
+// and post-stop shared-bytes are returned in `response` as a `CloneDetails_v1beta`
+// object so the caller does not need to issue a follow-up describeVolume call.
+// Returns:
+// - 200 with `Operation_v1beta` (`done: true`, `response` set to `CloneDetails_v1beta`).
+// The response shape mirrors splitStart for consistency, but the status code is
+// 200 (not 202) because the work has already completed by the time the call returns.
+// - 409 if the volume is not a thin clone, or no split is currently in progress.
+// - 422 if the thin-clone GA feature is not enabled in this environment.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop
+func (c *Client) V1betaSplitStopVolume(ctx context.Context, params V1betaSplitStopVolumeParams) (V1betaSplitStopVolumeRes, error) {
+	res, err := c.sendV1betaSplitStopVolume(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaSplitStopVolume(ctx context.Context, params V1betaSplitStopVolumeParams) (res V1betaSplitStopVolumeRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/splitstop"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaSplitStopVolumeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -1949,3 +1949,745 @@ func TestSplitStartVolume_WaitForTemporal_AllRetriesExhausted_DeleteJobFails(t *
 	mockTemporalClient.AssertExpectations(t)
 	mockStorage.AssertExpectations(t)
 }
+
+// ===========================================================================
+// _validateSplitStopVolumeParams tests
+//
+// The validator gates the synchronous splitStop endpoint with two
+// user-facing branches:
+//   - non-clone volume (missing CloneParentInfo) -> 400 UserInputValidationErr
+//   - clone state != SPLITTING                   -> 409 ConflictErr
+// The happy path (state == SPLITTING) must return nil.
+// ===========================================================================
+
+func TestValidateSplitStopVolumeParams_NilVolumeAttributes(t *testing.T) {
+	ctx := context.Background()
+	vol := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:             "test-volume",
+		VolumeAttributes: nil,
+	}
+
+	err := _validateSplitStopVolumeParams(ctx, vol)
+	assert.Error(t, err)
+	assert.True(t, errors.IsUserInputValidationErr(err), "expected UserInputValidationErr, got %T: %v", err, err)
+	assert.Contains(t, err.Error(), "not a thin clone volume")
+}
+
+func TestValidateSplitStopVolumeParams_NilCloneParentInfo(t *testing.T) {
+	ctx := context.Background()
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:    "ext-uuid",
+			CloneParentInfo: nil,
+		},
+	}
+
+	err := _validateSplitStopVolumeParams(ctx, vol)
+	assert.Error(t, err)
+	assert.True(t, errors.IsUserInputValidationErr(err), "expected UserInputValidationErr, got %T: %v", err, err)
+	assert.Contains(t, err.Error(), "not a thin clone volume")
+}
+
+func TestValidateSplitStopVolumeParams_StateNotSplitting(t *testing.T) {
+	ctx := context.Background()
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateCloned, // anything other than SPLITTING is a 409
+			},
+		},
+	}
+
+	err := _validateSplitStopVolumeParams(ctx, vol)
+	assert.Error(t, err)
+	assert.True(t, errors.IsConflictErr(err), "expected ConflictErr, got %T: %v", err, err)
+	assert.Contains(t, err.Error(), "volume split is not in progress")
+	// The current state must be surfaced in the message so the caller knows why.
+	assert.Contains(t, err.Error(), models.CloneStateCloned)
+}
+
+func TestValidateSplitStopVolumeParams_StateSplitting_OK(t *testing.T) {
+	ctx := context.Background()
+	vol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateSplitting,
+			},
+		},
+	}
+
+	assert.NoError(t, _validateSplitStopVolumeParams(ctx, vol))
+}
+
+// ===========================================================================
+// _splitStopVolume tests
+//
+// splitStop is synchronous (no Temporal workflow). The function:
+//  1. Resolves the account and volume.
+//  2. Validates clone state (must be SPLITTING).
+//  3. Resolves the pool's ONTAP node and provider.
+//  4. Best-effort reads the current split progress via GetVolumeCloneInfo.
+//  5. Issues StopSplitVolume (PATCH split_initiated=false).
+//  6. Persists clone state CLONED.
+//  7. Returns the volume model with the captured percent (response-only).
+//
+// The helper below sets up a deterministic "ready-to-stop" world that the
+// individual tests then mutate to exercise specific failure branches.
+// ===========================================================================
+
+// setupSplitStopVolumeBase wires up an account/pool/node/volume in
+// SPLIT_STATE_IN_PROGRESS so each test only has to override the specific
+// dependency it cares about. Function-variable overrides (getAccountWithName,
+// validateSplitStopVolumeParams, hyperscaler.GetProviderByNode,
+// convertDatastoreVolumeToModel) are restored via t.Cleanup.
+func setupSplitStopVolumeBase(t *testing.T) (
+	mockStorage *database.MockStorage,
+	mockProvider *vsa.MockProvider,
+	vol *datamodel.Volume,
+	account *datamodel.Account,
+	pool *datamodel.Pool,
+	dbNode *datamodel.Node,
+) {
+	t.Helper()
+
+	mockStorage = database.NewMockStorage(t)
+
+	account = &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool = &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   1,
+		SizeInBytes: 10000000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-west1-a",
+		},
+	}
+	dbNode = &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	vol = &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 5, UUID: "vol-uuid"},
+		Name:      "test-volume",
+		AccountID: 1,
+		Account:   account,
+		Pool:      pool,
+		PoolID:    pool.ID,
+		State:     models.LifeCycleStateREADY,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateSplitting,
+				StateDetails:     "in progress",
+			},
+		},
+	}
+
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	origValidate := validateSplitStopVolumeParams
+	validateSplitStopVolumeParams = func(_ context.Context, _ *datamodel.Volume) error { return nil }
+	t.Cleanup(func() {
+		getAccountWithName = origGetAccountWithName
+		validateSplitStopVolumeParams = origValidate
+	})
+
+	mockProvider = new(vsa.MockProvider)
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	t.Cleanup(func() { hyperscaler.GetProviderByNode = origGetProviderByNode })
+
+	// Replace the heavy datamodel->model conversion with a stub that only
+	// preserves the fields _splitStopVolume actually touches after the call.
+	// CloneSharedBytes is forwarded from the DB value so the legacy-clone
+	// fallback (no OriginalSharedBytes baseline) can be exercised end-to-end.
+	origConvert := convertDatastoreVolumeToModel
+	convertDatastoreVolumeToModel = func(v *datamodel.Volume, _ *[]string) *models.Volume {
+		return &models.Volume{
+			BaseModel:        models.BaseModel{UUID: v.UUID},
+			DisplayName:      v.Name,
+			CloneParentInfo:  &models.CloneParentInfo{},
+			CloneSharedBytes: v.ClonesSharedBytes,
+		}
+	}
+	t.Cleanup(func() { convertDatastoreVolumeToModel = origConvert })
+
+	return mockStorage, mockProvider, vol, account, pool, dbNode
+}
+
+// TestSplitStopVolume_GetAccountFails: when getAccountWithName fails, the
+// error must propagate verbatim and no downstream interaction must happen.
+func TestSplitStopVolume_GetAccountFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage := database.NewMockStorage(t)
+
+	wantErr := errors.New("account lookup failed")
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return nil, wantErr
+	}
+	t.Cleanup(func() { getAccountWithName = origGetAccountWithName })
+
+	params := &common.SplitStopVolumeParams{AccountName: "test-account", VolumeID: "vol-uuid"}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Equal(t, wantErr, err)
+}
+
+// TestSplitStopVolume_GetVolumeFails: when GetVolumeWithAccountID fails,
+// the error must propagate verbatim.
+func TestSplitStopVolume_GetVolumeFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, _, vol, account, _, _ := setupSplitStopVolumeBase(t)
+
+	wantErr := errors.New("volume lookup failed")
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(nil, wantErr)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Equal(t, wantErr, err)
+}
+
+// TestSplitStopVolume_ValidationFails: when the injected validator returns an
+// error (e.g. non-clone -> 400, not splitting -> 409), the orchestrator must
+// return it untouched without hitting the provider or the DB beyond the
+// initial fetches.
+func TestSplitStopVolume_ValidationFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, _, vol, account, _, _ := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+
+	conflict := errors.NewConflictErr("volume split is not in progress")
+	validateSplitStopVolumeParams = func(_ context.Context, _ *datamodel.Volume) error { return conflict }
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Equal(t, conflict, err)
+	assert.True(t, errors.IsConflictErr(err))
+}
+
+// TestSplitStopVolume_GetNodesByPoolIDFails: DB error while listing pool
+// nodes must propagate verbatim.
+func TestSplitStopVolume_GetNodesByPoolIDFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, _, vol, account, pool, _ := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	wantErr := errors.New("nodes query failed")
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return(([]*datamodel.Node)(nil), wantErr)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Equal(t, wantErr, err)
+}
+
+// TestSplitStopVolume_NoNodesForPool: an empty node slice must be reported
+// as ErrUnexpectedNodeCountForPool wrapped in a VCPError.
+func TestSplitStopVolume_NoNodesForPool(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, _, vol, account, pool, _ := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{}, nil)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Error(t, err)
+
+	var vcpErr *vsaerrors.CustomError
+	require := errors2.As(err, &vcpErr)
+	assert.True(t, require, "expected CustomError (VCPError), got %T: %v", err, err)
+	if vcpErr != nil {
+		assert.Equal(t, vsaerrors.ErrUnexpectedNodeCountForPool, vcpErr.TrackingID)
+	}
+}
+
+// TestSplitStopVolume_GetProviderFails: failure to construct the ONTAP
+// provider for the node must propagate verbatim.
+func TestSplitStopVolume_GetProviderFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, _, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	wantErr := errors.New("provider unavailable")
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return nil, wantErr
+	}
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Equal(t, wantErr, err)
+}
+
+// TestSplitStopVolume_MissingExternalUUID: even if a volume passes validation
+// (clone metadata present, state == SPLITTING), it must not be sent to ONTAP
+// without an ExternalUUID -- a UserInputValidationErr (400) is returned.
+func TestSplitStopVolume_MissingExternalUUID(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, _, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	vol.VolumeAttributes.ExternalUUID = ""
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.True(t, errors.IsUserInputValidationErr(err), "expected UserInputValidationErr, got %T: %v", err, err)
+	assert.Contains(t, err.Error(), "external UUID")
+}
+
+// TestSplitStopVolume_GetVolumeCloneInfoFails_BestEffort: a failure from
+// GetVolumeCloneInfo is non-fatal. The function must still issue
+// StopSplitVolume, persist the new clone state, and return success -- only
+// the SplitCompletePercent will be missing from the response.
+func TestSplitStopVolume_GetVolumeCloneInfoFails_BestEffort(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return((*vsa.VolumeResponseClone)(nil), errors.New("ontap describe failed"))
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+
+	// The CLONED-state persistence must still happen even though the
+	// pre-stop describe failed.
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		attrsAny, ok := fields["volume_attributes"]
+		if !ok {
+			return false
+		}
+		attrs, ok := attrsAny.(*datamodel.VolumeAttributes)
+		if !ok || attrs.CloneParentInfo == nil {
+			return false
+		}
+		return attrs.CloneParentInfo.State == models.CloneStateCloned && attrs.CloneParentInfo.StateDetails == ""
+	})).Return(nil)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	if assert.NotNil(t, result.CloneParentInfo) {
+		assert.Nil(t, result.CloneParentInfo.SplitCompletePercent,
+			"no percent should be returned when GetVolumeCloneInfo fails")
+	}
+	mockProvider.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_GetVolumeCloneInfo_NilCloneOrNoPercent: when ONTAP
+// returns a nil VolumeResponseClone or a clone without SplitCompletePercent,
+// the function must still complete the stop successfully and return no
+// percent on the response.
+func TestSplitStopVolume_GetVolumeCloneInfo_NilCloneOrNoPercent(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	// Clone object without SplitCompletePercent set.
+	cloneInfo := &vsa.VolumeResponseClone{ParentVolumeUUID: "parent-uuid"}
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return(cloneInfo, nil)
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		_, ok := fields["volume_attributes"]
+		return ok
+	})).Return(nil)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) && assert.NotNil(t, result.CloneParentInfo) {
+		assert.Nil(t, result.CloneParentInfo.SplitCompletePercent)
+	}
+	mockProvider.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_StopSplitFails: a StopSplitVolume failure must be
+// wrapped as vsaerrors.NewVCPError(ErrOntapRestAPIError, err) and the DB
+// clone-state update must NOT run.
+func TestSplitStopVolume_StopSplitFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	// Allow either order (best-effort describe first, then stop).
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return((*vsa.VolumeResponseClone)(nil), nil).Maybe()
+	ontapErr := errors.New("ontap rest patch failed")
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(ontapErr)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Error(t, err)
+
+	var vcpErr *vsaerrors.CustomError
+	asOK := errors2.As(err, &vcpErr)
+	assert.True(t, asOK, "expected CustomError (VCPError), got %T: %v", err, err)
+	if vcpErr != nil {
+		assert.Equal(t, vsaerrors.ErrOntapRestAPIError, vcpErr.TrackingID)
+		// The underlying ONTAP error must be preserved in the wrap chain.
+		assert.ErrorIs(t, err, ontapErr)
+	}
+
+	// UpdateVolumeFields must NOT be invoked when the stop fails; the mock is
+	// already strict (no expectations set), so AssertExpectations covers this.
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_DBUpdateFails: when StopSplitVolume succeeds but the
+// follow-up clone-state UpdateVolumeFields fails, the orchestrator must
+// return that DB error to the caller (so the caller knows the in-memory
+// view may be stale).
+func TestSplitStopVolume_DBUpdateFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	pct := int64(42)
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return(&vsa.VolumeResponseClone{SplitCompletePercent: &pct}, nil)
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+
+	dbErr := errors.New("db update failed")
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		_, ok := fields["volume_attributes"]
+		return ok
+	})).Return(dbErr)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.Nil(t, result)
+	assert.Equal(t, dbErr, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_Success_WithSplitPercent: the happy path -- every
+// dependency succeeds, the persisted clone state is CLONED with empty
+// state details, and the captured SplitCompletePercent flows through into
+// the response model.
+func TestSplitStopVolume_Success_WithSplitPercent(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	pct := int64(73)
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return(&vsa.VolumeResponseClone{SplitCompletePercent: &pct}, nil)
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		attrsAny, ok := fields["volume_attributes"]
+		if !ok {
+			return false
+		}
+		attrs, ok := attrsAny.(*datamodel.VolumeAttributes)
+		if !ok || attrs.CloneParentInfo == nil {
+			return false
+		}
+		return attrs.CloneParentInfo.State == models.CloneStateCloned &&
+			attrs.CloneParentInfo.StateDetails == "" &&
+			attrs.CloneParentInfo.ParentVolumeUUID == "parent-uuid"
+	})).Return(nil)
+
+	params := &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID}
+	result, err := _splitStopVolume(ctx, mockStorage, params)
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) && assert.NotNil(t, result.CloneParentInfo) {
+		if assert.NotNil(t, result.CloneParentInfo.SplitCompletePercent) {
+			assert.Equal(t, pct, *result.CloneParentInfo.SplitCompletePercent)
+		}
+	}
+
+	// The orchestrator must also update the in-memory CloneParentInfo it
+	// returns to its caller so that subsequent reads in the same request
+	// observe the new CLONED state without a re-fetch.
+	assert.Equal(t, models.CloneStateCloned, vol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, "", vol.VolumeAttributes.CloneParentInfo.StateDetails)
+
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+// ===========================================================================
+// OriginalSharedBytes baseline tests
+//
+// These tests cover the new VolumeAttributes.OriginalSharedBytes plumbing:
+//   - the pure computeRemainingSharedBytes formula across the percent matrix,
+//   - the splitStop graft that overwrites response CloneSharedBytes when the
+//     baseline is present, and
+//   - the legacy fallback when the baseline is absent.
+// ===========================================================================
+
+// uint64Ptr is a tiny helper for declaring inline OriginalSharedBytes pointers
+// in table-driven tests below.
+func uint64Ptr(v uint64) *uint64 { return &v }
+
+// int64Ptr returns a pointer to the given int64 — used for SplitCompletePercent.
+func int64Ptr(v int64) *int64 { return &v }
+
+// TestComputeRemainingSharedBytes_Matrix exercises the pure formula across the
+// boundaries that splitStop actually encounters. The formula is
+//
+//	remaining = original * (100 - percent) / 100
+//
+// with the contractual edge cases:
+//   - percent nil       -> return original (no progress signal observed)
+//   - percent <= 0      -> clamp to 0   -> return original
+//   - percent >= 100    -> clamp to 100 -> return 0
+//   - 0 < percent < 100 -> linear interpolation
+func TestComputeRemainingSharedBytes_Matrix(t *testing.T) {
+	cases := []struct {
+		name     string
+		original uint64
+		percent  *int64
+		want     uint64
+	}{
+		{"nil percent returns original", 1000, nil, 1000},
+		{"zero percent returns original", 1000, int64Ptr(0), 1000},
+		{"negative percent clamped to zero", 1000, int64Ptr(-5), 1000},
+		{"50% returns half", 1000, int64Ptr(50), 500},
+		{"73% returns 270", 1000, int64Ptr(73), 270},
+		{"100% returns zero", 1000, int64Ptr(100), 0},
+		{"over 100 clamped to zero", 1000, int64Ptr(150), 0},
+		{"zero baseline stays zero", 0, int64Ptr(40), 0},
+		// Large value sanity check: multiply-before-divide order keeps precision
+		// without overflow for realistic volume sizes (16 TiB original × 100
+		// fits comfortably in uint64).
+		{"large baseline 25% remaining", 16 * 1024 * 1024 * 1024 * 1024, int64Ptr(75), 4 * 1024 * 1024 * 1024 * 1024},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got := computeRemainingSharedBytes(tc.original, tc.percent)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestSplitStopVolume_CloneSharedBytes_GraftFromBaseline: when the volume row
+// carries an OriginalSharedBytes baseline and ONTAP reports a partial split
+// progress, the response cloneSharedBytes must equal the formula-derived
+// remainder, even though the DB row's clones_shared_bytes is still 0 (the
+// splitStart-reserved value).
+func TestSplitStopVolume_CloneSharedBytes_GraftFromBaseline(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	// The clone was created with 1000 shared bytes; splitStart zeroed the DB
+	// row's clones_shared_bytes. The baseline must persist on VolumeAttributes.
+	const baseline uint64 = 1000
+	vol.VolumeAttributes.OriginalSharedBytes = uint64Ptr(baseline)
+	vol.ClonesSharedBytes = 0
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	pct := int64(40)
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return(&vsa.VolumeResponseClone{SplitCompletePercent: &pct}, nil)
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.Anything).Return(nil)
+
+	result, err := _splitStopVolume(ctx, mockStorage, &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID})
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) {
+		// 1000 * (100 - 40) / 100 = 600.
+		assert.Equal(t, uint64(600), result.CloneSharedBytes,
+			"response cloneSharedBytes must be derived from OriginalSharedBytes and the captured percent")
+	}
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_CloneSharedBytes_NoPercentReturnsBaseline: when ONTAP
+// does not return a split percent (clone nil or SplitCompletePercent nil), the
+// formula falls through to the baseline value — semantically "no observed
+// progress, all bytes still shared".
+func TestSplitStopVolume_CloneSharedBytes_NoPercentReturnsBaseline(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	const baseline uint64 = 4096
+	vol.VolumeAttributes.OriginalSharedBytes = uint64Ptr(baseline)
+	vol.ClonesSharedBytes = 0
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	// Provider returns a clone object with no SplitCompletePercent.
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return(&vsa.VolumeResponseClone{ParentVolumeUUID: "parent-uuid"}, nil)
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.Anything).Return(nil)
+
+	result, err := _splitStopVolume(ctx, mockStorage, &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID})
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) {
+		assert.Equal(t, baseline, result.CloneSharedBytes,
+			"without a percent the response cloneSharedBytes must equal the baseline")
+	}
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_CloneSharedBytes_DescribeFailedReturnsBaseline: a
+// best-effort describe failure (network blip, transient ONTAP error) must NOT
+// suppress the graft. The stop still runs and the response falls back to the
+// baseline (percent is unknown → assume nothing copied yet).
+func TestSplitStopVolume_CloneSharedBytes_DescribeFailedReturnsBaseline(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	const baseline uint64 = 2048
+	vol.VolumeAttributes.OriginalSharedBytes = uint64Ptr(baseline)
+	vol.ClonesSharedBytes = 0
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return((*vsa.VolumeResponseClone)(nil), errors.New("ontap describe failed"))
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.Anything).Return(nil)
+
+	result, err := _splitStopVolume(ctx, mockStorage, &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID})
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) {
+		assert.Equal(t, baseline, result.CloneSharedBytes)
+	}
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_CloneSharedBytes_FullySplitReturnsZero: when ONTAP
+// reports 100% progress, the formula returns zero remaining bytes — the
+// expected steady-state for a clone that has effectively finished splitting
+// at the moment splitStop was invoked.
+func TestSplitStopVolume_CloneSharedBytes_FullySplitReturnsZero(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	vol.VolumeAttributes.OriginalSharedBytes = uint64Ptr(10_000)
+	vol.ClonesSharedBytes = 0
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	pct := int64(100)
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return(&vsa.VolumeResponseClone{SplitCompletePercent: &pct}, nil)
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.Anything).Return(nil)
+
+	result, err := _splitStopVolume(ctx, mockStorage, &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID})
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) {
+		assert.Equal(t, uint64(0), result.CloneSharedBytes)
+	}
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_CloneSharedBytes_LegacyCloneNoBaseline: legacy clones
+// (created before OriginalSharedBytes existed AND not yet picked up by the
+// backfill migration) must degrade gracefully — the response cloneSharedBytes
+// keeps the raw DB value (typically 0 during a split) rather than being
+// overwritten with a fabricated number.
+func TestSplitStopVolume_CloneSharedBytes_LegacyCloneNoBaseline(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	// Legacy clone: no OriginalSharedBytes on VolumeAttributes; DB row still
+	// has the splitStart-reserved zero.
+	vol.VolumeAttributes.OriginalSharedBytes = nil
+	vol.ClonesSharedBytes = 0
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	pct := int64(50)
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return(&vsa.VolumeResponseClone{SplitCompletePercent: &pct}, nil)
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.Anything).Return(nil)
+
+	result, err := _splitStopVolume(ctx, mockStorage, &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID})
+	assert.NoError(t, err)
+	if assert.NotNil(t, result) {
+		assert.Equal(t, uint64(0), result.CloneSharedBytes,
+			"legacy clones with no baseline must keep the raw DB value (0 mid-split)")
+	}
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStopVolume_PreservesOriginalSharedBytes: the persisted volume_attributes
+// after splitStop must still carry the OriginalSharedBytes baseline — splitStop
+// only transitions the clone state back to CLONED and must not erase the
+// baseline (a clone that resumes a split later will need it again).
+func TestSplitStopVolume_PreservesOriginalSharedBytes(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage, mockProvider, vol, account, pool, dbNode := setupSplitStopVolumeBase(t)
+
+	const baseline uint64 = 8192
+	vol.VolumeAttributes.OriginalSharedBytes = uint64Ptr(baseline)
+	vol.ClonesSharedBytes = 0
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+	mockProvider.On("GetVolumeCloneInfo", "ext-uuid").Return(&vsa.VolumeResponseClone{ParentVolumeUUID: "parent-uuid"}, nil)
+	mockProvider.On("StopSplitVolume", "ext-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		attrsAny, ok := fields["volume_attributes"]
+		if !ok {
+			return false
+		}
+		attrs, ok := attrsAny.(*datamodel.VolumeAttributes)
+		if !ok {
+			return false
+		}
+		// Baseline must survive the CLONED-state write.
+		return attrs.OriginalSharedBytes != nil && *attrs.OriginalSharedBytes == baseline
+	})).Return(nil)
+
+	_, err := _splitStopVolume(ctx, mockStorage, &common.SplitStopVolumeParams{AccountName: account.Name, VolumeID: vol.UUID})
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}

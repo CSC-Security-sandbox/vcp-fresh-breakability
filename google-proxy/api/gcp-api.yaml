@@ -7122,6 +7122,77 @@ paths:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
 
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop:
+    post:
+      operationId: v1beta_splitStopVolume
+      summary: Stop an in-progress split of a thin clone volume
+      description: |
+        Stops an in-progress thin clone split on the volume.
+
+        The stop is *not* a rollback: blocks that were already split are retained by the
+        clone, and the volume remains a thin clone of its parent (clone-parent relationship
+        and clone-source snapshot dependency are preserved). A subsequent splitStart on
+        the same volume will resume from where the previous split left off.
+
+        Implementation reads the current split progress from the underlying storage,
+        issues the stop, and returns immediately. The operation is synchronous on the
+        server side and the response carries `done: true`. The captured split progress
+        and post-stop shared-bytes are returned in `response` as a `CloneDetails_v1beta`
+        object so the caller does not need to issue a follow-up describeVolume call.
+
+        Returns:
+          - 200 with `Operation_v1beta` (`done: true`, `response` set to `CloneDetails_v1beta`).
+            The response shape mirrors splitStart for consistency, but the status code is
+            200 (not 202) because the work has already completed by the time the call returns.
+          - 409 if the volume is not a thin clone, or no split is currently in progress.
+          - 422 if the thin-clone GA feature is not enabled in this environment.
+      tags:
+        - volumes
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: Split successfully stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                  done: true
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000
+                  response:
+                    parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                    parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    sharedBytes: 50000000000
+                    state: SPLIT_STATE_NOT_SPLITTING
+                    splitCompletePercent: 47
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}:
     get:
       tags:

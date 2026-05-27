@@ -3187,28 +3187,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 												}
 
-											case 'p': // Prefix: "plitstart"
+											case 'p': // Prefix: "plitst"
 
-												if l := len("plitstart"); len(elem) >= l && elem[0:l] == "plitstart" {
+												if l := len("plitst"); len(elem) >= l && elem[0:l] == "plitst" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
 												if len(elem) == 0 {
-													// Leaf node.
-													switch r.Method {
-													case "POST":
-														s.handleV1betaSplitStartVolumeRequest([3]string{
-															args[0],
-															args[1],
-															args[2],
-														}, elemIsEscaped, w, r)
-													default:
-														s.notAllowed(w, r, "POST")
+													break
+												}
+												switch elem[0] {
+												case 'a': // Prefix: "art"
+
+													if l := len("art"); len(elem) >= l && elem[0:l] == "art" {
+														elem = elem[l:]
+													} else {
+														break
 													}
 
-													return
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "POST":
+															s.handleV1betaSplitStartVolumeRequest([3]string{
+																args[0],
+																args[1],
+																args[2],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "POST")
+														}
+
+														return
+													}
+
+												case 'o': // Prefix: "op"
+
+													if l := len("op"); len(elem) >= l && elem[0:l] == "op" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "POST":
+															s.handleV1betaSplitStopVolumeRequest([3]string{
+																args[0],
+																args[1],
+																args[2],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "POST")
+														}
+
+														return
+													}
+
 												}
 
 											}
@@ -6567,28 +6605,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 												}
 
-											case 'p': // Prefix: "plitstart"
+											case 'p': // Prefix: "plitst"
 
-												if l := len("plitstart"); len(elem) >= l && elem[0:l] == "plitstart" {
+												if l := len("plitst"); len(elem) >= l && elem[0:l] == "plitst" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
 												if len(elem) == 0 {
-													// Leaf node.
-													switch method {
-													case "POST":
-														r.name = V1betaSplitStartVolumeOperation
-														r.summary = "Split a thin clone volume"
-														r.operationID = "v1beta_splitStartVolume"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart"
-														r.args = args
-														r.count = 3
-														return r, true
-													default:
-														return
+													break
+												}
+												switch elem[0] {
+												case 'a': // Prefix: "art"
+
+													if l := len("art"); len(elem) >= l && elem[0:l] == "art" {
+														elem = elem[l:]
+													} else {
+														break
 													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "POST":
+															r.name = V1betaSplitStartVolumeOperation
+															r.summary = "Split a thin clone volume"
+															r.operationID = "v1beta_splitStartVolume"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart"
+															r.args = args
+															r.count = 3
+															return r, true
+														default:
+															return
+														}
+													}
+
+												case 'o': // Prefix: "op"
+
+													if l := len("op"); len(elem) >= l && elem[0:l] == "op" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "POST":
+															r.name = V1betaSplitStopVolumeOperation
+															r.summary = "Stop an in-progress split of a thin clone volume"
+															r.operationID = "v1beta_splitStopVolume"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstop"
+															r.args = args
+															r.count = 3
+															return r, true
+														default:
+															return
+														}
+													}
+
 												}
 
 											}

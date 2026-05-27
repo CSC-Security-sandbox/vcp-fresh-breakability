@@ -57,10 +57,12 @@ var (
 	createVolume                     = _createVolume
 	revertVolume                     = _revertVolume
 	splitStartVolume                 = _splitStartVolume
+	splitStopVolume                  = _splitStopVolume
 	updateCloneState                 = _updateCloneState
 	validateCreateVolumeParams       = _validateCreateVolumeParams
 	validateVolumeQosParams          = mqos.ValidateVolumeQosParams
 	validateSplitStartVolumeParams   = _validateSplitStartVolumeParams
+	validateSplitStopVolumeParams    = _validateSplitStopVolumeParams
 	getIPAddressForVolume            = _getIPAddressForVolume
 	updateVolume                     = _updateVolume
 	deleteVolume                     = _deleteVolume
@@ -464,6 +466,12 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			ParentVolumeUUID:   parentVolumeUUID,
 			State:              models.CloneStateCloned,
 		}
+		// Capture the at-creation shared-bytes baseline. splitStart later zeroes
+		// volumes.clones_shared_bytes to reserve pool capacity, so without this
+		// snapshot the synchronous splitStop API cannot report a meaningful
+		// remaining-shared-bytes value. See VolumeAttributes.OriginalSharedBytes.
+		originalSharedBytes := clonesSharedBytes
+		volumeObj.VolumeAttributes.OriginalSharedBytes = &originalSharedBytes
 	}
 
 	if params.DataProtection != nil {
@@ -3638,6 +3646,10 @@ func (o *GCPOrchestrator) SplitStartVolume(ctx context.Context, params *common.S
 	return splitStartVolume(ctx, o.storage, o.temporal, params)
 }
 
+func (o *GCPOrchestrator) SplitStopVolume(ctx context.Context, params *common.SplitStopVolumeParams) (*models.Volume, error) {
+	return splitStopVolume(ctx, o.storage, params)
+}
+
 // isOntapError checks if the error is from the ONTAP layer (error codes 5000-5999)
 func isOntapError(err error) bool {
 	if err == nil {
@@ -4033,6 +4045,177 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 	}
 
 	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
+}
+
+// _splitStopVolume synchronously stops an in-progress thin clone split.
+//
+// Unlike splitStart, this is NOT a long-running operation: ONTAP halts the
+// background data-movement immediately, so there is no Temporal workflow and no
+// job entry. The handler is purely a sequence of:
+//  1. Read DB state and validate (volume is a clone, split is in progress).
+//  2. Resolve the ONTAP node + provider.
+//  3. Read pre-stop split progress from ONTAP (best-effort, for the response).
+//  4. PATCH split_initiated=false in ONTAP.
+//  5. Update VCP DB: clone state → CLONED, clear state details.
+//
+// `clones_shared_bytes` is intentionally not recomputed here. The split-start
+// path sets it to 0 to reserve pool space; after a stop the value will be
+// reconciled by the existing periodic volume-refresh workflow which is the
+// single source of truth for that field.
+//
+// The synchronous response derives `cloneSharedBytes` from the immutable
+// `VolumeAttributes.OriginalSharedBytes` baseline and the pre-stop split
+// percent captured from ONTAP, so callers get a meaningful remaining value
+// without waiting for the next refresh cycle.
+func _splitStopVolume(ctx context.Context, se database.Storage, params *common.SplitStopVolumeParams) (*models.Volume, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to fetch account for the given projectNumber", "error", err)
+		return nil, err
+	}
+
+	volume, err := se.GetVolumeWithAccountID(ctx, params.VolumeID, account.ID)
+	if err != nil {
+		logger.Error("Failed to fetch volume for the given account ID", "error", err)
+		return nil, err
+	}
+
+	if err = validateSplitStopVolumeParams(ctx, volume); err != nil {
+		return nil, err
+	}
+
+	dbNodes, err := se.GetNodesByPoolID(ctx, volume.Pool.ID)
+	if err != nil {
+		logger.Error("Failed to fetch nodes for pool", "error", err)
+		return nil, err
+	}
+	if len(dbNodes) == 0 {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrUnexpectedNodeCountForPool, fmt.Errorf("no nodes found for pool %s", volume.Pool.UUID))
+		logger.Error("No nodes found for pool", "error", err)
+		return nil, err
+	}
+
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   volume.Pool.DeploymentName,
+		OntapCredentials: volume.Pool.PoolCredentials,
+	})
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Error("Failed to get ONTAP provider for split stop", "error", err)
+		return nil, err
+	}
+
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.ExternalUUID == "" {
+		logger.Error("Volume missing ExternalUUID, cannot stop split in ONTAP")
+		return nil, customerrors.NewUserInputValidationErr("volume has no external UUID, cannot stop split in ONTAP")
+	}
+
+	// Best-effort read of split progress before issuing the stop, so the
+	// synchronous API response can include the captured percent without
+	// requiring the caller to issue a follow-up describeVolume.
+	var capturedSplitPercent *int64
+	cloneInfo, getErr := provider.GetVolumeCloneInfo(volume.VolumeAttributes.ExternalUUID)
+	if getErr != nil {
+		// Non-fatal: proceed with the stop without the percent.
+		logger.Warnf("Failed to read pre-stop clone info for volume %s (continuing with stop): %v", volume.Name, getErr)
+	} else if cloneInfo != nil && cloneInfo.SplitCompletePercent != nil {
+		pct := *cloneInfo.SplitCompletePercent
+		capturedSplitPercent = &pct
+	}
+
+	if err = provider.StopSplitVolume(volume.VolumeAttributes.ExternalUUID); err != nil {
+		logger.Errorf("Failed to stop split for volume %s in ONTAP: %v", volume.Name, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+	logger.Infof("Split stopped in ONTAP for volume %s", volume.Name)
+
+	// Persist post-stop DB state: revert clone state to CLONED. The
+	// split_complete_percent captured above is returned to the caller via the
+	// in-memory model below but is NOT persisted on CloneParentInfo because
+	// CLONED implies "no active split"; the next periodic refresh will pick up
+	// the authoritative ONTAP state.
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
+		updatedAttrs := *volume.VolumeAttributes
+		cloneParentInfo := *volume.VolumeAttributes.CloneParentInfo
+		cloneParentInfo.State = models.CloneStateCloned
+		cloneParentInfo.StateDetails = ""
+		updatedAttrs.CloneParentInfo = &cloneParentInfo
+		if updateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+			"volume_attributes": &updatedAttrs,
+		}); updateErr != nil {
+			logger.Errorf("Failed to update clone state to CLONED for volume %s after split stop: %v", volume.UUID, updateErr)
+			return nil, updateErr
+		}
+		volume.VolumeAttributes = &updatedAttrs
+	}
+
+	resultModel := convertDatastoreVolumeToModel(volume, nil)
+	if resultModel != nil && resultModel.CloneParentInfo != nil && capturedSplitPercent != nil {
+		// Return the captured percent to the caller (response-only; not persisted).
+		resultModel.CloneParentInfo.SplitCompletePercent = capturedSplitPercent
+	}
+	// Derive the response cloneSharedBytes from the immutable baseline and the
+	// captured pre-stop split percent. `clones_shared_bytes` on the DB row is
+	// still 0 (split-quota reservation); the periodic refresh will reconcile it
+	// post-stop. For legacy rows without an OriginalSharedBytes baseline we
+	// leave the field at its DB value (typically 0 during splitting) rather
+	// than fabricate a number.
+	if resultModel != nil && volume.VolumeAttributes != nil && volume.VolumeAttributes.OriginalSharedBytes != nil {
+		resultModel.CloneSharedBytes = computeRemainingSharedBytes(
+			*volume.VolumeAttributes.OriginalSharedBytes,
+			resultModel.CloneParentInfo.SplitCompletePercent,
+		)
+	}
+	return resultModel, nil
+}
+
+// computeRemainingSharedBytes derives the post-stop shared-bytes remaining
+// between a thin clone and its parent from the at-creation baseline and the
+// last-observed split-complete percent.
+//
+//	remaining = original * (100 - percent) / 100
+//
+// Rules:
+//   - percent == nil  → no progress signal available; assume nothing has been
+//     copied yet and return the original baseline. Callers who want a stricter
+//     contract should ensure percent is captured before invoking.
+//   - percent <= 0    → clamp to 0 → returns original.
+//   - percent >= 100  → clamp to 100 → returns 0.
+//   - otherwise       → linear interpolation.
+//
+// The arithmetic order (multiply before divide) avoids precision loss for
+// realistic clone sizes (uint64 cannot overflow because `original * 100`
+// would have to exceed ~1.8e19 bytes, i.e. ~16 EiB — well beyond any
+// supported volume size).
+func computeRemainingSharedBytes(original uint64, percent *int64) uint64 {
+	if percent == nil {
+		return original
+	}
+	p := *percent
+	if p <= 0 {
+		return original
+	}
+	if p >= 100 {
+		return 0
+	}
+	return original * uint64(100-p) / 100
+}
+
+func _validateSplitStopVolumeParams(ctx context.Context, volume *datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.CloneParentInfo == nil {
+		logger.Errorf("Volume %s is not a thin clone volume (missing clone parent metadata), cannot stop split", volume.Name)
+		return customerrors.NewUserInputValidationErr("volume is not a thin clone volume, cannot perform split stop operation")
+	}
+	if volume.VolumeAttributes.CloneParentInfo.State != models.CloneStateSplitting {
+		return customerrors.NewConflictErr("volume split is not in progress, current clone state: " + volume.VolumeAttributes.CloneParentInfo.State)
+	}
+	return nil
 }
 
 func _validateSplitStartVolumeParams(ctx context.Context, volume *datamodel.Volume, pool *datamodel.PoolView) error {

@@ -16643,6 +16643,7 @@ func TestUpdateCloneParentStateInDB_RemoveCloneInfo_Success(t *testing.T) {
 	env.RegisterActivity(act.UpdateCloneParentStateInDB)
 
 	volumeUUID := "vol-uuid"
+	baseline := uint64(8192)
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -16651,15 +16652,66 @@ func TestUpdateCloneParentStateInDB_RemoveCloneInfo_Success(t *testing.T) {
 				ParentVolumeUUID:   "parent-uuid",
 				ParentSnapshotUUID: "snap-uuid",
 			},
+			// A successful split removes the volume from clone status entirely,
+			// so the now-stale baseline must be cleared alongside CloneParentInfo.
+			OriginalSharedBytes: &baseline,
 		},
 	}
 	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(volume, nil)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
 		attrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
-		return ok && attrs.CloneParentInfo == nil && attrs.SplitRegularVolumeHydrationPending
+		if !ok {
+			return false
+		}
+		return attrs.CloneParentInfo == nil &&
+			attrs.SplitRegularVolumeHydrationPending &&
+			attrs.OriginalSharedBytes == nil
 	})).Return(nil)
 
 	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "", uint64(512), "", true)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestUpdateCloneParentStateInDB_SetSplitFailed_PreservesBaseline verifies the
+// non-remove path: a SPLIT_FAILED clone remains a clone, so the
+// OriginalSharedBytes baseline must survive the update so a future splitStop
+// (after a manual recovery / resume) can still compute remainder bytes.
+func TestUpdateCloneParentStateInDB_SetSplitFailed_PreservesBaseline(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(act.UpdateCloneParentStateInDB)
+
+	volumeUUID := "vol-uuid"
+	baseline := uint64(4096)
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   "parent-uuid",
+				ParentSnapshotUUID: "snap-uuid",
+			},
+			OriginalSharedBytes: &baseline,
+		},
+	}
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(volume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		attrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+		if !ok {
+			return false
+		}
+		return attrs.CloneParentInfo != nil &&
+			attrs.CloneParentInfo.State == "SPLIT_FAILED" &&
+			attrs.OriginalSharedBytes != nil &&
+			*attrs.OriginalSharedBytes == baseline
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "SPLIT_FAILED", uint64(0), "ontap error", false)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)

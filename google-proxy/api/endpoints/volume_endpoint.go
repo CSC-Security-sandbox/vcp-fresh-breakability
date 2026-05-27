@@ -3441,6 +3441,125 @@ func (h Handler) splitStartVolumeViaCoreAPI(ctx context.Context, params gcpgense
 	}
 }
 
+func (h Handler) V1betaSplitStopVolume(ctx context.Context, params gcpgenserver.V1betaSplitStopVolumeParams) (gcpgenserver.V1betaSplitStopVolumeRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	if !thinCloneGASupport {
+		return &gcpgenserver.V1betaSplitStopVolumeForbidden{
+			Code:    403,
+			Message: "Thin clone split feature is currently not enabled.",
+		}, nil
+	}
+
+	logger.Debugf("Initiating synchronous split stop for volume: %s", params.VolumeId)
+	return h.splitStopVolumeViaCoreAPI(ctx, params)
+}
+
+// splitStopVolumeViaCoreAPI forwards the split stop request to the core-api service.
+// The stop is synchronous on the core side (no Temporal workflow), so a single
+// round-trip suffices and we always return done=true on success.
+func (h Handler) splitStopVolumeViaCoreAPI(ctx context.Context, params gcpgenserver.V1betaSplitStopVolumeParams) (gcpgenserver.V1betaSplitStopVolumeRes, error) {
+	logger := util.GetLogger(ctx)
+	if coreAPIHost == "" {
+		logger.Error("CORE_API_HOST is not set, cannot forward split stop to core API")
+		return &gcpgenserver.V1betaSplitStopVolumeInternalServerError{
+			Code:    500,
+			Message: "Core API host not configured",
+		}, nil
+	}
+
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	client := createCoreAPIClient(coreAPIHost, jwtToken, logger)
+	if client == nil {
+		logger.Error("Failed to create core API client")
+		return &gcpgenserver.V1betaSplitStopVolumeInternalServerError{
+			Code:    500,
+			Message: "Failed to create core API client",
+		}, nil
+	}
+
+	coreParams := coreapi.V1SplitStopVolumeParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		VolumeId:      params.VolumeId,
+		XCorrelationID: func() coreapi.OptString {
+			if params.XCorrelationID.IsSet() {
+				return coreapi.NewOptString(params.XCorrelationID.Value)
+			}
+			return coreapi.OptString{}
+		}(),
+	}
+
+	response, err := client.Invoker.V1SplitStopVolume(ctx, coreParams)
+	if err != nil {
+		logger.Errorf("Core API call failed: %v", err)
+		return &gcpgenserver.V1betaSplitStopVolumeInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("Core API call failed: %v", err),
+		}, nil
+	}
+
+	switch resp := response.(type) {
+	case *coreapi.OperationV1:
+		operationID := resp.Name.Or("")
+		if operationID == "" {
+			operationID = fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, uuid.New().String())
+		}
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp.Response,
+			Done:     gcpgenserver.NewOptBool(resp.Done.Or(true)),
+		}, nil
+	case *coreapi.V1SplitStopVolumeBadRequest:
+		return &gcpgenserver.V1betaSplitStopVolumeBadRequest{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStopVolumeUnauthorized:
+		return &gcpgenserver.V1betaSplitStopVolumeUnauthorized{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStopVolumeForbidden:
+		return &gcpgenserver.V1betaSplitStopVolumeForbidden{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStopVolumeNotFound:
+		return &gcpgenserver.V1betaSplitStopVolumeNotFound{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStopVolumeConflict:
+		return &gcpgenserver.V1betaSplitStopVolumeConflict{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStopVolumeUnprocessableEntity:
+		return &gcpgenserver.V1betaSplitStopVolumeUnprocessableEntity{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStopVolumeTooManyRequests:
+		return &gcpgenserver.V1betaSplitStopVolumeTooManyRequests{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStopVolumeInternalServerError:
+		return &gcpgenserver.V1betaSplitStopVolumeInternalServerError{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	default:
+		logger.Errorf("Unexpected response type from core API: %T", response)
+		return &gcpgenserver.V1betaSplitStopVolumeInternalServerError{
+			Code:    500,
+			Message: "An internal error occurred",
+		}, nil
+	}
+}
+
 // validateProtocolsV1beta enforces protocol constraints for FlexCache volume requests.
 // FlexCache volumes are file-only; block protocols (currently iSCSI) must be excluded.
 // Rules:

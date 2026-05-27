@@ -477,6 +477,10 @@ type V1betaSplitStartVolumeRes interface {
 	v1betaSplitStartVolumeRes()
 }
 
+type V1betaSplitStopVolumeRes interface {
+	v1betaSplitStopVolumeRes()
+}
+
 type V1betaStartProjectEventRes interface {
 	v1betaStartProjectEventRes()
 }

@@ -48,6 +48,8 @@ type Provider interface {
 	GetVolumes() ([]*Volume, error)
 	UpdateVolume(params UpdateVolumeParams) error
 	InitiateSplitVolume(volumeUUID string) (string, error)
+	StopSplitVolume(volumeUUID string) error
+	GetVolumeCloneInfo(volumeUUID string) (*VolumeResponseClone, error)
 	UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) (*OntapAsyncResponse, error)
 	RevertVolume(params RevertVolumeParams) error
 	UpdateVolumeEnableEncryption(params UpdateVolumeParams) error

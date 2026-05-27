@@ -93,6 +93,10 @@ type V1SplitStartVolumeRes interface {
 	v1SplitStartVolumeRes()
 }
 
+type V1SplitStopVolumeRes interface {
+	v1SplitStopVolumeRes()
+}
+
 type V1UpdateAddressRangeRes interface {
 	v1UpdateAddressRangeRes()
 }
