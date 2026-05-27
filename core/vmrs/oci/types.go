@@ -21,12 +21,17 @@
 //	        memory_gbs:          Memory in decimal GB to provision
 //	                             (shapeConfig.memoryInGBs).
 //	        vpu:                 Per-shape VPU table (different shapes
-//	                             can have different per-volume caps).
+//	                             can have different per-VM capacity
+//	                             floors at the same VPU band).
 //	          vpu_<N>:           VPU band, N ∈ {40, 50, 90}.
-//	            capacity_throughput_tb  Minimum capacity (decimal TB) at
-//	                                    which the cell delivers its row
-//	                                    of (full tier throughput, listed
-//	                                    IOPS).
+//	            capacity_throughput_tb  Minimum capacity PER VSA VM (per
+//	                                    node), in decimal TB, at which
+//	                                    the cell delivers its row of
+//	                                    (full tier throughput, listed
+//	                                    IOPS). NOT per-disk and NOT
+//	                                    per-HA-pair — see VPUCell's
+//	                                    doc comment for the AA/AP
+//	                                    multiplier rules.
 //	            iops                    IOPS at that capacity.
 //
 // The selector picks `throughput[bucket]` in O(1), then iterates the
@@ -102,10 +107,22 @@ type Instance struct {
 }
 
 // VPUCell is one (throughput × VPU) cell of the reference table.
+//
+// IMPORTANT: capacity numbers in this struct are PER VSA VM (per node),
+// not per HA pair and not per individual block volume / disk. The
+// catalogue mirrors the OCI perf-team "OCPU to Capacity Per VM" table
+// — for a 1 GB/s tier under vpu_90 the floor is 0.73 TB per VM, which
+// becomes 1.46 TB per HA pair in Active-Active (both VMs serve) and
+// 0.73 TB per HA pair in Active-Passive (only primary serves). The
+// pool-create workflow's computeOCIVMRSInput is responsible for
+// dividing the customer's total pool (capacity, throughput) by
+// totalActiveVMs before populating CustomerRequest, so that selector
+// inputs land in the same unit space as these floors.
 type VPUCell struct {
-	// CapacityThroughputTB is the minimum capacity (decimal TB) at which
-	// this cell delivers (full tier throughput, listed IOPS). A request
-	// below this floor falls through to a higher VPU within the same tier.
+	// CapacityThroughputTB is the minimum capacity per VM (decimal TB)
+	// at which this cell delivers (full tier throughput, listed IOPS).
+	// A request below this floor falls through to a higher VPU within
+	// the same tier.
 	CapacityThroughputTB float64 `yaml:"capacity_throughput_tb"`
 
 	// IOPS is the IOPS at CapacityThroughputTB. For vpu_90 this is below

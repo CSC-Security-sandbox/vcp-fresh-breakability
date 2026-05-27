@@ -132,10 +132,18 @@ const (
 	checksumLabel2     = "checksum2"
 )
 
+// IdentifyOCIResourcesRequest is the input to the IdentifyOCIResources
+// activity. All capacity / throughput fields are in the VMRS catalogue's
+// native unit: PER VSA VM (per node). The pool-create workflow's
+// computeOCIVMRSInput is responsible for slicing the customer's total
+// (capacity, throughput) by totalActiveVMs (AA: 2×HAPairs; AP: HAPairs)
+// before populating this struct. The activity body does no further
+// translation — it forwards the values straight into
+// vmrs_oci.CustomerRequest.
 type IdentifyOCIResourcesRequest struct {
 	PoolUUID string
 
-	PerDiskCapacityTB float64
+	PerVMCapacityTB float64
 
 	PerVMThroughputGBs float64
 }
@@ -1819,10 +1827,10 @@ func (j *PoolActivity) IdentifyOCIResources(ctx context.Context, req IdentifyOCI
 	activity.RecordHeartbeat(ctx, "Starting IdentifyOCIResources activity")
 	logger := util.GetLogger(ctx)
 
-	if req.PerDiskCapacityTB <= 0 {
+	if req.PerVMCapacityTB <= 0 {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrBadRequest,
-				fmt.Errorf("perDiskCapacityTB must be > 0 (got %.4f) for pool %q", req.PerDiskCapacityTB, req.PoolUUID)))
+				fmt.Errorf("perVMCapacityTB must be > 0 (got %.4f) for pool %q", req.PerVMCapacityTB, req.PoolUUID)))
 	}
 	if req.PerVMThroughputGBs <= 0 {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
@@ -1839,7 +1847,7 @@ func (j *PoolActivity) IdentifyOCIResources(ctx context.Context, req IdentifyOCI
 	}
 
 	selectorReq := vmrs_oci.CustomerRequest{
-		DesiredCapacityTB:    req.PerDiskCapacityTB,
+		DesiredCapacityTB:    req.PerVMCapacityTB,
 		DesiredThroughputGBs: req.PerVMThroughputGBs,
 	}
 
@@ -1848,7 +1856,7 @@ func (j *PoolActivity) IdentifyOCIResources(ctx context.Context, req IdentifyOCI
 	if err != nil {
 		logger.Error("OCI VMRS selection failed",
 			"poolUUID", req.PoolUUID,
-			"perDiskCapacityTB", selectorReq.DesiredCapacityTB,
+			"perVMCapacityTB", selectorReq.DesiredCapacityTB,
 			"perVMThroughputGBs", selectorReq.DesiredThroughputGBs,
 			"error", err)
 		// Selector errors (*NoFeasibleSelectionError, *InvalidConfigError) are

@@ -217,12 +217,15 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		}
 	}()
 
-	// Run OCI VMRS (when enabled) to derive VM shape, OCPUs, and per-data-disk
-	// VPU from the pool's (capacity, throughput, AA-vs-AP topology). The
+	// Run OCI VMRS (when enabled) to derive VM shape, OCPUs, and the VPU
+	// band from the pool's (capacity, throughput, AA-vs-AP topology). The
 	// Decision is then handed to prepareVLMConfig which projects it onto
-	// OCIConfig.{VSAInstanceShape,VSAFlexOcpus} and the per-disk Vpus in
-	// Cloud.HAPairs. When the toggle is false the activity is skipped
-	// entirely and prepareVLMConfig falls back to the env-driven path.
+	// OCIConfig.{VSAInstanceShape,VSAFlexOcpus} and onto DataDiskVpus
+	// (one VPU band applied to every data disk in Cloud.HAPairs — OCI's
+	// VPU is a per-block-volume setting, but VMRS chooses one band for
+	// the whole deployment). When the toggle is false the activity is
+	// skipped entirely and prepareVLMConfig falls back to the env-driven
+	// path.
 	//
 	// The OCI_VMRS_ENABLED toggle is read via workflow.SideEffect rather
 	// than directly off the ociVMRSEnabled package var so this workflow
@@ -244,7 +247,7 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if vmrsEnabledForRun {
-		perDiskCapacityTB, perVMThroughputGBs, mErr := computeOCIVMRSInput(params)
+		perVMCapacityTB, perVMThroughputGBs, mErr := computeOCIVMRSInput(params)
 		if mErr != nil {
 			logger.Errorf("Failed to compute OCI VMRS input: %v", mErr)
 			err = mErr
@@ -277,7 +280,7 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 		vmrsCtx := workflow.WithActivityOptions(ctx, vmrsAO)
 		vmrsReq := activities.IdentifyOCIResourcesRequest{
 			PoolUUID:           pool.UUID,
-			PerDiskCapacityTB:  perDiskCapacityTB,
+			PerVMCapacityTB:    perVMCapacityTB,
 			PerVMThroughputGBs: perVMThroughputGBs,
 		}
 		err = workflow.ExecuteActivity(vmrsCtx, poolActivity.IdentifyOCIResources, vmrsReq).Get(vmrsCtx, &ociDecision)
@@ -619,21 +622,34 @@ func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool, dec
 }
 
 // computeOCIVMRSInput converts the pool's total (capacity, throughput) into
-// the per-VM throughput and per-disk capacity that the OCI VMRS catalogue
+// the per-VM capacity and per-VM throughput that the OCI VMRS catalogue
 // expects.
 //
-// Topology assumptions (matches OCI pool create today):
+// Unit contract with the catalogue:
+//
+//	The vmrs_oci.yaml catalogue stores BOTH capacity_throughput_tb and
+//	throughput in per-VM units (each YAML cell describes what ONE VSA
+//	VM delivers at the listed (capacity, VPU) point). Therefore both
+//	values returned here are per-VM. Earlier revisions named the
+//	capacity return `perDiskCapacityTB` and divided by HAPairs *
+//	dataDiskCount; that was wrong on two counts — the catalogue is not
+//	per-disk, and the formula only happened to produce the correct
+//	per-VM number in AA when dataDiskCount coincided with the active-
+//	VMs-per-pair count (2). In AP it was off by 2x.
+//
+// Topology assumptions (match OCI pool create today):
 //   - params.HAPairs HA pairs, each with 2 VSA VMs (VM1, VM2). The
 //     mediator is excluded from sizing — it doesn't carry data disks.
-//   - dataDiskCount data disks per VM, all sized identically.
 //   - Active-Active (params.IsRegionalHA == false → shared HA →
 //     EnableAAConfig=true): both VMs in a pair serve I/O concurrently,
-//     so per-VM throughput = total / (2 * HAPairs).
+//     so totalActiveVMs = 2 * HAPairs.
 //   - Active-Passive (params.IsRegionalHA == true → non-shared HA →
 //     EnableAAConfig=false): only the primary VM in a pair serves I/O,
-//     so per-VM throughput = total / HAPairs.
-//   - Capacity is striped across HA pairs and per-VM data disks in both
-//     modes: per-disk capacity = total / (HAPairs * dataDiskCount).
+//     so totalActiveVMs = HAPairs.
+//
+// Per-VM slicing (used for both throughput AND capacity):
+//
+//	per-VM = total / totalActiveVMs
 //
 // Unit conversions match the OCI VMRS YAML catalogue:
 //   - bytes → decimal TB (catalogue uses 10^12 bytes)
@@ -641,7 +657,7 @@ func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool, dec
 //     1 MiB = 1.048576 MB, so MiB/s → GB/s ≈ MiB/s * 1.048576 / 1000.
 //     The selector ceils throughput to the next integer GB/s bucket so
 //     float noise is absorbed.
-func computeOCIVMRSInput(params *common.CreatePoolParams) (perDiskCapacityTB, perVMThroughputGBs float64, err error) {
+func computeOCIVMRSInput(params *common.CreatePoolParams) (perVMCapacityTB, perVMThroughputGBs float64, err error) {
 	if err := validateOCIVMRSInput(params); err != nil {
 		return 0, 0, err
 	}
@@ -656,8 +672,8 @@ func computeOCIVMRSInput(params *common.CreatePoolParams) (perDiskCapacityTB, pe
 	totalThroughputGBs := float64(params.CustomPerformanceParams.ThroughputMibps) * 1.048576 / 1000.0
 
 	perVMThroughputGBs = totalThroughputGBs / float64(totalActiveVMs)
-	perDiskCapacityTB = totalCapacityTB / float64(int(params.HAPairs)*dataDiskCount)
-	return perDiskCapacityTB, perVMThroughputGBs, nil
+	perVMCapacityTB = totalCapacityTB / float64(totalActiveVMs)
+	return perVMCapacityTB, perVMThroughputGBs, nil
 }
 
 // validateOCIVMRSInput verifies that the pool params and worker

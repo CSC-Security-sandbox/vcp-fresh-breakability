@@ -36,8 +36,15 @@
 #                                     this specific shape (different shapes
 #                                     can have different per-volume caps).
 #             vpu_<NN>:
-#               capacity_throughput_tb  TB needed at this VPU to deliver
-#                                       (full tier throughput, listed iops).
+#               capacity_throughput_tb  TB PER VM (per VSA node) needed
+#                                       at this VPU to deliver (full
+#                                       tier throughput, listed iops).
+#                                       NOT per-disk, NOT per-HA-pair.
+#                                       The pool-create workflow slices
+#                                       the customer's total capacity by
+#                                       totalActiveVMs (AA: 2*HAPairs,
+#                                       AP: HAPairs) before comparing
+#                                       against this floor.
 #               iops                    IOPS delivered at that capacity.
 #
 # Sizing reference (instance-level caps; same numbers for every shape today):

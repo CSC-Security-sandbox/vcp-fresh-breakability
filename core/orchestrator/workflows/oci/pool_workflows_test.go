@@ -76,6 +76,17 @@ func setOCIExpertModePassword(t *testing.T, pw string) {
 	t.Cleanup(func() { ociExpertModePassword = orig })
 }
 
+// withOCIVMRSEnabled overrides the package-level ociVMRSEnabled toggle so a
+// test can drive OCICreatePoolWorkflow's VMRS branch (workflow.SideEffect
+// captures the toggle at start; this helper flips the value the SideEffect
+// observes). Original value is restored via t.Cleanup.
+func withOCIVMRSEnabled(t *testing.T, enabled bool) {
+	t.Helper()
+	orig := ociVMRSEnabled
+	ociVMRSEnabled = enabled
+	t.Cleanup(func() { ociVMRSEnabled = orig })
+}
+
 // registerOCICreatePoolVLMRollbackWorkflows registers the VLM delete child workflow used when OCICreatePoolWorkflow
 // rolls back after CreateVSAClusterDeployment (or later steps) fail.
 func registerOCICreatePoolVLMRollbackWorkflows(env *testsuite.TestWorkflowEnvironment) {
@@ -315,11 +326,11 @@ func TestComputeOCIVMRSInput_RejectsMissingOrZeroThroughput(t *testing.T) {
 			params := base()
 			tc.mutate(params)
 
-			perDisk, perVM, err := computeOCIVMRSInput(params)
+			perVMCap, perVMThru, err := computeOCIVMRSInput(params)
 
 			require.Error(tt, err, "must reject before dereferencing throughput")
-			assert.Zero(tt, perDisk)
-			assert.Zero(tt, perVM)
+			assert.Zero(tt, perVMCap)
+			assert.Zero(tt, perVMThru)
 			assert.True(tt, utilserrors.IsUserInputValidationErr(err),
 				"error must be a UserInputValidationErr so it surfaces as a 4xx, not a panic")
 			assert.Contains(tt, err.Error(), tc.wantMsgInclude,
@@ -383,10 +394,10 @@ func TestComputeOCIVMRSInput_RejectsTopologyInputs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(tt *testing.T) {
 			tc.setup()
-			perDisk, perVM, err := computeOCIVMRSInput(tc.params)
+			perVMCap, perVMThru, err := computeOCIVMRSInput(tc.params)
 			require.Error(tt, err)
-			assert.Zero(tt, perDisk)
-			assert.Zero(tt, perVM)
+			assert.Zero(tt, perVMCap)
+			assert.Zero(tt, perVMThru)
 			assert.True(tt, utilserrors.IsUserInputValidationErr(err),
 				"all topology validators must surface as UserInputValidationErr (4xx)")
 			assert.Contains(tt, err.Error(), tc.wantMsgInclude)
@@ -397,10 +408,14 @@ func TestComputeOCIVMRSInput_RejectsTopologyInputs(t *testing.T) {
 // TestComputeOCIVMRSInput_ActivePassiveSplit anchors the AP-mode
 // branch: when IsRegionalHA=true (non-shared HA), only the primary VM
 // in each pair serves I/O, so totalActiveVMs = HAPairs (not 2 *
-// HAPairs) and per-VM throughput is exactly double the AA value for
-// the same total. This sub-test paired with the AA happy path
-// guarantees the two modes can't accidentally converge during a
-// refactor of the activeVMsPerPair branch.
+// HAPairs) and BOTH per-VM capacity AND per-VM throughput are exactly
+// double the AA value for the same total. This sub-test paired with
+// the AA happy path guarantees the two modes can't accidentally
+// converge during a refactor of the activeVMsPerPair branch — and it
+// is the regression guard for the historical bug where the capacity
+// formula divided by HAPairs * dataDiskCount instead of
+// totalActiveVMs (which only coincidentally produced the correct AA
+// number when dataDiskCount==2 and which was 2x off in AP).
 func TestComputeOCIVMRSInput_ActivePassiveSplit(t *testing.T) {
 	origDDC := dataDiskCount
 	dataDiskCount = 2
@@ -415,13 +430,18 @@ func TestComputeOCIVMRSInput_ActivePassiveSplit(t *testing.T) {
 		},
 	}
 
-	perDisk, perVM, err := computeOCIVMRSInput(params)
+	perVMCap, perVMThru, err := computeOCIVMRSInput(params)
 	require.NoError(t, err)
-	// Capacity slicing is mode-independent: 4.0 / (HAPairs * disks) = 1.0
-	assert.InDelta(t, 1.0, perDisk, 1e-9, "per-disk capacity is invariant to HA mode")
-	// AP → totalActiveVMs = HAPairs = 2 → perVM = total / 2 = 0.536870912
+	// AP → totalActiveVMs = HAPairs = 2 → perVM capacity = 4 / 2 = 2.0
+	// (exactly 2x the AA case which divides by 4 = totalActiveVMs in AA).
+	// Pre-fix this returned 1.0 because the formula used
+	// HAPairs * dataDiskCount (= 4) as the denominator regardless of
+	// AA/AP — the failure mode this test guards against.
+	assert.InDelta(t, 2.0, perVMCap, 1e-9,
+		"AP per-VM capacity must be total / HAPairs (not / 2*HAPairs and not / HAPairs*dataDiskCount)")
+	// AP → totalActiveVMs = HAPairs = 2 → perVM throughput = 0.536870912
 	// (exactly 2x the AA case which divides by 4)
-	assert.InDelta(t, 0.536870912, perVM, 1e-9,
+	assert.InDelta(t, 0.536870912, perVMThru, 1e-9,
 		"AP per-VM throughput must be total / HAPairs (not / 2*HAPairs)")
 }
 
@@ -493,10 +513,13 @@ func TestPrepareVLMConfig_AppliesDecisionFlipsAllFourOCIFields(t *testing.T) {
 }
 
 // TestComputeOCIVMRSInput_HappyPath asserts the topology math on a
-// well-formed Active-Active 2-HA-pair / 2-data-disk request. Anchors
-// the perVM throughput and per-disk capacity formulas so future
-// refactors of the AA/AP split or data-disk slicing can't quietly
-// change what the OCI VMRS activity sees.
+// well-formed Active-Active 2-HA-pair request. Anchors the per-VM
+// throughput AND per-VM capacity formulas so future refactors of the
+// AA/AP split can't quietly change what the OCI VMRS activity sees.
+//
+// Pair this with TestComputeOCIVMRSInput_ActivePassiveSplit: same
+// inputs except for IsRegionalHA, and AP must show exactly 2x the
+// per-VM numbers AA does (because AP halves the count of serving VMs).
 func TestComputeOCIVMRSInput_HappyPath(t *testing.T) {
 	origDDC := dataDiskCount
 	dataDiskCount = 2
@@ -511,13 +534,16 @@ func TestComputeOCIVMRSInput_HappyPath(t *testing.T) {
 		},
 	}
 
-	perDisk, perVM, err := computeOCIVMRSInput(params)
+	perVMCap, perVMThru, err := computeOCIVMRSInput(params)
 	require.NoError(t, err)
-	// totalCapacityTB = 4.0; per-disk = 4.0 / (2 HA pairs * 2 disks) = 1.0 TB
-	assert.InDelta(t, 1.0, perDisk, 1e-9, "per-disk capacity slicing across HA pairs * disks")
+	// totalCapacityTB = 4.0; AA → 2 active VMs per pair →
+	// totalActiveVMs = 4 → perVM capacity = 4.0 / 4 = 1.0 TB.
+	assert.InDelta(t, 1.0, perVMCap, 1e-9,
+		"AA per-VM capacity = total / (2 * HAPairs)")
 	// totalThroughputGBs = 1024 MiB/s * 1.048576 / 1000 = 1.073741824
 	// AA → 2 active VMs per pair → totalActiveVMs = 4 → perVM = 0.268435456
-	assert.InDelta(t, 0.268435456, perVM, 1e-9, "AA per-VM throughput = total / (2 * HAPairs)")
+	assert.InDelta(t, 0.268435456, perVMThru, 1e-9,
+		"AA per-VM throughput = total / (2 * HAPairs)")
 }
 
 func TestOCIDeploymentConfig(t *testing.T) {
@@ -993,6 +1019,132 @@ func TestOCICreatePoolWorkflow_Success(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+
+// TestOCICreatePoolWorkflow_VMRSEnabled_RunsVMRSBranch is the coverage and
+// behavioral guard for the OCI_VMRS_ENABLED=true branch of
+// OCICreatePoolWorkflow.Run. With the toggle off (the default exercised by
+// TestOCICreatePoolWorkflow_Success) the whole block between
+// workflow.SideEffect and prepareVLMConfig is skipped — meaning
+// computeOCIVMRSInput, the dedicated short-timeout vmrsAO, and the
+// IdentifyOCIResources activity dispatch are all reachable only when the
+// toggle flips. This test flips it and asserts:
+//
+//  1. IdentifyOCIResources is invoked exactly once with per-VM capacity and
+//     per-VM throughput derived from the pool's total size + topology
+//     (regression guard for the per-VM unit contract documented on
+//     computeOCIVMRSInput and IdentifyOCIResourcesRequest).
+//  2. The Decision returned by the activity flows downstream so the rest of
+//     the workflow runs to completion — i.e. enabling VMRS does not change
+//     the workflow's terminal state.
+func TestOCICreatePoolWorkflow_VMRSEnabled_RunsVMRSBranch(t *testing.T) {
+	setTestOCIImageEnv(t)
+	setOCIExpertModePassword(t, "preset-test-password")
+	withOCIVMRSEnabled(t, true)
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	registerOCICreatePoolVLMRollbackWorkflows(env)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	registerOCICreatePoolOntapCredentialMocks(env)
+
+	// CustomPerformanceParams is required to reach computeOCIVMRSInput's
+	// arithmetic — validateOCIVMRSInput rejects nil CPP and any non-positive
+	// ThroughputMibps before the math runs.
+	//
+	// IOPS must satisfy the pool validator's floor of 16 × ThroughputMibps
+	// (see core/orchestrator/validators/pool_validator.go ValidateIops);
+	// for 1024 MiBps that's 16384 IOPS. Any lower value would trip
+	// prepareVLMConfig — invoked right after the VMRS branch — and fail
+	// the workflow before this test can assert the IdentifyOCIResources
+	// payload. computeOCIVMRSInput does not read Iops, so this value does
+	// not affect the per-VM assertions below.
+	iops := int64(16384)
+	params := &common.CreatePoolParams{
+		Name:        "test-pool-vmrs",
+		AccountName: "test-account",
+		SizeInBytes: 4 * 1_000_000_000_000, // 4 TB total
+		Region:      "us-ashburn-1",
+		PrimaryZone: "us-ashburn-1-ad-1",
+		HAPairs:     2,
+		// IsRegionalHA=false (AA) → totalActiveVMs = 2 * HAPairs = 4.
+		IsRegionalHA: false,
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 1024,
+			Iops:            &iops,
+		},
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid-vmrs"},
+		Name:            "test-pool-vmrs",
+		AccountID:       12345,
+		VendorID:        "test-vendor",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-pool-password"},
+	}
+
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	// IdentifyOCIResources is the activity that owns the OCI VMRS catalogue
+	// selector. Asserting on its request payload pins the per-VM unit
+	// contract end-to-end: 4 TB / 4 active VMs = 1.0 TB/VM, and 1024 MiB/s
+	// converted to GB/s then divided by 4 = 0.268435456 GB/s/VM. Any
+	// regression that re-introduces per-disk slicing or drops the AA
+	// doubling will fail here.
+	const expectedPerVMCapacityTB = 1.0
+	const expectedPerVMThroughputGBs = 0.268435456
+	vmrsDecision := &vmrs_oci.Decision{
+		VMShape:   "VM.DenseIO.E4.Flex",
+		OCPUs:     16,
+		MemoryGBs: 256,
+		VPU:       40,
+		IOPS:      30000,
+	}
+	env.OnActivity("IdentifyOCIResources", mock.Anything,
+		mock.MatchedBy(func(req activities.IdentifyOCIResourcesRequest) bool {
+			return req.PoolUUID == pool.UUID &&
+				approxEqual(req.PerVMCapacityTB, expectedPerVMCapacityTB, 1e-9) &&
+				approxEqual(req.PerVMThroughputGBs, expectedPerVMThroughputGBs, 1e-9)
+		}),
+	).Return(vmrsDecision, nil).Once()
+
+	mockVlmWorkflowClient := vlm.NewMockVlmWorkflowClient(t)
+	mockVlmWorkflowClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{}}, nil)
+	mockVlmWorkflowClient.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).
+		Return(vlm.OntapExpertModeUserResponse{}, nil)
+	origVSAClientFactory := workflows.GetNewVSAClientWorkflowManager
+	workflows.GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVlmWorkflowClient }
+	defer func() { workflows.GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Node)(nil), nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(OCICreatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// approxEqual is a tiny float helper for mock.MatchedBy assertions on the
+// VMRS per-VM inputs. Using a delta (instead of ==) avoids spurious test
+// flakes from the MiB/s → GB/s float conversion inside computeOCIVMRSInput.
+func approxEqual(a, b, delta float64) bool {
+	d := a - b
+	if d < 0 {
+		d = -d
+	}
+	return d <= delta
 }
 
 // TestOCICreatePoolWorkflow_PersistsExternalSecretOnPoolCredentials is the regression

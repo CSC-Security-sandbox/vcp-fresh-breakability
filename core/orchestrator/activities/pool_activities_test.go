@@ -17350,7 +17350,7 @@ func TestPoolActivity_IdentifyOCIResources_Success(t *testing.T) {
 
 	val, err := tEnv.ExecuteActivity(act.IdentifyOCIResources, activities.IdentifyOCIResourcesRequest{
 		PoolUUID:           "pool-uuid-1",
-		PerDiskCapacityTB:  9.0,
+		PerVMCapacityTB:    9.0,
 		PerVMThroughputGBs: 6.0,
 	})
 	require.NoError(t, err)
@@ -17388,31 +17388,31 @@ func TestPoolActivity_IdentifyOCIResources_RejectsBadInputs(t *testing.T) {
 
 	cases := []struct {
 		name               string
-		perDiskCapacityTB  float64
+		perVMCapacityTB    float64
 		perVMThroughputGBs float64
 		wantMsgInclude     string
 	}{
 		{
 			name:               "ZeroCapacity",
-			perDiskCapacityTB:  0,
+			perVMCapacityTB:    0,
 			perVMThroughputGBs: 5.0,
-			wantMsgInclude:     "perDiskCapacityTB must be > 0",
+			wantMsgInclude:     "perVMCapacityTB must be > 0",
 		},
 		{
 			name:               "NegativeCapacity",
-			perDiskCapacityTB:  -1.0,
+			perVMCapacityTB:    -1.0,
 			perVMThroughputGBs: 5.0,
-			wantMsgInclude:     "perDiskCapacityTB must be > 0",
+			wantMsgInclude:     "perVMCapacityTB must be > 0",
 		},
 		{
 			name:               "ZeroThroughput",
-			perDiskCapacityTB:  5.0,
+			perVMCapacityTB:    5.0,
 			perVMThroughputGBs: 0,
 			wantMsgInclude:     "perVMThroughputGBs must be > 0",
 		},
 		{
 			name:               "NegativeThroughput",
-			perDiskCapacityTB:  5.0,
+			perVMCapacityTB:    5.0,
 			perVMThroughputGBs: -2.0,
 			wantMsgInclude:     "perVMThroughputGBs must be > 0",
 		},
@@ -17427,7 +17427,7 @@ func TestPoolActivity_IdentifyOCIResources_RejectsBadInputs(t *testing.T) {
 
 			_, err := tEnv.ExecuteActivity(act.IdentifyOCIResources, activities.IdentifyOCIResourcesRequest{
 				PoolUUID:           "pool-uuid-bad",
-				PerDiskCapacityTB:  tc.perDiskCapacityTB,
+				PerVMCapacityTB:    tc.perVMCapacityTB,
 				PerVMThroughputGBs: tc.perVMThroughputGBs,
 			})
 			require.Error(tt, err)
@@ -17470,7 +17470,7 @@ func TestPoolActivity_IdentifyOCIResources_LoadConfigFailure(t *testing.T) {
 
 	_, err := tEnv.ExecuteActivity(act.IdentifyOCIResources, activities.IdentifyOCIResourcesRequest{
 		PoolUUID:           "pool-uuid-load-fail",
-		PerDiskCapacityTB:  5.0,
+		PerVMCapacityTB:    5.0,
 		PerVMThroughputGBs: 3.0,
 	})
 	require.Error(t, err)
@@ -17504,7 +17504,7 @@ func TestPoolActivity_IdentifyOCIResources_DecideFailure(t *testing.T) {
 
 	_, err := tEnv.ExecuteActivity(act.IdentifyOCIResources, activities.IdentifyOCIResourcesRequest{
 		PoolUUID:           "pool-uuid-no-fit",
-		PerDiskCapacityTB:  99.0,
+		PerVMCapacityTB:    99.0,
 		PerVMThroughputGBs: 9.0,
 	})
 	require.Error(t, err)
