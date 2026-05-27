@@ -1292,7 +1292,7 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
     _BUILD_RC=0
     go_free_disk
     retry_cmd 3 5 go work sync && {
-      timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+      GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
       if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
       exit $_BUILD_RC
     }
@@ -1306,7 +1306,7 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
       _BUILD_RC=0
       go_free_disk
       retry_cmd 3 5 go work sync && {
-        timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+        GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
         if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
         exit $_BUILD_RC
       }
@@ -1335,7 +1335,7 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
       _mod_output=$(cd "$_mod_dir" && {
         _BUILD_RC=0
         retry_cmd 3 5 go mod tidy && {
-          timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+          GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
           if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
           exit $_BUILD_RC
         }
@@ -1348,7 +1348,7 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
         _mod_output=$(cd "$_mod_dir" && {
           _BUILD_RC=0
           retry_cmd 3 5 go mod tidy && {
-            timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+            GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
             if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
             exit $_BUILD_RC
           }
@@ -1387,7 +1387,7 @@ $_mod_output"
       _BUILD_RC=0
       go_free_disk
       retry_cmd 3 5 timeout 120 go mod tidy && {
-        timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+        GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
         if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
         exit $_BUILD_RC
       }
@@ -1401,7 +1401,7 @@ $_mod_output"
         _BUILD_RC=0
         go_free_disk
         retry_cmd 3 5 go mod tidy && {
-          timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+          GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
           if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
           exit $_BUILD_RC
         }

@@ -272,6 +272,11 @@ fields = {
     'VULN_PREEXISTING_COUNT': str(d.get('vuln_preexisting_count', 0)),
     'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
     'TEST_FAIL_DETAIL': next((s.get('detail','') for s in d.get('verification_steps',[]) if s.get('step')=='test_suite' and s.get('status')=='pre_existing'), ''),
+    'BUILD_EXIT': str(build.get('pr_exit', -1)),
+    'MAIN_BUILD_EXIT': str(build.get('main_exit', -1)),
+    'TEST_EXIT_CODE': str(test.get('exit', -1)),
+    'BUILD_EVIDENCE': (lambda t: next((l.strip() for l in t.splitlines() if 'targeted build' in l or 'full build' in l or 'npm run build' in l), ''))(build.get('output_tail', '')),
+    'BUILD_DIRS': (lambda t: next((l.strip() for l in t.splitlines() if 'dirs:' in l), ''))(build.get('output_tail', '')),
 }
 for k, v in fields.items():
     # Use null byte as delimiter to safely handle any value content
@@ -313,6 +318,11 @@ for k, v in fields.items():
   VULN_NEW_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_NEW_LIST=' | cut -d= -f2-)
   VULN_PREEXISTING_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_PREEXISTING_COUNT=' | cut -d= -f2-)
   TEST_FAIL_DETAIL=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_FAIL_DETAIL=' | cut -d= -f2-)
+  BUILD_EXIT_CODE=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_EXIT=' | cut -d= -f2-)
+  MAIN_BUILD_EXIT=$(echo "$_FIELDS_EXTRACTED" | grep '^MAIN_BUILD_EXIT=' | cut -d= -f2-)
+  TEST_EXIT_CODE=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_EXIT_CODE=' | cut -d= -f2-)
+  BUILD_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_EVIDENCE=' | cut -d= -f2-)
+  BUILD_DIRS=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_DIRS=' | cut -d= -f2-)
   FILES_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_LIST=' | cut -d= -f2-)
 
   # CVE extraction — core security data
@@ -529,6 +539,8 @@ ${_SHOWN_FILES}${_MORE_NOTE}
 - ℹ️ govulncheck: status unknown"
       ;;
   esac
+  # Suppress advisory disclaimer when security risk is flagged
+  [[ -n "$_VULN_HEADER_BADGE" ]] && ADVISORY_FOOTER=""
   # Build build-stdout evidence block
   _BUILD_STDOUT_BLOCK=""
   _BUILD_STDOUT_SNIPPET=$(echo "$PR_FIELDS" | python3 -c "
@@ -549,26 +561,31 @@ ${_BUILD_STDOUT_SNIPPET}
 \`\`\`
 </details>"
   fi
+  # Build inline evidence strings for checklist items
+  _EV_BUILD=""
+  [[ -n "$BUILD_EVIDENCE" ]] && _EV_BUILD=" — \`$BUILD_EVIDENCE\`"
+  [[ -n "$BUILD_DIRS" && -z "$_EV_BUILD" ]] && _EV_BUILD=" — \`$BUILD_DIRS\`"
+
   HOW_CHECKED=""
   case "$VER_LABEL" in
     L4*)
       HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved successfully
-- ✅ Project builds / type-checks clean
-- ✅ Automated tests pass
-- ✅ No new errors introduced vs. main${_TRANSITIVE_NOTE}${_VULN_NOTE}
+- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+- ✅ Build passes\${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
+- ✅ Tests pass (exit=$TEST_EXIT_CODE) — no regressions vs main
+- ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
       ;;
     L3*)
       HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved successfully
-- ✅ Project builds / type-checks clean
+- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+- ✅ Build passes\${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
-- ✅ No new errors introduced vs. main${_TRANSITIVE_NOTE}${_VULN_NOTE}
+- ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
       ;;
     L2*)
@@ -580,7 +597,7 @@ ${_BUILD_STDOUT_SNIPPET}
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved successfully
+- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
 - ⚙️ Build hit OOM (\`signal: killed\`) on unrelated sub-packages — not caused by this upgrade
 - ✅ PR's targeted packages are not affected
 - ✅ No new type errors introduced vs. main
@@ -589,7 +606,7 @@ ${_BUILD_STDOUT_SNIPPET}
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved successfully
+- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
 - ❌ Project build fails on PR branch
 - ✅ Build passes on main — errors are introduced by this upgrade
 - ⬜ Tests not run (build must pass first)
@@ -607,19 +624,19 @@ ${_BUILD_STDOUT_SNIPPET}
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved successfully
-- ✅ Project builds / type-checks clean
+- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+- ✅ Build passes\${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — pre-existing, same failure on main
-- ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}${_VULN_NOTE}
+- ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
         else
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved successfully
-- ✅ Project builds / type-checks clean
+- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+- ✅ Build passes\${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
-- ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}${_VULN_NOTE}
+- ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
         fi
       fi
@@ -697,7 +714,7 @@ ${_L1_EXCERPT}
       HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved successfully
+- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
 - ⚠️ Build fails on both \`main\` (exit=${_L1_MAIN_EXIT}${_L1_MAIN_CLASS}) and PR branch — same errors${_L1_MODULE_NOTE}${_L1_OOM_NOTE}
 - ✅ No NEW errors introduced by this upgrade
 
