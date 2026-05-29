@@ -225,6 +225,7 @@ print(json.dumps({
     'error_class':  build.get('error_class', ''),
     'pkg_dir':      pr.get('pkg_dir', '/'),
     'main_exit':    build.get('main_exit', -1),
+    'pr_exit':      build.get('pr_exit', -1),
     'cve_severities': cve_severities,
     'cve_ids':      cve_ids,
     'gosum_new_count': pr.get('gosum_new_count', 0),
@@ -234,6 +235,7 @@ print(json.dumps({
     'vuln_status':     pr.get('vuln_status', 'unknown'),
     'vuln_finding':    pr.get('vuln_finding', ''),
     'vuln_new_findings': pr.get('vuln_new_findings', []),
+    'vuln_output':     pr.get('vuln_output', ''),
     'vuln_preexisting_count': pr.get('vuln_preexisting_count', 0),
     'verification_steps': pr.get('verification_steps', []),
     'fixes_cves': pr.get('fixes_cves', []),
@@ -276,7 +278,8 @@ fields = {
     'TEST_SUMMARY': (lambda t: '\n'.join(l for l in t.splitlines() if 'ok' in l.lower() or 'PASS' in l or 'FAIL' in l or 'pass' in l or '--- PASS' in l or 'passed' in l or 'failed' in l or 'tests' in l.lower())[:500] if t else '')(d.get('test_output_tail', '')),
     'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
     'TEST_FAIL_DETAIL': next((s.get('detail','') for s in d.get('verification_steps',[]) if s.get('step')=='test_suite' and s.get('status')=='pre_existing'), ''),
-    'BUILD_EXIT': str(d.get('main_exit', -1)),  # pr_exit not in flattened d
+    'BUILD_EXIT': str(d.get('pr_exit', -1)),       # PR-branch build exit
+    'PR_BUILD_EXIT': str(d.get('pr_exit', -1)),
     'MAIN_BUILD_EXIT': str(d.get('main_exit', -1)),
     'TEST_EXIT_CODE': str(d.get('test_exit', -1)),
     'BUILD_EVIDENCE': (lambda t: next((l.strip() for l in t.splitlines() if 'targeted build' in l or 'full build' in l or 'npm run build' in l), ''))(d.get('output_tail', '')),
@@ -323,7 +326,15 @@ for k, v in fields.items():
   VULN_PREEXISTING_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_PREEXISTING_COUNT=' | cut -d= -f2-)
   TEST_FAIL_DETAIL=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_FAIL_DETAIL=' | cut -d= -f2-)
   BUILD_EXIT_CODE=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_EXIT=' | cut -d= -f2-)
+  PR_BUILD_EXIT=$(echo "$_FIELDS_EXTRACTED" | grep '^PR_BUILD_EXIT=' | cut -d= -f2-)
   MAIN_BUILD_EXIT=$(echo "$_FIELDS_EXTRACTED" | grep '^MAIN_BUILD_EXIT=' | cut -d= -f2-)
+  # P1 (reviewer): a timeout/OOM-killed build (exit 124/137) cannot be trusted for an
+  # "errors are identical" comparison — compilation was killed before all packages
+  # were checked. Surface this caveat wherever we'd otherwise say "LIKELY SAFE".
+  _TIMEOUT_CAVEAT=""
+  if [[ "$PR_BUILD_EXIT" == "124" || "$PR_BUILD_EXIT" == "137" || "$MAIN_BUILD_EXIT" == "124" || "$MAIN_BUILD_EXIT" == "137" ]]; then
+    _TIMEOUT_CAVEAT=" ⚠️ **Build was killed (timeout/OOM, exit ${PR_BUILD_EXIT}/${MAIN_BUILD_EXIT}) — the error comparison is INCOMPLETE.** Packages after the kill point were never compiled, so new type errors there would not be detected. Treat as inconclusive, not verified-safe."
+  fi
   TEST_EXIT_CODE=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_EXIT_CODE=' | cut -d= -f2-)
   BUILD_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_EVIDENCE=' | cut -d= -f2-)
   BUILD_DIRS=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_DIRS=' | cut -d= -f2-)
@@ -567,6 +578,55 @@ ${_BUILD_STDOUT_SNIPPET}
 \`\`\`
 </details>"
   fi
+  # Build TEST-stdout evidence block + parse a trustworthy test summary.
+  # Reviewer P1: "Tests pass (exit=0)" with no test names/count is NOT evidence.
+  # We surface the actual `go test` / pytest stdout AND derive a count line.
+  _TEST_STDOUT_BLOCK=""
+  _EV_TEST=""        # inline summary appended to the "Tests pass" checklist line
+  _TEST_PARSE=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys, re
+d = json.load(sys.stdin)
+tail = d.get('test_output_tail', '') or ''
+lines = [l for l in tail.splitlines() if l.strip()]
+# Go:  'ok   pkg/path   0.123s'  /  '--- PASS: TestFoo'  /  'FAIL'
+# Py:  '5 passed, 1 warning in 0.42s'  / '=== 3 passed ==='
+ok_pkgs   = [l for l in lines if re.match(r'^ok\s+\S', l)]
+no_test   = [l for l in lines if 'no test files' in l.lower()]
+pass_cnt  = sum(1 for l in lines if l.startswith('--- PASS'))
+fail_cnt  = sum(1 for l in lines if l.startswith('--- FAIL') or l.strip()=='FAIL' or l.startswith('FAIL'))
+# pytest-style summary line
+py_sum    = next((l.strip() for l in reversed(lines) if re.search(r'\d+\s+(passed|failed|error)', l)), '')
+parts = []
+if ok_pkgs:  parts.append(f'{len(ok_pkgs)} package(s) ok')
+if pass_cnt: parts.append(f'{pass_cnt} test(s) PASS')
+if fail_cnt: parts.append(f'{fail_cnt} FAIL')
+if py_sum:   parts.append(py_sum)
+summary = '; '.join(parts)
+# If every package reports 'no test files', say so honestly.
+only_no_tests = no_test and not ok_pkgs and not pass_cnt
+print('SUMMARY=' + summary)
+print('ONLY_NO_TESTS=' + ('1' if only_no_tests else '0'))
+# emit last 12 non-empty lines for the details block
+print('---TAIL---')
+print('\n'.join(lines[-12:]))
+" 2>/dev/null || true)
+  _TEST_SUMMARY_LINE=$(echo "$_TEST_PARSE" | grep '^SUMMARY=' | head -1 | cut -d= -f2-)
+  _TEST_ONLY_NO_TESTS=$(echo "$_TEST_PARSE" | grep '^ONLY_NO_TESTS=' | head -1 | cut -d= -f2-)
+  _TEST_TAIL=$(echo "$_TEST_PARSE" | sed -n '/^---TAIL---$/,$p' | tail -n +2)
+  if [[ -n "$_TEST_SUMMARY_LINE" ]]; then
+    _EV_TEST=" — $_TEST_SUMMARY_LINE"
+  elif [[ "$_TEST_ONLY_NO_TESTS" == "1" ]]; then
+    _EV_TEST=" — ⚠️ no test files in affected packages (exit 0 ≠ tests ran)"
+  fi
+  if [[ -n "$_TEST_TAIL" ]]; then
+    _TEST_STDOUT_BLOCK="
+<details><summary>🧪 Test output (last lines)</summary>
+
+\`\`\`
+${_TEST_TAIL}
+\`\`\`
+</details>"
+  fi
   # Build inline evidence strings for checklist items
   _EV_BUILD=""
   [[ -n "$BUILD_EVIDENCE" ]] && _EV_BUILD=" — \`$BUILD_EVIDENCE\`"
@@ -580,9 +640,9 @@ ${_BUILD_STDOUT_SNIPPET}
 
 - ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
-- ✅ Tests pass (exit=$TEST_EXIT_CODE) — no regressions vs main
+- ✅ Tests pass (exit=$TEST_EXIT_CODE)${_EV_TEST} — no regressions vs main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
+</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}${_TEST_STDOUT_BLOCK}"
       ;;
     L3*)
       HOW_CHECKED="
@@ -909,10 +969,30 @@ ${RUN_LINK}
 ${BUILD_EXCERPT}
 \`\`\`"
     fi
+    # P0 (reviewer): a BUILD_FAILS verdict on a PR where NO source file imports the
+    # upgraded dependency (Usage: 0 file(s)) is suspicious. Generic toolchain errors
+    # like "no import data available" are NOT attributable to this upgrade. Flag the
+    # likely false-positive instead of confidently telling the dev "do not merge".
+    _FALSE_POSITIVE_NOTE=""
+    _GENERIC_TOOLCHAIN_ERR=0
+    if echo "$BUILD_EXCERPT" | grep -qiE "no import data available|no required module provides|missing go\.sum entry|cannot find module"; then
+      _GENERIC_TOOLCHAIN_ERR=1
+    fi
+    if [[ "$FILES_COUNT" == "0" ]]; then
+      if [[ "$_GENERIC_TOOLCHAIN_ERR" == "1" ]]; then
+        _FALSE_POSITIVE_NOTE="
+
+> ⚠️ **Likely false positive.** No source file in this repo imports \`$PKG\`, and the failure above is a generic Go toolchain message (not a type/compile error attributable to this upgrade). This is most likely a build-cache/module-resolution artifact, **not** a real break caused by the bump. Verify locally with \`go build ./...\` on a clean checkout before treating this as blocking."
+      else
+        _FALSE_POSITIVE_NOTE="
+
+> ⚠️ **Note:** No source file directly imports \`$PKG\` (Usage: 0 file(s)). If the error below is in an unrelated package, this failure may not be caused by this upgrade — confirm the failing package is actually affected before blocking the merge."
+      fi
+    fi
     COMMENT="<!-- breakability-check -->
 ## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)${CVE_LINE}${FIXES_CVE_LINE}
+Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)${CVE_LINE}${FIXES_CVE_LINE}${_FALSE_POSITIVE_NOTE}
 
 ### Build errors (excerpt)$EXCERPT_BLOCK
 
@@ -953,7 +1033,7 @@ Build: ⚙️ same errors on main and PR branch — pre-existing failure, **not 
 ### What this means
 Dependencies resolved successfully. The build fails on both \`main\` and this PR with the same errors. This upgrade does **not** introduce new failures. Full build verification was limited by pre-existing issues on \`main\`.
 
-**Recommendation:** Likely safe to merge — no new errors detected. Fix pre-existing build failures on \`main\` for full verification coverage.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+**Recommendation:** Likely safe to merge — no new errors detected. Fix pre-existing build failures on \`main\` for full verification coverage.${_TIMEOUT_CAVEAT}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
     else
@@ -971,7 +1051,7 @@ Build: ⚙️ same errors on \`main\` and PR branch — **not caused by this upg
 ### What this means
 Both \`main\` and this PR branch produce the same build errors. This upgrade does **not** introduce new failures. Build verification was limited by pre-existing infrastructure issues.
 
-**Recommendation:** Likely safe to merge — zero new errors detected. Fix baseline build on \`main\` for full verification.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+**Recommendation:** Likely safe to merge — zero new errors detected. Fix baseline build on \`main\` for full verification.${_TIMEOUT_CAVEAT}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
       else
@@ -1025,42 +1105,67 @@ import json, sys, re
 d = json.load(sys.stdin)
 output = d.get('vuln_output', '') or ''
 new_ids = d.get('vuln_new_findings', [])
-reachable = []
-not_reachable = []
+reachable = []       # govulncheck found a call path (Symbol Results)
+imported = []        # vulnerable pkg imported but no symbol called (Package/Module Results)
+unknown = []         # CVE not located in govulncheck output — cannot claim reachability
 symbols = {}
+
+# govulncheck text output is split into sections. A CVE under '=== Symbol Results ==='
+# means user code actually CALLS a vulnerable symbol (truly reachable). Under
+# '=== Package Results ===' or '=== Module Results ===' the dependency is only
+# imported/required, not called — lower risk. We must NOT conflate the two.
+def section_of(pos):
+    sym = output.rfind('=== Symbol Results ===', 0, pos)
+    pkg = output.rfind('=== Package Results ===', 0, pos)
+    mod = output.rfind('=== Module Results ===', 0, pos)
+    best = max(sym, pkg, mod)
+    if best < 0:
+        return 'symbol'  # no section headers (older govulncheck) — treat as symbol/reachable
+    if best == sym:
+        return 'symbol'
+    return 'imported'
+
 for vid in new_ids:
-    if vid not in output:
-        reachable.append(vid)
-        continue
     idx = output.find(vid)
+    if idx < 0:
+        unknown.append(vid)
+        continue
     next_vuln = output.find('Vulnerability #', idx + 10)
     block = output[idx:next_vuln] if next_vuln > 0 else output[idx:]
-    is_reachable = bool(re.search(r'Call|called|traces found|Your code', block, re.IGNORECASE))
-    if is_reachable:
+    sect = section_of(idx)
+    has_trace = bool(re.search(r'example traces found|\bcalls\b|\.go:\d+:\d+', block, re.IGNORECASE))
+    if sect == 'symbol' and has_trace:
         reachable.append(vid)
-        funcs = re.findall(r'^\s+#\d+:\s+(.+)$', block, re.MULTILINE)
+        funcs = re.findall(r'\b([\w./]+\.\w+)\s+calls\s+', block)
         if not funcs:
-            funcs = re.findall(r'^\s+(\w+\.\w+(?:\.\w+)*)$', block, re.MULTILINE)
+            funcs = re.findall(r'#\d+:\s+\S+\.go:\d+:\d+:\s+(.+)', block)
         if funcs:
-            symbols[vid] = funcs[:3]
+            symbols[vid] = [f.strip() for f in funcs[:3]]
+    elif sect == 'symbol':
+        # in symbol section but no explicit trace text — still reachable, no trace captured
+        reachable.append(vid)
     else:
-        not_reachable.append(vid)
+        imported.append(vid)
+
 lines = []
 if reachable:
     parts = []
     for vid in reachable:
         link = f'[{vid}](https://pkg.go.dev/vuln/{vid})'
         if vid in symbols:
-            link += ' (via \`' + '\`, \`'.join(symbols[vid]) + '\`)'
+            link += ' (your code calls \`' + '\`, \`'.join(symbols[vid]) + '\`)'
         parts.append(link)
-    lines.append('\u26a0\ufe0f **Reachable from your code:** ' + ', '.join(parts))
-if not_reachable:
-    parts = [f'[{vid}](https://pkg.go.dev/vuln/{vid})' for vid in not_reachable]
-    lines.append('\u2139\ufe0f Not called by your code (lower risk): ' + ', '.join(parts))
-if not reachable and not not_reachable:
-    lines.append('\u26a0\ufe0f Reachability unknown \u2014 run \`govulncheck ./...\` locally to check')
+    lines.append('\u26a0\ufe0f **Reachable \u2014 your code calls the vulnerable symbol(s):** ' + ', '.join(parts))
+if imported:
+    parts = [f'[{vid}](https://pkg.go.dev/vuln/{vid})' for vid in imported]
+    lines.append('\u2139\ufe0f Imported but **no vulnerable symbol is called** (lower risk): ' + ', '.join(parts))
+if unknown:
+    parts = [f'[{vid}](https://pkg.go.dev/vuln/{vid})' for vid in unknown]
+    lines.append('\u2753 Reachability **not determined** for: ' + ', '.join(parts) + ' \u2014 not located in govulncheck call-graph output; run \`govulncheck ./...\` locally to confirm')
+if not lines:
+    lines.append('\u2753 Reachability unknown \u2014 govulncheck produced no call-graph data; run \`govulncheck ./...\` locally to check')
 print('\n'.join(lines))
-" 2>/dev/null || echo "⚠️ Reachability unknown — run \`govulncheck ./...\` locally to check")
+" 2>/dev/null || echo "❓ Reachability unknown — run \`govulncheck ./...\` locally to check")
     # EU-6: Get max severity for the new vulns
     _VULN_SEVERITY_NOTE=""
     if [[ -n "$CVE_MAX_SEVERITY" ]]; then
@@ -1660,6 +1765,28 @@ if cross:
         pr_list = sorted(pr_set, key=lambda x: int(x) if x.isdigit() else 99)
         pr_str = " + ".join(f"#{p}" for p in pr_list)
         reason = _pkg_reason.get(pkg_key, pkg_key)
+        # P0 FIX: never instruct "merge all together" if any member is blocked
+        # (build_fails or introduces NEW CVEs). A coordinated group is only as
+        # safe as its weakest member — surfacing this prevents a dangerous merge.
+        group_blocked = sorted((p for p in pr_list if p in blocked_nums),
+                               key=lambda x: int(x) if x.isdigit() else 99)
+        if group_blocked:
+            _bb = ", ".join(f"#{n}" for n in group_blocked)
+            _reasons = []
+            for n in group_blocked:
+                bv = blocked_map.get(n, {}).get("verdict", "")
+                if bv == "vulns_introduced":
+                    _reasons.append(f"#{n} introduces {blocked_map[n].get('vuln_new_count', 0)} NEW CVE(s)")
+                elif bv == "fail":
+                    _reasons.append(f"#{n} build fails")
+                elif bv == "conflict":
+                    _reasons.append(f"#{n} has merge conflicts")
+                else:
+                    _reasons.append(f"#{n} blocked")
+            lines.append(f"- ⛔ **{reason}:** {pr_str} — **DO NOT MERGE as a group.** "
+                         f"{'; '.join(_reasons)}. Resolve {_bb} first (see sections below); "
+                         f"merging the group now would pull in the blocking PR.")
+            continue
         # Simplify reason for groups with 3+ PRs
         if len(pr_list) >= 3:
             lines.append(f"- **{reason}:** {pr_str} — merge all {len(pr_list)} together")
