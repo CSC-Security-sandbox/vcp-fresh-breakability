@@ -279,7 +279,7 @@ func TestConvertStorageExportPolicyRuleToONTAP(t *testing.T) {
 				Index:            1,
 				NtfsUnixSecurity: *nillable.ToPointer("ignore"),
 				Protocols:        []string{utils.GetOntapValue(utils.ProtocolSMB), utils.GetOntapValue(utils.ProtocolNFSv3)},
-				AnonymousUser:    models.RootAnonymousUser,
+				AnonymousUser:    "",
 			},
 		},
 		{
@@ -329,7 +329,7 @@ func TestConvertStorageExportPolicyRuleToONTAP(t *testing.T) {
 				Index:            3,
 				NtfsUnixSecurity: *nillable.ToPointer("ignore"),
 				Protocols:        nil,
-				AnonymousUser:    models.RootAnonymousUser,
+				AnonymousUser:    "",
 			},
 		},
 		{
@@ -404,7 +404,7 @@ func TestConvertStorageExportPolicyRuleToONTAP(t *testing.T) {
 				Index:            6,
 				NtfsUnixSecurity: *nillable.ToPointer("ignore"),
 				Protocols:        []string{utils.GetOntapValue(utils.ProtocolSMB), utils.GetOntapValue(utils.ProtocolNFSv4)},
-				AnonymousUser:    models.RootAnonymousUser,
+				AnonymousUser:    "",
 			},
 		},
 		{
@@ -1212,7 +1212,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_EdgeCases(t *testing.T) {
 				Index:            1,
 				NtfsUnixSecurity: *nillable.ToPointer("ignore"),
 				Protocols:        nil,
-				AnonymousUser:    models.RootAnonymousUser,
+				AnonymousUser:    "",
 			},
 		},
 		{
@@ -1262,7 +1262,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_EdgeCases(t *testing.T) {
 				Index:            1,
 				NtfsUnixSecurity: *nillable.ToPointer("ignore"),
 				Protocols:        []string{utils.GetOntapValue(utils.ProtocolSMB)},
-				AnonymousUser:    models.RootAnonymousUser,
+				AnonymousUser:    "",
 			},
 		},
 		{
@@ -1287,7 +1287,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_EdgeCases(t *testing.T) {
 				Index:            1,
 				NtfsUnixSecurity: *nillable.ToPointer("ignore"),
 				Protocols:        []string{utils.GetOntapValue(utils.ProtocolNFSv3)},
-				AnonymousUser:    models.RootAnonymousUser,
+				AnonymousUser:    "",
 			},
 		},
 	}
@@ -2452,7 +2452,7 @@ func squashCases() []squashCase {
 				roRule:    models.ExportAuthenticationFlavorSys,
 				rwRule:    models.AnyAccessProtocol,
 				superuser: models.AnyAccessProtocol,
-				anonUser:  models.RootAnonymousUser,
+				anonUser:  "",
 			},
 		},
 		{
@@ -2462,7 +2462,7 @@ func squashCases() []squashCase {
 				roRule:    models.ExportAuthenticationFlavorSys,
 				rwRule:    models.AnyAccessProtocol,
 				superuser: models.NoneAccessProtocol,
-				anonUser:  models.RootAnonymousUser,
+				anonUser:  "",
 			},
 		},
 		{
@@ -2610,6 +2610,58 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashFlagDisabled(t *testing.
 	assert.Equal(t, models.AnyAccessProtocol, got.ReadWriteRule)
 	assert.Equal(t, models.NoneAccessProtocol, got.SuperUserRule)
 	assert.Equal(t, "nobody", got.AnonymousUser)
+}
+
+func TestConvertStorageExportPolicyRuleToONTAP_ReadNoneEmitsNever(t *testing.T) {
+	tests := []struct {
+		name  string
+		rule  ExportRule
+	}{
+		{
+			name: "READ_NONE with NFSv3 set",
+			rule: ExportRule{
+				AllowedClients: "10.0.0.0/8",
+				AccessType:     models.ReadNone,
+				NFSv3:          true,
+				Index:          1,
+			},
+		},
+		{
+			name: "READ_NONE with NFSv4 set",
+			rule: ExportRule{
+				AllowedClients: "10.0.0.0/8",
+				AccessType:     models.ReadNone,
+				NFSv4:          true,
+				Index:          1,
+			},
+		},
+		{
+			name: "READ_NONE with both NFSv3 and NFSv4 set",
+			rule: ExportRule{
+				AllowedClients: "10.0.0.0/8",
+				AccessType:     models.ReadNone,
+				NFSv3:          true,
+				NFSv4:          true,
+				Index:          1,
+			},
+		},
+		{
+			name: "READ_NONE with no protocols set",
+			rule: ExportRule{
+				AllowedClients: "10.0.0.0/8",
+				AccessType:     models.ReadNone,
+				Index:          1,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := convertStorageExportPolicyRuleToONTAP(tt.rule)
+			assert.Equal(t, models.ExportAuthenticationFlavorNever, got.ReadOnlyRule, "ReadOnlyRule must be never for READ_NONE")
+			assert.Equal(t, models.ExportAuthenticationFlavorNever, got.ReadWriteRule, "ReadWriteRule must be never for READ_NONE")
+		})
+	}
 }
 
 // stubDefaultExportPolicy returns a minimal default ExportPolicy that
@@ -2841,7 +2893,7 @@ func TestCreateExportPolicy_AllSquashAnonUidNil(t *testing.T) {
 		assert.Equal(t, models.NoneAccessProtocol, captured.Rules[0].ReadOnlyRule, "ro_rule")
 		assert.Equal(t, models.NoneAccessProtocol, captured.Rules[0].ReadWriteRule, "rw_rule")
 		assert.Equal(t, models.NoneAccessProtocol, captured.Rules[0].SuperUserRule, "superuser")
-		assert.Equal(t, models.RootAnonymousUser, captured.Rules[0].AnonymousUser, "anonymous_user")
+		assert.Equal(t, "", captured.Rules[0].AnonymousUser, "anonymous_user")
 	}
 }
 
@@ -2896,7 +2948,7 @@ func TestCreateExportPolicy_MultiRuleWithSingleAllSquash(t *testing.T) {
 		roRule:    models.ExportAuthenticationFlavorSys,
 		rwRule:    models.AnyAccessProtocol,
 		superuser: models.AnyAccessProtocol,
-		anonUser:  models.RootAnonymousUser,
+		anonUser:  "",
 	}, "rule[0] no_root_squash")
 	assert.Equal(t, "10.0.0.0/8", captured.Rules[0].ClientMatch)
 	assert.EqualValues(t, 1, captured.Rules[0].Index)

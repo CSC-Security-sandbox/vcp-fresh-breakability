@@ -1986,6 +1986,63 @@ func TestUpdateVolume_WithMaxSizeErrorButNoMaxSizeInfo(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestUpdateVolume_SetsNasUid(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalGetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalGetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	uid := int64(2000)
+	params := UpdateVolumeParams{
+		UUID:   "testUUID",
+		NasUid: &uid,
+	}
+
+	mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+		return p.UUID == "testUUID" && p.NasUid != nil && *p.NasUid == uid
+	})).Return(true, nil, nil).Once()
+
+	err := rc.UpdateVolume(params)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateVolume_NasUidNil_NotSentToONTAP(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalGetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalGetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateVolumeParams{
+		UUID:   "testUUID",
+		NasUid: nil,
+	}
+
+	mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+		return p.UUID == "testUUID" && p.NasUid == nil
+	})).Return(true, nil, nil).Once()
+
+	err := rc.UpdateVolume(params)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestUpdateVolume_SetsUnixPermissions(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
@@ -3647,10 +3704,197 @@ func TestCreateVolumeConstituentCount(t *testing.T) {
 			assert.NotNil(t, resp)
 			assert.Equal(t, tt.expectedConstituentCount, resp.ConstituentCount, tt.description)
 
-			mockStorage.AssertExpectations(t)
-			mockClient.AssertExpectations(t)
-		})
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
 	}
+}
+
+// TestCreateVolume_AllSquashUid verifies that when AllSquashUid is set, CreateVolume issues a
+// post-create VolumeModify with nas.uid set to the specified UID.
+func TestCreateVolume_AllSquashUid(t *testing.T) {
+	volumeName := "testVolume"
+	volState := models.VolumeStateOnline
+	volUUID := "vol-uuid-allsquash"
+	volSpace := int64(1024)
+
+	mockVolume := &ontaprest.Volume{
+		Volume: models.Volume{
+			UUID:  &volUUID,
+			Name:  &volumeName,
+			State: &volState,
+			Space: &models.VolumeInlineSpace{Available: &volSpace},
+		},
+	}
+	mockCreateJob := &ontaprest.JobAccepted{JobUUID: "create-job-uuid"}
+
+	t.Run("WhenAllSquashUidSet_ThenVolumeModifyCalledWithNasUid", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		uid := int64(2000)
+		params := CreateVolumeParams{
+			VolumeName:   volumeName,
+			SvmName:      "testSVM",
+			Aggregates:   []string{"agg"},
+			Size:         volSpace,
+			VolumeType:   "rw",
+			AllSquashUid: &uid,
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockCreateJob, nil)
+		mockClient.On("Poll", mockCreateJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == volUUID && p.NasUid != nil && *p.NasUid == uid
+		})).Return(true, nil, nil).Once()
+
+		resp, err := rc.CreateVolume(params)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, volUUID, resp.ExternalUUID)
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenAllSquashUidZero_ThenVolumeModifyCalledWithNasUidZero", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		uid := int64(0)
+		params := CreateVolumeParams{
+			VolumeName:   volumeName,
+			SvmName:      "testSVM",
+			Aggregates:   []string{"agg"},
+			Size:         volSpace,
+			VolumeType:   "rw",
+			AllSquashUid: &uid,
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockCreateJob, nil)
+		mockClient.On("Poll", mockCreateJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == volUUID && p.NasUid != nil && *p.NasUid == int64(0)
+		})).Return(true, nil, nil).Once()
+
+		resp, err := rc.CreateVolume(params)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenAllSquashUidNil_ThenVolumeModifyNotCalledForNasUid", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateVolumeParams{
+			VolumeName:   volumeName,
+			SvmName:      "testSVM",
+			Aggregates:   []string{"agg"},
+			Size:         volSpace,
+			VolumeType:   "rw",
+			AllSquashUid: nil,
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockCreateJob, nil)
+		mockClient.On("Poll", mockCreateJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateVolume(params)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		mockStorage.AssertNotCalled(t, "VolumeModify")
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenAllSquashUidSet_AndVolumeModifyFails_ThenErrorReturned", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		uid := int64(1000)
+		params := CreateVolumeParams{
+			VolumeName:   volumeName,
+			SvmName:      "testSVM",
+			Aggregates:   []string{"agg"},
+			Size:         volSpace,
+			VolumeType:   "rw",
+			AllSquashUid: &uid,
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockCreateJob, nil)
+		mockClient.On("Poll", mockCreateJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("nas uid modify failed")).Once()
+
+		resp, err := rc.CreateVolume(params)
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "nas uid modify failed")
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenAllSquashUidSet_AndVolumeModifyJobFails_ThenErrorReturned", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		uid := int64(500)
+		params := CreateVolumeParams{
+			VolumeName:   volumeName,
+			SvmName:      "testSVM",
+			Aggregates:   []string{"agg"},
+			Size:         volSpace,
+			VolumeType:   "rw",
+			AllSquashUid: &uid,
+		}
+		modifyJob := &ontaprest.JobAccepted{JobUUID: "modify-job-uuid"}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockCreateJob, nil)
+		mockClient.On("Poll", mockCreateJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, modifyJob, nil).Once()
+		mockClient.On("Poll", modifyJob.JobUUID).Return(errors.New("job poll error")).Once()
+
+		resp, err := rc.CreateVolume(params)
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "job poll error")
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
 }
 
 func TestGetVolumeForExpertMode(t *testing.T) {

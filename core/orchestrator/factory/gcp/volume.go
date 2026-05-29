@@ -95,7 +95,7 @@ const (
 	bytesPerGB                = 1073741824 // 1024^3 bytes = 1 GB
 	ErrMsgSnapReserveIncrease = "Cannot increase SnapReserve to %.0f%% as we cannot decrease the available space (%.2f GB). " +
 		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
-	DefaultUnixPermissionsOctal     = "0770"
+	DefaultUnixPermissionsOctal     = "0755"
 	UnixSecurityStyle               = "unix"
 	NtfsSecurityStyle               = "ntfs" // lower-case for persistence and ONTAP REST (enum: ntfs/unix)
 	waitForTemporalUpdateMaxRetries = 5
@@ -136,6 +136,8 @@ func convertExportRulesToDatamodel(modelRules []*models.ExportRule) []*datamodel
 			Superuser:           rule.Superuser,
 			AllSquash:           rule.AllSquash,
 			AnonUid:             rule.AnonUid,
+			UnixReadOnly:        rule.UnixReadOnly,
+			UnixReadWrite:       rule.UnixReadWrite,
 		})
 	}
 	return exportRules

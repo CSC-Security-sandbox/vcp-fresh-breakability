@@ -222,6 +222,16 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		if params.VolumeType != VolumeTypeDP {
 			params.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
 		}
+		// When AllSquash is enabled, propagate the first AnonUid found so CreateVolume can
+		// issue a post-create VolumeModify to set nas.uid on the volume root directory.
+		if utils.IsAllSquashEnabled && params.VolumeType != VolumeTypeDP {
+			for _, rule := range volume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules {
+				if rule.AllSquash != nil && *rule.AllSquash && rule.AnonUid != nil {
+					params.AllSquashUid = rule.AnonUid
+					break
+				}
+			}
+		}
 	}
 
 	if volume.AutoTieringEnabled && volume.AutoTieringPolicy != nil {
@@ -466,6 +476,8 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 			Superuser:           rule.Superuser,
 			AllSquash:           rule.AllSquash,
 			AnonUid:             rule.AnonUid,
+			UnixReadOnly:        rule.UnixReadOnly,
+			UnixReadWrite:       rule.UnixReadWrite,
 		}
 		vsaExportRules = append(vsaExportRules, vsaExportRule)
 	}

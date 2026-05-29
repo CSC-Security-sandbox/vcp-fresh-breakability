@@ -3277,6 +3277,13 @@ func TestUpdateExportPolicyRulesInONTAP_Success(t *testing.T) {
 			params.ExportPolicy.ExportPolicyName == exportPolicy.ExportPolicyName
 	})).Return(nil)
 
+	// When rules exist but no AllSquash rule is present the activity defaults NasUid to 0.
+	nasUidZero := int64(0)
+	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
+		UUID:   volume.VolumeAttributes.ExternalUUID,
+		NasUid: &nasUidZero,
+	}).Return(nil)
+
 	_, err := env.ExecuteActivity(activity.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
@@ -3391,7 +3398,238 @@ func TestUpdateExportPolicyRulesInONTAP_EmptyRules(t *testing.T) {
 			len(params.ExportPolicy.ExportRules) == 0
 	})).Return(nil)
 
+	// An empty (non-nil) rules slice triggers the NasUid=0 default.
+	nasUidZero := int64(0)
+	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
+		UUID:   volume.VolumeAttributes.ExternalUUID,
+		NasUid: &nasUidZero,
+	}).Return(nil)
+
 	_, err := env.ExecuteActivity(activity.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateExportPolicyRulesInONTAP_WithAllSquashAndAnonUid(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	originalAllSquash := utils.IsAllSquashEnabled
+	utils.IsAllSquashEnabled = true
+	defer func() { utils.IsAllSquashEnabled = originalAllSquash }()
+
+	act := VolumeUpdateActivity{}
+	env.RegisterActivity(act.UpdateExportPolicyRulesInONTAP)
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+	}
+
+	allSquashTrue := true
+	anonUid := int64(2000)
+	exportPolicy := &models.ExportPolicy{
+		ExportPolicyName: "test-policy",
+		ExportRules: []*models.ExportRule{
+			{
+				AllowedClients: "0.0.0.0/0",
+				NFSv3:          true,
+				AllSquash:      &allSquashTrue,
+				AnonUid:        &anonUid,
+			},
+		},
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateExportPolicyRules", mock.MatchedBy(func(params vsa.UpdateExportPolicyRulesParams) bool {
+		if len(params.ExportPolicy.ExportRules) != 1 {
+			return false
+		}
+		rule := params.ExportPolicy.ExportRules[0]
+		return rule.AllSquash != nil && *rule.AllSquash &&
+			rule.AnonUid != nil && *rule.AnonUid == anonUid
+	})).Return(nil)
+
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.NasUid != nil && *params.NasUid == anonUid
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(act.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateExportPolicyRulesInONTAP_WithAllSquashAnonUidZero(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	originalAllSquash := utils.IsAllSquashEnabled
+	utils.IsAllSquashEnabled = true
+	defer func() { utils.IsAllSquashEnabled = originalAllSquash }()
+
+	act := VolumeUpdateActivity{}
+	env.RegisterActivity(act.UpdateExportPolicyRulesInONTAP)
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-456",
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+	}
+
+	allSquashTrue := true
+	anonUid := int64(0)
+	exportPolicy := &models.ExportPolicy{
+		ExportPolicyName: "test-policy",
+		ExportRules: []*models.ExportRule{
+			{
+				AllowedClients: "0.0.0.0/0",
+				NFSv3:          true,
+				AllSquash:      &allSquashTrue,
+				AnonUid:        &anonUid,
+			},
+		},
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateExportPolicyRules", mock.MatchedBy(func(params vsa.UpdateExportPolicyRulesParams) bool {
+		if len(params.ExportPolicy.ExportRules) != 1 {
+			return false
+		}
+		rule := params.ExportPolicy.ExportRules[0]
+		return rule.AllSquash != nil && *rule.AllSquash &&
+			rule.AnonUid != nil && *rule.AnonUid == int64(0)
+	})).Return(nil)
+
+	// AnonUid=0 is a valid explicit value and must still trigger NasUid update.
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.NasUid != nil && *params.NasUid == int64(0)
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(act.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateExportPolicyRulesInONTAP_AllSquashNasUidUpdateError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	originalAllSquash := utils.IsAllSquashEnabled
+	utils.IsAllSquashEnabled = true
+	defer func() { utils.IsAllSquashEnabled = originalAllSquash }()
+
+	act := VolumeUpdateActivity{}
+	env.RegisterActivity(act.UpdateExportPolicyRulesInONTAP)
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-789",
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+	}
+
+	allSquashTrue := true
+	anonUid := int64(1000)
+	exportPolicy := &models.ExportPolicy{
+		ExportPolicyName: "test-policy",
+		ExportRules: []*models.ExportRule{
+			{
+				AllowedClients: "0.0.0.0/0",
+				NFSv3:          true,
+				AllSquash:      &allSquashTrue,
+				AnonUid:        &anonUid,
+			},
+		},
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateExportPolicyRules", mock.Anything).Return(nil)
+	nasUidErr := errors.New("failed to update NAS UID")
+	mockProvider.On("UpdateVolume", mock.Anything).Return(nasUidErr)
+
+	_, err := env.ExecuteActivity(act.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), nasUidErr.Error())
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateExportPolicyRulesInONTAP_NoAllSquash_NasUidDefaultsToZero(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := vsa.GetProviderByNode
+	defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+	vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	originalAllSquash := utils.IsAllSquashEnabled
+	utils.IsAllSquashEnabled = true
+	defer func() { utils.IsAllSquashEnabled = originalAllSquash }()
+
+	act := VolumeUpdateActivity{}
+	env.RegisterActivity(act.UpdateExportPolicyRulesInONTAP)
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-no-squash",
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+	}
+
+	exportPolicy := &models.ExportPolicy{
+		ExportPolicyName: "test-policy",
+		ExportRules: []*models.ExportRule{
+			{
+				AllowedClients: "192.168.1.0/24",
+				NFSv3:          true,
+				Superuser:      true,
+			},
+		},
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateExportPolicyRules", mock.Anything).Return(nil)
+
+	// When no AllSquash rule is present, the activity defaults NasUid to 0.
+	nasUidZero := int64(0)
+	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
+		UUID:   volume.VolumeAttributes.ExternalUUID,
+		NasUid: &nasUidZero,
+	}).Return(nil)
+
+	_, err := env.ExecuteActivity(act.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }

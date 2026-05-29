@@ -358,6 +358,10 @@ type CreateVolumeParams struct {
 	SecurityStyle       *string
 	QosPolicy           *string // Optional: QoS policy name to assign to the volume
 	UnixPermissions     *string
+	// AllSquashUid is the UNIX UID to assign to the volume NAS owner when AllSquash is enabled.
+	// ONTAP does not accept nas.uid during volume create, so CreateVolume issues a post-create
+	// VolumeModify to set it. Only populated when AllSquash is active and AnonUid is explicitly set.
+	AllSquashUid        *int64
 }
 
 type CreateFlexCacheVolumeParams struct {
@@ -483,6 +487,9 @@ type UpdateVolumeParams struct {
 	SnapshotDirectoryAccess *bool
 	QosPolicyName           *string // QoS policy group name to assign to volume. Use "none" to unassign (no policy). If nil, policy is not changed.
 	UnixPermissions         *string
+	// NasUid sets the volume NAS owner UID via nas.uid in ONTAP. Used when AllSquash is enabled
+	// to align the volume root directory inode UID with the squash target.
+	NasUid                  *int64
 }
 
 type UpdateFlexCacheVolumeParams struct {

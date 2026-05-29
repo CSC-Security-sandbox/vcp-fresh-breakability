@@ -136,6 +136,24 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		vol = getVol
 	}
 
+	// When AllSquash is enabled with an explicit AnonUid, ONTAP requires a post-create
+	// VolumeModify to assign nas.uid so the volume root directory inode reflects the correct
+	// owner UID. ONTAP does not accept nas.uid during volume create.
+	if params.AllSquashUid != nil {
+		success, job, modifyErr := client.Storage().VolumeModify(&ontapRest.VolumeModifyParams{
+			UUID:   *vol.UUID,
+			NasUid: params.AllSquashUid,
+		})
+		if modifyErr != nil {
+			return nil, fmt.Errorf("volume created but failed to set NAS UID for AllSquash: %w", modifyErr)
+		}
+		if !success && job != nil {
+			if modifyErr = client.Poll(job.JobUUID); modifyErr != nil {
+				return nil, fmt.Errorf("volume created but NAS UID job failed for AllSquash: %w", modifyErr)
+			}
+		}
+	}
+
 	// Return the created volume
 	volRes := &VolumeResponse{
 		ProviderResponse: ProviderResponse{
@@ -527,6 +545,10 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 
 	if params.UnixPermissions != nil {
 		volumeModifyParams.UnixPermissions = params.UnixPermissions
+	}
+
+	if params.NasUid != nil {
+		volumeModifyParams.NasUid = params.NasUid
 	}
 
 	err = handleVolumeCloudWriteModeDisableIfProvided(client, volumeModifyParams)

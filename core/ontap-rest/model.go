@@ -1254,6 +1254,7 @@ type VolumeModifyParams struct {
 	AntiRansomwareState            *string
 	TieringPolicy                  *TieringPolicy
 	EncryptionEnable               *bool
+	NasUid                         *int64
 }
 
 // FlexcacheModifyParams is the input param struct for storageClient.FlexcacheModify
@@ -1466,7 +1467,7 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 		info.Encryption = &models.VolumeInlineEncryption{Enabled: params.EncryptionEnable}
 	}
 
-	if params.ExportPolicy != nil || params.Path != nil || params.UnixPermissions != nil {
+	if params.ExportPolicy != nil || params.Path != nil || params.UnixPermissions != nil || params.NasUid != nil {
 		info.Nas = &models.VolumeInlineNas{}
 		if params.ExportPolicy != nil {
 			info.Nas.ExportPolicy = &models.VolumeInlineNasInlineExportPolicy{Name: params.ExportPolicy}
@@ -1478,6 +1479,9 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 			if unixPermissions, err := strconv.Atoi(*params.UnixPermissions); err == nil {
 				info.Nas.UnixPermissions = nillable.ToPointer(int64(unixPermissions))
 			}
+		}
+		if params.NasUid != nil {
+			info.Nas.UID = params.NasUid
 		}
 	}
 
@@ -4362,9 +4366,11 @@ func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams, trace log
 			ExportRulesInlineRoRule:    roRules,
 			ExportRulesInlineRwRule:    rwRules,
 			ExportRulesInlineSuperuser: superuser,
-			AnonymousUser:              &rule.AnonymousUser,
 			Protocols:                  protocols,
 			Index:                      &rule.Index,
+		}
+		if rule.AnonymousUser != "" {
+			rules[i].AnonymousUser = &rule.AnonymousUser
 		}
 	}
 
@@ -4438,8 +4444,10 @@ func exportPolicyModifyParamsToONTAP(params *ExportPolicyModifyParams) *nas.Expo
 			ExportRulesInlineRoRule:    roRule,
 			ExportRulesInlineRwRule:    rwRule,
 			ExportRulesInlineSuperuser: superuser,
-			AnonymousUser:              &rule.AnonymousUser,
 			Protocols:                  protocols,
+		}
+		if rule.AnonymousUser != "" {
+			rules[i].AnonymousUser = &rule.AnonymousUser
 		}
 	}
 

@@ -843,6 +843,32 @@ func TestVolumeModifyParamsToONTAP(t *testing.T) {
 			assert.Equal(tt, int64(755), *result.Info.Nas.UnixPermissions)
 		}
 	})
+
+	t.Run("WhenNasUidSet_ThenNasUidIsSet", func(tt *testing.T) {
+		uid := int64(2000)
+		params := &VolumeModifyParams{UUID: "uuid", NasUid: &uid}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Nas)
+		if assert.NotNil(tt, result.Info.Nas.UID) {
+			assert.Equal(tt, uid, *result.Info.Nas.UID)
+		}
+	})
+
+	t.Run("WhenNasUidZero_ThenNasUidIsSetToZero", func(tt *testing.T) {
+		uid := int64(0)
+		params := &VolumeModifyParams{UUID: "uuid", NasUid: &uid}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Nas)
+		if assert.NotNil(tt, result.Info.Nas.UID) {
+			assert.Equal(tt, int64(0), *result.Info.Nas.UID)
+		}
+	})
+
+	t.Run("WhenNasUidNil_ThenNasBlockNotCreatedForUidAlone", func(tt *testing.T) {
+		params := &VolumeModifyParams{UUID: "uuid"}
+		result := volumeModifyParamsToONTAP(params)
+		assert.Nil(tt, result.Info.Nas)
+	})
 }
 
 func TestVolumeUnmountParamsToONTAP(t *testing.T) {

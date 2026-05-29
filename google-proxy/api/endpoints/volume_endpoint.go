@@ -671,45 +671,69 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				}
 				if rule.HasRootAccess.IsSet() {
 					if val, ok := rule.HasRootAccess.Get(); ok {
-						exportRule.Superuser = (val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
-							val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn)
+						exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+							val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
 					}
 				}
 				if rule.AllSquash.IsSet() {
 					exportRule.AllSquash = nillable.ToPointer(rule.AllSquash.Value)
 				}
-				if rule.AnonUid.IsSet() {
-					exportRule.AnonUid = nillable.ToPointer(rule.AnonUid.Value)
-				}
-				exportRules = append(exportRules, exportRule)
-			}
-		} else {
-			// Fallback to old model if no new fields are set
-			for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
-				accessType, err := rule.AccessType.MarshalText()
-				if err != nil {
-					continue
-				}
-				exportRule := &models.ExportRule{
-					AllowedClients:      rule.GetAllowedClients(),
-					AccessType:          string(accessType),
-					NFSv3:               rule.Nfsv3.Value,
-					NFSv4:               rule.Nfsv4.Value,
-					Index:               index + 1, // adding 1 as 0 index is not supported by ontap
-					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly.Value,
-					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite.Value,
-					Kerberos5iReadOnly:  rule.Kerberos5iReadOnly.Value,
-					Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
-					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
-					Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
-				}
-				if rule.HasRootAccess.IsSet() {
-					if val, ok := rule.HasRootAccess.Get(); ok {
-						exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
-							val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
+				if rule.AllSquash.IsSet() && rule.AllSquash.Value {
+					exportRule.UnixReadOnly = false
+					exportRule.UnixReadWrite = true
+					exportRule.Superuser = false
+					if rule.AnonUid.IsSet() {
+						exportRule.AnonUid = nillable.ToPointer(rule.AnonUid.Value)
 					}
+			} else {
+				switch rule.AccessType {
+				case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
+					exportRule.UnixReadOnly = true
+				case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+					gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
+					exportRule.UnixReadWrite = true
+				case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
+					// No Unix access flags set; convertStorageExportPolicyRuleToONTAP emits never/never.
 				}
-				exportRules = append(exportRules, exportRule)
+			}
+			exportRules = append(exportRules, exportRule)
+		}
+	} else {
+		// Fallback to old model if no new fields are set
+		for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
+			accessType, err := rule.AccessType.MarshalText()
+			if err != nil {
+				continue
+			}
+			exportRule := &models.ExportRule{
+				AllowedClients:      rule.GetAllowedClients(),
+				AccessType:          string(accessType),
+				NFSv3:               rule.Nfsv3.Value,
+				NFSv4:               rule.Nfsv4.Value,
+				Index:               index + 1, // adding 1 as 0 index is not supported by ontap
+				Kerberos5ReadOnly:   rule.Kerberos5ReadOnly.Value,
+				Kerberos5ReadWrite:  rule.Kerberos5ReadWrite.Value,
+				Kerberos5iReadOnly:  rule.Kerberos5iReadOnly.Value,
+				Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
+				Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
+				Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
+			}
+			if rule.HasRootAccess.IsSet() {
+				if val, ok := rule.HasRootAccess.Get(); ok {
+					exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+						val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
+				}
+			}
+			switch rule.AccessType {
+			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
+				exportRule.UnixReadOnly = true
+			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+				gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
+				exportRule.UnixReadWrite = true
+			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
+				// No Unix access flags set; convertStorageExportPolicyRuleToONTAP emits never/never.
+			}
+			exportRules = append(exportRules, exportRule)
 			}
 		}
 		if len(exportRules) > exportRulesLimit {
@@ -1344,6 +1368,20 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 					exportRule.AnonUid = nillable.ToPointer(rule.AnonUid.Value)
 				}
 			}
+		if utils.IsAllSquashEnabled && rule.AllSquash.IsSet() && rule.AllSquash.Value {
+			exportRule.UnixReadWrite = true
+			exportRule.Superuser = false
+		} else {
+			switch rule.AccessType {
+			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY:
+				exportRule.UnixReadOnly = true
+			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+				gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED:
+				exportRule.UnixReadWrite = true
+			case gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE:
+				// No Unix access flags set; convertStorageExportPolicyRuleToONTAP emits never/never.
+			}
+		}
 			param.FileProperties.ExportPolicy.ExportRules = append(param.FileProperties.ExportPolicy.ExportRules, exportRule)
 		}
 		if len(param.FileProperties.ExportPolicy.ExportRules) > exportRulesLimit {

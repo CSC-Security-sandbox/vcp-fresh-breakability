@@ -1088,29 +1088,31 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
 					ExportPolicyName: req.Volume.CreationToken.Value,
-					ExportRules: []*models.ExportRule{
-						{
-							AllowedClients: "192.168.1.0/24",
-							AccessType:     "READ_WRITE",
-							NFSv3:          true,
-							NFSv4:          false,
-							Index:          1,
-						},
-						{
-							AllowedClients: "10.0.0.0/8",
-							AccessType:     "READ_ONLY",
-							NFSv3:          false,
-							NFSv4:          true,
-							Index:          2,
-						},
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "192.168.1.0/24",
+						AccessType:     "READ_WRITE",
+						NFSv3:          true,
+						NFSv4:          false,
+						Index:          1,
+						UnixReadWrite:  true,
+					},
+					{
+						AllowedClients: "10.0.0.0/8",
+						AccessType:     "READ_ONLY",
+						NFSv3:          false,
+						NFSv4:          true,
+						Index:          2,
+						UnixReadOnly:   true,
 					},
 				},
 			},
-		}
-		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
-		assert.NoError(tt, err)
-		assert.Equal(tt, expected, result)
-	})
+		},
+	}
+	result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
+	assert.NoError(tt, err)
+	assert.Equal(tt, expected, result)
+})
 
 	t.Run("ValidInputWithFilePropertiesAndExportRulesAllSquashEnabled", func(tt *testing.T) {
 		originalValue := utils.IsAllSquashEnabled
@@ -1183,14 +1185,18 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.True(tt, *rule1.AllSquash)
 		assert.NotNil(tt, rule1.AnonUid)
 		assert.Equal(tt, int64(1001), *rule1.AnonUid)
+		assert.True(tt, rule1.UnixReadWrite)
+		assert.False(tt, rule1.UnixReadOnly)
+		assert.False(tt, rule1.Superuser)
 
 		rule2 := result.FileProperties.ExportPolicy.ExportRules[1]
 		assert.Equal(tt, "10.0.0.0/8", rule2.AllowedClients)
 		assert.Equal(tt, "READ_ONLY", rule2.AccessType)
 		assert.NotNil(tt, rule2.AllSquash)
 		assert.False(tt, *rule2.AllSquash)
-		assert.NotNil(tt, rule2.AnonUid)
-		assert.Equal(tt, int64(0), *rule2.AnonUid)
+		assert.Nil(tt, rule2.AnonUid)
+		assert.True(tt, rule2.UnixReadOnly)
+		assert.False(tt, rule2.UnixReadWrite)
 	})
 
 	t.Run("ValidInputWithFilePropertiesAndExportRulesAllSquashEnabled_ValidationError", func(tt *testing.T) {
@@ -11669,14 +11675,20 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 		assert.True(tt, *rule1.AllSquash)
 		assert.NotNil(tt, rule1.AnonUid)
 		assert.Equal(tt, int64(1001), *rule1.AnonUid)
+		assert.True(tt, rule1.UnixReadWrite)
+		assert.False(tt, rule1.UnixReadOnly)
+		assert.False(tt, rule1.Superuser)
 
 		rule2 := result.FileProperties.ExportPolicy.ExportRules[1]
 		assert.Equal(tt, "10.0.0.0/8", rule2.AllowedClients)
 		assert.Equal(tt, "READ_ONLY", rule2.AccessType)
 		assert.NotNil(tt, rule2.AllSquash)
 		assert.False(tt, *rule2.AllSquash)
+		// AnonUid is forwarded for any rule that has it set in the request (update path)
 		assert.NotNil(tt, rule2.AnonUid)
 		assert.Equal(tt, int64(0), *rule2.AnonUid)
+		assert.True(tt, rule2.UnixReadOnly)
+		assert.False(tt, rule2.UnixReadWrite)
 	})
 
 	t.Run("ExportPolicy_WithAllSquashEnabled_ValidationError", func(tt *testing.T) {
@@ -16529,6 +16541,317 @@ func TestPrepareUpdateVolumeParams_ExportPolicyRules_WithinLimit_Succeeds(t *tes
 	assert.NotNil(t, result.FileProperties)
 	assert.NotNil(t, result.FileProperties.ExportPolicy)
 	assert.Len(t, result.FileProperties.ExportPolicy.ExportRules, 20)
+}
+
+func TestPrepareUpdateVolumeParams_ExportPolicyRules_AccessType_UnixFlags(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume",
+	}
+	region := "test-region"
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"NFSV3"},
+	}
+
+	t.Run("ReadWrite_SetsUnixReadWrite", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+				gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+							Nfsv3:          gcpgenserver.NewOptNilBool(true),
+						},
+					},
+				},
+			),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.NoError(tt, err)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 1)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.True(tt, rule.UnixReadWrite)
+		assert.False(tt, rule.UnixReadOnly)
+	})
+
+	t.Run("ReadOnly_SetsUnixReadOnly", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+				gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY,
+							Nfsv3:          gcpgenserver.NewOptNilBool(true),
+						},
+					},
+				},
+			),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.NoError(tt, err)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.True(tt, rule.UnixReadOnly)
+		assert.False(tt, rule.UnixReadWrite)
+	})
+
+	t.Run("AccessTypeUnspecified_SetsUnixReadWrite", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+				gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED,
+							Nfsv3:          gcpgenserver.NewOptNilBool(true),
+						},
+					},
+				},
+			),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.NoError(tt, err)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.True(tt, rule.UnixReadWrite)
+		assert.False(tt, rule.UnixReadOnly)
+	})
+
+	t.Run("ReadNone_DoesNotSetUnixFlags", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+				gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE,
+							Nfsv3:          gcpgenserver.NewOptNilBool(true),
+						},
+					},
+				},
+			),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.NoError(tt, err)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.False(tt, rule.UnixReadOnly)
+		assert.False(tt, rule.UnixReadWrite)
+	})
+}
+
+func TestPrepareUpdateVolumeParams_ExportPolicyRules_AllSquash_UnixFlags(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume",
+	}
+	region := "test-region"
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"NFSV3"},
+	}
+
+	t.Run("AllSquashTrue_SetsUnixReadWriteAndClearsSuperuser", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+				gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+							Nfsv3:          gcpgenserver.NewOptNilBool(true),
+							AllSquash:      gcpgenserver.NewOptNilBool(true),
+							AnonUid:        gcpgenserver.NewOptNilInt64(65534),
+						},
+					},
+				},
+			),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.NoError(tt, err)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 1)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.NotNil(tt, rule.AllSquash)
+		assert.True(tt, *rule.AllSquash)
+		assert.NotNil(tt, rule.AnonUid)
+		assert.Equal(tt, int64(65534), *rule.AnonUid)
+		assert.True(tt, rule.UnixReadWrite)
+		assert.False(tt, rule.UnixReadOnly)
+		assert.False(tt, rule.Superuser)
+	})
+
+	t.Run("AllSquashFalse_AccessTypeReadOnly_SetsUnixReadOnly_NoAnonUid", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+				gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY,
+							Nfsv3:          gcpgenserver.NewOptNilBool(true),
+							AllSquash:      gcpgenserver.NewOptNilBool(false),
+							// AnonUid intentionally not set — verify it stays nil in output
+						},
+					},
+				},
+			),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.NoError(tt, err)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.NotNil(tt, rule.AllSquash)
+		assert.False(tt, *rule.AllSquash)
+		assert.Nil(tt, rule.AnonUid)
+		assert.True(tt, rule.UnixReadOnly)
+		assert.False(tt, rule.UnixReadWrite)
+	})
+
+	t.Run("AllSquashEnabled_MixedRules_CorrectUnixFlagsPerRule", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+				gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+							Nfsv3:          gcpgenserver.NewOptNilBool(true),
+							AllSquash:      gcpgenserver.NewOptNilBool(true),
+							AnonUid:        gcpgenserver.NewOptNilInt64(1001),
+						},
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY,
+							Nfsv3:          gcpgenserver.NewOptNilBool(true),
+							AllSquash:      gcpgenserver.NewOptNilBool(false),
+						},
+					},
+				},
+			),
+		}
+		result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.NoError(tt, err)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 2)
+
+		allSquashRule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.True(tt, *allSquashRule.AllSquash)
+		assert.True(tt, allSquashRule.UnixReadWrite)
+		assert.False(tt, allSquashRule.UnixReadOnly)
+		assert.False(tt, allSquashRule.Superuser)
+		assert.Equal(tt, int64(1001), *allSquashRule.AnonUid)
+
+		readOnlyRule := result.FileProperties.ExportPolicy.ExportRules[1]
+		assert.False(tt, *readOnlyRule.AllSquash)
+		assert.True(tt, readOnlyRule.UnixReadOnly)
+		assert.False(tt, readOnlyRule.UnixReadWrite)
+		assert.Nil(tt, readOnlyRule.AnonUid)
+	})
+}
+
+// TestPrepareCreateVolumeParams_ExportPolicyRules_AccessType_UnixFlags tests that the
+// non-AllSquash (legacy) create path correctly derives UnixReadOnly/UnixReadWrite from AccessType.
+func TestPrepareCreateVolumeParams_ExportPolicyRules_AccessType_UnixFlags(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(false)
+
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	t.Run("ReadWrite_SetsUnixReadWrite", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+					gcpgenserver.ExportPolicyV1beta{
+						Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+							{
+								AllowedClients: "0.0.0.0/0",
+								AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+								Nfsv3:          gcpgenserver.NewOptNilBool(true),
+							},
+						},
+					},
+				),
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
+		assert.NoError(tt, err)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.True(tt, rule.UnixReadWrite)
+		assert.False(tt, rule.UnixReadOnly)
+	})
+
+	t.Run("ReadOnly_SetsUnixReadOnly", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+					gcpgenserver.ExportPolicyV1beta{
+						Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+							{
+								AllowedClients: "0.0.0.0/0",
+								AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY,
+								Nfsv3:          gcpgenserver.NewOptNilBool(true),
+							},
+						},
+					},
+				),
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
+		assert.NoError(tt, err)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.True(tt, rule.UnixReadOnly)
+		assert.False(tt, rule.UnixReadWrite)
+	})
+
+	t.Run("AccessTypeUnspecified_SetsUnixReadWrite", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+					gcpgenserver.ExportPolicyV1beta{
+						Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+							{
+								AllowedClients: "0.0.0.0/0",
+								AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED,
+								Nfsv3:          gcpgenserver.NewOptNilBool(true),
+							},
+						},
+					},
+				),
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
+		assert.NoError(tt, err)
+		rule := result.FileProperties.ExportPolicy.ExportRules[0]
+		assert.True(tt, rule.UnixReadWrite)
+		assert.False(tt, rule.UnixReadOnly)
+	})
 }
 
 // TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails tests lines 1316, 1318: error logging and dummy operation return when job lookup fails

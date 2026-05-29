@@ -89,6 +89,7 @@ const (
 
 	ReadWrite                       = "READ_WRITE"
 	ReadOnly                        = "READ_ONLY"
+	ReadNone                        = "READ_NONE"
 	AnyAccessProtocol               = "any"
 	NoneAccessProtocol              = "none"
 	ExportAuthenticationFlavorNever = "never"

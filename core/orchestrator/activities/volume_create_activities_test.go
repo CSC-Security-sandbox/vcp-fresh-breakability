@@ -4635,6 +4635,7 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 				{
 					AllowedClients: "10.0.0.0/8",
 					AccessType:     "ReadWrite",
+					UnixReadWrite:  true,
 				},
 			},
 		}
@@ -5079,6 +5080,124 @@ func TestCreateExportPolicyInOntap_PropagatesSquashFields(t *testing.T) {
 			}
 
 			assert.Equal(t, tc.wantAnonUser, got.AnonymousUser)
+		})
+	}
+}
+
+// TestCreateVolumeInONTAP_AllSquashUidPropagation verifies that the first AnonUid from an
+// AllSquash-enabled export rule is forwarded as AllSquashUid so CreateVolume can apply a
+// post-create nas.uid VolumeModify.
+func TestCreateVolumeInONTAP_AllSquashUidPropagation(t *testing.T) {
+	allSquashTrue := true
+	anonUid2000 := int64(2000)
+	anonUid0 := int64(0)
+
+	tests := []struct {
+		name             string
+		rules            []*datamodel.ExportRule
+		volumeType       string
+		wantAllSquashUid *int64
+	}{
+		{
+			name: "AllSquash_AnonUid2000_Propagated",
+			rules: []*datamodel.ExportRule{
+				{AllowedClients: "0.0.0.0/0", NFSv3: true, AllSquash: &allSquashTrue, AnonUid: &anonUid2000},
+			},
+			volumeType:       "rw",
+			wantAllSquashUid: &anonUid2000,
+		},
+		{
+			name: "AllSquash_AnonUid0_Propagated",
+			rules: []*datamodel.ExportRule{
+				{AllowedClients: "0.0.0.0/0", NFSv3: true, AllSquash: &allSquashTrue, AnonUid: &anonUid0},
+			},
+			volumeType:       "rw",
+			wantAllSquashUid: &anonUid0,
+		},
+		{
+			name: "NoAllSquash_AllSquashUidIsNil",
+			rules: []*datamodel.ExportRule{
+				{AllowedClients: "0.0.0.0/0", NFSv3: true, Superuser: true},
+			},
+			volumeType:       "rw",
+			wantAllSquashUid: nil,
+		},
+		{
+			name: "AllSquash_DataProtectionVolume_AllSquashUidIsNil",
+			rules: []*datamodel.ExportRule{
+				{AllowedClients: "0.0.0.0/0", NFSv3: true, AllSquash: &allSquashTrue, AnonUid: &anonUid2000},
+			},
+			volumeType:       "dp",
+			wantAllSquashUid: nil,
+		},
+		{
+			name: "MultipleRules_FirstAllSquashUidUsed",
+			rules: []*datamodel.ExportRule{
+				{AllowedClients: "10.0.0.0/8", NFSv3: true, AllSquash: &allSquashTrue, AnonUid: &anonUid2000},
+				{AllowedClients: "192.168.0.0/16", NFSv3: true, AllSquash: &allSquashTrue, AnonUid: &anonUid0},
+			},
+			volumeType:       "rw",
+			wantAllSquashUid: &anonUid2000,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testSuite := &testsuite.WorkflowTestSuite{}
+			env := testSuite.NewTestActivityEnvironment()
+
+			originalAllSquash := utils.IsAllSquashEnabled
+			utils.IsAllSquashEnabled = true
+			defer func() { utils.IsAllSquashEnabled = originalAllSquash }()
+
+			utils.SetFileProtocolSupportedForTesting(true)
+			defer utils.SetFileProtocolSupportedForTesting(false)
+
+			mockProvider := vsa.NewMockProvider(t)
+			originalGetProviderByNode := vsa.GetProviderByNode
+			defer func() { vsa.GetProviderByNode = originalGetProviderByNode }()
+			vsa.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				return mockProvider, nil
+			}
+
+			act := activities.VolumeCreateActivity{SE: database.NewMockStorage(t)}
+			env.RegisterActivity(act.CreateVolumeInONTAP)
+
+			isDP := tc.volumeType == "dp"
+			volume := &datamodel.Volume{
+				Name:    "test-volume",
+				Svm:     &datamodel.Svm{Name: "test-svm"},
+				Account: &datamodel.Account{Name: "test-account"},
+				Pool: &datamodel.Pool{
+					BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+				},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					IsDataProtection: isDP,
+					Protocols:        []string{"NFSV3"},
+					FileProperties: &datamodel.FileProperties{
+						JunctionPath: "/vol/test",
+						ExportPolicy: &datamodel.ExportPolicy{
+							ExportPolicyName: "test-policy",
+							ExportRules:      tc.rules,
+						},
+					},
+				},
+			}
+			node := &models.Node{}
+			expectedResponse := &vsa.VolumeResponse{
+				ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-allsquash"},
+			}
+
+			mockProvider.EXPECT().CreateVolume(mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+				if tc.wantAllSquashUid == nil {
+					return params.AllSquashUid == nil
+				}
+				return params.AllSquashUid != nil && *params.AllSquashUid == *tc.wantAllSquashUid
+			})).Return(expectedResponse, nil)
+
+			_, err := env.ExecuteActivity(act.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+			assert.NoError(t, err)
+			mockProvider.AssertExpectations(t)
 		})
 	}
 }

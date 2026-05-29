@@ -27,10 +27,11 @@ const (
 )
 
 var (
-	prepareFieldsForUpdate        = getUpdatedFieldsFromParams
-	HostGroupsUpdateDiffForVolume = _hostGroupsUpdateDiffForVolume
-	getHostGroup                  = _getHostGroup
-	applyFlexCacheParameters      = _applyFlexCacheParameters
+	prepareFieldsForUpdate                 = getUpdatedFieldsFromParams
+	HostGroupsUpdateDiffForVolume          = _hostGroupsUpdateDiffForVolume
+	getHostGroup                           = _getHostGroup
+	applyFlexCacheParameters               = _applyFlexCacheParameters
+	isAllSquashExistInPreviousExportPolicy = _isAllSquashExistInPreviousExportPolicy
 )
 
 type VolumeUpdateActivity struct {
@@ -767,6 +768,7 @@ func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Contex
 		ExportRules:      make([]*vsa.ExportRule, 0, len(exportPolicy.ExportRules)),
 	}
 
+	var allSquashUid *int64
 	for _, rule := range exportPolicy.ExportRules {
 		vsaRule := &vsa.ExportRule{
 			AllowedClients:      rule.AllowedClients,
@@ -787,10 +789,18 @@ func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Contex
 			Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
 			Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
 			Superuser:           rule.Superuser,
+			AllSquash:           rule.AllSquash,
+			AnonUid:             rule.AnonUid,
+		}
+		if utils.IsAllSquashEnabled && rule.AllSquash != nil && *rule.AllSquash && rule.AnonUid != nil && allSquashUid == nil {
+			allSquashUid = rule.AnonUid
 		}
 		vsaExportPolicy.ExportRules = append(vsaExportPolicy.ExportRules, vsaRule)
 	}
-
+	if allSquashUid == nil && exportPolicy.ExportRules != nil {
+		defaultUserID := int64(0)
+		allSquashUid = &defaultUserID
+	}
 	err = provider.UpdateExportPolicyRules(vsa.UpdateExportPolicyRulesParams{
 		VolumeName:   volume.Name,
 		SvmName:      volume.Svm.Name,
@@ -801,9 +811,35 @@ func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Contex
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	// When AllSquash is enabled, align the volume NAS owner UID (nas.uid) with the AnonUid so
+	// the volume root directory inode reflects the correct owner for squashed clients.
+	if allSquashUid != nil {
+		err = provider.UpdateVolume(vsa.UpdateVolumeParams{
+			UUID:   volume.VolumeAttributes.ExternalUUID,
+			NasUid: allSquashUid,
+		})
+		if err != nil {
+			logger.Errorf("Failed to set NAS UID for AllSquash on volume %s in ONTAP: %v", volume.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		logger.Infof("NAS UID set to %d for AllSquash on volume %s", *allSquashUid, volume.Name)
+	}
+
 	activity.RecordHeartbeat(ctx, "Finished UpdateExportPolicyRulesInONTAP activity")
 	logger.Debugf("Export policy updated successfully for volume %s in ONTAP", volume.Name)
 	return nil
+}
+
+func _isAllSquashExistInPreviousExportPolicy(volume *datamodel.Volume) bool {
+	if volume != nil && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil &&
+		volume.VolumeAttributes.FileProperties.ExportPolicy != nil && len(volume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules) > 0 {
+		for _, rule := range volume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules {
+			if rule.AllSquash != nil && *rule.AllSquash {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (a *VolumeUpdateActivity) UpdateSMBShareSettings(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams, node *models.Node) error {

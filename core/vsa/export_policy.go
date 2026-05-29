@@ -27,6 +27,12 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 	var roRules, rwRules string
 	roRules = models.ExportAuthenticationFlavorSys
 	rwRules = models.ExportAuthenticationFlavorAny
+
+	accessUnixRead := rule.UnixReadOnly || rule.UnixReadWrite
+	if accessUnixRead {
+		roRules = models.ExportAuthenticationFlavorSys
+		rwRules = models.ExportAuthenticationFlavorSys
+	}
 	if utils.IsRuleKerberosSupported(rule.NFSv4, rule.Kerberos5ReadWrite, rule.Kerberos5ReadOnly, rule.Kerberos5pReadWrite,
 		rule.Kerberos5pReadOnly, rule.Kerberos5iReadOnly, rule.Kerberos5iReadWrite) {
 		roRules, rwRules = convertStorageExportPolicyAuthenticationFlavorToONTAP(rule)
@@ -41,8 +47,7 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 	if rule.Superuser {
 		superUserRule = models.ExportAuthenticationFlavorAny
 	}
-	anonUser := models.RootAnonymousUser
-
+	var anonUser string
 	// When AllSquash is enabled, AnonUid takes precedence (even if it's 0, which is a valid root UID)
 	// Validation ensures AnonUid is required when AllSquash is true, so we can trust it's explicitly set
 	if utils.IsAllSquashEnabled && rule.AllSquash != nil && *rule.AllSquash {
@@ -56,12 +61,19 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 		anonUser = rule.AnonymousUser
 	}
 
+	// READ_NONE means the client should be denied all access; emit never for
+	// both ro and rw regardless of protocol flags or other access settings.
+	if rule.AccessType == models.ReadNone {
+		roRules = models.ExportAuthenticationFlavorNever
+		rwRules = models.ExportAuthenticationFlavorNever
+	}
+
 	chownMode := models.ChownModeRestricted
 	if rule.ChownMode != "" {
 		chownMode = rule.ChownMode
 	}
 
-	return &ontapRest.ExportRule{
+	exportPolicyRule := &ontapRest.ExportRule{
 		ClientMatch:      rule.AllowedClients,
 		ChownMode:        chownMode,
 		ReadOnlyRule:     roRules,
@@ -70,8 +82,11 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 		Index:            int64(rule.Index),
 		NtfsUnixSecurity: models.IgnoreNtfsUnixSecurity,
 		Protocols:        protocols,
-		AnonymousUser:    anonUser,
 	}
+	if anonUser != "" {
+		exportPolicyRule.AnonymousUser = anonUser
+	}
+	return exportPolicyRule
 }
 
 func isDefaultRule(rule *ontaprestmodels.ExportRules) bool {
