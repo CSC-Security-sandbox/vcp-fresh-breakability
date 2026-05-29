@@ -2841,8 +2841,8 @@ $IMPORT_OUT"
   # to temp files and read from Python, avoiding shell-to-Python injection via
   # the unquoted heredoc. This prevents Python-hostile chars (quotes, backslashes)
   # in PR titles or config patterns from crashing the heredoc (Finding-3.2).
-  echo "$BUILD_OUTPUT" | tail -n 50 > "/tmp/_bc_build_out_${PR_NUM}.txt"
-  echo "$TEST_OUTPUT" | tail -n 30 > "/tmp/_bc_test_out_${PR_NUM}.txt"
+  echo "$BUILD_OUTPUT" | tail -n 80 > "/tmp/_bc_build_out_${PR_NUM}.txt"
+  echo "$TEST_OUTPUT" | tail -n 80 > "/tmp/_bc_test_out_${PR_NUM}.txt"
   echo "$NEW_ERRORS" > "/tmp/_bc_new_errors_${PR_NUM}.txt"
   printf '%s' "${GOSUM_NEW_COUNT:-0}" > "/tmp/_bc_gosum_new_${PR_NUM}.txt"
   printf '%s' "${GOSUM_NEW_NAMES:-}" > "/tmp/_bc_gosum_names_${PR_NUM}.txt"

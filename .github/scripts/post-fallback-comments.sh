@@ -217,6 +217,8 @@ print(json.dumps({
     'output_tail':  build.get('output_tail', ''),
     'test_ran':     test.get('ran', False),
     'test_exit':    test.get('exit', -1),
+    'test_output_tail': test.get('output_tail', ''),
+    'main_test_exit': test.get('main_test_exit', -1),
     'verification_label': pr.get('verification_label', ''),
     'files_importing': pr.get('files_importing', []),
     'cves':         pr.get('cves', []),
@@ -270,6 +272,8 @@ fields = {
     'VULN_NEW_COUNT': str(len(d.get('vuln_new_findings', []))),
     'VULN_NEW_LIST': ','.join(d.get('vuln_new_findings', [])),
     'VULN_PREEXISTING_COUNT': str(d.get('vuln_preexisting_count', 0)),
+    'VULN_EVIDENCE': (lambda f: '\n'.join(f.splitlines()[:10]) if f else '')(d.get('vuln_finding', '')),
+    'TEST_SUMMARY': (lambda t: '\n'.join(l for l in t.splitlines() if 'ok' in l.lower() or 'PASS' in l or 'FAIL' in l or 'pass' in l or '--- PASS' in l or 'passed' in l or 'failed' in l or 'tests' in l.lower())[:500] if t else '')(d.get('test_output_tail', '')),
     'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
     'TEST_FAIL_DETAIL': next((s.get('detail','') for s in d.get('verification_steps',[]) if s.get('step')=='test_suite' and s.get('status')=='pre_existing'), ''),
     'BUILD_EXIT': str(d.get('main_exit', -1)),  # pr_exit not in flattened d
@@ -323,6 +327,8 @@ for k, v in fields.items():
   TEST_EXIT_CODE=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_EXIT_CODE=' | cut -d= -f2-)
   BUILD_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_EVIDENCE=' | cut -d= -f2-)
   BUILD_DIRS=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_DIRS=' | cut -d= -f2-)
+  VULN_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_EVIDENCE=' | cut -d= -f2-)
+  TEST_SUMMARY=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_SUMMARY=' | cut -d= -f2-)
   FILES_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_LIST=' | cut -d= -f2-)
 
   # CVE extraction — core security data
