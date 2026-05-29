@@ -50,7 +50,6 @@ type OCICreatePoolVMMetadata struct {
 	SerialNumber    string
 	VSAManagementIP string
 	InterclusterIP  string
-	NodeIP          string
 	HAPair          string
 	IOPS            int64
 	ThroughputGBps  float64
@@ -71,6 +70,7 @@ type OCICreatePoolCredentialsMetadata struct {
 
 type OCICreatePoolMetadata struct {
 	PoolUUID  string                    `json:"poolUUID,omitempty"`
+	PoolOCID  string                    `json:"poolOCID,omitempty"`
 	ClusterIP string                    `json:"clusterIP,omitempty"`
 	Vms       []OCICreatePoolVMMetadata `json:"vms,omitempty"`
 	// Credentials surfaces OCI Vault references captured from the
@@ -267,6 +267,7 @@ func getCompletedWorkflowMetadata(ctx context.Context, svc historyFetcher, names
 			if childMeta := vsaClusterChildMetadataFromPayloads(a.GetResult().GetPayloads()); childMeta != nil {
 				m := ensurePoolMeta()
 				m.PoolUUID = childMeta.PoolUUID
+				m.PoolOCID = childMeta.PoolOCID
 				m.ClusterIP = childMeta.ClusterIP
 				m.Vms = childMeta.Vms
 			}

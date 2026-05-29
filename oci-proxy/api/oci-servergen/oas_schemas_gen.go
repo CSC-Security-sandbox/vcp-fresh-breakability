@@ -152,9 +152,6 @@ type CreatePoolRequest struct {
 	// Number of data endpoints to provision for the pool. Must be >= 2
 	// and a multiple of 2.
 	DataEndpointCount int64 `json:"dataEndpointCount"`
-	// Optional per-node capacity and performance configuration. When provided, must
-	// contain an even number of entries — exactly 2 per HA pair.
-	DataEndpointConfig []DataEndpointConfig `json:"dataEndpointConfig"`
 	// Availability domain for the primary HA node (e.g. IMtu:EU-FRANKFURT-1-AD-1).
 	PrimaryAvailabilityDomain string `json:"primaryAvailabilityDomain"`
 	// Availability domain for the secondary HA node. Required for HA deployments.
@@ -178,6 +175,10 @@ type CreatePoolRequest struct {
 	// VNICs. When omitted or empty, no NSGs are attached and only subnet-level
 	// security rules apply.
 	NsgIds []string `json:"nsgIds"`
+	// Optional OCI Zero Trust Packet Routing (ZPR) security attributes to
+	// apply to the pool's VNICs at deploy time. Namespaces and attribute
+	// keys referenced here must already exist in the tenancy.
+	SecurityAttributes OptSecurityAttributes `json:"securityAttributes"`
 }
 
 // GetPoolOCID returns the value of PoolOCID.
@@ -213,11 +214,6 @@ func (s *CreatePoolRequest) GetThroughputGBps() float64 {
 // GetDataEndpointCount returns the value of DataEndpointCount.
 func (s *CreatePoolRequest) GetDataEndpointCount() int64 {
 	return s.DataEndpointCount
-}
-
-// GetDataEndpointConfig returns the value of DataEndpointConfig.
-func (s *CreatePoolRequest) GetDataEndpointConfig() []DataEndpointConfig {
-	return s.DataEndpointConfig
 }
 
 // GetPrimaryAvailabilityDomain returns the value of PrimaryAvailabilityDomain.
@@ -265,6 +261,11 @@ func (s *CreatePoolRequest) GetNsgIds() []string {
 	return s.NsgIds
 }
 
+// GetSecurityAttributes returns the value of SecurityAttributes.
+func (s *CreatePoolRequest) GetSecurityAttributes() OptSecurityAttributes {
+	return s.SecurityAttributes
+}
+
 // SetPoolOCID sets the value of PoolOCID.
 func (s *CreatePoolRequest) SetPoolOCID(val string) {
 	s.PoolOCID = val
@@ -298,11 +299,6 @@ func (s *CreatePoolRequest) SetThroughputGBps(val float64) {
 // SetDataEndpointCount sets the value of DataEndpointCount.
 func (s *CreatePoolRequest) SetDataEndpointCount(val int64) {
 	s.DataEndpointCount = val
-}
-
-// SetDataEndpointConfig sets the value of DataEndpointConfig.
-func (s *CreatePoolRequest) SetDataEndpointConfig(val []DataEndpointConfig) {
-	s.DataEndpointConfig = val
 }
 
 // SetPrimaryAvailabilityDomain sets the value of PrimaryAvailabilityDomain.
@@ -348,6 +344,11 @@ func (s *CreatePoolRequest) SetKmsKeyId(val OptString) {
 // SetNsgIds sets the value of NsgIds.
 func (s *CreatePoolRequest) SetNsgIds(val []string) {
 	s.NsgIds = val
+}
+
+// SetSecurityAttributes sets the value of SecurityAttributes.
+func (s *CreatePoolRequest) SetSecurityAttributes(val OptSecurityAttributes) {
+	s.SecurityAttributes = val
 }
 
 type CreatePoolTooManyRequests PoolOperationErrorResponseHeaders
@@ -551,47 +552,6 @@ func (s *CreateSvmRequest) SetSvmAdminPassword(val OCIOCIDVersionRef) {
 // SetIps sets the value of Ips.
 func (s *CreateSvmRequest) SetIps(val []string) {
 	s.Ips = val
-}
-
-// Per-node capacity and performance configuration.
-// Ref: #/components/schemas/DataEndpointConfig
-type DataEndpointConfig struct {
-	// Capacity for this node in GiB. Typically a multiple of 1 TiB.
-	SizeInGiB int64 `json:"sizeInGiB"`
-	// Throughput for this node in GBps.
-	ThroughputGBps float64 `json:"throughputGBps"`
-	// IOPS for the node.
-	Iops int64 `json:"iops"`
-}
-
-// GetSizeInGiB returns the value of SizeInGiB.
-func (s *DataEndpointConfig) GetSizeInGiB() int64 {
-	return s.SizeInGiB
-}
-
-// GetThroughputGBps returns the value of ThroughputGBps.
-func (s *DataEndpointConfig) GetThroughputGBps() float64 {
-	return s.ThroughputGBps
-}
-
-// GetIops returns the value of Iops.
-func (s *DataEndpointConfig) GetIops() int64 {
-	return s.Iops
-}
-
-// SetSizeInGiB sets the value of SizeInGiB.
-func (s *DataEndpointConfig) SetSizeInGiB(val int64) {
-	s.SizeInGiB = val
-}
-
-// SetThroughputGBps sets the value of ThroughputGBps.
-func (s *DataEndpointConfig) SetThroughputGBps(val float64) {
-	s.ThroughputGBps = val
-}
-
-// SetIops sets the value of Iops.
-func (s *DataEndpointConfig) SetIops(val int64) {
-	s.Iops = val
 }
 
 // Ref: #/components/schemas/DeletePoolAcceptedResponse
@@ -1246,11 +1206,18 @@ func (s *OCICreatePoolWorkflowCredentials) SetCertificate(val OCIOCIDVersionRef)
 
 // Ref: #/components/schemas/OCICreatePoolWorkflowMetadata
 type OCICreatePoolWorkflowMetadata struct {
+	// OCI pool resource OCID.
+	PoolOCID string `json:"poolOCID"`
 	// RBAC LIF IP for the cluster.
 	ClusterIP OptString `json:"clusterIP"`
 	// VM metadata for OCI pool nodes.
 	Vms         []OCICreatePoolWorkflowVM        `json:"vms"`
 	Credentials OCICreatePoolWorkflowCredentials `json:"credentials"`
+}
+
+// GetPoolOCID returns the value of PoolOCID.
+func (s *OCICreatePoolWorkflowMetadata) GetPoolOCID() string {
+	return s.PoolOCID
 }
 
 // GetClusterIP returns the value of ClusterIP.
@@ -1266,6 +1233,11 @@ func (s *OCICreatePoolWorkflowMetadata) GetVms() []OCICreatePoolWorkflowVM {
 // GetCredentials returns the value of Credentials.
 func (s *OCICreatePoolWorkflowMetadata) GetCredentials() OCICreatePoolWorkflowCredentials {
 	return s.Credentials
+}
+
+// SetPoolOCID sets the value of PoolOCID.
+func (s *OCICreatePoolWorkflowMetadata) SetPoolOCID(val string) {
+	s.PoolOCID = val
 }
 
 // SetClusterIP sets the value of ClusterIP.
@@ -1293,14 +1265,12 @@ type OCICreatePoolWorkflowVM struct {
 	VsaManagementIP string `json:"vsaManagementIP"`
 	// Intercluster IP address for this VM.
 	InterclusterIP string `json:"interclusterIP"`
-	// Node management internal IP address for this VM.
-	NodeIP string `json:"nodeIP"`
 	// UUID of the corresponding node.
 	NodeUUID string `json:"nodeUUID"`
-	// Identifier of the HA pair this VM belongs to within the pool's
-	// VLM config, formatted as `ha_pair-<index>` where `<index>` is the
-	// zero-based position of the pair in `cloud.ha_pair`
-	// (e.g. `ha_pair-0`, `ha_pair-1`).
+	// Identifier of the HA pair this VM belongs to within the pool,
+	// formatted as `ha_pair-<index>` where `<index>` is **1-based**
+	// (e.g. `ha_pair-1`, `ha_pair-2`). The first HA pair is
+	// `ha_pair-1`. Both VMs in the same HA pair share this label.
 	HaPair string `json:"haPair"`
 	// Aggregated capacity for this VM in GiB, computed as the sum of
 	// `size` across all entries in the VM's `data_disks` from VLM config.
@@ -1332,11 +1302,6 @@ func (s *OCICreatePoolWorkflowVM) GetVsaManagementIP() string {
 // GetInterclusterIP returns the value of InterclusterIP.
 func (s *OCICreatePoolWorkflowVM) GetInterclusterIP() string {
 	return s.InterclusterIP
-}
-
-// GetNodeIP returns the value of NodeIP.
-func (s *OCICreatePoolWorkflowVM) GetNodeIP() string {
-	return s.NodeIP
 }
 
 // GetNodeUUID returns the value of NodeUUID.
@@ -1382,11 +1347,6 @@ func (s *OCICreatePoolWorkflowVM) SetVsaManagementIP(val string) {
 // SetInterclusterIP sets the value of InterclusterIP.
 func (s *OCICreatePoolWorkflowVM) SetInterclusterIP(val string) {
 	s.InterclusterIP = val
-}
-
-// SetNodeIP sets the value of NodeIP.
-func (s *OCICreatePoolWorkflowVM) SetNodeIP(val string) {
-	s.NodeIP = val
 }
 
 // SetNodeUUID sets the value of NodeUUID.
@@ -1851,6 +1811,52 @@ func (o OptRbacRefreshRequest) Or(d RbacRefreshRequest) RbacRefreshRequest {
 	return d
 }
 
+// NewOptSecurityAttributes returns new OptSecurityAttributes with value set to v.
+func NewOptSecurityAttributes(v SecurityAttributes) OptSecurityAttributes {
+	return OptSecurityAttributes{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSecurityAttributes is optional SecurityAttributes.
+type OptSecurityAttributes struct {
+	Value SecurityAttributes
+	Set   bool
+}
+
+// IsSet returns true if OptSecurityAttributes was set.
+func (o OptSecurityAttributes) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSecurityAttributes) Reset() {
+	var v SecurityAttributes
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSecurityAttributes) SetTo(v SecurityAttributes) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSecurityAttributes) Get() (v SecurityAttributes, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSecurityAttributes) Or(d SecurityAttributes) SecurityAttributes {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -1937,52 +1943,6 @@ func (o OptTieringConfig) Get() (v TieringConfig, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptTieringConfig) Or(d TieringConfig) TieringConfig {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptUpdatePoolRequestSecurityAttributes returns new OptUpdatePoolRequestSecurityAttributes with value set to v.
-func NewOptUpdatePoolRequestSecurityAttributes(v UpdatePoolRequestSecurityAttributes) OptUpdatePoolRequestSecurityAttributes {
-	return OptUpdatePoolRequestSecurityAttributes{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptUpdatePoolRequestSecurityAttributes is optional UpdatePoolRequestSecurityAttributes.
-type OptUpdatePoolRequestSecurityAttributes struct {
-	Value UpdatePoolRequestSecurityAttributes
-	Set   bool
-}
-
-// IsSet returns true if OptUpdatePoolRequestSecurityAttributes was set.
-func (o OptUpdatePoolRequestSecurityAttributes) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptUpdatePoolRequestSecurityAttributes) Reset() {
-	var v UpdatePoolRequestSecurityAttributes
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptUpdatePoolRequestSecurityAttributes) SetTo(v UpdatePoolRequestSecurityAttributes) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptUpdatePoolRequestSecurityAttributes) Get() (v UpdatePoolRequestSecurityAttributes, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptUpdatePoolRequestSecurityAttributes) Or(d UpdatePoolRequestSecurityAttributes) UpdatePoolRequestSecurityAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2235,6 +2195,111 @@ func (s *RbacRefreshRequest) GetRbacFilePath() OptString {
 // SetRbacFilePath sets the value of RbacFilePath.
 func (s *RbacRefreshRequest) SetRbacFilePath(val OptString) {
 	s.RbacFilePath = val
+}
+
+// Ref: #/components/schemas/SecurityAttributeValue
+type SecurityAttributeValue struct {
+	// Attribute value. Must satisfy the validator (if any) configured on
+	// the security-attribute key in the tenancy.
+	Value string `json:"value"`
+	// Enforcement mode for this attribute.
+	Mode SecurityAttributeValueMode `json:"mode"`
+}
+
+// GetValue returns the value of Value.
+func (s *SecurityAttributeValue) GetValue() string {
+	return s.Value
+}
+
+// GetMode returns the value of Mode.
+func (s *SecurityAttributeValue) GetMode() SecurityAttributeValueMode {
+	return s.Mode
+}
+
+// SetValue sets the value of Value.
+func (s *SecurityAttributeValue) SetValue(val string) {
+	s.Value = val
+}
+
+// SetMode sets the value of Mode.
+func (s *SecurityAttributeValue) SetMode(val SecurityAttributeValueMode) {
+	s.Mode = val
+}
+
+// Enforcement mode for this attribute.
+type SecurityAttributeValueMode string
+
+const (
+	SecurityAttributeValueModeEnforce SecurityAttributeValueMode = "enforce"
+	SecurityAttributeValueModeAudit   SecurityAttributeValueMode = "audit"
+)
+
+// AllValues returns all SecurityAttributeValueMode values.
+func (SecurityAttributeValueMode) AllValues() []SecurityAttributeValueMode {
+	return []SecurityAttributeValueMode{
+		SecurityAttributeValueModeEnforce,
+		SecurityAttributeValueModeAudit,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SecurityAttributeValueMode) MarshalText() ([]byte, error) {
+	switch s {
+	case SecurityAttributeValueModeEnforce:
+		return []byte(s), nil
+	case SecurityAttributeValueModeAudit:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SecurityAttributeValueMode) UnmarshalText(data []byte) error {
+	switch SecurityAttributeValueMode(data) {
+	case SecurityAttributeValueModeEnforce:
+		*s = SecurityAttributeValueModeEnforce
+		return nil
+	case SecurityAttributeValueModeAudit:
+		*s = SecurityAttributeValueModeAudit
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// OCI Zero Trust Packet Routing (ZPR) security attributes
+// Example payload:
+// ```
+// "vcp_zpr": {
+// "ns1": {
+// "value": "{\"app\": {\"value\": \"app1\", \"mode\": \"enforce\"}}",
+// "mode": "enforce"
+// }
+// }
+// ```.
+// Ref: #/components/schemas/SecurityAttributes
+type SecurityAttributes map[string]SecurityAttributesItem
+
+func (s *SecurityAttributes) init() SecurityAttributes {
+	m := *s
+	if m == nil {
+		m = map[string]SecurityAttributesItem{}
+		*s = m
+	}
+	return m
+}
+
+// Map of attribute name to attribute value+mode for one namespace.
+type SecurityAttributesItem map[string]SecurityAttributeValue
+
+func (s *SecurityAttributesItem) init() SecurityAttributesItem {
+	m := *s
+	if m == nil {
+		m = map[string]SecurityAttributeValue{}
+		*s = m
+	}
+	return m
 }
 
 // StandardError400Headers wraps Error with response headers.
@@ -2808,8 +2873,8 @@ type UpdatePoolRequest struct {
 	KmsKeyId OptString `json:"kmsKeyId"`
 	// Updated list of Network Security Group OCIDs.
 	NsgIds []string `json:"nsgIds"`
-	// Updated security attributes as key-value pairs.
-	SecurityAttributes OptUpdatePoolRequestSecurityAttributes `json:"securityAttributes"`
+	// Updated OCI Zero Trust Packet Routing (ZPR) security attributes.
+	SecurityAttributes OptSecurityAttributes `json:"securityAttributes"`
 }
 
 // GetThroughputGBps returns the value of ThroughputGBps.
@@ -2848,7 +2913,7 @@ func (s *UpdatePoolRequest) GetNsgIds() []string {
 }
 
 // GetSecurityAttributes returns the value of SecurityAttributes.
-func (s *UpdatePoolRequest) GetSecurityAttributes() OptUpdatePoolRequestSecurityAttributes {
+func (s *UpdatePoolRequest) GetSecurityAttributes() OptSecurityAttributes {
 	return s.SecurityAttributes
 }
 
@@ -2888,20 +2953,8 @@ func (s *UpdatePoolRequest) SetNsgIds(val []string) {
 }
 
 // SetSecurityAttributes sets the value of SecurityAttributes.
-func (s *UpdatePoolRequest) SetSecurityAttributes(val OptUpdatePoolRequestSecurityAttributes) {
+func (s *UpdatePoolRequest) SetSecurityAttributes(val OptSecurityAttributes) {
 	s.SecurityAttributes = val
-}
-
-// Updated security attributes as key-value pairs.
-type UpdatePoolRequestSecurityAttributes map[string]string
-
-func (s *UpdatePoolRequestSecurityAttributes) init() UpdatePoolRequestSecurityAttributes {
-	m := *s
-	if m == nil {
-		m = map[string]string{}
-		*s = m
-	}
-	return m
 }
 
 type UpdatePoolUnauthorized PoolOperationErrorResponseHeaders

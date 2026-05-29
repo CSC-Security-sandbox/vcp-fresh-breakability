@@ -29,6 +29,7 @@ func vsaClusterChildMetadataFromPayloads(payloads []*commonpb.Payload) *OCICreat
 
 	return &OCICreatePoolMetadata{
 		PoolUUID:  poolUUIDFromEmbed(&ipCfg),
+		PoolOCID:  poolOCIDFromEmbed(&ipCfg),
 		ClusterIP: clusterIPFromEmbed(&ipCfg),
 		Vms:       poolVMMetadataFromEmbed(&ipCfg),
 	}

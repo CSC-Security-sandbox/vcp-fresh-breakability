@@ -77,14 +77,7 @@ paths:
               compartmentOCID: "ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a"
               displayName: "my-pool"
               subnetId: "ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q"
-              dataEndpointConfig:
-                - sizeInGiB: 512
-                  throughputGBps: 0.5
-                  iops: 1500
-                - sizeInGiB: 512
-                  throughputGBps: 0.5
-                  iops: 1500
-              dataEndpointCount: 2              
+              dataEndpointCount: 2             
               dataNicSubnetId: "ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q"
               sizeInGiB: 100
               throughputGBps: 1
@@ -95,7 +88,19 @@ paths:
                 ocid: "ocid1.vaultsecret.oc1.eu-frankfurt-1.amaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 version: "1"
               description: "Demo pool"
-              serialNumberPrefix: "955000000000000000"
+              tieringConfig:
+                secretId: "ocid1.vaultsecret.oc1.iad.amaaaaaarxzkjlqamulqwys7yr7eeb54qvikfm2bbse2mhb6ppnrpqubcphq"
+                namespace: "idqogasfjw45"
+                bucketName: "bucket-aryan-test"
+                serverName: "idqogasfjw45.compat.objectstorage.us-ashburn-1.oci.customer-oci.com"
+              kmsKeyId: "ocid1.key.oc1.iad.ejvajdx5aagmc.abuwcljt26qjxtpyslr24wabrj3cpqeihlodtn5t6qlram6iaz3ewtqditpq"
+              nsgIds:
+                - "ocid1.networksecuritygroup.oc1.iad.aaaaaaaadzz64gbsfmoiord6fd726eeq6mib7hnvzmeoxro2c3hssnn35bva"
+              securityAttributes:
+                vcp_zpr:
+                  ns1:
+                    value: '{"app": {"value": "app1", "mode": "enforce"}}'
+                    mode: "enforce"
       responses:
         "202":
           description: Accepted. Pool creation in progress.
@@ -948,10 +953,45 @@ components:
             type: string
           description: Updated list of Network Security Group OCIDs.
         securityAttributes:
-          type: object
-          additionalProperties:
-            type: string
-          description: Updated security attributes as key-value pairs.
+          $ref: '#/components/schemas/SecurityAttributes'
+          description: |
+            Updated OCI Zero Trust Packet Routing (ZPR) security attributes
+
+    SecurityAttributes:
+      type: object
+      description: |
+        OCI Zero Trust Packet Routing (ZPR) security attributes
+
+        Example payload:
+        ```
+        "vcp_zpr": {
+            "ns1": {
+                "value": "{\"app\": {\"value\": \"app1\", \"mode\": \"enforce\"}}",
+                "mode": "enforce"
+            }
+        }
+        ```
+      additionalProperties:
+        type: object
+        description: Map of attribute name to attribute value+mode for one namespace.
+        additionalProperties:
+          $ref: '#/components/schemas/SecurityAttributeValue'
+
+    SecurityAttributeValue:
+      type: object
+      required:
+        - value
+        - mode 
+      properties:
+        value:
+          type: string
+          description: |
+            Attribute value. Must satisfy the validator (if any) configured on
+            the security-attribute key in the tenancy.
+        mode:
+          type: string
+          enum: [enforce, audit]
+          description: Enforcement mode for this attribute
 
     NodeCapacity:
       type: object
@@ -1168,27 +1208,6 @@ components:
           type: string
           description: Pool OCID for the requested pool.
 
-    DataEndpointConfig:
-      type: object
-      description: Per-node capacity and performance configuration.
-      required:
-        - sizeInGiB
-        - throughputGBps
-        - iops
-      properties:
-        sizeInGiB:
-          type: integer
-          format: int64
-          description: Capacity for this node in GiB. Typically a multiple of 1 TiB.
-        throughputGBps:
-          type: number
-          format: double
-          description: Throughput for this node in GBps.
-        iops:
-          type: integer
-          format: int64
-          description: IOPS for the node.
-
     TieringConfig:
       type: object
       description: |
@@ -1262,14 +1281,6 @@ components:
           description: |
             Number of data endpoints to provision for the pool. Must be >= 2
             and a multiple of 2
-        dataEndpointConfig:
-          type: array
-          minItems: 2
-          description: |
-            Optional per-node capacity and performance configuration. When provided, must
-            contain an even number of entries — exactly 2 per HA pair
-          items:
-            $ref: '#/components/schemas/DataEndpointConfig'
         primaryAvailabilityDomain:
           type: string
           description: Availability domain for the primary HA node (e.g. IMtu:EU-FRANKFURT-1-AD-1).
@@ -1307,6 +1318,12 @@ components:
             security rules apply.
           items:
             type: string
+        securityAttributes:
+          $ref: '#/components/schemas/SecurityAttributes'
+          description: |
+            Optional OCI Zero Trust Packet Routing (ZPR) security attributes to
+            apply to the pool's VNICs at deploy time. Namespaces and attribute
+            keys referenced here must already exist in the tenancy.
     CreateSvmRequest:
       type: object
       required:
@@ -1417,7 +1434,6 @@ components:
         - serialNumber
         - vsaManagementIP
         - interclusterIP
-        - nodeIP
         - nodeUUID
         - haPair
         - sizeInGiB
@@ -1436,20 +1452,17 @@ components:
         interclusterIP:
           type: string
           description: Intercluster IP address for this VM.
-        nodeIP:
-          type: string
-          description: Node management internal IP address for this VM.
         nodeUUID:
           type: string
           description: UUID of the corresponding node
         haPair:
           type: string
           description: |
-            Identifier of the HA pair this VM belongs to within the pool's
-            VLM config, formatted as `ha_pair-<index>` where `<index>` is the
-            zero-based position of the pair in `cloud.ha_pair`
-            (e.g. `ha_pair-0`, `ha_pair-1`).
-          example: "ha_pair-0"
+            Identifier of the HA pair this VM belongs to within the pool,
+            formatted as `ha_pair-<index>` where `<index>` is **1-based**
+            (e.g. `ha_pair-1`, `ha_pair-2`). The first HA pair is
+            `ha_pair-1`. Both VMs in the same HA pair share this label.
+          example: "ha_pair-1"
         sizeInGiB:
           type: integer
           format: int64
@@ -1475,7 +1488,11 @@ components:
       required:
         - vms
         - credentials
+        - poolOCID
       properties:
+        poolOCID:
+          type: string
+          description: OCI pool resource OCID
         clusterIP:
           type: string
           description: |

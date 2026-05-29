@@ -28,9 +28,9 @@ const (
 	password                     = "password"
 	ociSerialNumberLeadingPrefix = "955"
 	ociSerialNumberPrefix        = "000000000000000"
-  ociSerialCounterMax          = int64(10_000_000_000_000)
 	ociSerialCounterWidth        = 13
 	ociSerialPrefixLen           = 7
+	ociSerialCounterMax          = int64(10_000_000_000_000)
 )
 
 var (
@@ -604,11 +604,23 @@ func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool, dec
 			AvailabilityDomain2:        params.SecondaryZone,
 			MediatorAvailabilityDomain: params.MediatorZone,
 		},
-		VSAInstanceShape:   ociVSAInstanceType,
-		VSAFlexOcpus:       ociVSAFlexOcpus,
-		VSAFlexMemoryInGBs: ociVSAFlexMemoryInGBs,
-		Creator:            ociCreator,
-		DefinedTags:        definedTags,
+		VSAInstanceShape:           ociVSAInstanceType,
+		VSAFlexOcpus:               ociVSAFlexOcpus,
+		VSAFlexMemoryInGBs:         ociVSAFlexMemoryInGBs,
+		Creator:                    ociCreator,
+		DefinedTags:                definedTags,
+		CmekOcid:                   params.KmsKeyId,
+		CustomerNSGs:               params.NsgIds,
+		CustomerSecurityAttributes: params.SecurityAttributes,
+	}
+
+	if params.FabricPoolConfig != nil {
+		ociConfig.FabricPoolConfig = vlm.FabricPoolConfig{
+			BucketName: params.FabricPoolConfig.BucketName,
+			SecretOcid: params.FabricPoolConfig.SecretOcid,
+			Namespace:  params.FabricPoolConfig.Namespace,
+			ServerURL:  params.FabricPoolConfig.ServerURL,
+		}
 	}
 	if decision != nil {
 		ociConfig.VSAInstanceShape = decision.VMShape

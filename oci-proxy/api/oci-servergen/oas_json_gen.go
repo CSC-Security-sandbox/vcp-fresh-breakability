@@ -179,16 +179,6 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 		e.Int64(s.DataEndpointCount)
 	}
 	{
-		if s.DataEndpointConfig != nil {
-			e.FieldStart("dataEndpointConfig")
-			e.ArrStart()
-			for _, elem := range s.DataEndpointConfig {
-				elem.Encode(e)
-			}
-			e.ArrEnd()
-		}
-	}
-	{
 		e.FieldStart("primaryAvailabilityDomain")
 		e.Str(s.PrimaryAvailabilityDomain)
 	}
@@ -240,6 +230,12 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 			e.ArrEnd()
 		}
 	}
+	{
+		if s.SecurityAttributes.Set {
+			e.FieldStart("securityAttributes")
+			s.SecurityAttributes.Encode(e)
+		}
+	}
 }
 
 var jsonFieldsNameOfCreatePoolRequest = [17]string{
@@ -250,16 +246,16 @@ var jsonFieldsNameOfCreatePoolRequest = [17]string{
 	4:  "sizeInGiB",
 	5:  "throughputGBps",
 	6:  "dataEndpointCount",
-	7:  "dataEndpointConfig",
-	8:  "primaryAvailabilityDomain",
-	9:  "secondaryAvailabilityDomain",
-	10: "mediatorAvailabilityDomain",
-	11: "ociAdminPassword",
-	12: "description",
-	13: "dataNicSubnetId",
-	14: "tieringConfig",
-	15: "kmsKeyId",
-	16: "nsgIds",
+	7:  "primaryAvailabilityDomain",
+	8:  "secondaryAvailabilityDomain",
+	9:  "mediatorAvailabilityDomain",
+	10: "ociAdminPassword",
+	11: "description",
+	12: "dataNicSubnetId",
+	13: "tieringConfig",
+	14: "kmsKeyId",
+	15: "nsgIds",
+	16: "securityAttributes",
 }
 
 // Decode decodes CreatePoolRequest from json.
@@ -355,25 +351,8 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"dataEndpointCount\"")
 			}
-		case "dataEndpointConfig":
-			if err := func() error {
-				s.DataEndpointConfig = make([]DataEndpointConfig, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem DataEndpointConfig
-					if err := elem.Decode(d); err != nil {
-						return err
-					}
-					s.DataEndpointConfig = append(s.DataEndpointConfig, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"dataEndpointConfig\"")
-			}
 		case "primaryAvailabilityDomain":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.PrimaryAvailabilityDomain = string(v)
@@ -405,7 +384,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mediatorAvailabilityDomain\"")
 			}
 		case "ociAdminPassword":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.OciAdminPassword.Decode(d); err != nil {
 					return err
@@ -425,7 +404,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"description\"")
 			}
 		case "dataNicSubnetId":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.DataNicSubnetId = string(v)
@@ -475,6 +454,16 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"nsgIds\"")
 			}
+		case "securityAttributes":
+			if err := func() error {
+				s.SecurityAttributes.Reset()
+				if err := s.SecurityAttributes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"securityAttributes\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -485,8 +474,8 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [3]uint8{
-		0b01111111,
-		0b00101001,
+		0b11111111,
+		0b00010100,
 		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
@@ -817,136 +806,6 @@ func (s *CreateSvmRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CreateSvmRequest) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *DataEndpointConfig) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *DataEndpointConfig) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("sizeInGiB")
-		e.Int64(s.SizeInGiB)
-	}
-	{
-		e.FieldStart("throughputGBps")
-		e.Float64(s.ThroughputGBps)
-	}
-	{
-		e.FieldStart("iops")
-		e.Int64(s.Iops)
-	}
-}
-
-var jsonFieldsNameOfDataEndpointConfig = [3]string{
-	0: "sizeInGiB",
-	1: "throughputGBps",
-	2: "iops",
-}
-
-// Decode decodes DataEndpointConfig from json.
-func (s *DataEndpointConfig) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode DataEndpointConfig to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "sizeInGiB":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Int64()
-				s.SizeInGiB = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"sizeInGiB\"")
-			}
-		case "throughputGBps":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Float64()
-				s.ThroughputGBps = float64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"throughputGBps\"")
-			}
-		case "iops":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Int64()
-				s.Iops = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"iops\"")
-			}
-		default:
-			return d.Skip()
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode DataEndpointConfig")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000111,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfDataEndpointConfig) {
-					name = jsonFieldsNameOfDataEndpointConfig[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *DataEndpointConfig) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *DataEndpointConfig) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -1960,6 +1819,10 @@ func (s *OCICreatePoolWorkflowMetadata) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *OCICreatePoolWorkflowMetadata) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("poolOCID")
+		e.Str(s.PoolOCID)
+	}
+	{
 		if s.ClusterIP.Set {
 			e.FieldStart("clusterIP")
 			s.ClusterIP.Encode(e)
@@ -1979,10 +1842,11 @@ func (s *OCICreatePoolWorkflowMetadata) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfOCICreatePoolWorkflowMetadata = [3]string{
-	0: "clusterIP",
-	1: "vms",
-	2: "credentials",
+var jsonFieldsNameOfOCICreatePoolWorkflowMetadata = [4]string{
+	0: "poolOCID",
+	1: "clusterIP",
+	2: "vms",
+	3: "credentials",
 }
 
 // Decode decodes OCICreatePoolWorkflowMetadata from json.
@@ -1994,6 +1858,18 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "poolOCID":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.PoolOCID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolOCID\"")
+			}
 		case "clusterIP":
 			if err := func() error {
 				s.ClusterIP.Reset()
@@ -2005,7 +1881,7 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"clusterIP\"")
 			}
 		case "vms":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.Vms = make([]OCICreatePoolWorkflowVM, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -2023,7 +1899,7 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"vms\"")
 			}
 		case "credentials":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Credentials.Decode(d); err != nil {
 					return err
@@ -2042,7 +1918,7 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000110,
+		0b00001101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2114,10 +1990,6 @@ func (s *OCICreatePoolWorkflowVM) encodeFields(e *jx.Encoder) {
 		e.Str(s.InterclusterIP)
 	}
 	{
-		e.FieldStart("nodeIP")
-		e.Str(s.NodeIP)
-	}
-	{
 		e.FieldStart("nodeUUID")
 		e.Str(s.NodeUUID)
 	}
@@ -2139,17 +2011,16 @@ func (s *OCICreatePoolWorkflowVM) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfOCICreatePoolWorkflowVM = [10]string{
+var jsonFieldsNameOfOCICreatePoolWorkflowVM = [9]string{
 	0: "name",
 	1: "serialNumber",
 	2: "vsaManagementIP",
 	3: "interclusterIP",
-	4: "nodeIP",
-	5: "nodeUUID",
-	6: "haPair",
-	7: "sizeInGiB",
-	8: "iops",
-	9: "throughputGBps",
+	4: "nodeUUID",
+	5: "haPair",
+	6: "sizeInGiB",
+	7: "iops",
+	8: "throughputGBps",
 }
 
 // Decode decodes OCICreatePoolWorkflowVM from json.
@@ -2209,20 +2080,8 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"interclusterIP\"")
 			}
-		case "nodeIP":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				v, err := d.Str()
-				s.NodeIP = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"nodeIP\"")
-			}
 		case "nodeUUID":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.NodeUUID = string(v)
@@ -2234,7 +2093,7 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"nodeUUID\"")
 			}
 		case "haPair":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.HaPair = string(v)
@@ -2246,7 +2105,7 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"haPair\"")
 			}
 		case "sizeInGiB":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int64()
 				s.SizeInGiB = int64(v)
@@ -2258,7 +2117,7 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sizeInGiB\"")
 			}
 		case "iops":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int64()
 				s.Iops = int64(v)
@@ -2270,7 +2129,7 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"iops\"")
 			}
 		case "throughputGBps":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Float64()
 				s.ThroughputGBps = float64(v)
@@ -2292,7 +2151,7 @@ func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2829,6 +2688,40 @@ func (s *OptRbacRefreshRequest) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes SecurityAttributes as json.
+func (o OptSecurityAttributes) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes SecurityAttributes from json.
+func (o *OptSecurityAttributes) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptSecurityAttributes to nil")
+	}
+	o.Set = true
+	o.Value = make(SecurityAttributes)
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptSecurityAttributes) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptSecurityAttributes) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes string as json.
 func (o OptString) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -2893,40 +2786,6 @@ func (s OptTieringConfig) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptTieringConfig) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes UpdatePoolRequestSecurityAttributes as json.
-func (o OptUpdatePoolRequestSecurityAttributes) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes UpdatePoolRequestSecurityAttributes from json.
-func (o *OptUpdatePoolRequestSecurityAttributes) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptUpdatePoolRequestSecurityAttributes to nil")
-	}
-	o.Set = true
-	o.Value = make(UpdatePoolRequestSecurityAttributes)
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptUpdatePoolRequestSecurityAttributes) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptUpdatePoolRequestSecurityAttributes) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -3283,6 +3142,265 @@ func (s *RbacRefreshRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *RbacRefreshRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *SecurityAttributeValue) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *SecurityAttributeValue) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("value")
+		e.Str(s.Value)
+	}
+	{
+		e.FieldStart("mode")
+		s.Mode.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfSecurityAttributeValue = [2]string{
+	0: "value",
+	1: "mode",
+}
+
+// Decode decodes SecurityAttributeValue from json.
+func (s *SecurityAttributeValue) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode SecurityAttributeValue to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "value":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Value = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"value\"")
+			}
+		case "mode":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Mode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mode\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode SecurityAttributeValue")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfSecurityAttributeValue) {
+					name = jsonFieldsNameOfSecurityAttributeValue[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *SecurityAttributeValue) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *SecurityAttributeValue) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes SecurityAttributeValueMode as json.
+func (s SecurityAttributeValueMode) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes SecurityAttributeValueMode from json.
+func (s *SecurityAttributeValueMode) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode SecurityAttributeValueMode to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch SecurityAttributeValueMode(v) {
+	case SecurityAttributeValueModeEnforce:
+		*s = SecurityAttributeValueModeEnforce
+	case SecurityAttributeValueModeAudit:
+		*s = SecurityAttributeValueModeAudit
+	default:
+		*s = SecurityAttributeValueMode(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s SecurityAttributeValueMode) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *SecurityAttributeValueMode) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s SecurityAttributes) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s SecurityAttributes) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		elem.Encode(e)
+	}
+}
+
+// Decode decodes SecurityAttributes from json.
+func (s *SecurityAttributes) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode SecurityAttributes to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem SecurityAttributesItem
+		if err := func() error {
+			if err := elem.Decode(d); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode SecurityAttributes")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s SecurityAttributes) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *SecurityAttributes) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s SecurityAttributesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s SecurityAttributesItem) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		elem.Encode(e)
+	}
+}
+
+// Decode decodes SecurityAttributesItem from json.
+func (s *SecurityAttributesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode SecurityAttributesItem to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem SecurityAttributeValue
+		if err := func() error {
+			if err := elem.Decode(d); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode SecurityAttributesItem")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s SecurityAttributesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *SecurityAttributesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -4101,62 +4219,6 @@ func (s *UpdatePoolRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *UpdatePoolRequest) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s UpdatePoolRequestSecurityAttributes) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields implements json.Marshaler.
-func (s UpdatePoolRequestSecurityAttributes) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		e.Str(elem)
-	}
-}
-
-// Decode decodes UpdatePoolRequestSecurityAttributes from json.
-func (s *UpdatePoolRequestSecurityAttributes) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode UpdatePoolRequestSecurityAttributes to nil")
-	}
-	m := s.init()
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem string
-		if err := func() error {
-			v, err := d.Str()
-			elem = string(v)
-			if err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
-		}
-		m[string(k)] = elem
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode UpdatePoolRequestSecurityAttributes")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s UpdatePoolRequestSecurityAttributes) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *UpdatePoolRequestSecurityAttributes) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

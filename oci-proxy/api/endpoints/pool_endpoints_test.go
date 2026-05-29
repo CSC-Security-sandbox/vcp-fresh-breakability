@@ -51,6 +51,22 @@ func validCreatePoolRequest() *ociserver.CreatePoolRequest {
 	}
 }
 
+// validTieringConfig returns an OptTieringConfig with Set=true and all four
+// required fields populated with values that satisfy validateCreatePoolRequest.
+// Test cases that exercise individual tieringConfig branches start from this
+// shape and mutate exactly one field.
+func validTieringConfig() ociserver.OptTieringConfig {
+	return ociserver.OptTieringConfig{
+		Set: true,
+		Value: ociserver.TieringConfig{
+			SecretId:   "ocid1.vaultsecret.oc1..tiervalid",
+			Namespace:  "axqogasfjw45",
+			BucketName: "cold-tier-bucket",
+			ServerName: "compat.objectstorage.us-ashburn-1.oraclecloud.com",
+		},
+	}
+}
+
 // gbpsToMibps converts GBps (SI, 10^9 bytes/s) to MiBps (2^20 bytes/s).
 func gbpsToMibps(gbps float64) int64 {
 	return int64(gbps * workflowquery.MiBpsPerGBps)
@@ -117,11 +133,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInGiB:                   1024,
 			ThroughputGBps:              1.0,
 			DataEndpointCount:           2,
-			DataEndpointConfig: []ociserver.DataEndpointConfig{
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-			},
-			OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+			OciAdminPassword:            ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 		}
 
 		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
@@ -147,11 +159,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInGiB:                 1024,
 			ThroughputGBps:            1.0,
 			DataEndpointCount:         2,
-			DataEndpointConfig: []ociserver.DataEndpointConfig{
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-			},
-			OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+			OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 		}
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel:      models.BaseModel{UUID: "pool-echo-id", CreatedAt: time.Now(), UpdatedAt: time.Now()},
@@ -187,11 +195,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInGiB:                 1024,
 			ThroughputGBps:            1.0,
 			DataEndpointCount:         2,
-			DataEndpointConfig: []ociserver.DataEndpointConfig{
-				{SizeInGiB: 1024, ThroughputGBps: 0.5},
-				{SizeInGiB: 1024, ThroughputGBps: 0.5},
-			},
-			OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+			OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 		}
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel:      models.BaseModel{UUID: "pool-from-req", CreatedAt: time.Now(), UpdatedAt: time.Now()},
@@ -226,11 +230,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInGiB:                 1024,
 			ThroughputGBps:            1.0,
 			DataEndpointCount:         2,
-			DataEndpointConfig: []ociserver.DataEndpointConfig{
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-			},
-			OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+			OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 		}
 		mockOrchestrator.EXPECT().
 			CreatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
@@ -270,11 +270,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInGiB:                 1024,
 			ThroughputGBps:            1.0,
 			DataEndpointCount:         2,
-			DataEndpointConfig: []ociserver.DataEndpointConfig{
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-			},
-			OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+			OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 		}
 
 		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
@@ -305,11 +301,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInGiB:                 1024,
 			ThroughputGBps:            1.0,
 			DataEndpointCount:         2,
-			DataEndpointConfig: []ociserver.DataEndpointConfig{
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-			},
-			OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+			OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 		}
 
 		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
@@ -335,11 +327,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInGiB:                 1024,
 			ThroughputGBps:            1.0,
 			DataEndpointCount:         2,
-			DataEndpointConfig: []ociserver.DataEndpointConfig{
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-			},
-			OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+			OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 		}
 
 		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
@@ -368,11 +356,7 @@ func TestCreatePool(t *testing.T) {
 			SizeInGiB:                 1024,
 			ThroughputGBps:            1.0,
 			DataEndpointCount:         2,
-			DataEndpointConfig: []ociserver.DataEndpointConfig{
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-				{SizeInGiB: 512, ThroughputGBps: 0.5},
-			},
-			OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+			OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 		}
 
 		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, params)
@@ -434,14 +418,14 @@ func TestGetWorkflow(t *testing.T) {
 				Status:       workflowquery.WorkflowStatusCompleted,
 				WorkflowType: "OCICreatePoolWorkflow",
 				PoolMetadata: &workflowquery.OCICreatePoolMetadata{
+					PoolOCID: "ocid1.pool.oc1.iad.testpool",
 					Vms: []workflowquery.OCICreatePoolVMMetadata{
 						{
 							Name:            "vm-01",
 							SerialNumber:    "1234501",
 							VSAManagementIP: "10.0.0.3",
 							InterclusterIP:  "10.0.0.1",
-							NodeIP:          "10.0.0.2",
-							HAPair:          "ha_pair-0",
+							HAPair:          "ha_pair-1",
 						},
 					},
 				},
@@ -459,14 +443,16 @@ func TestGetWorkflow(t *testing.T) {
 		assert.True(tt, headers.Response.PoolMetadata.IsSet())
 		meta, ok := headers.Response.PoolMetadata.Get()
 		assert.True(tt, ok)
+		assert.Equal(tt, "ocid1.pool.oc1.iad.testpool", meta.PoolOCID,
+			"poolOCID must round-trip from workflowquery.OCICreatePoolMetadata into OCICreatePoolWorkflowMetadata; the spec marks it required when poolMetadata is emitted (i.e. on completed OCICreatePoolWorkflow runs)")
 		if assert.Len(tt, meta.Vms, 1) {
 			assert.Equal(tt, "vm-01", meta.Vms[0].Name)
 			assert.Equal(tt, "1234501", meta.Vms[0].SerialNumber)
 			assert.Equal(tt, "10.0.0.3", meta.Vms[0].VsaManagementIP)
 			assert.Equal(tt, "10.0.0.1", meta.Vms[0].InterclusterIP)
-			assert.Equal(tt, "10.0.0.2", meta.Vms[0].NodeIP)
-			assert.Equal(tt, "ha_pair-0", meta.Vms[0].HaPair,
-				"haPair must be propagated from internal metadata to the OAS response")
+			assert.Equal(tt, "ha_pair-1", meta.Vms[0].HaPair,
+				"haPair must be propagated verbatim from internal metadata to the OAS response; "+
+					"per the schema contract haPair is 1-indexed (ha_pair-1, ha_pair-2, ...), so ha_pair-0 is not a legal wire value")
 		}
 	})
 
@@ -808,11 +794,7 @@ func TestCreatePool_MissingOPCRequestID(t *testing.T) {
 		SizeInGiB:                 1024,
 		ThroughputGBps:            1.0,
 		DataEndpointCount:         2,
-		DataEndpointConfig: []ociserver.DataEndpointConfig{
-			{SizeInGiB: 512, ThroughputGBps: 0.5},
-			{SizeInGiB: 512, ThroughputGBps: 0.5},
-		},
-		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+		OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 	}
 	res, err := h.CreatePool(context.Background(), req, defaultCreatePoolParams())
 	assert.NoError(t, err)
@@ -839,11 +821,7 @@ func TestCreatePool_EmptyWorkflowID(t *testing.T) {
 		SizeInGiB:                 1024,
 		ThroughputGBps:            1.0,
 		DataEndpointCount:         2,
-		DataEndpointConfig: []ociserver.DataEndpointConfig{
-			{SizeInGiB: 512, ThroughputGBps: 0.5},
-			{SizeInGiB: 512, ThroughputGBps: 0.5},
-		},
-		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+		OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
 	}
 	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
 	assert.NoError(t, err)
@@ -901,11 +879,7 @@ func TestCreatePool_AdminPasswordVersionNotParseable(t *testing.T) {
 		SizeInGiB:                 1024,
 		ThroughputGBps:            1.0,
 		DataEndpointCount:         2,
-		DataEndpointConfig: []ociserver.DataEndpointConfig{
-			{SizeInGiB: 512, ThroughputGBps: 1.0},
-			{SizeInGiB: 512, ThroughputGBps: 1.0},
-		},
-		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "not-a-number"},
+		OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "not-a-number"},
 	}
 
 	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
@@ -931,11 +905,7 @@ func TestCreatePool_AdminPasswordVersionLessThanOne(t *testing.T) {
 		SizeInGiB:                 1024,
 		ThroughputGBps:            1.0,
 		DataEndpointCount:         2,
-		DataEndpointConfig: []ociserver.DataEndpointConfig{
-			{SizeInGiB: 512, ThroughputGBps: 1.0},
-			{SizeInGiB: 512, ThroughputGBps: 1.0},
-		},
-		OciAdminPassword: ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "0"},
+		OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "0"},
 	}
 
 	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
@@ -1702,16 +1672,32 @@ func TestUpdatePool(t *testing.T) {
 	t.Run("maps securityAttributes to UpdatePoolParams", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
-			return p != nil &&
-				p.SecurityAttributes["env"] == "prod" &&
-				p.SecurityAttributes["tier"] == "gold"
+			if p == nil || p.SecurityAttributes == nil {
+				return false
+			}
+			ns1, ok := p.SecurityAttributes["ns1"]
+			if !ok {
+				return false
+			}
+			app, ok := ns1["app"].(map[string]string)
+			if !ok {
+				return false
+			}
+			return app["value"] == "app1" && app["mode"] == "enforce"
 		})).Return(&models.Pool{}, "wf-sa", nil)
 		h := Handler{Orchestrator: mockOrchestrator}
 		req := &ociserver.UpdatePoolRequest{
 			DataEndpointCount: ociserver.OptInt64{Value: 4, Set: true},
-			SecurityAttributes: ociserver.OptUpdatePoolRequestSecurityAttributes{
-				Value: ociserver.UpdatePoolRequestSecurityAttributes{"env": "prod", "tier": "gold"},
-				Set:   true,
+			SecurityAttributes: ociserver.OptSecurityAttributes{
+				Value: ociserver.SecurityAttributes{
+					"ns1": {
+						"app": ociserver.SecurityAttributeValue{
+							Value: "app1",
+							Mode:  ociserver.SecurityAttributeValueModeEnforce,
+						},
+					},
+				},
+				Set: true,
 			},
 		}
 		params := ociserver.UpdatePoolParams{PoolOCID: poolOCID, TenancyOcid: tenancy}
@@ -2488,6 +2474,183 @@ func TestValidateCreatePoolRequest(t *testing.T) {
 			},
 			wantErr: "",
 		},
+		{
+			name: "valid tieringConfig passes",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.TieringConfig = validTieringConfig()
+			},
+			wantErr: "",
+		},
+		{
+			name: "tieringConfig empty secretId rejected",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.SecretId = ""
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgEmptyTieringSecretID,
+		},
+		{
+			name: "tieringConfig whitespace-only secretId rejected (TrimSpace)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.SecretId = " \t"
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgEmptyTieringSecretID,
+		},
+		{
+			name: "tieringConfig non-empty malformed secretId rejected (invalid OCID)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.SecretId = "not-an-ocid"
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgInvalidTieringSecretID,
+		},
+		{
+			name: "tieringConfig empty namespace rejected",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.Namespace = ""
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgEmptyTieringNamespace,
+		},
+		{
+			name: "tieringConfig whitespace-only namespace rejected (TrimSpace)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.Namespace = "   "
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgEmptyTieringNamespace,
+		},
+		{
+			name: "tieringConfig empty bucketName rejected",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.BucketName = ""
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgEmptyTieringBucketName,
+		},
+		{
+			name: "tieringConfig whitespace-only bucketName rejected (TrimSpace)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.BucketName = "\n\t "
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgEmptyTieringBucketName,
+		},
+		{
+			name: "tieringConfig empty serverName rejected",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.ServerName = ""
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgEmptyTieringServerName,
+		},
+		{
+			name: "tieringConfig whitespace-only serverName rejected (TrimSpace)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				tc := validTieringConfig()
+				tc.Value.ServerName = "\t"
+				r.TieringConfig = tc
+			},
+			wantErr: errMsgEmptyTieringServerName,
+		},
+		{
+			name: "tieringConfig unset is allowed (no validation triggered)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.TieringConfig = ociserver.OptTieringConfig{Set: false}
+			},
+			wantErr: "",
+		},
+		{
+			name: "kmsKeyId unset is allowed (no validation triggered)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.KmsKeyId = ociserver.OptString{Set: false}
+			},
+			wantErr: "",
+		},
+		{
+			name: "kmsKeyId set with valid OCID passes",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.KmsKeyId = ociserver.NewOptString("ocid1.key.oc1.iad.kkk")
+			},
+			wantErr: "",
+		},
+		{
+			name: "kmsKeyId set but empty rejected",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.KmsKeyId = ociserver.NewOptString("")
+			},
+			wantErr: errMsgEmptyKmsKeyId,
+		},
+		{
+			name: "kmsKeyId set whitespace-only rejected (TrimSpace)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.KmsKeyId = ociserver.NewOptString("  \t\n ")
+			},
+			wantErr: errMsgEmptyKmsKeyId,
+		},
+		{
+			name: "kmsKeyId set with malformed OCID rejected",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.KmsKeyId = ociserver.NewOptString("not-an-ocid")
+			},
+			wantErr: errMsgInvalidKmsKeyId,
+		},
+		{
+			name: "nsgIds nil is allowed (no validation triggered)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.NsgIds = nil
+			},
+			wantErr: "",
+		},
+		{
+			name: "nsgIds with two valid OCIDs passes",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.NsgIds = []string{
+					"ocid1.networksecuritygroup.oc1.iad.nsg-a",
+					"ocid1.networksecuritygroup.oc1.iad.nsg-b",
+				}
+			},
+			wantErr: "",
+		},
+		{
+			name: "nsgIds with empty entry at index 1 rejected (index is in the message)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.NsgIds = []string{
+					"ocid1.networksecuritygroup.oc1.iad.nsg-a",
+					"",
+				}
+			},
+			wantErr: "nsgIds[1] must not be empty",
+		},
+		{
+			name: "nsgIds with whitespace-only entry at index 0 rejected (TrimSpace)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.NsgIds = []string{
+					"  \t",
+					"ocid1.networksecuritygroup.oc1.iad.nsg-b",
+				}
+			},
+			wantErr: "nsgIds[0] must not be empty",
+		},
+		{
+			name: "nsgIds with malformed entry at index 1 rejected (index is in the message)",
+			mutate: func(r *ociserver.CreatePoolRequest, _ *ociserver.CreatePoolParams) {
+				r.NsgIds = []string{
+					"ocid1.networksecuritygroup.oc1.iad.nsg-a",
+					"not-an-ocid",
+				}
+			},
+			wantErr: "nsgIds[1] must be a valid OCID",
+		},
 	}
 
 	for _, tc := range cases {
@@ -2523,6 +2686,20 @@ func TestValidateCreatePoolRequest_TrimsInPlace(t *testing.T) {
 	}
 	req.Description = ociserver.OptString{Value: "  some desc  ", Set: true}
 	req.DataEndpointCount = 2
+	req.TieringConfig = ociserver.OptTieringConfig{
+		Set: true,
+		Value: ociserver.TieringConfig{
+			SecretId:   " ocid1.vaultsecret.oc1..tiervalid ",
+			Namespace:  "\taxqogasfjw45\n",
+			BucketName: "  cold-tier-bucket  ",
+			ServerName: " compat.objectstorage.us-ashburn-1.oraclecloud.com\t",
+		},
+	}
+	req.KmsKeyId = ociserver.NewOptString("  ocid1.key.oc1.iad.kkk  ")
+	req.NsgIds = []string{
+		"  ocid1.networksecuritygroup.oc1.iad.nsg-a\t",
+		"\nocid1.networksecuritygroup.oc1.iad.nsg-b  ",
+	}
 
 	params := ociserver.CreatePoolParams{TenancyOcid: "  ocid1.tenancy.oc1..aaaaaaaatestaaa  "}
 
@@ -2546,6 +2723,17 @@ func TestValidateCreatePoolRequest_TrimsInPlace(t *testing.T) {
 	assert.Equal(t, "some desc", req.Description.Value)
 	assert.Equal(t, "ocid1.tenancy.oc1..aaaaaaaatestaaa", params.TenancyOcid,
 		"path/query param TenancyOcid must be trimmed via the *params handle so the orchestrator AccountName matches the DB key")
+	assert.Equal(t, "ocid1.vaultsecret.oc1..tiervalid", req.TieringConfig.Value.SecretId,
+		"TieringConfig.SecretId must be trimmed in place so the orchestrator stores the canonical OCID")
+	assert.Equal(t, "axqogasfjw45", req.TieringConfig.Value.Namespace)
+	assert.Equal(t, "cold-tier-bucket", req.TieringConfig.Value.BucketName)
+	assert.Equal(t, "compat.objectstorage.us-ashburn-1.oraclecloud.com", req.TieringConfig.Value.ServerName)
+	assert.Equal(t, "ocid1.key.oc1.iad.kkk", req.KmsKeyId.Value,
+		"KmsKeyId must be trimmed in place so the orchestrator forwards the canonical OCID to VLM")
+	assert.Equal(t, []string{
+		"ocid1.networksecuritygroup.oc1.iad.nsg-a",
+		"ocid1.networksecuritygroup.oc1.iad.nsg-b",
+	}, req.NsgIds, "NsgIds entries must be trimmed in place so each NSG OCID is forwarded in canonical form")
 }
 
 // TestValidateDeletePoolRequest covers each validation branch for the Delete
@@ -2623,4 +2811,345 @@ func TestValidateDeletePoolRequest_TrimsInPlace(t *testing.T) {
 		"PoolOCID must be trimmed in place so the orchestrator's pool lookup matches the create-time value")
 	assert.Equal(t, "ocid1.tenancy.oc1..aaaaaaaatestaaa", params.TenancyOcid,
 		"TenancyOcid must be trimmed in place so AccountName matches the DB key")
+}
+
+func TestCreatePool_MapsKmsKeyIdToCmekOcid(t *testing.T) {
+	const cmek = "ocid1.key.oc1.iad.cmek-test-1"
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().CreatePool(
+		mock.Anything,
+		mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
+			return p != nil && p.KmsKeyId == cmek
+		}),
+	).Return(&models.Pool{
+		BaseModel: models.BaseModel{UUID: "pool-cmek", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		Name:      "cmek-pool",
+		State:     "CREATING",
+	}, "wf-cmek", nil)
+	h := Handler{Orchestrator: mockOrchestrator}
+
+	req := validCreatePoolRequest()
+	req.KmsKeyId = ociserver.NewOptString(cmek)
+
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+
+	assert.NoError(t, err)
+	_, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
+	assert.True(t, ok)
+}
+
+func TestCreatePool_MapsNsgIdsToCustomerNSGs(t *testing.T) {
+	nsgs := []string{
+		"ocid1.networksecuritygroup.oc1.iad.nsg-1",
+		"ocid1.networksecuritygroup.oc1.iad.nsg-2",
+	}
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().CreatePool(
+		mock.Anything,
+		mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
+			return p != nil &&
+				len(p.NsgIds) == len(nsgs) &&
+				p.NsgIds[0] == nsgs[0] &&
+				p.NsgIds[1] == nsgs[1]
+		}),
+	).Return(&models.Pool{
+		BaseModel: models.BaseModel{UUID: "pool-nsg", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		Name:      "nsg-pool",
+		State:     "CREATING",
+	}, "wf-nsg", nil)
+	h := Handler{Orchestrator: mockOrchestrator}
+
+	req := validCreatePoolRequest()
+	req.NsgIds = nsgs
+
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+
+	assert.NoError(t, err)
+	_, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
+	assert.True(t, ok)
+}
+
+func TestCreatePool_DefensiveCopiesNsgIds(t *testing.T) {
+	original := []string{
+		"ocid1.networksecuritygroup.oc1.iad.nsg-1",
+		"ocid1.networksecuritygroup.oc1.iad.nsg-2",
+	}
+
+	var captured []string
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, p *commonparams.CreatePoolParams) {
+			captured = p.NsgIds
+		}).
+		Return(&models.Pool{
+			BaseModel: models.BaseModel{UUID: "pool-defensive", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			Name:      "defensive-pool",
+			State:     "CREATING",
+		}, "wf-defensive", nil)
+	h := Handler{Orchestrator: mockOrchestrator}
+
+	req := validCreatePoolRequest()
+	req.NsgIds = original
+
+	_, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+	require.NoError(t, err)
+	require.Len(t, captured, 2, "orchestrator must receive both NSG OCIDs")
+
+	req.NsgIds[0] = "ocid1.networksecuritygroup.oc1.iad.mutated-after-return"
+
+	assert.Equal(t, "ocid1.networksecuritygroup.oc1.iad.nsg-1", captured[0],
+		"captured NsgIds must be insulated from post-handler mutation of req.NsgIds; the handler must defensive-copy the slice")
+	assert.Equal(t, "ocid1.networksecuritygroup.oc1.iad.nsg-2", captured[1],
+		"second NSG OCID must also survive post-handler mutation, confirming the whole slice was copied")
+}
+
+func TestCreatePool_DefensiveCopyOfNsgIdsPreservesNilSemantics(t *testing.T) {
+	var captured []string
+	captured = []string{"sentinel-to-prove-overwrite"}
+
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, p *commonparams.CreatePoolParams) {
+			captured = p.NsgIds
+		}).
+		Return(&models.Pool{
+			BaseModel: models.BaseModel{UUID: "pool-nilnsg", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			Name:      "nilnsg-pool",
+			State:     "CREATING",
+		}, "wf-nilnsg", nil)
+	h := Handler{Orchestrator: mockOrchestrator}
+
+	req := validCreatePoolRequest()
+	_, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+	require.NoError(t, err)
+
+	assert.Nil(t, captured,
+		"defensive copy of a nil source slice must remain nil; the orchestrator distinguishes nil (\"no NSGs specified\") from an empty slice (\"explicitly clear NSGs\")")
+}
+
+func TestCreatePool_TieringConfigSet_MapsToFabricPoolConfig(t *testing.T) {
+	tc := ociserver.TieringConfig{
+		SecretId:   "ocid1.vaultsecret.oc1.iad.fp-secret",
+		Namespace:  "fp-ns",
+		BucketName: "fp-bucket",
+		ServerName: "compat.objectstorage.us-ashburn-1.oraclecloud.com",
+	}
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().CreatePool(
+		mock.Anything,
+		mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
+			return p != nil &&
+				p.FabricPoolConfig != nil &&
+				p.FabricPoolConfig.SecretOcid == tc.SecretId &&
+				p.FabricPoolConfig.Namespace == tc.Namespace &&
+				p.FabricPoolConfig.BucketName == tc.BucketName &&
+				p.FabricPoolConfig.ServerURL == tc.ServerName
+		}),
+	).Return(&models.Pool{
+		BaseModel: models.BaseModel{UUID: "pool-fp", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		Name:      "fp-pool",
+		State:     "CREATING",
+	}, "wf-fp", nil)
+	h := Handler{Orchestrator: mockOrchestrator}
+
+	req := validCreatePoolRequest()
+	req.TieringConfig = ociserver.OptTieringConfig{Value: tc, Set: true}
+
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+
+	assert.NoError(t, err)
+	_, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
+	assert.True(t, ok)
+}
+
+func TestCreatePool_TieringConfigUnset_LeavesFabricPoolConfigNil(t *testing.T) {
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().CreatePool(
+		mock.Anything,
+		mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
+			return p != nil && p.FabricPoolConfig == nil
+		}),
+	).Return(&models.Pool{
+		BaseModel: models.BaseModel{UUID: "pool-no-fp", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		Name:      "no-fp-pool",
+		State:     "CREATING",
+	}, "wf-no-fp", nil)
+	h := Handler{Orchestrator: mockOrchestrator}
+
+	req := validCreatePoolRequest()
+	// req.TieringConfig left zero-valued (Set == false)
+
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+
+	assert.NoError(t, err)
+	_, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
+	assert.True(t, ok)
+}
+
+func TestCreatePool_SecurityAttributesSet_MapsToCustomerSecurityAttributes(t *testing.T) {
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().CreatePool(
+		mock.Anything,
+		mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
+			if p == nil || p.SecurityAttributes == nil {
+				return false
+			}
+			ns1, ok := p.SecurityAttributes["ns1"]
+			if !ok {
+				return false
+			}
+			app, ok := ns1["app"].(map[string]string)
+			if !ok {
+				return false
+			}
+			return app["value"] == "app1" && app["mode"] == "enforce"
+		}),
+	).Return(&models.Pool{
+		BaseModel: models.BaseModel{UUID: "pool-sa", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		Name:      "sa-pool",
+		State:     "CREATING",
+	}, "wf-sa", nil)
+	h := Handler{Orchestrator: mockOrchestrator}
+
+	req := validCreatePoolRequest()
+	req.SecurityAttributes = ociserver.OptSecurityAttributes{
+		Value: ociserver.SecurityAttributes{
+			"ns1": {
+				"app": ociserver.SecurityAttributeValue{
+					Value: "app1",
+					Mode:  ociserver.SecurityAttributeValueModeEnforce,
+				},
+			},
+		},
+		Set: true,
+	}
+
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+
+	assert.NoError(t, err)
+	_, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
+	assert.True(t, ok)
+}
+
+func TestCreatePool_SecurityAttributesUnset_LeavesCustomerSecurityAttributesNil(t *testing.T) {
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	mockOrchestrator.EXPECT().CreatePool(
+		mock.Anything,
+		mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
+			return p != nil && p.SecurityAttributes == nil
+		}),
+	).Return(&models.Pool{
+		BaseModel: models.BaseModel{UUID: "pool-no-sa", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		Name:      "no-sa-pool",
+		State:     "CREATING",
+	}, "wf-no-sa", nil)
+	h := Handler{Orchestrator: mockOrchestrator}
+
+	req := validCreatePoolRequest()
+	// req.SecurityAttributes left zero-valued (Set == false)
+
+	res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, defaultCreatePoolParams())
+
+	assert.NoError(t, err)
+	_, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
+	assert.True(t, ok)
+}
+
+func TestToCustomerSecurityAttributes(t *testing.T) {
+	t.Run("nil input returns nil", func(tt *testing.T) {
+		got := toCustomerSecurityAttributes(nil)
+		assert.Nil(tt, got, "nil input must return nil so callers can use a single nil-check guard")
+	})
+
+	t.Run("empty map returns nil", func(tt *testing.T) {
+		got := toCustomerSecurityAttributes(ociserver.SecurityAttributes{})
+		assert.Nil(tt, got, "empty input must return nil; the helper uses len(in)==0 short-circuit")
+	})
+
+	t.Run("namespace with empty inner map is skipped", func(tt *testing.T) {
+		in := ociserver.SecurityAttributes{
+			"empty-ns": ociserver.SecurityAttributesItem{},
+		}
+		got := toCustomerSecurityAttributes(in)
+		assert.NotNil(tt, got, "non-empty top-level map allocates the outer result map")
+		_, present := got["empty-ns"]
+		assert.False(tt, present, "namespaces with no attributes must not appear in the output")
+	})
+
+	t.Run("zero-value mode is always emitted as empty string (mode is required by the OAS contract)", func(tt *testing.T) {
+		// mode is now `required` on SecurityAttributeValue in the OAS spec, so
+		// ogen rejects HTTP requests that omit it before they reach this helper.
+		// This case constructs the struct directly in Go to pin the in-memory
+		// fall-through behaviour: a zero-value Mode round-trips as "".
+		in := ociserver.SecurityAttributes{
+			"ns1": ociserver.SecurityAttributesItem{
+				"app": ociserver.SecurityAttributeValue{
+					Value: "app1",
+				},
+			},
+		}
+		got := toCustomerSecurityAttributes(in)
+		require.Contains(tt, got, "ns1")
+		leaf, ok := got["ns1"]["app"].(map[string]string)
+		require.True(tt, ok, "leaf must be map[string]string so the JSON encoder produces a flat object")
+		assert.Equal(tt, "app1", leaf["value"])
+		mode, hasMode := leaf["mode"]
+		require.True(tt, hasMode,
+			"mode is required in the OAS schema; the helper unconditionally emits it so the on-wire shape is stable")
+		assert.Equal(tt, "", mode,
+			"zero-value Mode round-trips as empty string in memory; production traffic always has a valid value because ogen rejects requests without mode")
+	})
+
+	t.Run("mode=enforce is preserved as string", func(tt *testing.T) {
+		in := ociserver.SecurityAttributes{
+			"ns1": ociserver.SecurityAttributesItem{
+				"app": ociserver.SecurityAttributeValue{
+					Value: "app1",
+					Mode:  ociserver.SecurityAttributeValueModeEnforce,
+				},
+			},
+		}
+		got := toCustomerSecurityAttributes(in)
+		leaf := got["ns1"]["app"].(map[string]string)
+		assert.Equal(tt, "app1", leaf["value"])
+		assert.Equal(tt, "enforce", leaf["mode"])
+	})
+
+	t.Run("mode=audit is preserved as string", func(tt *testing.T) {
+		in := ociserver.SecurityAttributes{
+			"ns1": ociserver.SecurityAttributesItem{
+				"app": ociserver.SecurityAttributeValue{
+					Value: "app2",
+					Mode:  ociserver.SecurityAttributeValueModeAudit,
+				},
+			},
+		}
+		got := toCustomerSecurityAttributes(in)
+		leaf := got["ns1"]["app"].(map[string]string)
+		assert.Equal(tt, "audit", leaf["mode"])
+	})
+
+	t.Run("multiple namespaces and attributes are all preserved", func(tt *testing.T) {
+		in := ociserver.SecurityAttributes{
+			"ns1": ociserver.SecurityAttributesItem{
+				"app":  ociserver.SecurityAttributeValue{Value: "v1"},
+				"tier": ociserver.SecurityAttributeValue{Value: "gold"},
+			},
+			"ns2": ociserver.SecurityAttributesItem{
+				"env": ociserver.SecurityAttributeValue{
+					Value: "prod",
+					Mode:  ociserver.SecurityAttributeValueModeEnforce,
+				},
+			},
+		}
+		got := toCustomerSecurityAttributes(in)
+		require.Len(tt, got, 2, "both namespaces must be present in the output")
+		require.Len(tt, got["ns1"], 2, "ns1 must carry both attributes")
+		require.Len(tt, got["ns2"], 1, "ns2 must carry exactly one attribute")
+
+		assert.Equal(tt, "v1", got["ns1"]["app"].(map[string]string)["value"])
+		assert.Equal(tt, "gold", got["ns1"]["tier"].(map[string]string)["value"])
+		assert.Equal(tt, "prod", got["ns2"]["env"].(map[string]string)["value"])
+		assert.Equal(tt, "enforce", got["ns2"]["env"].(map[string]string)["mode"])
+	})
 }

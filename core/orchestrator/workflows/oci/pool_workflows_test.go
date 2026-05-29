@@ -2763,3 +2763,122 @@ func TestOCICreatePoolWorkflow_SerialAllocation_CounterOverflowRollsBack(t *test
 		"rollback must run on counter overflow so the pool isn't left half-created")
 	mockVlmWorkflowClient.AssertNotCalled(t, "CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything)
 }
+
+func validPrepareVLMConfigInputs() (*common.CreatePoolParams, *datamodel.Pool) {
+	params := &common.CreatePoolParams{
+		AccountName:     "acct",
+		SizeInBytes:     100 * 1024 * 1024 * 1024,
+		PrimaryZone:     "ad1",
+		SecondaryZone:   "ad2",
+		MediatorZone:    "ad3",
+		VendorSubNetID:  "subnet",
+		CompartmentOCID: "comp",
+		HAPairs:         1,
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 128,
+		},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "u1"},
+		DeploymentName: "dep1",
+		Name:           "pool1",
+		Account:        &datamodel.Account{Name: "acct"},
+	}
+	return params, pool
+}
+
+func TestPrepareVLMConfig_PropagatesKmsKeyIdAsCmekOcid(t *testing.T) {
+	t.Run("non-empty KmsKeyId is propagated to vlm.OCIConfig.CmekOcid", func(tt *testing.T) {
+		setTestOCIImageEnv(tt)
+		const cmek = "ocid1.key.oc1.iad.test-cmek"
+		params, pool := validPrepareVLMConfigInputs()
+		params.KmsKeyId = cmek
+
+		cfg, err := prepareVLMConfig(params, pool, nil)
+		require.NoError(tt, err)
+		require.NotNil(tt, cfg)
+
+		assert.Equal(tt, cmek, cfg.Deployment.OCIConfig.CmekOcid,
+			"CreatePoolParams.KmsKeyId (API-layer name) must round-trip into vlm.OCIConfig.CmekOcid (VLM-wire name) so VLM provisions BYOK-encrypted block volumes")
+	})
+
+	t.Run("empty KmsKeyId is propagated as empty (no defaulting)", func(tt *testing.T) {
+		setTestOCIImageEnv(tt)
+		params, pool := validPrepareVLMConfigInputs()
+		// KmsKeyId left zero string
+
+		cfg, err := prepareVLMConfig(params, pool, nil)
+		require.NoError(tt, err)
+
+		assert.Equal(tt, "", cfg.Deployment.OCIConfig.CmekOcid,
+			"empty KmsKeyId must propagate as empty CmekOcid; the workflow does not silently inject a default key")
+	})
+}
+
+func TestPrepareVLMConfig_PropagatesNsgIdsAsCustomerNSGs(t *testing.T) {
+	setTestOCIImageEnv(t)
+	nsgs := []string{
+		"ocid1.networksecuritygroup.oc1.iad.nsg-A",
+		"ocid1.networksecuritygroup.oc1.iad.nsg-B",
+	}
+	params, pool := validPrepareVLMConfigInputs()
+	params.NsgIds = nsgs
+
+	cfg, err := prepareVLMConfig(params, pool, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, nsgs, cfg.Deployment.OCIConfig.CustomerNSGs,
+		"CreatePoolParams.NsgIds (API-layer name) must propagate verbatim (order and values) into vlm.OCIConfig.CustomerNSGs (VLM-wire name)")
+}
+
+func TestPrepareVLMConfig_PropagatesSecurityAttributesAsCustomerSecurityAttributes(t *testing.T) {
+	setTestOCIImageEnv(t)
+	attrs := map[string]map[string]interface{}{
+		"ns1": {
+			"app": map[string]string{"value": "app1", "mode": "enforce"},
+		},
+	}
+	params, pool := validPrepareVLMConfigInputs()
+	params.SecurityAttributes = attrs
+
+	cfg, err := prepareVLMConfig(params, pool, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, attrs, cfg.Deployment.OCIConfig.CustomerSecurityAttributes,
+		"CreatePoolParams.SecurityAttributes (API-layer name) must round-trip the wire-shape map verbatim into vlm.OCIConfig.CustomerSecurityAttributes (VLM-wire name); the workflow is a pass-through to VLM")
+}
+
+func TestPrepareVLMConfig_FabricPoolConfigSet_PropagatesAllFields(t *testing.T) {
+	setTestOCIImageEnv(t)
+	fp := &common.FabricPoolConfig{
+		BucketName: "fp-bucket",
+		SecretOcid: "ocid1.vaultsecret.oc1.iad.fp-secret",
+		Namespace:  "fp-ns",
+		ServerURL:  "compat.objectstorage.us-ashburn-1.oraclecloud.com",
+	}
+	params, pool := validPrepareVLMConfigInputs()
+	params.FabricPoolConfig = fp
+
+	cfg, err := prepareVLMConfig(params, pool, nil)
+	require.NoError(t, err)
+
+	got := cfg.Deployment.OCIConfig.FabricPoolConfig
+	assert.Equal(t, fp.BucketName, got.BucketName, "BucketName must round-trip")
+	assert.Equal(t, fp.SecretOcid, got.SecretOcid, "SecretOcid must round-trip")
+	assert.Equal(t, fp.Namespace, got.Namespace, "Namespace must round-trip")
+	assert.Equal(t, fp.ServerURL, got.ServerURL, "ServerURL must round-trip")
+}
+
+func TestPrepareVLMConfig_FabricPoolConfigNil_LeavesZeroValueFabricPool(t *testing.T) {
+	setTestOCIImageEnv(t)
+	params, pool := validPrepareVLMConfigInputs()
+	// params.FabricPoolConfig left nil
+
+	cfg, err := prepareVLMConfig(params, pool, nil)
+	require.NoError(t, err)
+
+	got := cfg.Deployment.OCIConfig.FabricPoolConfig
+	assert.Equal(t, vlm.FabricPoolConfig{}, got,
+		"nil FabricPoolConfig on params must leave vlm.OCIConfig.FabricPoolConfig as zero value (tiering disabled); "+
+			"the workflow guards the assignment with an explicit nil check")
+}

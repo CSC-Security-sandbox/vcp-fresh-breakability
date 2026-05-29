@@ -74,7 +74,7 @@ func TestCreatePoolRequest_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
-		{Input: "{\"compartmentOCID\":\"ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a\",\"dataEndpointConfig\":[{\"iops\":1500,\"sizeInGiB\":512,\"throughputGBps\":0.5},{\"iops\":1500,\"sizeInGiB\":512,\"throughputGBps\":0.5}],\"dataEndpointCount\":2,\"dataNicSubnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"description\":\"Demo pool\",\"displayName\":\"my-pool\",\"mediatorAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-3\",\"ociAdminPassword\":{\"ocid\":\"ocid1.vaultsecret.oc1.eu-frankfurt-1.amaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"version\":\"1\"},\"poolOCID\":\"ocid1.pool.oc1.eu-frankfurt-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"primaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-1\",\"secondaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-2\",\"serialNumberPrefix\":\"955000000000000000\",\"sizeInGiB\":100,\"subnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"throughputGBps\":1}"},
+		{Input: "{\"compartmentOCID\":\"ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a\",\"dataEndpointCount\":2,\"dataNicSubnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"description\":\"Demo pool\",\"displayName\":\"my-pool\",\"kmsKeyId\":\"ocid1.key.oc1.iad.ejvajdx5aagmc.abuwcljt26qjxtpyslr24wabrj3cpqeihlodtn5t6qlram6iaz3ewtqditpq\",\"mediatorAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-3\",\"nsgIds\":[\"ocid1.networksecuritygroup.oc1.iad.aaaaaaaadzz64gbsfmoiord6fd726eeq6mib7hnvzmeoxro2c3hssnn35bva\"],\"ociAdminPassword\":{\"ocid\":\"ocid1.vaultsecret.oc1.eu-frankfurt-1.amaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"version\":\"1\"},\"poolOCID\":\"ocid1.pool.oc1.eu-frankfurt-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"primaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-1\",\"secondaryAvailabilityDomain\":\"IMtu:EU-FRANKFURT-1-AD-2\",\"securityAttributes\":{\"vcp_zpr\":{\"ns1\":{\"mode\":\"enforce\",\"value\":\"{\\\"app\\\": {\\\"value\\\": \\\"app1\\\", \\\"mode\\\": \\\"enforce\\\"}}\"}}},\"sizeInGiB\":100,\"subnetId\":\"ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q\",\"throughputGBps\":1,\"tieringConfig\":{\"bucketName\":\"bucket-aryan-test\",\"namespace\":\"idqogasfjw45\",\"secretId\":\"ocid1.vaultsecret.oc1.iad.amaaaaaarxzkjlqamulqwys7yr7eeb54qvikfm2bbse2mhb6ppnrpqubcphq\",\"serverName\":\"idqogasfjw45.compat.objectstorage.us-ashburn-1.oci.customer-oci.com\"}}"},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
@@ -178,18 +178,6 @@ func TestCreateSvmRequest_Examples(t *testing.T) {
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
-}
-func TestDataEndpointConfig_EncodeDecode(t *testing.T) {
-	var typ DataEndpointConfig
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 DataEndpointConfig
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestDeletePoolAcceptedResponse_EncodeDecode(t *testing.T) {
 	var typ DeletePoolAcceptedResponse
@@ -557,6 +545,58 @@ func TestRbacRefreshRequest_Examples(t *testing.T) {
 		})
 	}
 }
+func TestSecurityAttributeValue_EncodeDecode(t *testing.T) {
+	var typ SecurityAttributeValue
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SecurityAttributeValue
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSecurityAttributeValueMode_EncodeDecode(t *testing.T) {
+	var typ SecurityAttributeValueMode
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SecurityAttributeValueMode
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSecurityAttributes_EncodeDecode(t *testing.T) {
+	var typ SecurityAttributes
+	typ = make(SecurityAttributes)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SecurityAttributes
+	typ2 = make(SecurityAttributes)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSecurityAttributesItem_EncodeDecode(t *testing.T) {
+	var typ SecurityAttributesItem
+	typ = make(SecurityAttributesItem)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SecurityAttributesItem
+	typ2 = make(SecurityAttributesItem)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestSvmLif_EncodeDecode(t *testing.T) {
 	var typ SvmLif
 	typ.SetFake()
@@ -656,20 +696,6 @@ func TestUpdatePoolRequest_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 UpdatePoolRequest
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestUpdatePoolRequestSecurityAttributes_EncodeDecode(t *testing.T) {
-	var typ UpdatePoolRequestSecurityAttributes
-	typ = make(UpdatePoolRequestSecurityAttributes)
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 UpdatePoolRequestSecurityAttributes
-	typ2 = make(UpdatePoolRequestSecurityAttributes)
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestUpgradePoolAcceptedResponse_EncodeDecode(t *testing.T) {

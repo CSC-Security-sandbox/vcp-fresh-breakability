@@ -7,8 +7,12 @@ import "fmt"
 // MiBpsPerGBps = 10^9 / 2^20 = 953.67431640625
 const MiBpsPerGBps = 953.67431640625
 
+// haPairLabel converts a zero-based slice index into the public 1-indexed
+// HA-pair label exposed on the API (ha_pair-1, ha_pair-2, ...). Callers
+// pass the natural slice index from `cloud.ha_pair`; the +1 lives here so
+// the wire format stays 1-indexed regardless of how callers iterate.
 func haPairLabel(i int) string {
-	return fmt.Sprintf("ha_pair-%d", i)
+	return fmt.Sprintf("ha_pair-%d", i+1)
 }
 
 type lifIPEmbed struct {
@@ -51,6 +55,17 @@ func poolUUIDFromEmbed(cfg *vlmConfigIPEmbed) string {
 		return ""
 	}
 	return cfg.Deployment.Labels["pool_uuid"]
+}
+
+// poolOCIDFromEmbed pulls the OCI pool resource OCID out of the VLM config's
+// deployment labels. Returns "" when cfg is nil or the label is missing/empty,
+// so callers can rely on the `omitempty` JSON tag to drop the field from the
+// poolMetadata response when the value is unavailable.
+func poolOCIDFromEmbed(cfg *vlmConfigIPEmbed) string {
+	if cfg == nil {
+		return ""
+	}
+	return cfg.Deployment.Labels["pool_ocid"]
 }
 
 func interclusterIPsFromEmbed(cfg *vlmConfigIPEmbed) []string {
@@ -146,7 +161,6 @@ func poolVMMetadataFromEmbed(cfg *vlmConfigIPEmbed) []OCICreatePoolVMMetadata {
 				SerialNumber:    pair.VM1.SerialNumber,
 				VSAManagementIP: pair.VM1.VSAManagementIP,
 				InterclusterIP:  pair.VM1.Lifs.Intercluster.IP,
-				NodeIP:          pair.VM1.Lifs.Nodemgmtinternal.IP,
 				HAPair:          label,
 				SizeInGiB:       sizeInGiB,
 				IOPS:            iops,
@@ -160,7 +174,6 @@ func poolVMMetadataFromEmbed(cfg *vlmConfigIPEmbed) []OCICreatePoolVMMetadata {
 				SerialNumber:    pair.VM2.SerialNumber,
 				VSAManagementIP: pair.VM2.VSAManagementIP,
 				InterclusterIP:  pair.VM2.Lifs.Intercluster.IP,
-				NodeIP:          pair.VM2.Lifs.Nodemgmtinternal.IP,
 				HAPair:          label,
 				SizeInGiB:       sizeInGiB,
 				IOPS:            iops,

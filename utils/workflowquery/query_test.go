@@ -312,6 +312,67 @@ func TestGetCompletedWorkflowMetadata_OCIPoolChildResult(t *testing.T) {
 	require.Equal(t, "150.136.212.147", poolMeta.Vms[0].VSAManagementIP)
 }
 
+func TestGetCompletedWorkflowMetadata_PoolOCIDFromChildLabels(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	childJSON := map[string]interface{}{
+		"vlm_config": map[string]interface{}{
+			"cloud": map[string]interface{}{
+				"ha_pair": []interface{}{
+					map[string]interface{}{
+						"vm1": map[string]interface{}{
+							"name":              "FsnIdocnv-vm-01",
+							"serial_number":     "1234501",
+							"vsa_management_ip": "150.136.212.147",
+							"lifs": map[string]interface{}{
+								"intercluster":     map[string]interface{}{"ip": "10.38.25.146"},
+								"nodemgmtinternal": map[string]interface{}{"ip": "10.38.0.1"},
+							},
+						},
+					},
+				},
+			},
+			"deployment": map[string]interface{}{
+				"labels": map[string]interface{}{
+					"pool_ocid": "ocid1.pool.oc1.iad.testpool",
+					"pool_uuid": "b5fb9baf-953b-9c65-19d5-31e3365cc2e3",
+				},
+			},
+		},
+	}
+	raw, err := json.Marshal(childJSON)
+	require.NoError(t, err)
+	events := []*historypb.HistoryEvent{
+		{
+			EventType: enums.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
+				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "OCICreatePoolWorkflow"},
+				},
+			},
+		},
+		{
+			EventType: enums.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED,
+			Attributes: &historypb.HistoryEvent_ChildWorkflowExecutionCompletedEventAttributes{
+				ChildWorkflowExecutionCompletedEventAttributes: &historypb.ChildWorkflowExecutionCompletedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: "vlm.CreateVSAClusterDeploymentWorkflow"},
+					Result: &commonpb.Payloads{
+						Payloads: []*commonpb.Payload{{Data: raw}},
+					},
+				},
+			},
+		},
+	}
+	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
+	poolMeta, svmMeta := getCompletedWorkflowMetadata(ctx, f, "ns", "wf", "run")
+	require.NotNil(t, poolMeta)
+	require.Nil(t, svmMeta)
+	require.Equal(t, "ocid1.pool.oc1.iad.testpool", poolMeta.PoolOCID,
+		"PoolOCID must be propagated from VLM-config-derived child metadata into the parent OCICreatePoolMetadata; without this copy the GetWorkflow endpoint cannot echo poolOCID for OCICreatePoolWorkflow runs")
+	require.Equal(t, "b5fb9baf-953b-9c65-19d5-31e3365cc2e3", poolMeta.PoolUUID,
+		"PoolUUID must continue to round-trip alongside PoolOCID; both come from deployment.labels and must be propagated together")
+}
+
 func TestGetCompletedWorkflowMetadata_PoolCredentialsAndVMs(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

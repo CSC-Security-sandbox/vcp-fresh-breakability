@@ -111,8 +111,7 @@ func TestPoolVMMetadataFromEmbed(t *testing.T) {
 			SerialNumber:    "1234501",
 			VSAManagementIP: "150.136.212.147",
 			InterclusterIP:  "10.38.25.146",
-			NodeIP:          "10.38.18.182",
-			HAPair:          "ha_pair-0",
+			HAPair:          "ha_pair-1",
 			SizeInGiB:       100,
 			IOPS:            3000,
 			ThroughputGBps:  expectedThroughputGBps,
@@ -122,8 +121,7 @@ func TestPoolVMMetadataFromEmbed(t *testing.T) {
 			SerialNumber:    "1234502",
 			VSAManagementIP: "158.101.109.167",
 			InterclusterIP:  "10.38.1.218",
-			NodeIP:          "10.38.5.224",
-			HAPair:          "ha_pair-0",
+			HAPair:          "ha_pair-1",
 			SizeInGiB:       100,
 			IOPS:            3000,
 			ThroughputGBps:  expectedThroughputGBps,
@@ -159,8 +157,7 @@ func TestPoolVMMetadataFromEmbed_NoDataDisks(t *testing.T) {
 			SerialNumber:    "1234501",
 			VSAManagementIP: "150.136.212.147",
 			InterclusterIP:  "10.38.25.146",
-			NodeIP:          "10.38.18.182",
-			HAPair:          "ha_pair-0",
+			HAPair:          "ha_pair-1",
 		},
 	}, poolVMMetadataFromEmbed(&cfg))
 }
@@ -187,6 +184,32 @@ func TestPoolUUIDFromEmbed(t *testing.T) {
 	var cfg2 vlmConfigIPEmbed
 	require.NoError(t, json.Unmarshal([]byte(withoutLabels), &cfg2))
 	require.Empty(t, poolUUIDFromEmbed(&cfg2), "missing deployment.labels returns empty UUID")
+}
+
+// TestPoolOCIDFromEmbed pins the helper that surfaces deployment.labels[pool_ocid]
+// onto the OCICreatePoolMetadata.PoolOCID field. Empty/missing must return ""
+// so callers can rely on `omitempty` to drop the wire field.
+func TestPoolOCIDFromEmbed(t *testing.T) {
+	t.Parallel()
+	require.Empty(t, poolOCIDFromEmbed(nil), "nil cfg returns empty OCID")
+
+	const withLabels = `{
+  "cloud": { "ha_pair": [] },
+  "deployment": {
+    "labels": {
+      "pool_ocid": "ocid1.pool.oc1.ashburn-1.testpool",
+      "pool_uuid": "b5fb9baf-953b-9c65-19d5-31e3365cc2e3"
+    }
+  }
+}`
+	var cfg vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(withLabels), &cfg))
+	require.Equal(t, "ocid1.pool.oc1.ashburn-1.testpool", poolOCIDFromEmbed(&cfg))
+
+	const withoutLabels = `{ "cloud": { "ha_pair": [] } }`
+	var cfg2 vlmConfigIPEmbed
+	require.NoError(t, json.Unmarshal([]byte(withoutLabels), &cfg2))
+	require.Empty(t, poolOCIDFromEmbed(&cfg2), "missing deployment.labels returns empty OCID")
 }
 
 // TestClusterIPFromEmbed verifies that the cluster-scoped RBAC LIF IP is
@@ -230,8 +253,9 @@ func TestClusterIPFromEmbed(t *testing.T) {
 }
 
 // TestPoolVMMetadataFromEmbed_HAPairIndexing verifies that HAPair labels are
-// assigned by zero-based pair index (ha_pair-0, ha_pair-1, ...) and that both
-// VMs in the same pair share the same label.
+// 1-indexed on the API contract (ha_pair-1, ha_pair-2, ...) even though the
+// underlying `cloud.ha_pair` slice is iterated with a 0-based index, and that
+// both VMs in the same pair share the same label.
 func TestPoolVMMetadataFromEmbed_HAPairIndexing(t *testing.T) {
 	t.Parallel()
 	const snippet = `{
@@ -252,10 +276,10 @@ func TestPoolVMMetadataFromEmbed_HAPairIndexing(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(snippet), &cfg))
 	got := poolVMMetadataFromEmbed(&cfg)
 	require.Len(t, got, 4)
-	require.Equal(t, "ha_pair-0", got[0].HAPair, "vm1 of pair 0 must be ha_pair-0")
-	require.Equal(t, "ha_pair-0", got[1].HAPair, "vm2 of pair 0 must be ha_pair-0")
-	require.Equal(t, "ha_pair-1", got[2].HAPair, "vm1 of pair 1 must be ha_pair-1")
-	require.Equal(t, "ha_pair-1", got[3].HAPair, "vm2 of pair 1 must be ha_pair-1")
+	require.Equal(t, "ha_pair-1", got[0].HAPair, "vm1 of slice index 0 must be ha_pair-1 (1-indexed wire format)")
+	require.Equal(t, "ha_pair-1", got[1].HAPair, "vm2 of slice index 0 must be ha_pair-1")
+	require.Equal(t, "ha_pair-2", got[2].HAPair, "vm1 of slice index 1 must be ha_pair-2")
+	require.Equal(t, "ha_pair-2", got[3].HAPair, "vm2 of slice index 1 must be ha_pair-2")
 }
 
 func TestPoolVMMetadataFromEmbed_RBACOnlyVMOmitted(t *testing.T) {
@@ -331,8 +355,7 @@ func TestPoolVMMetadataFromEmbed_VM2Omitted(t *testing.T) {
 			SerialNumber:    "1234501",
 			VSAManagementIP: "150.136.212.147",
 			InterclusterIP:  "10.38.25.146",
-			NodeIP:          "10.38.18.182",
-			HAPair:          "ha_pair-0",
+			HAPair:          "ha_pair-1",
 		},
 	}, poolVMMetadataFromEmbed(&cfg))
 }

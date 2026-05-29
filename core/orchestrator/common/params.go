@@ -75,6 +75,18 @@ type CreatePoolParams struct {
 	OciAdminPassword  *OciAdminPassword
 	DataNICSubnetID   string
 	HAPairs           uint64
+
+	KmsKeyId           string
+	NsgIds             []string
+	SecurityAttributes map[string]map[string]interface{}
+	FabricPoolConfig   *FabricPoolConfig
+}
+
+type FabricPoolConfig struct {
+	BucketName string
+	SecretOcid string
+	Namespace  string
+	ServerURL  string
 }
 
 type OciAdminPassword struct {
@@ -447,7 +459,7 @@ type UpdatePoolParams struct {
 	NodeCapacities            []NodeCapacity
 	KmsKeyId                  string
 	NsgIds                    []string
-	SecurityAttributes        map[string]string
+	SecurityAttributes        map[string]map[string]interface{}
 	HAPairs                   uint64
 }
 

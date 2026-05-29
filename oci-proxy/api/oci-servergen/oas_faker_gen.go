@@ -64,18 +64,6 @@ func (s *CreatePoolRequest) SetFake() {
 	}
 	{
 		{
-			s.DataEndpointConfig = nil
-			for i := 0; i < 2; i++ {
-				var elem DataEndpointConfig
-				{
-					elem.SetFake()
-				}
-				s.DataEndpointConfig = append(s.DataEndpointConfig, elem)
-			}
-		}
-	}
-	{
-		{
 			s.PrimaryAvailabilityDomain = "string"
 		}
 	}
@@ -126,6 +114,11 @@ func (s *CreatePoolRequest) SetFake() {
 			}
 		}
 	}
+	{
+		{
+			s.SecurityAttributes.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -174,25 +167,6 @@ func (s *CreateSvmRequest) SetFake() {
 				}
 				s.Ips = append(s.Ips, elem)
 			}
-		}
-	}
-}
-
-// SetFake set fake values.
-func (s *DataEndpointConfig) SetFake() {
-	{
-		{
-			s.SizeInGiB = int64(0)
-		}
-	}
-	{
-		{
-			s.ThroughputGBps = float64(0)
-		}
-	}
-	{
-		{
-			s.Iops = int64(0)
 		}
 	}
 }
@@ -342,6 +316,11 @@ func (s *OCICreatePoolWorkflowCredentials) SetFake() {
 func (s *OCICreatePoolWorkflowMetadata) SetFake() {
 	{
 		{
+			s.PoolOCID = "string"
+		}
+	}
+	{
+		{
 			s.ClusterIP.SetFake()
 		}
 	}
@@ -384,11 +363,6 @@ func (s *OCICreatePoolWorkflowVM) SetFake() {
 	{
 		{
 			s.InterclusterIP = "string"
-		}
-	}
-	{
-		{
-			s.NodeIP = "string"
 		}
 	}
 	{
@@ -531,6 +505,15 @@ func (s *OptRbacRefreshRequest) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptSecurityAttributes) SetFake() {
+	var elem SecurityAttributes
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptString) SetFake() {
 	var elem string
 	{
@@ -542,15 +525,6 @@ func (s *OptString) SetFake() {
 // SetFake set fake values.
 func (s *OptTieringConfig) SetFake() {
 	var elem TieringConfig
-	{
-		elem.SetFake()
-	}
-	s.SetTo(elem)
-}
-
-// SetFake set fake values.
-func (s *OptUpdatePoolRequestSecurityAttributes) SetFake() {
-	var elem UpdatePoolRequestSecurityAttributes
 	{
 		elem.SetFake()
 	}
@@ -610,6 +584,47 @@ func (s *RbacRefreshRequest) SetFake() {
 		{
 			s.RbacFilePath.SetFake()
 		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SecurityAttributeValue) SetFake() {
+	{
+		{
+			s.Value = "string"
+		}
+	}
+	{
+		{
+			s.Mode.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SecurityAttributeValueMode) SetFake() {
+	*s = SecurityAttributeValueModeEnforce
+}
+
+// SetFake set fake values.
+func (s *SecurityAttributes) SetFake() {
+	var (
+		elem SecurityAttributesItem
+		m    map[string]SecurityAttributesItem = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *SecurityAttributesItem) SetFake() {
+	var (
+		elem SecurityAttributeValue
+		m    map[string]SecurityAttributeValue = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
 	}
 }
 
@@ -776,17 +791,6 @@ func (s *UpdatePoolRequest) SetFake() {
 		{
 			s.SecurityAttributes.SetFake()
 		}
-	}
-}
-
-// SetFake set fake values.
-func (s *UpdatePoolRequestSecurityAttributes) SetFake() {
-	var (
-		elem string
-		m    map[string]string = s.init()
-	)
-	for i := 0; i < 0; i++ {
-		m[fmt.Sprintf("fake%d", i)] = elem
 	}
 }
 

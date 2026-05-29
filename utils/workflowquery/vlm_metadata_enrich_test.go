@@ -58,6 +58,8 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 	out := vsaClusterChildMetadataFromPayloads([]*commonpb.Payload{{Data: body}})
 	require.NotNil(t, out)
 	require.Equal(t, "b5fb9baf-953b-9c65-19d5-31e3365cc2e3", out.PoolUUID)
+	require.Equal(t, "ocid1.pool.oc1.ashburn-1.testpool", out.PoolOCID,
+		"PoolOCID must be sourced from deployment.labels[pool_ocid] so the API response can echo the customer-provided pool OCID")
 
 	require.Equal(t, []OCICreatePoolVMMetadata{
 		{
@@ -65,16 +67,14 @@ func TestVsaClusterChildMetadataFromPayloads(t *testing.T) {
 			SerialNumber:    "1234501",
 			VSAManagementIP: "150.136.212.147",
 			InterclusterIP:  "10.38.25.146",
-			NodeIP:          "10.38.0.1",
-			HAPair:          "ha_pair-0",
+			HAPair:          "ha_pair-1",
 		},
 		{
 			Name:            "FsnIdocnv-vm-02",
 			SerialNumber:    "1234502",
 			VSAManagementIP: "158.101.109.167",
 			InterclusterIP:  "10.38.1.218",
-			NodeIP:          "10.38.0.2",
-			HAPair:          "ha_pair-0",
+			HAPair:          "ha_pair-1",
 		},
 	}, out.Vms)
 }
@@ -121,8 +121,7 @@ func TestVsaClusterChildMetadataFromPayloads_Base64WrappedPayload(t *testing.T) 
 			SerialNumber:    "9001",
 			VSAManagementIP: "10.0.0.3",
 			InterclusterIP:  "10.0.0.1",
-			NodeIP:          "10.0.0.2",
-			HAPair:          "ha_pair-0",
+			HAPair:          "ha_pair-1",
 		},
 	}, out.Vms)
 }

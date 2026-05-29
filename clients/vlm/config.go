@@ -195,6 +195,14 @@ type OCIConfig struct {
 	CmekOcid                   string                            `json:"cmek_ocid,omitempty"`          // OCID for CMEK to encrypt data block volumes
 	CustomerNSGs               []string                          `json:"customer_nsgs"`                // Customer NSGs to be attached to the customer vnic
 	CustomerSecurityAttributes map[string]map[string]interface{} `json:"customer_security_attributes"` // Customer security attributes to be attached to the customer vnic
+	FabricPoolConfig           FabricPoolConfig                  `json:"fabric_pool_config"`           // Fabric pool configuration
+}
+
+type FabricPoolConfig struct {
+	BucketName string `json:"bucket_name"`
+	SecretOcid string `json:"secret_ocid"`
+	Namespace  string `json:"namespace"`
+	ServerURL  string `json:"server_url"`
 }
 
 type AzureConfig struct {

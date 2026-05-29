@@ -54,6 +54,15 @@ const (
 	errMsgEmptyTenancyOcid                = "tenancyOcid must not be empty"
 	errMsgEmptyPrimaryAD                  = "primaryAvailabilityDomain must not be empty"
 	errMsgEmptySerialNumberPrefix         = "serialNumberPrefix must not be empty"
+	errMsgEmptyTieringSecretID            = "tieringConfig.secretId must not be empty"
+	errMsgInvalidTieringSecretID          = "tieringConfig.secretId must be a valid OCID"
+	errMsgEmptyTieringNamespace           = "tieringConfig.namespace must not be empty"
+	errMsgEmptyTieringBucketName          = "tieringConfig.bucketName must not be empty"
+	errMsgEmptyTieringServerName          = "tieringConfig.serverName must not be empty"
+	errMsgEmptyKmsKeyId                   = "kmsKeyId must not be empty when provided"
+	errMsgInvalidKmsKeyId                 = "kmsKeyId must be a valid OCID"
+	errMsgEmptyNsgID                      = "nsgIds[%d] must not be empty"
+	errMsgInvalidNsgID                    = "nsgIds[%d] must be a valid OCID"
 )
 
 func normalizeCreatePoolRequest(req *ociserver.CreatePoolRequest, params *ociserver.CreatePoolParams) {
@@ -74,6 +83,20 @@ func normalizeCreatePoolRequest(req *ociserver.CreatePoolRequest, params *ociser
 	req.OciAdminPassword.Version = strings.TrimSpace(req.OciAdminPassword.Version)
 	req.Description.Value = strings.TrimSpace(req.Description.Value)
 	req.DataNicSubnetId = strings.TrimSpace(req.DataNicSubnetId)
+
+	if req.TieringConfig.Set {
+		req.TieringConfig.Value.SecretId = strings.TrimSpace(req.TieringConfig.Value.SecretId)
+		req.TieringConfig.Value.Namespace = strings.TrimSpace(req.TieringConfig.Value.Namespace)
+		req.TieringConfig.Value.BucketName = strings.TrimSpace(req.TieringConfig.Value.BucketName)
+		req.TieringConfig.Value.ServerName = strings.TrimSpace(req.TieringConfig.Value.ServerName)
+	}
+
+	if req.KmsKeyId.Set {
+		req.KmsKeyId.Value = strings.TrimSpace(req.KmsKeyId.Value)
+	}
+	for i := range req.NsgIds {
+		req.NsgIds[i] = strings.TrimSpace(req.NsgIds[i])
+	}
 }
 
 func normalizeDeletePoolParams(params *ociserver.DeletePoolParams) {
@@ -223,6 +246,40 @@ func validateCreatePoolRequest(req *ociserver.CreatePoolRequest, params *ociserv
 	if !isSharedHA(req.PrimaryAvailabilityDomain, req.SecondaryAvailabilityDomain.Value) && req.DataEndpointCount != 2 {
 		return errors.New(errMsgInvalidConfigForNonSharedHA)
 	}
+	if req.TieringConfig.Set {
+		tc := req.TieringConfig.Value
+		if tc.SecretId == "" {
+			return errors.New(errMsgEmptyTieringSecretID)
+		}
+		if !isValidOCID(tc.SecretId) {
+			return errors.New(errMsgInvalidTieringSecretID)
+		}
+		if tc.Namespace == "" {
+			return errors.New(errMsgEmptyTieringNamespace)
+		}
+		if tc.BucketName == "" {
+			return errors.New(errMsgEmptyTieringBucketName)
+		}
+		if tc.ServerName == "" {
+			return errors.New(errMsgEmptyTieringServerName)
+		}
+	}
+	if req.KmsKeyId.Set {
+		if req.KmsKeyId.Value == "" {
+			return errors.New(errMsgEmptyKmsKeyId)
+		}
+		if !isValidOCID(req.KmsKeyId.Value) {
+			return errors.New(errMsgInvalidKmsKeyId)
+		}
+	}
+	for i, nsgID := range req.NsgIds {
+		if nsgID == "" {
+			return fmt.Errorf(errMsgEmptyNsgID, i)
+		}
+		if !isValidOCID(nsgID) {
+			return fmt.Errorf(errMsgInvalidNsgID, i)
+		}
+	}
 	return nil
 }
 
@@ -310,6 +367,25 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 		},
 		DataNICSubnetID: req.DataNicSubnetId,
 		HAPairs:         uint64(req.DataEndpointCount / 2),
+		KmsKeyId:        req.KmsKeyId.Value,
+		// Defensive copy: the orchestrator may retain this slice across goroutine
+		// boundaries (Temporal activity inputs), so aliasing req.NsgIds would
+		// risk a downstream read racing with the HTTP request lifecycle. Matches
+		// the same convention used by UpdatePool below.
+		NsgIds: append([]string(nil), req.NsgIds...),
+	}
+
+	if req.TieringConfig.Set {
+		createPoolParams.FabricPoolConfig = &commonparams.FabricPoolConfig{
+			BucketName: req.TieringConfig.Value.BucketName,
+			SecretOcid: req.TieringConfig.Value.SecretId,
+			Namespace:  req.TieringConfig.Value.Namespace,
+			ServerURL:  req.TieringConfig.Value.ServerName,
+		}
+	}
+
+	if req.SecurityAttributes.Set {
+		createPoolParams.SecurityAttributes = toCustomerSecurityAttributes(req.SecurityAttributes.Value)
 	}
 
 	_, workflowID, err := h.Orchestrator.CreatePool(ctx, createPoolParams)
@@ -401,7 +477,6 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 				SerialNumber:    vm.SerialNumber,
 				VsaManagementIP: vm.VSAManagementIP,
 				InterclusterIP:  vm.InterclusterIP,
-				NodeIP:          vm.NodeIP,
 				NodeUUID:        nodeUUIDByName[vm.Name],
 				HaPair:          vm.HAPair,
 				SizeInGiB:       vm.SizeInGiB,
@@ -410,13 +485,10 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 			})
 		}
 		poolMeta := ociserver.OCICreatePoolWorkflowMetadata{
+			PoolOCID:    res.PoolMetadata.PoolOCID,
 			Vms:         vms,
 			Credentials: buildWorkflowCredentialsResponse(res.PoolMetadata.Credentials),
 		}
-		// Omit clusterIP entirely when VLM has not yet recorded the RBAC LIF
-		// IP, so the field reads as absent (not "") for in-progress / partial
-		// runs and matches the "Omitted while still being provisioned"
-		// contract documented on the schema.
 		if res.PoolMetadata.ClusterIP != "" {
 			poolMeta.ClusterIP = ociserver.NewOptString(res.PoolMetadata.ClusterIP)
 		}
@@ -800,10 +872,7 @@ func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolReque
 		updateParams.NsgIds = append([]string(nil), req.NsgIds...)
 	}
 	if req.SecurityAttributes.Set {
-		updateParams.SecurityAttributes = make(map[string]string, len(req.SecurityAttributes.Value))
-		for k, v := range req.SecurityAttributes.Value {
-			updateParams.SecurityAttributes[k] = v
-		}
+		updateParams.SecurityAttributes = toCustomerSecurityAttributes(req.SecurityAttributes.Value)
 	}
 
 	_, workflowID, err := h.Orchestrator.UpdatePool(ctx, updateParams)
@@ -895,4 +964,26 @@ func statusFromError(err error) int {
 	default:
 		return http.StatusInternalServerError // 500
 	}
+}
+
+func toCustomerSecurityAttributes(in ociserver.SecurityAttributes) map[string]map[string]interface{} {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]map[string]interface{}, len(in))
+	for ns, attrs := range in {
+		if len(attrs) == 0 {
+			continue
+		}
+		inner := make(map[string]interface{}, len(attrs))
+		for name, v := range attrs {
+			attr := map[string]string{
+				"value": v.Value,
+				"mode":  string(v.Mode),
+			}
+			inner[name] = attr
+		}
+		out[ns] = inner
+	}
+	return out
 }
