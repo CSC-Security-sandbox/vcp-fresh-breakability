@@ -2312,6 +2312,234 @@ func TestGetInjectedArguments(t *testing.T) {
 	})
 }
 
+func TestVserverCreateRule_Blocked(t *testing.T) {
+	rule := findRule("vserver create")
+	if rule == nil {
+		t.Fatal("vserver create rule not found")
+	}
+
+	t.Run("WhenVserverCreate_ShouldBeDenied", func(t *testing.T) {
+		allowed, reason := EvaluateRule(rule, &CLICommand{
+			FullCommand: "vserver create",
+			Arguments:   map[string]string{"-vserver": "new-svm"},
+		})
+		if allowed {
+			t.Error("Expected vserver create to be denied")
+		}
+		if reason != "SVM creation not allowed" {
+			t.Errorf("Expected reason 'SVM creation not allowed', got %q", reason)
+		}
+	})
+
+	t.Run("WhenMatchCLIRule_ShouldMatchVserverCreate", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vserver create -vserver new-svm")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		matched, found := MatchCLIRule(cmd)
+		if !found {
+			t.Fatal("Expected to find a matching rule for vserver create")
+		}
+		if matched.Allow {
+			t.Error("Expected vserver create rule to deny")
+		}
+	})
+}
+
+func TestVserverDeleteRule_Blocked(t *testing.T) {
+	rule := findRule("vserver delete")
+	if rule == nil {
+		t.Fatal("vserver delete rule not found")
+	}
+
+	t.Run("WhenVserverDelete_ShouldBeDenied", func(t *testing.T) {
+		allowed, reason := EvaluateRule(rule, &CLICommand{
+			FullCommand: "vserver delete",
+			Arguments:   map[string]string{"-vserver": "existing-svm"},
+		})
+		if allowed {
+			t.Error("Expected vserver delete to be denied")
+		}
+		if reason != "SVM deletion not allowed" {
+			t.Errorf("Expected reason 'SVM deletion not allowed', got %q", reason)
+		}
+	})
+
+	t.Run("WhenMatchCLIRule_ShouldMatchVserverDelete", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vserver delete -vserver existing-svm")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		matched, found := MatchCLIRule(cmd)
+		if !found {
+			t.Fatal("Expected to find a matching rule for vserver delete")
+		}
+		if matched.Allow {
+			t.Error("Expected vserver delete rule to deny")
+		}
+	})
+}
+
+func TestVserverModifyRule_RestrictedFields(t *testing.T) {
+	rule := findRule("vserver modify")
+	if rule == nil {
+		t.Fatal("vserver modify rule not found")
+	}
+
+	t.Run("WhenOnlyLanguage_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-vserver": "vs1", "-language": "en.UTF-8"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected vserver modify with -language to be allowed, got reason: %s", reason)
+		}
+	})
+
+	t.Run("WhenOnlySnapshotPolicy_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-vserver": "vs1", "-snapshot-policy": "default"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected vserver modify with -snapshot-policy to be allowed, got reason: %s", reason)
+		}
+	})
+
+	t.Run("WhenSecurityStyle_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-vserver": "vs1", "-security-style": "unix"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected vserver modify with -security-style to be denied")
+		}
+		if !containsSubstring(reason, "-security-style") {
+			t.Errorf("Expected reason to mention -security-style, got %q", reason)
+		}
+	})
+
+	t.Run("WhenExportPolicy_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-vserver": "vs1", "-export-policy": "default"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected vserver modify with -export-policy to be denied")
+		}
+		if !containsSubstring(reason, "-export-policy") {
+			t.Errorf("Expected reason to mention -export-policy, got %q", reason)
+		}
+	})
+
+	t.Run("WhenOnlyQuotaPolicy_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-vserver": "vs1", "-quota-policy": "default"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected vserver modify with -quota-policy to be allowed, got reason: %s", reason)
+		}
+	})
+
+	t.Run("WhenAllAllowedArgs_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-vserver": "vs1", "-language": "C.UTF-8", "-snapshot-policy": "custom1", "-quota-policy": "default"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected vserver modify with all allowed args to pass, got reason: %s", reason)
+		}
+	})
+
+	t.Run("WhenDisallowedArgPresent_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-vserver": "vs1", "-language": "en.UTF-8", "-comment": "test"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected vserver modify with -comment to be denied")
+		}
+		if !containsSubstring(reason, "-comment") {
+			t.Errorf("Expected reason to mention -comment, got %q", reason)
+		}
+	})
+
+	t.Run("WhenMissingVserver_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-language": "en.UTF-8"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected vserver modify without -vserver to be denied")
+		}
+		if !containsSubstring(reason, "-vserver") {
+			t.Errorf("Expected reason to mention -vserver, got %q", reason)
+		}
+	})
+
+	t.Run("WhenNameArg_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "vserver modify",
+			Arguments:   map[string]string{"-vserver": "vs1", "-name": "new-name"},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected vserver modify with -name to be denied")
+		}
+		if !containsSubstring(reason, "-name") {
+			t.Errorf("Expected reason to mention -name, got %q", reason)
+		}
+	})
+}
+
+
+func TestCLIOnlyAllowArgs(t *testing.T) {
+	t.Run("WhenOnlyAllowedArgs_ShouldPass", func(t *testing.T) {
+		cond := CLIOnlyAllowArgs("-vserver", "-language")
+		cmd := &CLICommand{
+			Arguments: map[string]string{"-vserver": "vs1", "-language": "en.UTF-8"},
+		}
+		ok, reason := cond(cmd)
+		if !ok {
+			t.Errorf("Expected allowed, got reason: %s", reason)
+		}
+	})
+
+	t.Run("WhenDisallowedArgPresent_ShouldFail", func(t *testing.T) {
+		cond := CLIOnlyAllowArgs("-vserver", "-language")
+		cmd := &CLICommand{
+			Arguments: map[string]string{"-vserver": "vs1", "-language": "en.UTF-8", "-name": "new"},
+		}
+		ok, reason := cond(cmd)
+		if ok {
+			t.Error("Expected denied for -name argument")
+		}
+		if !containsSubstring(reason, "-name") {
+			t.Errorf("Expected reason to mention -name, got %q", reason)
+		}
+	})
+
+	t.Run("WhenNoArgs_ShouldPass", func(t *testing.T) {
+		cond := CLIOnlyAllowArgs("-vserver")
+		cmd := &CLICommand{
+			Arguments: map[string]string{},
+		}
+		ok, reason := cond(cmd)
+		if !ok {
+			t.Errorf("Expected allowed for empty args, got reason: %s", reason)
+		}
+	})
+}
+
 // Helper functions for tests
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstring(s, substr))

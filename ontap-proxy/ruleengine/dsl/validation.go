@@ -288,6 +288,29 @@ func RejectFields(fields ...string) Condition {
 	}
 }
 
+// OnlyAllowFields creates a condition that fails if any top-level field in the request body
+// is NOT in the provided allowlist. If only allowed fields are present, the condition passes.
+func OnlyAllowFields(allowedFields ...string) Condition {
+	return func(r *http.Request) (bool, string) {
+		data, parseErr := GetParsedBody(r)
+		if parseErr != "" {
+			return false, parseErr
+		}
+
+		allowed := make(map[string]bool, len(allowedFields))
+		for _, f := range allowedFields {
+			allowed[f] = true
+		}
+
+		for key := range data {
+			if !allowed[key] {
+				return false, fmt.Sprintf("field '%s' is not allowed", key)
+			}
+		}
+		return true, ""
+	}
+}
+
 // fieldExists checks if a field exists in a nested map using dot notation
 func fieldExists(data map[string]interface{}, fieldPath string) bool {
 	parts := strings.Split(fieldPath, ".")

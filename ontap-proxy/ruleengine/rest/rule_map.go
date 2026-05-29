@@ -359,6 +359,21 @@ func GetProxyRules() map[string]Rule {
 			PATCH:  DenyAll{},
 			DELETE: DenyAll{},
 		},
+		// Private CLI Vserver - block create/delete, restrict modify (same policy as /api/svm/svms and CLI vserver rules)
+		"/api/private/cli/vserver": {
+			GET: Allow{Name: "Allow private CLI vserver GET"},
+			POST: Deny{
+				Name: "SVM creation not allowed",
+			},
+			PATCH: When{
+				Name:      "Private CLI vserver modification validation",
+				Condition: OnlyAllowFields("language", "snapshot_policy", "quota_policy"),
+				IsTrue:    Allow{Name: "Allow private CLI vserver modification"},
+			},
+			DELETE: Deny{
+				Name: "SVM deletion not allowed",
+			},
+		},
 		"/api/private/cli/vserver/object-store-server/bucket": {
 			GET: Allow{Name: "Allow private CLI NAS bucket GET"},
 			POST: When{
@@ -448,6 +463,26 @@ func GetProxyRules() map[string]Rule {
 			POST:   DenyAll{},
 			PATCH:  DenyAll{},
 			DELETE: DenyAll{},
+		},
+
+		// SVM collection - block create, allow listing
+		"/api/svm/svms": {
+			GET:    Allow{Name: "Allow SVM listing"},
+			POST:   Deny{Name: "SVM creation not allowed"},
+			PATCH:  DenyAll{},
+			DELETE: DenyAll{},
+		},
+
+		// SVM instance - restrict modify to allowed fields only
+		"/api/svm/svms/{uuid}": {
+			GET:  Allow{Name: "Allow SVM details"},
+			POST: DenyAll{},
+			PATCH: When{
+				Name:      "SVM modification validation",
+				Condition: OnlyAllowFields("language", "snapshot_policy", "export_policy", "nsswitch"),
+				IsTrue:    Allow{Name: "Allow SVM modification"},
+			},
+			DELETE: Deny{Name: "SVM deletion not allowed"},
 		},
 	}
 }

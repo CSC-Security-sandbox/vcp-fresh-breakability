@@ -426,6 +426,26 @@ var cliRules = []CLIRule{
 		Reason:  "Certificate deletion not allowed",
 	},
 
+	// Vserver - block create/delete, restrict modify to allowed fields only
+	{
+		Pattern: "vserver create",
+		Allow:   false,
+		Reason:  "SVM creation not allowed",
+	},
+	{
+		Pattern: "vserver delete",
+		Allow:   false,
+		Reason:  "SVM deletion not allowed",
+	},
+	{
+		Pattern: "vserver modify",
+		Allow:   true,
+		Condition: CLIAnd(
+			CLIHasArgs("-vserver"),
+			CLIOnlyAllowArgs("-vserver", "-language", "-snapshot-policy", "-quota-policy"),
+		),
+	},
+
 	{
 		Pattern: "vserver object-store-server bucket create",
 		Allow:   true,
@@ -697,6 +717,29 @@ func CLIRejectArgs(argNames ...string) CLICondition {
 		for _, argName := range argNames {
 			if cmd.HasArgument(argName) {
 				return false, fmt.Sprintf("Argument %s is not allowed", argName)
+			}
+		}
+		return true, ""
+	}
+}
+
+// CLIOnlyAllowArgs ensures that the command contains ONLY arguments and flags from the allowed list.
+// Any argument or flag not in the allowlist causes the condition to fail.
+// Example: CLIOnlyAllowArgs("-vserver", "-security-style", "-language", "-snapshot-policy", "-quota-policy")
+func CLIOnlyAllowArgs(allowedArgs ...string) CLICondition {
+	return func(cmd *CLICommand) (bool, string) {
+		allowed := make(map[string]bool, len(allowedArgs))
+		for _, a := range allowedArgs {
+			allowed[a] = true
+		}
+		for argName := range cmd.Arguments {
+			if !allowed[argName] {
+				return false, fmt.Sprintf("argument %s is not allowed", argName)
+			}
+		}
+		for _, flag := range cmd.Flags {
+			if !allowed[flag] {
+				return false, fmt.Sprintf("flag %s is not allowed", flag)
 			}
 		}
 		return true, ""

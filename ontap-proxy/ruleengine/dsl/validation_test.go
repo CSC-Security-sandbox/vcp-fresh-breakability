@@ -772,6 +772,78 @@ func TestAnd_TypeNasRequiresNasPathKey(t *testing.T) {
 	})
 }
 
+func TestOnlyAllowFields(t *testing.T) {
+	t.Run("WhenOnlyAllowedFieldsPresent_ShouldPass", func(t *testing.T) {
+		condition := OnlyAllowFields("language", "snapshot_policy")
+		req := createRequestWithBody(`{"language": "en.UTF-8", "snapshot_policy": {"name": "default"}}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenDisallowedFieldPresent_ShouldReject", func(t *testing.T) {
+		condition := OnlyAllowFields("language", "snapshot_policy")
+		req := createRequestWithBody(`{"language": "en.UTF-8", "name": "new-svm"}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Contains(t, reason, "name")
+		assert.Contains(t, reason, "not allowed")
+	})
+
+	t.Run("WhenOnlyDisallowedFieldsPresent_ShouldReject", func(t *testing.T) {
+		condition := OnlyAllowFields("language", "snapshot_policy")
+		req := createRequestWithBody(`{"state": "stopped", "comment": "test"}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Contains(t, reason, "not allowed")
+	})
+
+	t.Run("WhenBodyIsEmpty_ShouldFail", func(t *testing.T) {
+		condition := OnlyAllowFields("language")
+		req := createRequestWithBody(``)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenBodyIsEmptyObject_ShouldPass", func(t *testing.T) {
+		condition := OnlyAllowFields("language")
+		req := createRequestWithBody(`{}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenSingleAllowedField_ShouldPass", func(t *testing.T) {
+		condition := OnlyAllowFields("language")
+		req := createRequestWithBody(`{"language": "C.UTF-8"}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenRequestIsNil_ShouldFail", func(t *testing.T) {
+		condition := OnlyAllowFields("language")
+
+		result, reason := condition(nil)
+
+		assert.False(t, result)
+		assert.NotEmpty(t, reason)
+	})
+}
+
 // Helper function
 func createRequestWithBody(body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewBufferString(body))

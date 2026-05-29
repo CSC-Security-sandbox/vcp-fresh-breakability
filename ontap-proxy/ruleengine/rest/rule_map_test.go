@@ -1417,6 +1417,176 @@ func TestS3ProtocolsBucketsRules(t *testing.T) {
 	})
 }
 
+func TestSVMCollectionRule(t *testing.T) {
+	path := "/api/svm/svms"
+
+	t.Run("RulesRegistered", func(t *testing.T) {
+		rules := GetProxyRules()
+		_, ok := rules[path]
+		assert.True(t, ok, "Should have rule for /api/svm/svms")
+	})
+
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPOST_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"name":"new-svm"}`)
+		req := httptest.NewRequest(http.MethodPost, path, body)
+		req.Header.Set("Content-Type", "application/json")
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
+		assert.Contains(t, reason, "SVM creation not allowed")
+	})
+
+	t.Run("WhenPATCH_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		req := httptest.NewRequest(http.MethodPatch, path, nil)
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.False(t, allowed)
+	})
+
+	t.Run("WhenDELETE_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		req := httptest.NewRequest(http.MethodDelete, path, nil)
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.False(t, allowed)
+	})
+}
+
+func TestSVMInstanceRule(t *testing.T) {
+	path := "/api/svm/svms/{uuid}"
+
+	t.Run("RulesRegistered", func(t *testing.T) {
+		rules := GetProxyRules()
+		_, ok := rules[path]
+		assert.True(t, ok, "Should have rule for /api/svm/svms/{uuid}")
+	})
+
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPATCHWithAllowedFields_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"language": "en.UTF-8"}`)
+		req := httptest.NewRequest(http.MethodPatch, path, body)
+		req.Header.Set("Content-Type", "application/json")
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPATCHWithSnapshotPolicy_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"snapshot_policy": {"name": "custom1"}}`)
+		req := httptest.NewRequest(http.MethodPatch, path, body)
+		req.Header.Set("Content-Type", "application/json")
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPATCHWithBothAllowedFields_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"language": "C.UTF-8", "snapshot_policy": {"name": "default"}}`)
+		req := httptest.NewRequest(http.MethodPatch, path, body)
+		req.Header.Set("Content-Type", "application/json")
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPATCHWithNsswitch_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"nsswitch": {"group": ["files","nis"], "passwd": ["files","nis"], "netgroup": ["files","nis"], "namemap": ["files"]}}`)
+		req := httptest.NewRequest(http.MethodPatch, path, body)
+		req.Header.Set("Content-Type", "application/json")
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, reason)
+	})
+
+	t.Run("WhenPATCHWithDisallowedField_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"name": "new-name", "language": "en.UTF-8"}`)
+		req := httptest.NewRequest(http.MethodPatch, path, body)
+		req.Header.Set("Content-Type", "application/json")
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
+		assert.Contains(t, reason, "name")
+		assert.Contains(t, reason, "not allowed")
+	})
+
+	t.Run("WhenPATCHWithStateField_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		body := bytes.NewBufferString(`{"state": "stopped"}`)
+		req := httptest.NewRequest(http.MethodPatch, path, body)
+		req.Header.Set("Content-Type", "application/json")
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
+		assert.Contains(t, reason, "state")
+		assert.Contains(t, reason, "not allowed")
+	})
+
+	t.Run("WhenPOST_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.False(t, allowed)
+	})
+
+	t.Run("WhenDELETE_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules[path]
+		req := httptest.NewRequest(http.MethodDelete, path, nil)
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
+		assert.Contains(t, reason, "SVM deletion not allowed")
+	})
+}
+
 func TestPrivateCliObjectStoreBucketCreateRule(t *testing.T) {
 	path := "/api/private/cli/vserver/object-store-server/bucket"
 
