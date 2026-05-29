@@ -54,6 +54,11 @@ on:
         required: false
         type: string
         default: "eng_cp"
+      build_target:
+        description: "Which track to publish: gcp, oci, or both. Used during GA promotion to publish track-specific artifacts."
+        required: false
+        type: string
+        default: "both"
     outputs:
       GHCR_core_URL:
         description: "URL of the core image in GHCR"

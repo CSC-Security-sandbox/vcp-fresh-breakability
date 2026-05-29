@@ -88,6 +88,18 @@ func ReleaseFunc() {
 		if _, errWrite := file.WriteString(fmt.Sprintf("RC_BRANCH=%s\n", latestSprintBranch)); errWrite != nil {
 			log.Fatalf("Error writing RC_BRANCH: %v", errWrite)
 		}
+
+		ociRcTag := sprint + ".0.0-OCI-RC.1"
+		if errCreateOci := CreateGitTag(ociRcTag, ""); errCreateOci != nil {
+			log.Printf("Warning: OCI RC tag creation failed (may already exist), attempting push: %v", errCreateOci)
+		}
+		if errPushOci := GitPush(ociRcTag); errPushOci != nil {
+			log.Printf("Warning: failed to push OCI RC tag, GCP release is unaffected: %v", errPushOci)
+		} else {
+			if _, errWrite := file.WriteString(fmt.Sprintf("OCI_RC_TAG=%s\n", ociRcTag)); errWrite != nil {
+				log.Printf("Warning: failed to write OCI_RC_TAG output: %v", errWrite)
+			}
+		}
 	} else {
 		log.Printf("Branch exists")
 	}

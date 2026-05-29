@@ -145,15 +145,30 @@ jobs:
           # Write the newTag value to GITHUB_ENV
           echo "newTag=$newTag" >> "$GITHUB_ENV"
 
+      - name: Derive OCI RC tag
+        id: oci_tag
+        run: |
+          TAG="${{ env.newTag }}"
+          BASE_BRANCH="${{ needs.obtain_pr_details.outputs.pr_base_branch }}"
+          if [[ "$BASE_BRANCH" =~ ^release/ ]] && [[ "$TAG" =~ -RC\.[0-9]+$ ]]; then
+            OCI_TAG="${TAG/-RC./-OCI-RC.}"
+            echo "ociRcTag=$OCI_TAG" >> "$GITHUB_ENV"
+            echo "Derived OCI RC tag: $OCI_TAG"
+          else
+            echo "Not a release branch build, no OCI RC tag needed"
+          fi
+        shell: bash
+
       - name: Output new tag
         run: |
           echo "New tag is ${{ env.newTag }}"
+          echo "OCI RC tag is ${{ env.ociRcTag }}"
           echo "PR_BASE_BRANCH=${{ needs.obtain_pr_details.outputs.pr_base_branch }}"
-
         shell: bash
 
     outputs:
       newTag: ${{ env.newTag }}
+      ociRcTag: ${{ env.ociRcTag }}
 
   create_pre_release_vsa_control_plane:
     needs: [obtain_pr_details,generate_tag]
@@ -175,6 +190,11 @@ jobs:
       options: --user root
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
       - name: Determine build type
         id: build_type
         run: |
@@ -189,7 +209,45 @@ jobs:
           fi
         shell: bash
 
+      - name: Detect if GCP deploy needed
+        id: detect_gcp
+        run: |
+          BASE_BRANCH="${{ needs.obtain_pr_details.outputs.pr_base_branch }}"
+          if [[ "$BASE_BRANCH" == "main" ]]; then
+            echo "gcp_affected=true" >> $GITHUB_OUTPUT
+            echo "DEV build: GCP deploy always triggered"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+          if [[ -z "$CHANGED" ]]; then
+            echo "gcp_affected=true" >> $GITHUB_OUTPUT
+            echo "Could not determine changed files, defaulting to GCP affected"
+            exit 0
+          fi
+
+          GCP_AFFECTED=false
+          while IFS= read -r f; do
+            case "$f" in
+              oci-proxy/*|hyperscaler/oci/*|core/orchestrator/factory/oci/*|\
+              core/orchestrator/workflows/oci/*|kubernetes/OCI/*|\
+              config/vmrs_oci.yaml|common/vsa_config/vlm-config-oci.json|\
+              */Dockerfile.oci|doc/guides/oci-*)
+                ;; # OCI-only path, does not affect GCP
+              *)
+                GCP_AFFECTED=true
+                echo "GCP-affecting file: $f"
+                break
+                ;;
+            esac
+          done <<< "$CHANGED"
+
+          echo "gcp_affected=$GCP_AFFECTED" >> $GITHUB_OUTPUT
+          echo "GCP affected: $GCP_AFFECTED"
+        shell: bash
+
       - name: Trigger Jenkins Job
+        if: steps.detect_gcp.outputs.gcp_affected == 'true'
         continue-on-error: true
         run: |
           curl -k -f -X POST "https://vcp-cicd-jenkins.daas.netapp.com/job/${{ steps.build_type.outputs.jenkins_job }}/buildWithParameters" \

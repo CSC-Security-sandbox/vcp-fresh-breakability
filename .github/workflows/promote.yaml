@@ -46,16 +46,31 @@ jobs:
           GH_PAT: ${{ secrets.GHVSA_PAT }}
           GITHUB_OUTPUT: $GITHUB_ENV
 
+      - name: Determine build target from final tag
+        id: detect_target
+        run: |
+          FINAL_TAG="${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}"
+          if [[ "$FINAL_TAG" == *"-OCI"* ]]; then
+            echo "build_target=oci" >> $GITHUB_OUTPUT
+            echo "Detected OCI promotion: build_target=oci"
+          else
+            echo "build_target=gcp" >> $GITHUB_OUTPUT
+            echo "Detected GCP promotion: build_target=gcp"
+          fi
+        shell: bash
+
       - name: Output printout
         run: |
           echo "FINAL_TAG=${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}"
           echo "FINAL_BRANCH=${{ steps.promotional_logic_binary.outputs.FINAL_BRANCH }}"
           echo "BASE_TAG_SHA=${{ steps.promotional_logic_binary.outputs.BASE_TAG_SHA }}"
+          echo "BUILD_TARGET=${{ steps.detect_target.outputs.build_target }}"
 
     outputs:
       finalTag: ${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}
       finalBranch: ${{ steps.promotional_logic_binary.outputs.FINAL_BRANCH }}
       baseTagSHA: ${{ steps.promotional_logic_binary.outputs.BASE_TAG_SHA }}
+      buildTarget: ${{ steps.detect_target.outputs.build_target }}
 
   create_release_vsa_promotional:
     needs: final_tagging
@@ -66,4 +81,4 @@ jobs:
       tag: ${{ needs.final_tagging.outputs.finalTag }}
       component_update: false
       pr_base_branch: ${{ needs.final_tagging.outputs.baseTagSHA }}
-      
+      build_target: ${{ needs.final_tagging.outputs.buildTarget }}

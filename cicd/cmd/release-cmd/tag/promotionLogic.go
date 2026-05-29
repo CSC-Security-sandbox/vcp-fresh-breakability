@@ -48,6 +48,20 @@ func (o *SetupConfig) PromotionalFunc() {
 			log.Fatalf("Base release %s is not a valid RC tag or Final Release has a naming error %s", o.BaseRelease, o.FinalRelease)
 			return
 		}
+	} else if o.OperationType == "OCIFinalTag" {
+		if BaseTagCheck != "" && strings.Contains(o.BaseRelease, "-OCI-RC.") && FinalTagCheck == "" {
+			baseSprint := strings.Split(o.BaseRelease, ".")[0]
+			expectedFinal := baseSprint + ".0.0-OCI"
+			if o.FinalRelease != expectedFinal {
+				log.Fatalf("OCI final tag %s does not match expected format %s for base %s", o.FinalRelease, expectedFinal, o.BaseRelease)
+				return
+			}
+			log.Println("Base release is a valid OCI RC tag, proceeding with OCI promotion.")
+			PromotionalCreation()
+		} else {
+			log.Fatalf("Base release %s is not a valid OCI RC tag or Final Release has a naming error %s", o.BaseRelease, o.FinalRelease)
+			return
+		}
 	} else if o.OperationType == "HFFirstRelease" {
 		if BaseTagCheck != "" && CheckForHFfinalName() && FinalTagCheck == "" {
 			log.Println("Base release is a valid HF tag, proceeding with promotion.")
@@ -57,7 +71,7 @@ func (o *SetupConfig) PromotionalFunc() {
 			return
 		}
 	} else {
-		log.Fatalf("Invalid operation type: %s. Operation can only be FinalTag or HFFirstRelease. ", o.OperationType)
+		log.Fatalf("Invalid operation type: %s. Operation can only be FinalTag, OCIFinalTag, or HFFirstRelease.", o.OperationType)
 		return
 	}
 }

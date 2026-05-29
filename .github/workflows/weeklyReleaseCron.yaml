@@ -62,12 +62,14 @@ jobs:
       - name: Output printout
         run: |
           echo "RC_TAG=${{ steps.release_logic_binary.outputs.RC_TAG }}" 
+          echo "OCI_RC_TAG=${{ steps.release_logic_binary.outputs.OCI_RC_TAG }}"
           echo "DEV_TAG=${{ steps.release_logic_binary.outputs.DEV_TAG }}" 
           echo "RC_BRANCH=${{ steps.release_logic_binary.outputs.RC_BRANCH }}"
           echo "DEV_BRANCH=${{ steps.release_logic_binary.outputs.DEV_BRANCH }}"
 
     outputs:
       rcTAG: ${{ steps.release_logic_binary.outputs.RC_TAG }}
+      ociRcTAG: ${{ steps.release_logic_binary.outputs.OCI_RC_TAG }}
       devTAG: ${{ steps.release_logic_binary.outputs.DEV_TAG }}
       rcBranch: ${{ steps.release_logic_binary.outputs.RC_BRANCH }}
       devBranch: ${{ steps.release_logic_binary.outputs.DEV_BRANCH }}
