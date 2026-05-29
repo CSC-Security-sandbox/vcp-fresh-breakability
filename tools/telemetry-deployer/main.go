@@ -547,10 +547,12 @@ func getDefaultEnvVars() map[string]string {
 		"RETRY_INTERVAL_SECONDS":                           getEnvOrDefault("RETRY_INTERVAL_SECONDS", "300"),
 		"NUM_WORKERS_BILLING_RETRY":                        getEnvOrDefault("NUM_WORKERS_BILLING_RETRY", "5"),
 		// Always include the flag so callers can reliably read it even if --env-vars omits it.
-		"CLOUD_SQL_IAM_AUTH_ENABLED":      getEnvOrDefault("CLOUD_SQL_IAM_AUTH_ENABLED", "false"),
-		"ENABLE_BACKUP_HISTORY_FORMATTER": getEnvOrDefault("ENABLE_BACKUP_HISTORY_FORMATTER", "false"),
-		"INJECTION_WINDOW_MINUTES":        getEnvOrDefault("INJECTION_WINDOW_MINUTES", "10"),
-		"ENABLE_COUNTER_FORMATTER":        getEnvOrDefault("ENABLE_COUNTER_FORMATTER", "false"),
+		"CLOUD_SQL_IAM_AUTH_ENABLED":               getEnvOrDefault("CLOUD_SQL_IAM_AUTH_ENABLED", "false"),
+		"ENABLE_BACKUP_HISTORY_FORMATTER":          getEnvOrDefault("ENABLE_BACKUP_HISTORY_FORMATTER", "false"),
+		"INJECTION_WINDOW_MINUTES":                 getEnvOrDefault("INJECTION_WINDOW_MINUTES", "10"),
+		"ENABLE_COUNTER_FORMATTER":                 getEnvOrDefault("ENABLE_COUNTER_FORMATTER", "false"),
+		"ENABLE_EXPERT_MODE_BACKUP_BILLING":        getEnvOrDefault("ENABLE_EXPERT_MODE_BACKUP_BILLING", "false"),
+		"SKIP_HYBRID_REPLICATION_BASELINE_BILLING": getEnvOrDefault("SKIP_HYBRID_REPLICATION_BASELINE_BILLING", "true"),
 	}
 }
 
