@@ -797,7 +797,7 @@ func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Contex
 		}
 		vsaExportPolicy.ExportRules = append(vsaExportPolicy.ExportRules, vsaRule)
 	}
-	if allSquashUid == nil && exportPolicy.ExportRules != nil {
+	if allSquashUid == nil && exportPolicy.ExportRules != nil && isAllSquashExistInPreviousExportPolicy(volume) {
 		defaultUserID := int64(0)
 		allSquashUid = &defaultUserID
 	}
