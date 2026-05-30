@@ -5565,13 +5565,13 @@ func (re *retryEngine) ListClusterPeeringRowsByPoolID(ctx context.Context, poolI
 	return var0, err
 }
 
-func (re *retryEngine) CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
+func (re *retryEngine) CreateVolumePerformanceGroupWithCap(ctx context.Context, vpg *datamodel.VolumePerformanceGroup, maxCount int) (*datamodel.VolumePerformanceGroup, error) {
 	var var0 *datamodel.VolumePerformanceGroup
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.CreateVolumePerformanceGroup(ctx, vpg)
+		var0, err = re.dataStore.CreateVolumePerformanceGroupWithCap(ctx, vpg, maxCount)
 		if err != nil {
-			re.logError("CreateVolumePerformanceGroup", err)
+			re.logError("CreateVolumePerformanceGroupWithCap", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -5696,6 +5696,22 @@ func (re *retryEngine) ListVolumePerformanceGroupsByPoolID(ctx context.Context, 
 		var0, err = re.dataStore.ListVolumePerformanceGroupsByPoolID(ctx, poolID)
 		if err != nil {
 			re.logError("ListVolumePerformanceGroupsByPoolID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) CountVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CountVolumePerformanceGroupsByPoolID(ctx, poolID)
+		if err != nil {
+			re.logError("CountVolumePerformanceGroupsByPoolID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

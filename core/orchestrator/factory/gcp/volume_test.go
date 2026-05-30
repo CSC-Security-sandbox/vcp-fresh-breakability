@@ -19098,6 +19098,7 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 			ThroughputMibps: &throughput,
 			// Iops is nil, should use current volume Iops
 		}
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
 
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.NoError(tt, err)
@@ -19112,6 +19113,7 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 			Iops: &iops,
 			// ThroughputMibps is nil, should use current volume ThroughputMibps
 		}
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.NoError(tt, err)
 	})
@@ -19139,6 +19141,7 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 			ThroughputMibps: &throughput,
 			Iops:            &iops,
 		}
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
 
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.NoError(tt, err)
@@ -19778,6 +19781,93 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 		// Should pass (workflow handles this, but validation should also pass)
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6089_AutoGenTransition_AtCap_ShouldReject", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		volume := createVolumeWithVPG(1, 20, 300)
+		throughput := int64(40)
+		params := &common.UpdateVolumeParams{
+			ThroughputMibps: &throughput,
+		}
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(12000), nil)
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "12000")
+		assert.Contains(tt, err.Error(), "Delete unused VPGs")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6089_AutoGenInPlaceUpdate_DoesNotConsultCap", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			},
+			VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+			VolumePerformanceGroup: &datamodel.VolumePerformanceGroup{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-autogen-1"},
+				ThroughputMibps:  20,
+				Iops:             300,
+				IsShared:         false,
+				IsAutoGen:        true,
+				OntapQosPolicyID: "policy-1",
+			},
+		}
+		throughput := int64(40)
+		params := &common.UpdateVolumeParams{
+			ThroughputMibps: &throughput,
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6089_ReassignmentToExistingVPG_DoesNotConsultCap_VSCP5409Regression", func(tt *testing.T) {
+		originalValue := enableVolumePerformanceGroupAssignment
+		defer func() { enableVolumePerformanceGroupAssignment = originalValue }()
+		enableVolumePerformanceGroupAssignment = true
+
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		// Both VPGs are non-shared so ShouldSubtract/ShouldAdd short-circuit without GetVolumeCount.
+		volume := createVolumeWithVPG(1, 20, 300)
+		targetVPG := createVPG(2, "vpg-target", pool.ID, 30, 400, false, false)
+		vpgId := "vpg-target"
+		params := &common.UpdateVolumeParams{
+			VolumePerformanceGroupId: &vpgId,
+		}
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgId).Return(targetVPG, nil)
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6089_AutoGenTransition_DBCountErrorPropagated", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		volume := createVolumeWithVPG(1, 20, 300)
+		throughput := int64(40)
+		params := &common.UpdateVolumeParams{
+			ThroughputMibps: &throughput,
+		}
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).
+			Return(int64(0), errors2.New("db: connection lost"))
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.False(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "db: connection lost")
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -35070,6 +35160,148 @@ func patchValidateVolumeQosParamsNoop(t *testing.T) {
 	orig := validateVolumeQosParams
 	validateVolumeQosParams = func(_ mqos.PoolQosInput, _ *int64, _ *int64, _ *string) (*int64, error) { return nil, nil }
 	t.Cleanup(func() { validateVolumeQosParams = orig })
+}
+
+func TestValidateCreateVolumeParams_VPGCap_VSCP6089(t *testing.T) {
+	patchValidateVolumeQosParamsNoop(t)
+	ctx := context.Background()
+
+	buildPoolView := func() *datamodel.PoolView {
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}}
+		return &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
+				AccountID:   account.ID,
+				Account:     account,
+				QosType:     utils.QosTypeManual,
+				State:       models.LifeCycleStateREADY,
+				SizeInBytes: int64(100 * utils.TiBInBytes),
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: 10000,
+					Iops:            50000,
+				},
+			},
+		}
+	}
+
+	// Empty PoolAttributes triggers the early-return in mqos.ValidatePoolCapacityForVolume.
+	poolForCapacityCheckSkip := func(poolView *datamodel.PoolView) *datamodel.Pool {
+		p := poolView.Pool
+		p.PoolAttributes = &datamodel.PoolAttributes{}
+		return &p
+	}
+
+	t.Run("AutoGenPath_BelowCap_Allowed_ValidationContinues", func(tt *testing.T) {
+		// Reaching the downstream "downstream-stop" error proves the cap allowed the request.
+		mockStorage := database.NewMockStorage(tt)
+		poolView := buildPoolView()
+
+		mockStorage.On("GetPoolByUUID", ctx, poolView.UUID).Return(poolForCapacityCheckSkip(poolView), nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, poolView.ID).Return(int64(50), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, poolView.ID).Return(nil, errors2.New("downstream-stop: svm lookup not mocked"))
+
+		throughput := int64(100)
+		iops := int64(1000)
+		params := &common.CreateVolumeParams{
+			AccountName: "acct", Name: "vol-1", PoolID: poolView.UUID,
+			QuotaInBytes: 1073741824, Protocols: []string{utils.ProtocolNFSv3},
+			ThroughputMibps:          &throughput,
+			Iops:                     &iops,
+			VolumePerformanceGroupID: nil,
+		}
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "downstream-stop")
+		assert.False(tt, customerrors.IsUserInputValidationErr(err))
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AutoGenPath_AtCap_Rejected", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		poolView := buildPoolView()
+
+		mockStorage.On("GetPoolByUUID", ctx, poolView.UUID).Return(poolForCapacityCheckSkip(poolView), nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, poolView.ID).Return(int64(12000), nil)
+
+		throughput := int64(100)
+		iops := int64(1000)
+		params := &common.CreateVolumeParams{
+			AccountName: "acct", Name: "vol-1", PoolID: poolView.UUID,
+			QuotaInBytes: 1073741824, Protocols: []string{utils.ProtocolNFSv3},
+			ThroughputMibps:          &throughput,
+			Iops:                     &iops,
+			VolumePerformanceGroupID: nil,
+		}
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "12000")
+		assert.Contains(tt, err.Error(), "Delete unused VPGs")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ExplicitVPGPath_DoesNotConsultCap_VSCP5409Regression", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		poolView := buildPoolView()
+
+		vpgUUID := "explicit-vpg-uuid"
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgUUID).
+			Return(nil, customerrors.NewNotFoundErr("volume performance group", &vpgUUID))
+
+		params := &common.CreateVolumeParams{
+			AccountName: "acct", Name: "vol-1", PoolID: poolView.UUID,
+			QuotaInBytes: 1073741824, Protocols: []string{utils.ProtocolNFSv3},
+			VolumePerformanceGroupID: &vpgUUID,
+		}
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("NoMqosPath_DoesNotConsultCap", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		poolView := buildPoolView()
+
+		mockStorage.On("GetSvmForPoolID", ctx, poolView.ID).Return(nil, errors2.New("downstream-stop: svm lookup not mocked"))
+
+		params := &common.CreateVolumeParams{
+			AccountName: "acct", Name: "vol-1", PoolID: poolView.UUID,
+			QuotaInBytes: 1073741824, Protocols: []string{utils.ProtocolNFSv3},
+		}
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "downstream-stop")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AutoGenPath_DBCountErrorPropagated", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		poolView := buildPoolView()
+
+		mockStorage.On("GetPoolByUUID", ctx, poolView.UUID).Return(poolForCapacityCheckSkip(poolView), nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, poolView.ID).
+			Return(int64(0), errors2.New("db: connection lost"))
+
+		throughput := int64(100)
+		iops := int64(1000)
+		params := &common.CreateVolumeParams{
+			AccountName: "acct", Name: "vol-1", PoolID: poolView.UUID,
+			QuotaInBytes: 1073741824, Protocols: []string{utils.ProtocolNFSv3},
+			ThroughputMibps:          &throughput,
+			Iops:                     &iops,
+			VolumePerformanceGroupID: nil,
+		}
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		assert.False(tt, customerrors.IsUserInputValidationErr(err), "DB error must NOT be wrapped as user-input validation")
+		assert.Contains(tt, err.Error(), "db: connection lost")
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 // Test_createVolume_AutoTieringPolicyValidation tests the auto tiering policy validation for clone volumes

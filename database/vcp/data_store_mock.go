@@ -2543,29 +2543,29 @@ func (_c *MockDataStore_CreateVolume_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// CreateVolumePerformanceGroup provides a mock function with given fields: ctx, vpg
-func (_m *MockDataStore) CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
-	ret := _m.Called(ctx, vpg)
+// CreateVolumePerformanceGroupWithCap provides a mock function with given fields: ctx, vpg, maxCount
+func (_m *MockDataStore) CreateVolumePerformanceGroupWithCap(ctx context.Context, vpg *datamodel.VolumePerformanceGroup, maxCount int) (*datamodel.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, vpg, maxCount)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateVolumePerformanceGroup")
+		panic("no return value specified for CreateVolumePerformanceGroupWithCap")
 	}
 
 	var r0 *datamodel.VolumePerformanceGroup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error)); ok {
-		return rf(ctx, vpg)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumePerformanceGroup, int) (*datamodel.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, vpg, maxCount)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumePerformanceGroup) *datamodel.VolumePerformanceGroup); ok {
-		r0 = rf(ctx, vpg)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumePerformanceGroup, int) *datamodel.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, vpg, maxCount)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.VolumePerformanceGroup)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.VolumePerformanceGroup) error); ok {
-		r1 = rf(ctx, vpg)
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.VolumePerformanceGroup, int) error); ok {
+		r1 = rf(ctx, vpg, maxCount)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2573,31 +2573,32 @@ func (_m *MockDataStore) CreateVolumePerformanceGroup(ctx context.Context, vpg *
 	return r0, r1
 }
 
-// MockDataStore_CreateVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVolumePerformanceGroup'
-type MockDataStore_CreateVolumePerformanceGroup_Call struct {
+// MockDataStore_CreateVolumePerformanceGroupWithCap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVolumePerformanceGroupWithCap'
+type MockDataStore_CreateVolumePerformanceGroupWithCap_Call struct {
 	*mock.Call
 }
 
-// CreateVolumePerformanceGroup is a helper method to define mock.On call
+// CreateVolumePerformanceGroupWithCap is a helper method to define mock.On call
 //   - ctx context.Context
 //   - vpg *datamodel.VolumePerformanceGroup
-func (_e *MockDataStore_Expecter) CreateVolumePerformanceGroup(ctx interface{}, vpg interface{}) *MockDataStore_CreateVolumePerformanceGroup_Call {
-	return &MockDataStore_CreateVolumePerformanceGroup_Call{Call: _e.mock.On("CreateVolumePerformanceGroup", ctx, vpg)}
+//   - maxCount int
+func (_e *MockDataStore_Expecter) CreateVolumePerformanceGroupWithCap(ctx interface{}, vpg interface{}, maxCount interface{}) *MockDataStore_CreateVolumePerformanceGroupWithCap_Call {
+	return &MockDataStore_CreateVolumePerformanceGroupWithCap_Call{Call: _e.mock.On("CreateVolumePerformanceGroupWithCap", ctx, vpg, maxCount)}
 }
 
-func (_c *MockDataStore_CreateVolumePerformanceGroup_Call) Run(run func(ctx context.Context, vpg *datamodel.VolumePerformanceGroup)) *MockDataStore_CreateVolumePerformanceGroup_Call {
+func (_c *MockDataStore_CreateVolumePerformanceGroupWithCap_Call) Run(run func(ctx context.Context, vpg *datamodel.VolumePerformanceGroup, maxCount int)) *MockDataStore_CreateVolumePerformanceGroupWithCap_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.VolumePerformanceGroup))
+		run(args[0].(context.Context), args[1].(*datamodel.VolumePerformanceGroup), args[2].(int))
 	})
 	return _c
 }
 
-func (_c *MockDataStore_CreateVolumePerformanceGroup_Call) Return(_a0 *datamodel.VolumePerformanceGroup, _a1 error) *MockDataStore_CreateVolumePerformanceGroup_Call {
+func (_c *MockDataStore_CreateVolumePerformanceGroupWithCap_Call) Return(_a0 *datamodel.VolumePerformanceGroup, _a1 error) *MockDataStore_CreateVolumePerformanceGroupWithCap_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_CreateVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error)) *MockDataStore_CreateVolumePerformanceGroup_Call {
+func (_c *MockDataStore_CreateVolumePerformanceGroupWithCap_Call) RunAndReturn(run func(context.Context, *datamodel.VolumePerformanceGroup, int) (*datamodel.VolumePerformanceGroup, error)) *MockDataStore_CreateVolumePerformanceGroupWithCap_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -17262,6 +17263,63 @@ func (_c *MockDataStore_ListVolumePerformanceGroupsByPoolID_Call) Return(_a0 []*
 }
 
 func (_c *MockDataStore_ListVolumePerformanceGroupsByPoolID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.VolumePerformanceGroup, error)) *MockDataStore_ListVolumePerformanceGroupsByPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountVolumePerformanceGroupsByPoolID provides a mock function with given fields: ctx, poolID
+func (_m *MockDataStore) CountVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountVolumePerformanceGroupsByPoolID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CountVolumePerformanceGroupsByPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountVolumePerformanceGroupsByPoolID'
+type MockDataStore_CountVolumePerformanceGroupsByPoolID_Call struct {
+	*mock.Call
+}
+
+// CountVolumePerformanceGroupsByPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockDataStore_Expecter) CountVolumePerformanceGroupsByPoolID(ctx interface{}, poolID interface{}) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
+	return &MockDataStore_CountVolumePerformanceGroupsByPoolID_Call{Call: _e.mock.On("CountVolumePerformanceGroupsByPoolID", ctx, poolID)}
+}
+
+func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) Return(_a0 int64, _a1 error) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -52,10 +52,11 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
-		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.MatchedBy(func(vpg *datamodel.VolumePerformanceGroup) bool {
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.MatchedBy(func(vpg *datamodel.VolumePerformanceGroup) bool {
 			return vpg != nil && vpg.Name == "test-vpg" && vpg.PoolID == 1 && vpg.ThroughputMibps == 100 &&
 				vpg.Iops == 1000 && !vpg.IsShared && !vpg.IsAutoGen
-		})).Return(createdVPG, nil)
+		}), mock.AnythingOfType("int")).Return(createdVPG, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, nil)
 
 		params := &common.CreateVolumePerformanceGroupParams{
@@ -111,7 +112,8 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
-		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(createdVPG, nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.AnythingOfType("int")).Return(createdVPG, nil)
 		mockStorage.On("DeleteVolumePerformanceGroup", ctx, createdVPG).Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, errors.New("workflow start failed"))
 
@@ -331,7 +333,8 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
-		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(nil, errors.New("db create failed"))
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.AnythingOfType("int")).Return(nil, errors.New("db create failed"))
 
 		params := &common.CreateVolumePerformanceGroupParams{
 			AccountName:     "test-account",
@@ -346,6 +349,112 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "db create failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6089_RejectsWhenAtCap_NoCreateNoWorkflow", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}, Name: "test-account"}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+				QosType:   utils.QosTypeManual,
+			},
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		// Pool at default cap (12000); AssertExpectations catches any unintended Create/Workflow call.
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(12000), nil)
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "test-pool-id", Name: "test-vpg",
+			ThroughputMibps: 100, Iops: 1000, IsShared: false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, utilErrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "12000")
+		assert.Contains(tt, err.Error(), "Delete unused VPGs")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6089_RejectsWhenAboveCap", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}, Name: "test-account"}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+				QosType:   utils.QosTypeManual,
+			},
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(12500), nil)
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "test-pool-id", Name: "test-vpg",
+			ThroughputMibps: 100, Iops: 1000, IsShared: false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, utilErrors.IsUserInputValidationErr(err))
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VSCP_6089_PropagatesDBCountError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}, Name: "test-account"}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
+				QosType:   utils.QosTypeManual,
+			},
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), errors.New("db: connection lost"))
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "test-pool-id", Name: "test-vpg",
+			ThroughputMibps: 100, Iops: 1000, IsShared: false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.False(tt, utilErrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "db: connection lost")
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -381,7 +490,8 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
-		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(createdVPG, nil)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, mock.Anything, mock.AnythingOfType("int")).Return(createdVPG, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, errors.New("workflow start failed"))
 		// Defer runs and tries to delete VPG; delete also fails (covers logger.Error in defer)
 		mockStorage.On("DeleteVolumePerformanceGroup", ctx, createdVPG).Return(errors.New("delete vpg failed"))

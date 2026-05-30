@@ -121,6 +121,7 @@ splitWaitForTemporalEnabled: true
 validateCloneATPolicyMatchParent: false
 enableCloneInfoRefresh: true
 maxThinClonesPerPool: 100
+maxVolumePerformanceGroupsPerPool: 12000 # 0 disables per-pool VPG cap
 enableAutoPoolScaling: true
 snapshotApiSyncMode: false
 enableJobResourceUuidIndex: true

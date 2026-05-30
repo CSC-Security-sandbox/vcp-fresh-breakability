@@ -6,6 +6,7 @@ import (
 	"regexp"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/mqos"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -35,12 +36,12 @@ func (a *VolumePerformanceGroupActivity) GetPoolViewByPoolID(ctx context.Context
 	return poolView, nil
 }
 
-// CreateVPGInDB creates a Volume Performance Group in the database
+// CreateVPGInDB creates a VPG in the database (atomic cap via CreateVolumePerformanceGroupAtomic).
 func (a *VolumePerformanceGroupActivity) CreateVPGInDB(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Creating VPG in database")
 
-	createdVPG, err := a.SE.CreateVolumePerformanceGroup(ctx, vpg)
+	createdVPG, err := mqos.CreateVolumePerformanceGroupAtomic(ctx, a.SE, vpg)
 	if err != nil {
 		logger.Error("Failed to create VPG in database", "error", err, "vpg_name", vpg.Name)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)

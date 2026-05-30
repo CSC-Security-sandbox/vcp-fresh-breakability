@@ -184,6 +184,46 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		assert.Equal(tt, "invalid throughput value", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupBadRequest).Message)
 	})
 
+	t.Run("VSCP_6089_WhenAtVPGCap_ReturnsBadRequestCitingCapAndRemediation", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
+			ResourceId:      "test-performance-group",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        true,
+		}
+		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
+			ProjectNumber: "12345",
+			LocationId:    "us-central1",
+			PoolId:        "pool-id",
+		}
+		capExceededMsg := "Pool has reached the maximum number of Volume Performance Groups (12000). " +
+			"Delete unused VPGs to proceed."
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().CreateVolumePerformanceGroup(mock.Anything, mock.Anything).
+			Return(nil, errors.NewUserInputValidationErr(capExceededMsg))
+		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		badReq, ok := res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Contains(tt, badReq.Message, "12000")
+		assert.Contains(tt, badReq.Message, "Delete unused VPGs")
+	})
+
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		origEnableMqos := enableMqos
 		origEnableVpgEndpoints := enableVpgEndpoints

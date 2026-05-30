@@ -17,6 +17,8 @@ var (
 	enableMqos                             = env.GetBool("ENABLE_MQOS", true)
 	enableInferredIops                     = env.GetBool("ENABLE_INFERRED_IOPS", false)
 	enableVolumePerformanceGroupAssignment = env.GetBool("ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT", false)
+	// Default mirrors the ONTAP QoS policy-group regime. A value <= 0 disables the check.
+	maxVolumePerformanceGroupsPerPool = env.GetInt("MAX_VOLUME_PERFORMANCE_GROUPS_PER_POOL", 12000)
 )
 
 type PoolQosInput struct {
@@ -211,6 +213,35 @@ func ShouldSubtractCurrentVpgContribution(ctx context.Context, se database.Stora
 		return false, err
 	}
 	return volumesInCurrentVPG <= 1, nil
+}
+
+// ValidateVPGCountForPool is a fast-fail pre-flight; CreateVolumePerformanceGroupAtomic enforces the cap at insert.
+func ValidateVPGCountForPool(ctx context.Context, se database.Storage, poolID int64) error {
+	if maxVolumePerformanceGroupsPerPool <= 0 {
+		return nil
+	}
+	if se == nil {
+		return fmt.Errorf("storage is required for VPG count validation")
+	}
+	count, err := se.CountVolumePerformanceGroupsByPoolID(ctx, poolID)
+	if err != nil {
+		return err
+	}
+	if count >= int64(maxVolumePerformanceGroupsPerPool) {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
+			"Pool has reached the maximum number of Volume Performance Groups (%d). "+
+				"Delete unused VPGs to proceed.",
+			maxVolumePerformanceGroupsPerPool))
+	}
+	return nil
+}
+
+// CreateVolumePerformanceGroupAtomic inserts a VPG with atomic cap enforcement (MAX_VOLUME_PERFORMANCE_GROUPS_PER_POOL; <=0 disables).
+func CreateVolumePerformanceGroupAtomic(ctx context.Context, se database.Storage, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
+	if se == nil {
+		return nil, fmt.Errorf("storage is required for atomic VPG create")
+	}
+	return se.CreateVolumePerformanceGroupWithCap(ctx, vpg, maxVolumePerformanceGroupsPerPool)
 }
 
 // ShouldAddNewVpgContribution reports whether the target VPG's contribution should

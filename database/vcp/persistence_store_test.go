@@ -7506,7 +7506,7 @@ func TestGetVolumePerformanceGroupByPoolAndName_PersistenceStore(t *testing.T) {
 		Iops:             2000,
 		OntapQosPolicyID: "ontap-qos-byname",
 	}
-	createdVPG, err := store.CreateVolumePerformanceGroup(ctx, vpg)
+	createdVPG, err := store.CreateVolumePerformanceGroupWithCap(ctx, vpg, 0)
 	require.NoError(t, err)
 
 	got, err := store.GetVolumePerformanceGroupByPoolAndName(ctx, createdPool.ID, "my-vpg-by-pool-and-name")

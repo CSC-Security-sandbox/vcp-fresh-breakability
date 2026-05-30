@@ -1696,8 +1696,8 @@ func (s *PersistenceStore) ListClusterPeeringRowsByPoolID(ctx context.Context, p
 }
 
 // Volume Performance Group (Manual QoS) methods
-func (s *PersistenceStore) CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
-	return s.dataStore.CreateVolumePerformanceGroup(ctx, vpg)
+func (s *PersistenceStore) CreateVolumePerformanceGroupWithCap(ctx context.Context, vpg *datamodel.VolumePerformanceGroup, maxCount int) (*datamodel.VolumePerformanceGroup, error) {
+	return s.dataStore.CreateVolumePerformanceGroupWithCap(ctx, vpg, maxCount)
 }
 
 func (s *PersistenceStore) UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
@@ -1730,6 +1730,10 @@ func (s *PersistenceStore) GetVolumePerformanceGroupByPoolAndName(ctx context.Co
 
 func (s *PersistenceStore) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
 	return s.dataStore.ListVolumePerformanceGroupsByPoolID(ctx, poolID)
+}
+
+func (s *PersistenceStore) CountVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	return s.dataStore.CountVolumePerformanceGroupsByPoolID(ctx, poolID)
 }
 
 func (s *PersistenceStore) GetVolumeCountByVolumePerformanceGroupID(ctx context.Context, vpgID int64) (int64, error) {

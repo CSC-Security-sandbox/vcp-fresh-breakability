@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -10,11 +11,74 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CreateVolumePerformanceGroup creates a new volume performance group row in the database.
 func (d *DataStoreRepository) CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
 	return createVolumePerformanceGroup(d.db.GORM().WithContext(ctx), vpg)
+}
+
+// CreateVolumePerformanceGroupWithCap locks the pool row, counts VPGs, enforces maxCount, then inserts. maxCount <= 0 skips the cap.
+func (d *DataStoreRepository) CreateVolumePerformanceGroupWithCap(ctx context.Context, vpg *datamodel.VolumePerformanceGroup, maxCount int) (*datamodel.VolumePerformanceGroup, error) {
+	if vpg == nil {
+		return nil, fmt.Errorf("vpg is required")
+	}
+	return createVolumePerformanceGroupWithCap(d.db.GORM().WithContext(ctx), ctx, vpg, maxCount)
+}
+
+func createVolumePerformanceGroupWithCap(db *gorm.DB, ctx context.Context, vpg *datamodel.VolumePerformanceGroup, maxCount int) (created *datamodel.VolumePerformanceGroup, err error) {
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	var pool datamodel.Pool
+	q := tx.Where("id = ?", vpg.PoolID)
+	if isPostgresDialect(tx) {
+		q = q.Clauses(clause.Locking{Strength: "UPDATE"})
+	}
+	if lookupErr := q.First(&pool).Error; lookupErr != nil {
+		if errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+			err = customerrors.NewNotFoundErr("pool", nil)
+			return nil, err
+		}
+		err = lookupErr
+		return nil, err
+	}
+
+	if maxCount > 0 {
+		var count int64
+		if countErr := tx.Model(&datamodel.VolumePerformanceGroup{}).
+			Where("pool_id = ?", vpg.PoolID).
+			Count(&count).Error; countErr != nil {
+			err = countErr
+			return nil, err
+		}
+		if count >= int64(maxCount) {
+			err = customerrors.NewUserInputValidationErr(fmt.Sprintf(
+				"Pool has reached the maximum number of Volume Performance Groups (%d). "+
+					"Delete unused VPGs to proceed.",
+				maxCount))
+			return nil, err
+		}
+	}
+
+	created, err = createVolumePerformanceGroup(tx, vpg)
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+// isPostgresDialect is true for Postgres (FOR UPDATE); false for SQLite tests.
+func isPostgresDialect(db *gorm.DB) bool {
+	if db == nil || db.Dialector == nil {
+		return false
+	}
+	name := db.Dialector.Name()
+	return name == "postgres" || name == "postgresql"
 }
 
 // UpdateVolumePerformanceGroup updates an existing volume performance group row in the database.
@@ -60,6 +124,19 @@ func (d *DataStoreRepository) GetVolumePerformanceGroupByPoolAndName(ctx context
 // ListVolumePerformanceGroupsByPoolID retrieves all volume performance group rows for a given pool ID.
 func (d *DataStoreRepository) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
 	return listVolumePerformanceGroupsByPoolID(d.db.GORM().WithContext(ctx), poolID)
+}
+
+// CountVolumePerformanceGroupsByPoolID counts VPGs for the pool, including IsAutoGen.
+func (d *DataStoreRepository) CountVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().WithContext(ctx).
+		Model(&datamodel.VolumePerformanceGroup{}).
+		Where("pool_id = ?", poolID).
+		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // Returns the volume performance group. Respects soft deletes (deleted_at filter).

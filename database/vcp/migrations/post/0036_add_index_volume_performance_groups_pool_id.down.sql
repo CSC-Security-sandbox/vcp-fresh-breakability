@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_volume_performance_groups_pool_id;

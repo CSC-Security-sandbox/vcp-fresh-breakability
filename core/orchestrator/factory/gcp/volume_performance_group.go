@@ -8,6 +8,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/mqos"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -47,7 +48,12 @@ func (o *GCPOrchestrator) CreateVolumePerformanceGroup(ctx context.Context, para
 		return nil, customerrors.NewUserInputValidationErr("VPGs can only be created in pools with manual QoS type")
 	}
 
-	vpg, err := se.CreateVolumePerformanceGroup(ctx, &datamodel.VolumePerformanceGroup{
+	if err := mqos.ValidateVPGCountForPool(ctx, se, pool.ID); err != nil {
+		logger.Error("VPG count validation failed", "error", err, "pool_id", pool.ID)
+		return nil, err
+	}
+
+	vpg, err := mqos.CreateVolumePerformanceGroupAtomic(ctx, se, &datamodel.VolumePerformanceGroup{
 		Name:            params.Name,
 		PoolID:          pool.ID,
 		ThroughputMibps: params.ThroughputMibps,

@@ -1492,6 +1492,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		if err != nil {
 			return err
 		}
+		if params.VolumePerformanceGroupID == nil {
+			if err := mqos.ValidateVPGCountForPool(ctx, se, pool.ID); err != nil {
+				return err
+			}
+		}
 	} else if enableMqos && params.VolumePerformanceGroupID != nil {
 		if err := validatePoolCapacityForVPGVolumeCreate(ctx, se, pool.UUID, *params.VolumePerformanceGroupID); err != nil {
 			return err
@@ -3099,6 +3104,12 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 		if err := assertQosLimits(pool, poolThroughputAfterUpdate, poolIopsAfterUpdate); err != nil {
 			return err
+		}
+
+		if volume.VolumePerformanceGroupID.Valid && volume.VolumePerformanceGroup != nil && !volume.VolumePerformanceGroup.IsAutoGen {
+			if err := mqos.ValidateVPGCountForPool(ctx, se, pool.ID); err != nil {
+				return err
+			}
 		}
 	}
 	if params.VolumePerformanceGroupId != nil {

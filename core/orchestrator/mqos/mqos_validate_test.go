@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func int64Ptr(i int64) *int64 {
@@ -695,5 +696,191 @@ func TestShouldAddNewVpgContribution(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Equal(tt, "db error", err.Error())
 		assert.False(tt, shouldAdd)
+	})
+}
+
+func TestValidateVPGCountForPool(t *testing.T) {
+	ctx := context.Background()
+	const poolID int64 = 42
+
+	t.Run("BelowCap_ReturnsNil", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 100
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, poolID).Return(int64(50), nil)
+
+		err := ValidateVPGCountForPool(ctx, mockStorage, poolID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("OneBelowCap_BoundaryAllowed", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 100
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, poolID).Return(int64(99), nil)
+
+		err := ValidateVPGCountForPool(ctx, mockStorage, poolID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AtCap_BoundaryRejected", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 100
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, poolID).Return(int64(100), nil)
+
+		err := ValidateVPGCountForPool(ctx, mockStorage, poolID)
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "100")
+		assert.Contains(tt, err.Error(), "Delete unused VPGs")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AboveCap_Rejected", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 5
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, poolID).Return(int64(7), nil)
+
+		err := ValidateVPGCountForPool(ctx, mockStorage, poolID)
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CapZero_DisablesCheck_DoesNotCallStorage", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 0
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+
+		err := ValidateVPGCountForPool(ctx, mockStorage, poolID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CapNegative_DisablesCheck_DoesNotCallStorage", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = -1
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+
+		err := ValidateVPGCountForPool(ctx, mockStorage, poolID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DBError_PropagatesUnchanged", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 100
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		dbErr := errors.New("db error: connection lost")
+		mockStorage.On("CountVolumePerformanceGroupsByPoolID", ctx, poolID).Return(int64(0), dbErr)
+
+		err := ValidateVPGCountForPool(ctx, mockStorage, poolID)
+		assert.Error(tt, err)
+		assert.Equal(tt, dbErr, err)
+		assert.False(tt, customerrors.IsUserInputValidationErr(err))
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("NilStorage_ReturnsDefensiveError", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 100
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		err := ValidateVPGCountForPool(ctx, nil, poolID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "storage is required")
+	})
+}
+
+func TestCreateVolumePerformanceGroupAtomic(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("InjectsConfiguredCap_AndReturnsRow", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 250
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		req := &datamodel.VolumePerformanceGroup{PoolID: 7, Name: "vpg-atomic"}
+		expected := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{UUID: "out"}, PoolID: 7, Name: "vpg-atomic"}
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, req, 250).Return(expected, nil)
+
+		got, err := CreateVolumePerformanceGroupAtomic(ctx, mockStorage, req)
+		assert.NoError(tt, err)
+		assert.Same(tt, expected, got)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CapZero_IsForwardedAndDisablesEnforcement", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 0
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		req := &datamodel.VolumePerformanceGroup{PoolID: 7, Name: "vpg-disabled"}
+		expected := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{UUID: "out2"}, PoolID: 7, Name: "vpg-disabled"}
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, req, 0).Return(expected, nil)
+
+		got, err := CreateVolumePerformanceGroupAtomic(ctx, mockStorage, req)
+		assert.NoError(tt, err)
+		assert.Same(tt, expected, got)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("StorageError_Propagates", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 100
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		req := &datamodel.VolumePerformanceGroup{PoolID: 7, Name: "vpg-err"}
+		dbErr := errors.New("transient db failure")
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, req, 100).Return(nil, dbErr)
+
+		got, err := CreateVolumePerformanceGroupAtomic(ctx, mockStorage, req)
+		assert.Nil(tt, got)
+		assert.Equal(tt, dbErr, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CapValidationError_PropagatesAsUserInputValidationErr", func(tt *testing.T) {
+		orig := maxVolumePerformanceGroupsPerPool
+		maxVolumePerformanceGroupsPerPool = 100
+		defer func() { maxVolumePerformanceGroupsPerPool = orig }()
+
+		mockStorage := database.NewMockStorage(tt)
+		req := &datamodel.VolumePerformanceGroup{PoolID: 7, Name: "vpg-overflow"}
+		validationErr := customerrors.NewUserInputValidationErr("Pool has reached the maximum number of Volume Performance Groups (100). ...")
+		mockStorage.On("CreateVolumePerformanceGroupWithCap", ctx, req, 100).Return(nil, validationErr)
+
+		got, err := CreateVolumePerformanceGroupAtomic(ctx, mockStorage, req)
+		assert.Nil(tt, got)
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+	})
+
+	t.Run("NilStorage_ReturnsDefensiveError", func(tt *testing.T) {
+		got, err := CreateVolumePerformanceGroupAtomic(ctx, nil, &datamodel.VolumePerformanceGroup{PoolID: 1, Name: "x"})
+		assert.Nil(tt, got)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "storage is required")
 	})
 }

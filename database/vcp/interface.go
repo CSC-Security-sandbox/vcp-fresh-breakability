@@ -456,7 +456,8 @@ type (
 		ListClusterPeeringRowsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ClusterPeerings, error)
 
 		// Volume Performance Group (Manual QoS) methods
-		CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error)
+		// CreateVolumePerformanceGroupWithCap: lock pool, count VPGs, enforce maxCount, insert (maxCount <= 0 skips cap).
+		CreateVolumePerformanceGroupWithCap(ctx context.Context, vpg *datamodel.VolumePerformanceGroup, maxCount int) (*datamodel.VolumePerformanceGroup, error)
 		UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error
 		UpdateVolumePerformanceGroupState(ctx context.Context, uuid, state, stateDetails string) error
 		DeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error
@@ -465,6 +466,7 @@ type (
 		GetVolumePerformanceGroupByID(ctx context.Context, id int64) (*datamodel.VolumePerformanceGroup, error)
 		GetVolumePerformanceGroupByPoolAndName(ctx context.Context, poolID int64, name string) (*datamodel.VolumePerformanceGroup, error)
 		ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error)
+		CountVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) (int64, error)
 		GetVolumeCountByVolumePerformanceGroupID(ctx context.Context, vpgID int64) (int64, error)
 
 		// Expert Mode Volume operations
