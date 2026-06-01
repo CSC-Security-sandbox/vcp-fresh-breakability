@@ -265,6 +265,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableCounterFormatter | default "false" | quote }}
             - name: REGION_NUMBER_MAP
               value: {{ .Values.telemetryDeployer.regionNumberMap | default "" | quote }}
+            - name: ENABLE_FREE_TRIAL_BILLING
+              value: {{ .Values.telemetryDeployer.enableFreeTrialBilling | default "false" | quote }}
           resources:
             limits:
               cpu: {{ .Values.telemetryDeployer.resources.limits.cpu | default .Values.resources.limits.cpu }}

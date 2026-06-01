@@ -79,6 +79,35 @@ func (d *DataStoreRepository) ListAccountsForTelemetry(ctx context.Context, pagi
 	return accounts, nil
 }
 
+// freeTrialBillingAccountRow is a minimal projection for billing telemetry.
+type freeTrialBillingAccountRow struct {
+	ID             int64      `gorm:"column:id"`
+	FreeTrialEndAt *time.Time `gorm:"column:free_trial_end_at"`
+}
+
+// ListFreeTrialAccountsForBilling returns account IDs and trial end time for accounts whose
+// account_metadata contains a trialMode object with both startTime and endTime populated.
+func (d *DataStoreRepository) ListFreeTrialAccountsForBilling(ctx context.Context) (map[int64]*time.Time, error) {
+	var rows []freeTrialBillingAccountRow
+	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Account{}).
+		Select(`id, (account_metadata->'trialMode'->>'endTime')::timestamptz AS free_trial_end_at`).
+		Where(`account_metadata->'trialMode'->>'startTime' IS NOT NULL
+			AND account_metadata->'trialMode'->>'startTime' != ''
+			AND account_metadata->'trialMode'->>'endTime' IS NOT NULL
+			AND account_metadata->'trialMode'->>'endTime' != ''`).
+		Find(&rows).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	out := make(map[int64]*time.Time, len(rows))
+	for i := range rows {
+		if rows[i].FreeTrialEndAt != nil {
+			out[rows[i].ID] = rows[i].FreeTrialEndAt
+		}
+	}
+	return out, nil
+}
+
 // getAccount retrieves an account by the query
 func getAccount(db *gorm.DB, query *datamodel.Account) (*datamodel.Account, error) {
 	account := &datamodel.Account{}

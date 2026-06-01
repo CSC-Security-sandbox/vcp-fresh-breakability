@@ -7981,7 +7981,7 @@ func TestPersistenceStore_GetBackupResourceDataForAggregation(t *testing.T) {
 	}()
 
 	ctx := context.Background()
-	results, err := store.GetBackupResourceDataForAggregation(ctx, [][]interface{}{}, nil)
+	results, err := store.GetBackupResourceDataForAggregation(ctx, [][]interface{}{}, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
 }

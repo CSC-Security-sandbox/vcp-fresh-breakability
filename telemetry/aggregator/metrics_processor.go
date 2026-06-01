@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -88,6 +89,7 @@ type ResourceData struct {
 	PrimaryZone           string  // Pool's primary zone for AT billing location label
 	BackupRegionName      *string // Destination region for cross-region backups
 	CreatedAt             *time.Time
+	FreeTrialEndAt        *time.Time
 }
 
 type VolumeReplicationInfo struct {
@@ -106,6 +108,7 @@ type ResourceCollection struct {
 	VolumeReplicationData    map[ResourceKey]ResourceData
 	VolumeToDeploymentName   map[string]string
 	DeploymentNameToPoolName map[string]string
+	FreeTrialAccounts        map[int64]*time.Time
 }
 
 type OntapPoolInfo struct {
@@ -263,6 +266,9 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 				}
 
 				series := jobDef.TimeSeriesFormatter.Format(ctx, logger, resourceMetrics, aggregationStartTime, aggregationEndTime)
+				if p.config.EnableFreeTrialBilling {
+					series = applyFreeTrialSplit(series, resourceData, jobDef.AggregationType)
+				}
 				// loop through each series and process metrics
 				for _, metricseries := range series {
 					logger.Debugf("Collected timeseries %s, %s, %v for resource %s and customer id %s ", metricseries.AggregationStart, metricseries.AggregationEnd, metricseries.DataPoints, resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID)
@@ -364,6 +370,17 @@ func (p *BillingProvider) applyDataSourceAndFormatterOverrides(logger log.Logger
 	}
 }
 
+// fetchFreeTrialAccounts loads accounts that have both trial start and end set (see ListFreeTrialAccountsForBilling).
+func (p *BillingProvider) fetchFreeTrialAccounts(ctx context.Context) (map[int64]*time.Time, error) {
+	logger := util.GetLogger(ctx)
+	out, err := p.vcpDataStore.ListFreeTrialAccountsForBilling(ctx)
+	if err != nil {
+		return nil, err
+	}
+	logger.Infof("Pre-fetched %d accounts in free trial", len(out))
+	return out, nil
+}
+
 // fetchResourceData fetches label values from pool and volume tables in VCP database
 func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStartTime time.Time) (*ResourceCollection, error) {
 	logger := util.GetLogger(ctx)
@@ -377,6 +394,16 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 		BackupData:               make(map[ResourceKey]ResourceData),
 		VolumeToDeploymentName:   make(map[string]string),
 		DeploymentNameToPoolName: make(map[string]string),
+		FreeTrialAccounts:        make(map[int64]*time.Time),
+	}
+
+	if p.config.EnableFreeTrialBilling {
+		freeTrialAccounts, err := p.fetchFreeTrialAccounts(ctx)
+		if err != nil {
+			logger.Warnf("Failed to fetch accounts for free trial prefetch: %v", err)
+			freeTrialAccounts = make(map[int64]*time.Time)
+		}
+		resourceCollection.FreeTrialAccounts = freeTrialAccounts
 	}
 
 	var poolsDataError, volumeDataError, backupDataError, volumeReplicationDataError error
@@ -514,6 +541,10 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 			if pool.PoolAttributes != nil {
 				primaryZone = pool.PoolAttributes.PrimaryZone
 			}
+			var freeTrialEnd *time.Time
+			if p.config.EnableFreeTrialBilling {
+				freeTrialEnd = resourceCollection.FreeTrialAccounts[pool.AccountID]
+			}
 			poolResourceData := ResourceData{
 				UUID:                pool.UUID,
 				AccountID:           pool.AccountID,
@@ -525,6 +556,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				IsONTAPMode:         pool.APIAccessMode == commonparams.ONTAPMode,
 				PrimaryZone:         primaryZone,
 				CreatedAt:           &pool.CreatedAt,
+				FreeTrialEndAt:      freeTrialEnd,
 			}
 			resourceType := metadata.VolumePool
 			if pool.IsRegionalHA() {
@@ -605,13 +637,18 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 			}
 
 			largeCapacity := volume.GetLargeCapacity()
+			var freeTrialEnd *time.Time
+			if p.config.EnableFreeTrialBilling {
+				freeTrialEnd = resourceCollection.FreeTrialAccounts[volume.AccountID]
+			}
 			volumeResourceData := ResourceData{
-				UUID:          volume.UUID,
-				AccountID:     volume.AccountID,
-				Labels:        limitedLabels,
-				LargeCapacity: largeCapacity,
-				VolumeStyle:   getVolumeStyle(largeCapacity),
-				CreatedAt:     &volume.CreatedAt,
+				UUID:           volume.UUID,
+				AccountID:      volume.AccountID,
+				Labels:         limitedLabels,
+				LargeCapacity:  largeCapacity,
+				VolumeStyle:    getVolumeStyle(largeCapacity),
+				CreatedAt:      &volume.CreatedAt,
+				FreeTrialEndAt: freeTrialEnd,
 			}
 			resourceType := metadata.Volume
 			if volume.IsRegionalHA() {
@@ -735,7 +772,7 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 		}
 
 		// Fetch paginated backup metrics
-		backups, err := p.vcpDataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination)
+		backups, err := p.vcpDataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination, resourceCollection.FreeTrialAccounts)
 		if err != nil {
 			return fmt.Errorf("failed to get backup metrics (offset %d): %w", offset, err)
 		}
@@ -775,6 +812,10 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 					backup.UUID, backup.VolumeUUID)
 			}
 
+			var freeTrialEnd *time.Time
+			if p.config.EnableFreeTrialBilling && backup.BackupVault.Account != nil && backup.BackupVault.Account.AccountMetadata != nil && backup.BackupVault.Account.AccountMetadata.TrialMode != nil {
+				freeTrialEnd = backup.BackupVault.Account.AccountMetadata.TrialMode.EndTime
+			}
 			backupResourceData := ResourceData{
 				UUID:             backup.VolumeUUID, // Using volume UUID
 				AccountID:        backup.BackupVault.AccountID,
@@ -782,6 +823,7 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 				LargeCapacity:    largeCapacity,
 				VolumeStyle:      volumeStyle,
 				BackupRegionName: backup.BackupVault.BackupRegionName,
+				FreeTrialEndAt:   freeTrialEnd,
 			}
 			id := ResourceKey{
 				ResourceType:   metadata.Backup,
@@ -1347,6 +1389,11 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 			}
 			volumeStyle := getVolumeStyle(largeCapacity)
 
+			var replicationFreeTrialEnd *time.Time
+			if p.config.EnableFreeTrialBilling && volumeReplication.Account != nil && volumeReplication.Account.AccountMetadata != nil && volumeReplication.Account.AccountMetadata.TrialMode != nil {
+				replicationFreeTrialEnd = volumeReplication.Account.AccountMetadata.TrialMode.EndTime
+			}
+
 			volumeReplicationResourceData := ResourceData{
 				UUID:                  volumeReplication.UUID,
 				AccountID:             volumeReplication.AccountID,
@@ -1355,6 +1402,7 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 				LargeCapacity:         largeCapacity,
 				VolumeStyle:           volumeStyle,
 				CreatedAt:             &volumeReplication.CreatedAt,
+				FreeTrialEndAt:        replicationFreeTrialEnd,
 			}
 			id := ResourceKey{
 				ResourceType:   metadata.VolumeReplicationRelationship,
@@ -1756,26 +1804,18 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 
 	// Initialize with default values
 	var billingLabelsJSON *string
-	resourceUUID := ""
-	accountID := ""
+	resourceUUID := resourceData.UUID
+	accountID := strconv.FormatInt(resourceData.AccountID, 10)
 
-	// Process resource data if available
-	if resourceData != nil {
-		resourceUUID = resourceData.UUID
-		accountID = strconv.FormatInt(resourceData.AccountID, 10)
-
-		// Only marshal labels if they exist
-		if len(resourceData.Labels) > 0 {
-			labelsBytes, err := json.Marshal(resourceData.Labels)
-			if err != nil {
-				logger.Errorf("Failed to marshal billing labels for resource name %s, deployment name :%s : %v", resourceKey.ResourceName, resourceKey.DeploymentName, err)
-			} else {
-				labelsStr := string(labelsBytes)
-				billingLabelsJSON = &labelsStr
-			}
+	// Only marshal labels if they exist
+	if len(resourceData.Labels) > 0 {
+		labelsBytes, err := json.Marshal(resourceData.Labels)
+		if err != nil {
+			logger.Errorf("Failed to marshal billing labels for resource name %s, deployment name :%s : %v", resourceKey.ResourceName, resourceKey.DeploymentName, err)
+		} else {
+			labelsStr := string(labelsBytes)
+			billingLabelsJSON = &labelsStr
 		}
-	} else {
-		return fmt.Errorf("skipping aggregation usage record as resource data not found for resource name : %s, deployment name : %s, customer ID : %s", resourceKey.ResourceName, resourceKey.DeploymentName, resourceKey.ConsumerID)
 	}
 
 	if metrics.MeasuredType != metadata.PoolTotalIops && metrics.MeasuredType != metadata.PoolTotalThroughputMibps {
@@ -1804,6 +1844,10 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 			return nil
 		}
 	}
+	billingMode := datamodel2.BillingModeCommercial
+	if p.config.EnableFreeTrialBilling {
+		billingMode = determineBillingMode(resourceData, end)
+	}
 
 	// Create aggregated record with all available fields
 	aggregated := &datamodel2.AggregatedUsage{
@@ -1828,6 +1872,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		ErrorCount:             0,
 		ErrorMessage:           nil,
 		IsBillable:             isBillable,
+		BillingMode:            billingMode,
 		AggregationType:        string(jobDef.AggregationType),
 		ServiceLevel:           unifiedServiceType,
 		VolumeStyle:            resourceData.VolumeStyle,
@@ -1940,6 +1985,7 @@ func (p *BillingProvider) getUnsentGoogleUsages(ctx context.Context, maxRetries 
 		{"is_billable = ?", true},
 		{"aggregation_end <= ?", aggregationEndTime},
 		{"aggregation_start >= ?", aggregationStartTime},
+		{"billing_mode = ?", datamodel2.BillingModeCommercial},
 	}
 	unsubmittedRecords, err := p.fetchAllRecordsWithPagination(ctx, unsubmittedConditions)
 	if err != nil {
@@ -2376,6 +2422,75 @@ func inBaselineMode(cachedEntry *CounterAggregationCacheValue) bool {
 
 // fetchHistoricalVolumeSizeMetrics fetches aggregated volume size metrics from aggregated_usages table
 // for pool-level auto-tiering billing when EnableATVolumeBasedPoolBilling is enabled.
+
+func determineBillingMode(resourceData *ResourceData, aggregationEnd time.Time) datamodel2.BillingMode {
+	if resourceData == nil || resourceData.FreeTrialEndAt == nil {
+		return datamodel2.BillingModeCommercial
+	}
+
+	if !aggregationEnd.After(*resourceData.FreeTrialEndAt) {
+		return datamodel2.BillingModeFreeTrial
+	}
+
+	return datamodel2.BillingModeCommercial
+}
+
+func applyFreeTrialSplit(series []common.TimeSeries, resourceData *ResourceData, aggregationType common.JobType) []common.TimeSeries {
+	if resourceData == nil || resourceData.FreeTrialEndAt == nil || len(series) == 0 {
+		return series
+	}
+	out := make([]common.TimeSeries, 0, len(series))
+	for _, s := range series {
+		out = append(out, splitTimeSeriesByFreeTrial(s, resourceData.FreeTrialEndAt, aggregationType)...)
+	}
+	return out
+}
+
+func splitTimeSeriesByFreeTrial(series common.TimeSeries, freeTrialEndAt *time.Time, aggregationType common.JobType) []common.TimeSeries {
+	if freeTrialEndAt == nil || !series.AggregationStart.Before(*freeTrialEndAt) || !series.AggregationEnd.After(*freeTrialEndAt) {
+		return []common.TimeSeries{series}
+	}
+
+	points := make([]common.DataPoint, len(series.DataPoints))
+	copy(points, series.DataPoints)
+	sort.Slice(points, func(i, j int) bool { return points[i].Timestamp.Before(points[j].Timestamp) })
+	if len(points) == 0 {
+		return []common.TimeSeries{series}
+	}
+
+	splitIdx := -1
+	for i := range points {
+		if !points[i].Timestamp.After(*freeTrialEndAt) {
+			splitIdx = i
+		}
+	}
+	if splitIdx < 0 || splitIdx >= len(points)-1 {
+		return []common.TimeSeries{series}
+	}
+
+	freeTrialSeries := series
+	commercialSeries := series
+	freeTrialSeries.AggregationEnd = *freeTrialEndAt
+	commercialSeries.AggregationStart = *freeTrialEndAt
+
+	if aggregationType == common.CounterAggregation {
+		freeTrialSeries.DataPoints = append([]common.DataPoint{}, points[:splitIdx+1]...)
+		commercialSeries.DataPoints = append([]common.DataPoint{points[splitIdx]}, points[splitIdx+1:]...)
+		return []common.TimeSeries{freeTrialSeries, commercialSeries}
+	}
+
+	pre := append([]common.DataPoint{}, points[:splitIdx+1]...)
+	post := append([]common.DataPoint{}, points[splitIdx+1:]...)
+	lastBefore := pre[len(pre)-1]
+	if !lastBefore.Timestamp.Equal(*freeTrialEndAt) {
+		boundary := common.DataPoint{Timestamp: *freeTrialEndAt, Quantity: lastBefore.Quantity, TransferType: lastBefore.TransferType}
+		pre = append(pre, boundary)
+		post = append([]common.DataPoint{boundary}, post...)
+	}
+	freeTrialSeries.DataPoints = pre
+	commercialSeries.DataPoints = post
+	return []common.TimeSeries{freeTrialSeries, commercialSeries}
+}
 // This aggregates volume-level metrics to pool-level by summing volumes within each pool.
 func (p *BillingProvider) fetchHistoricalVolumeSizeMetrics(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, backfillLimit time.Duration, measuredType metadata.MeasuredType, resourceType metadata.ResourceType, resourceCollection *ResourceCollection, aggregatedRecords []datamodel2.AggregatedUsage) ([]datamodel2.HydratedMetrics, error) {
 	logger := util.GetLogger(ctx)

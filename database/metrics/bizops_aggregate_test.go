@@ -93,7 +93,7 @@ func setupFailingTestDataStoreRepository(t *testing.T, failurePoint string) *Dat
 		setupPoolUsage()
 		// Mock the final query with actual data
 		rows := sqlmock.NewRows(reportColumns).
-			AddRow("TEST_COMPONENT", "TEST_CUSTOMER", true, 1, 2,
+			AddRow("TEST_COMPONENT", "TEST_CUSTOMER", true, "COMMERCIAL", 1, 2,
 				"2024-01-01", "2024-01-31", "Standard", "Daily",
 				"Volume", "Block", "us-east1", "us-east1", "us-west1",
 				"NA", "NA", 100.0, 200.0, 300.0, 400.0, 500.0,
@@ -141,6 +141,7 @@ func TestDataStoreRepository_AggregateUsageForBizOps(t *testing.T) {
 		csvData := buf.String()
 		assert.Contains(t, csvData, "COMPONENT")
 		assert.Contains(t, csvData, "CUSTOMER_ID")
+		assert.Contains(t, csvData, "CHARGEABILITY")
 		assert.Contains(t, csvData, "TEST_CUSTOMER")
 	})
 	// For below tests we are mocking DB calls to simulate failures at different points
@@ -197,7 +198,7 @@ func TestConvertRowsToCSV(t *testing.T) {
 
 	// Create mock rows with expected columns
 	rows := sqlmock.NewRows(reportColumns).
-		AddRow("COMPONENT1", "CUST123", true, 5, 10, "2024-01-01", "2024-01-31",
+		AddRow("COMPONENT1", "CUST123", true, "COMMERCIAL", 5, 10, "2024-01-01", "2024-01-31",
 			"Standard", "Daily", "Volume", "Block", "us-east1", "us-east1",
 			"us-west1", "NA", "NA", 100.5, 200.5, 300.5, 400.5, 500.5,
 			600.5, 700.5, 800.5, 900.5, 1000.5, 1100.5, 1200.5, 1300.5, 1400.5)
@@ -252,7 +253,7 @@ func TestConvertRowsToCSV_Errors(t *testing.T) {
 
 		// Create rows that will have an error
 		rows := sqlmock.NewRows(reportColumns).
-			AddRow("COMPONENT1", "CUST123", true, 5, 10, "2024-01-01", "2024-01-31",
+			AddRow("COMPONENT1", "CUST123", true, "FREE_TRIAL", 5, 10, "2024-01-01", "2024-01-31",
 				"Standard", "Daily", "Volume", "Block", "us-east1", "us-east1",
 				"us-west1", "NA", "NA", 100.5, 200.5, 300.5, 400.5, 500.5,
 				600.5, 700.5, 800.5, 900.5, 1000.5, 1100.5, 1200.5, 1300.5, 1400.5).

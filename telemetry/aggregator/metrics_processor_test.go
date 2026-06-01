@@ -677,6 +677,423 @@ func TestFetchBackupHistoryMetrics_GCBDREndpointsMerged_ExpertMode(t *testing.T)
 	vcpDB.AssertExpectations(t)
 }
 
+func TestFetchFreeTrialAccounts(t *testing.T) {
+	t.Run("ReturnsAccountsSuccessfully", func(t *testing.T) {
+		mockVCPDB := database2.NewMockStorage(t)
+		trialEnd := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+		mockVCPDB.On("ListFreeTrialAccountsForBilling", mock.Anything).Return(map[int64]*time.Time{
+			10: &trialEnd,
+		}, nil)
+
+		provider := &BillingProvider{
+			vcpDataStore: mockVCPDB,
+		}
+		ctx := context.Background()
+		result, err := provider.fetchFreeTrialAccounts(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, &trialEnd, result[int64(10)])
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(t *testing.T) {
+		mockVCPDB := database2.NewMockStorage(t)
+		mockVCPDB.On("ListFreeTrialAccountsForBilling", mock.Anything).Return(nil, errors.New("db error"))
+
+		provider := &BillingProvider{
+			vcpDataStore: mockVCPDB,
+		}
+		ctx := context.Background()
+		result, err := provider.fetchFreeTrialAccounts(ctx)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestFetchResourceData_WithFreeTrialBillingEnabled(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	mockMetricsDB := database.NewMockStorage(t)
+	mockSink := &MockUsageSink{}
+
+	trialEnd := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	config := &common.TelemetryConfig{
+		EnableFreeTrialBilling:       true,
+		PoolVolumeLabelPageSize:      100,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, mockSink)
+
+	mockVCPDB.On("ListFreeTrialAccountsForBilling", mock.Anything).Return(map[int64]*time.Time{
+		1: &trialEnd,
+	}, nil)
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
+		{
+			UUID:           "pool-uuid",
+			Name:           "pool1",
+			AccountID:      1,
+			DeploymentName: "dep1",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "acct1", PrimaryZone: "us-east1"},
+		},
+	}, nil).Once()
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
+		{
+			UUID:      "vol-uuid",
+			Name:      "vol1",
+			AccountID: 1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "acct1",
+				DeploymentName: "dep1",
+			},
+		},
+	}, nil).Once()
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-time.Hour))
+	assert.NoError(t, err)
+	assert.NotNil(t, resourceCollection)
+	assert.Equal(t, &trialEnd, resourceCollection.FreeTrialAccounts[int64(1)])
+
+	// Pool should have FreeTrialEndAt set
+	for _, rd := range resourceCollection.PoolData {
+		assert.Equal(t, &trialEnd, rd.FreeTrialEndAt)
+	}
+	// Volume should have FreeTrialEndAt set
+	for _, rd := range resourceCollection.VolumeData {
+		assert.Equal(t, &trialEnd, rd.FreeTrialEndAt)
+	}
+	mockVCPDB.AssertExpectations(t)
+}
+
+func TestFetchResourceData_FreeTrialFetchError(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	mockMetricsDB := database.NewMockStorage(t)
+	mockSink := &MockUsageSink{}
+
+	config := &common.TelemetryConfig{
+		EnableFreeTrialBilling:       true,
+		PoolVolumeLabelPageSize:      100,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, mockSink)
+
+	// Return error from ListFreeTrialAccountsForBilling - should log warning and continue
+	mockVCPDB.On("ListFreeTrialAccountsForBilling", mock.Anything).Return(nil, errors.New("db error"))
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-time.Hour))
+	assert.NoError(t, err)
+	assert.NotNil(t, resourceCollection)
+	assert.Empty(t, resourceCollection.FreeTrialAccounts)
+	mockVCPDB.AssertExpectations(t)
+}
+
+func TestFetchBackupData_WithFreeTrialEndFromAccountMetadata(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	mockMetricsDB := database.NewMockStorage(t)
+	mockSink := &MockUsageSink{}
+
+	trialEnd := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	config := &common.TelemetryConfig{
+		EnableFreeTrialBilling:    true,
+		EnableBackupBillingMetrics: true,
+		PageSize:                  1000,
+		PoolVolumeLabelPageSize:   100,
+		GoogleBillingLabelsMaxEntries: 10,
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, mockSink)
+
+	resourceCollection := &ResourceCollection{
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{
+		{VolumeUUID: "vol-uuid", Labels: createJSONB(map[string]string{"env": "prod"})},
+	}, nil).Once()
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil).Maybe()
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Backup{
+		{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid"},
+			VolumeUUID: "vol-uuid",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "acct-1",
+				OntapVolumeStyle:  "flexvol",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "vault-uuid"},
+				AccountID:        1,
+				Name:             "vault1",
+				BackupRegionName: strPtr("us-east1"),
+				Account: &datamodel.Account{
+					Name: "acct1",
+					AccountMetadata: &datamodel.AccountMetadata{
+						TrialMode: &datamodel.AccountTrialMode{
+							EndTime: &trialEnd,
+						},
+					},
+				},
+			},
+		},
+	}, nil).Once()
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil).Once()
+
+	err := provider.fetchBackupData(ctx, time.Now().Add(-time.Hour), resourceCollection)
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.BackupData, 1)
+
+	for _, rd := range resourceCollection.BackupData {
+		assert.Equal(t, &trialEnd, rd.FreeTrialEndAt)
+	}
+	mockVCPDB.AssertExpectations(t)
+}
+
+func TestApplyFreeTrialSplit_GaugeAggregation(t *testing.T) {
+	startTime := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	trialEnd := startTime.Add(30 * time.Minute)
+
+	series := []common.TimeSeries{
+		{
+			AggregationStart: startTime,
+			AggregationEnd:   endTime,
+			DataPoints: []common.DataPoint{
+				{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+				{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200},
+				{Timestamp: startTime.Add(40 * time.Minute), Quantity: 300},
+				{Timestamp: startTime.Add(50 * time.Minute), Quantity: 400},
+			},
+		},
+	}
+
+	resourceData := &ResourceData{FreeTrialEndAt: &trialEnd}
+	result := applyFreeTrialSplit(series, resourceData, common.SumAggregation)
+	require.Len(t, result, 2)
+	assert.Equal(t, startTime, result[0].AggregationStart)
+	assert.Equal(t, trialEnd, result[0].AggregationEnd)
+	assert.Equal(t, trialEnd, result[1].AggregationStart)
+	assert.Equal(t, endTime, result[1].AggregationEnd)
+
+	// Gauge split inserts a boundary point
+	// Pre should have points before trial end + boundary at trialEnd
+	assert.True(t, len(result[0].DataPoints) >= 2)
+	assert.True(t, len(result[1].DataPoints) >= 2)
+}
+
+func TestApplyFreeTrialSplit_NilResourceData(t *testing.T) {
+	series := []common.TimeSeries{{AggregationStart: time.Now(), AggregationEnd: time.Now().Add(time.Hour)}}
+	result := applyFreeTrialSplit(series, nil, common.SumAggregation)
+	assert.Equal(t, series, result)
+}
+
+func TestApplyFreeTrialSplit_NilFreeTrialEndAt(t *testing.T) {
+	series := []common.TimeSeries{{AggregationStart: time.Now(), AggregationEnd: time.Now().Add(time.Hour)}}
+	result := applyFreeTrialSplit(series, &ResourceData{FreeTrialEndAt: nil}, common.SumAggregation)
+	assert.Equal(t, series, result)
+}
+
+func TestApplyFreeTrialSplit_EmptySeries(t *testing.T) {
+	trialEnd := time.Now()
+	result := applyFreeTrialSplit([]common.TimeSeries{}, &ResourceData{FreeTrialEndAt: &trialEnd}, common.SumAggregation)
+	assert.Empty(t, result)
+}
+
+func TestSplitTimeSeriesByFreeTrial_NoSplitWhenTrialEndOutsideWindow(t *testing.T) {
+	startTime := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	trialEnd := endTime.Add(time.Hour) // after window
+
+	series := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+		},
+	}
+	result := splitTimeSeriesByFreeTrial(series, &trialEnd, common.SumAggregation)
+	require.Len(t, result, 1)
+	assert.Equal(t, series.AggregationStart, result[0].AggregationStart)
+}
+
+func TestSplitTimeSeriesByFreeTrial_NoSplitWhenTrialEndBeforeWindow(t *testing.T) {
+	startTime := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	trialEnd := startTime.Add(-time.Hour) // before window
+
+	series := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+		},
+	}
+	result := splitTimeSeriesByFreeTrial(series, &trialEnd, common.SumAggregation)
+	require.Len(t, result, 1)
+}
+
+func TestSplitTimeSeriesByFreeTrial_EmptyDataPoints(t *testing.T) {
+	startTime := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	trialEnd := startTime.Add(30 * time.Minute)
+
+	series := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		DataPoints:       []common.DataPoint{},
+	}
+	result := splitTimeSeriesByFreeTrial(series, &trialEnd, common.SumAggregation)
+	require.Len(t, result, 1)
+}
+
+func TestSplitTimeSeriesByFreeTrial_AllPointsBeforeTrialEnd(t *testing.T) {
+	startTime := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	trialEnd := startTime.Add(50 * time.Minute)
+
+	series := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+			{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200},
+		},
+	}
+	// splitIdx would be len(points)-1 so no split
+	result := splitTimeSeriesByFreeTrial(series, &trialEnd, common.SumAggregation)
+	require.Len(t, result, 1)
+}
+
+func TestSplitTimeSeriesByFreeTrial_AllPointsAfterTrialEnd(t *testing.T) {
+	startTime := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	trialEnd := startTime.Add(5 * time.Minute)
+
+	series := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+			{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200},
+		},
+	}
+	// splitIdx < 0 so no split
+	result := splitTimeSeriesByFreeTrial(series, &trialEnd, common.SumAggregation)
+	require.Len(t, result, 1)
+}
+
+func TestSplitTimeSeriesByFreeTrial_GaugeSplitWithBoundaryPoint(t *testing.T) {
+	startTime := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	trialEnd := startTime.Add(30 * time.Minute)
+
+	series := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+			{Timestamp: startTime.Add(20 * time.Minute), Quantity: 200},
+			{Timestamp: startTime.Add(40 * time.Minute), Quantity: 300},
+		},
+	}
+	result := splitTimeSeriesByFreeTrial(series, &trialEnd, common.SumAggregation)
+	require.Len(t, result, 2)
+
+	// First series ends at trial end
+	assert.Equal(t, trialEnd, result[0].AggregationEnd)
+	// Last point of first series should be the boundary point at trialEnd
+	lastPre := result[0].DataPoints[len(result[0].DataPoints)-1]
+	assert.Equal(t, trialEnd, lastPre.Timestamp)
+	assert.Equal(t, float64(200), lastPre.Quantity)
+
+	// First point of second series should also be boundary
+	firstPost := result[1].DataPoints[0]
+	assert.Equal(t, trialEnd, firstPost.Timestamp)
+	assert.Equal(t, float64(200), firstPost.Quantity)
+}
+
+func TestSplitTimeSeriesByFreeTrial_GaugeSplitNoBoundaryWhenPointAtExactTrialEnd(t *testing.T) {
+	startTime := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	trialEnd := startTime.Add(20 * time.Minute)
+
+	series := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime.Add(10 * time.Minute), Quantity: 100},
+			{Timestamp: trialEnd, Quantity: 200}, // exactly at trial end
+			{Timestamp: startTime.Add(40 * time.Minute), Quantity: 300},
+		},
+	}
+	result := splitTimeSeriesByFreeTrial(series, &trialEnd, common.SumAggregation)
+	require.Len(t, result, 2)
+
+	// No extra boundary point should be added since last pre-point is exactly at trialEnd
+	// Pre: points at +10m and +20m (exact match, no boundary added)
+	assert.Equal(t, 2, len(result[0].DataPoints))
+	// Post: only point at +40m (no boundary duplicated since lastBefore is at exact trialEnd)
+	assert.Equal(t, 1, len(result[1].DataPoints))
+}
+
+func TestFetchVolumeReplicationData_WithFreeTrialEnd(t *testing.T) {
+	ctx := context.Background()
+	mockVCPDB := database2.NewMockStorage(t)
+	mockMetricsDB := database.NewMockStorage(t)
+	mockSink := &MockUsageSink{}
+
+	trialEnd := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	config := &common.TelemetryConfig{
+		EnableFreeTrialBilling:              true,
+		EnableReplicationBillingMetrics:     true,
+		EnableFilesReplicationBillingMetrics: true,
+		PoolVolumeLabelPageSize:             100,
+		GoogleBillingLabelsMaxEntries:       10,
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, mockSink)
+
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+
+	mockVCPDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "rep-uuid"},
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+				Name:      "vol1",
+				Pool:      &datamodel.Pool{DeploymentName: "dep1"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"NFSV3"},
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationType: "CROSS_REGION_REPLICATION",
+				Labels:          &datamodel.JSONB{"env": "test"},
+			},
+			Account: &datamodel.Account{
+				Name: "acct1",
+				AccountMetadata: &datamodel.AccountMetadata{
+					TrialMode: &datamodel.AccountTrialMode{
+						EndTime: &trialEnd,
+					},
+				},
+			},
+		},
+	}, nil).Once()
+	mockVCPDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	err := provider.fetchVolumeReplicationData(ctx, time.Now().Add(-time.Hour), resourceCollection)
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.VolumeReplicationData, 1)
+
+	for _, rd := range resourceCollection.VolumeReplicationData {
+		assert.Equal(t, &trialEnd, rd.FreeTrialEndAt)
+	}
+	mockVCPDB.AssertExpectations(t)
+}
+
 func TestGroupMetricsByResource_ParsesBackupRegionName(t *testing.T) {
 	processor := &BillingProvider{}
 	now := time.Now()
@@ -1508,6 +1925,182 @@ func TestProcessMetricsWithJobDef_ReplicationPrePositiveRows(t *testing.T) {
 	})
 }
 
+func TestProcessMetricsWithJobDef_BillingModeFromFreeTrial(t *testing.T) {
+        ctx := context.Background()
+        logger := util.GetLogger(ctx)
+        startTime := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+        endTime := startTime.Add(time.Hour)
+        processor := &BillingProvider{
+                config: &common.TelemetryConfig{EnableFreeTrialBilling: true},
+        }
+
+	resourceKey := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "vol-1",
+		DeploymentName: "dep-1",
+		ConsumerID:     "acct-1",
+	}
+
+	timeSeries := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		Metadata: metadata.ResourceMetadata{
+			ResourceType: metadata.Volume,
+		},
+		MeasuredType: metadata.AllocatedSize,
+		DataPoints: []common.DataPoint{
+			{
+				Timestamp: startTime.Add(10 * time.Minute),
+				Quantity:  float64(10 * 1024 * 1024),
+			},
+		},
+	}
+
+	testCases := []struct {
+		name             string
+		freeTrialEndAt   *time.Time
+		expectedBillMode datamodel2.BillingMode
+	}{
+		{
+			name:             "future free trial end date marks usage as free trial",
+			freeTrialEndAt:   ptrTime(endTime.Add(2 * time.Hour)),
+			expectedBillMode: datamodel2.BillingModeFreeTrial,
+		},
+		{
+			name:             "past free trial end date marks usage as commercial",
+			freeTrialEndAt:   ptrTime(endTime.Add(-2 * time.Hour)),
+			expectedBillMode: datamodel2.BillingModeCommercial,
+		},
+		{
+			name:             "nil free trial end date marks usage as commercial",
+			freeTrialEndAt:   nil,
+			expectedBillMode: datamodel2.BillingModeCommercial,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resourceCollection := &ResourceCollection{
+				PoolData:                 make(map[ResourceKey]ResourceData),
+				VolumeData:               make(map[ResourceKey]ResourceData),
+				VolumeReplicationData:    make(map[ResourceKey]ResourceData),
+				BackupData:               make(map[ResourceKey]ResourceData),
+				VolumeToDeploymentName:   make(map[string]string),
+				DeploymentNameToPoolName: make(map[string]string),
+			}
+			resourceCollection.VolumeData[resourceKey] = ResourceData{
+				UUID:           "vol-uuid-1",
+				AccountID:      123,
+				Labels:         Labels{"env": "test"},
+				CreatedAt:      ptrTime(startTime.Add(-24 * time.Hour)),
+				FreeTrialEndAt: tc.freeTrialEndAt,
+			}
+
+			var aggregatedRecords []datamodel2.AggregatedUsage
+			err := processor.processMetricsWithJobDef(
+				ctx,
+				resourceKey,
+				timeSeries,
+				common.AggregationJobDefinition{AggregationType: common.SumAggregation},
+				startTime,
+				endTime,
+				resourceCollection,
+				&aggregatedRecords,
+				make(CounterAggregationCache),
+				logger,
+			)
+			require.NoError(t, err)
+			require.Len(t, aggregatedRecords, 1)
+			assert.Equal(t, tc.expectedBillMode, aggregatedRecords[0].BillingMode)
+		})
+	}
+}
+
+func TestProcessMetricsWithJobDef_CounterBillingSplitsAtFreeTrialEnd(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	startTime := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	freeTrialEndAt := startTime.Add(30 * time.Minute)
+	processor := &BillingProvider{
+		config: &common.TelemetryConfig{EnableFreeTrialBilling: true},
+	}
+
+	resourceKey := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "vol-counter",
+		DeploymentName: "dep-1",
+		ConsumerID:     "acct-1",
+	}
+
+	resourceCollection := &ResourceCollection{
+		PoolData:                 make(map[ResourceKey]ResourceData),
+		VolumeData:               make(map[ResourceKey]ResourceData),
+		VolumeReplicationData:    make(map[ResourceKey]ResourceData),
+		BackupData:               make(map[ResourceKey]ResourceData),
+		VolumeToDeploymentName:   make(map[string]string),
+		DeploymentNameToPoolName: make(map[string]string),
+	}
+	resourceCollection.VolumeData[resourceKey] = ResourceData{
+		UUID:           "vol-uuid-ctr",
+		AccountID:      123,
+		Labels:         Labels{"env": "test"},
+		CreatedAt:      ptrTime(startTime.Add(-24 * time.Hour)),
+		FreeTrialEndAt: &freeTrialEndAt,
+	}
+
+	// Counter sequence: 1000,1200,[FT ends],1400,1600
+	// Expected commercial delta = (1400-1200) + (1600-1400) = 400 bytes.
+	ts := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   endTime,
+		Metadata: metadata.ResourceMetadata{
+			ResourceType: metadata.Volume,
+		},
+		MeasuredType: metadata.AllocatedSize,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime.Add(5 * time.Minute), Quantity: 1000},
+			{Timestamp: startTime.Add(20 * time.Minute), Quantity: 1200},
+			{Timestamp: startTime.Add(40 * time.Minute), Quantity: 1400},
+			{Timestamp: startTime.Add(50 * time.Minute), Quantity: 1600},
+		},
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	series := splitTimeSeriesByFreeTrial(ts, &freeTrialEndAt, common.CounterAggregation)
+	for _, metricSeries := range series {
+		err := processor.processMetricsWithJobDef(
+			ctx,
+			resourceKey,
+			metricSeries,
+			common.AggregationJobDefinition{AggregationType: common.CounterAggregation},
+			metricSeries.AggregationStart,
+			metricSeries.AggregationEnd,
+			resourceCollection,
+			&aggregatedRecords,
+			make(CounterAggregationCache),
+			logger,
+		)
+		require.NoError(t, err)
+	}
+	require.Len(t, aggregatedRecords, 2)
+
+	freeTrialRecord := aggregatedRecords[0]
+	commercialRecord := aggregatedRecords[1]
+	assert.Equal(t, datamodel2.BillingModeFreeTrial, freeTrialRecord.BillingMode)
+	assert.Equal(t, datamodel2.BillingModeCommercial, commercialRecord.BillingMode)
+	assert.Equal(t, freeTrialEndAt, freeTrialRecord.AggregationEnd)
+	assert.Equal(t, freeTrialEndAt, commercialRecord.AggregationStart)
+
+	expectedCommercial := BytesToMiB(400)
+	assert.InDelta(t, expectedCommercial, commercialRecord.Quantity, 1e-9)
+	assert.GreaterOrEqual(t, freeTrialRecord.Quantity, float64(0))
+}
+
+func ptrTime(t time.Time) *time.Time {
+	return &t
+}
+
 // TestProcessMetricsSuccess tests a successful path through ProcessMetrics.
 //
 // IMPORTANT: Mock Setup for GetHydratedMetrics
@@ -2236,7 +2829,7 @@ func TestGetUnsentGoogleUsages_ErrorStateWithRetries(t *testing.T) {
 
 	// Expect calls to GetAggregatedUsageWithPagination with conditions format
 	mockDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
-		if len(conditions) != 4 {
+		if len(conditions) < 4 {
 			return false
 		}
 		// Check for UNSUBMITTED state filter
@@ -2247,7 +2840,7 @@ func TestGetUnsentGoogleUsages_ErrorStateWithRetries(t *testing.T) {
 	).Maybe()
 
 	mockDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
-		if len(conditions) != 3 {
+		if len(conditions) < 3 {
 			return false
 		}
 		// Check for ERROR state filter
@@ -2285,7 +2878,7 @@ func TestGetUnsentGoogleUsages_ErrorInErrorStateQuery(t *testing.T) {
 
 	// Expect successful UNSUBMITTED query with conditions format
 	mockDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
-		if len(conditions) != 4 {
+		if len(conditions) < 4 {
 			return false
 		}
 		return conditions[0][0] == "state = ?" && conditions[0][1] == datamodel2.Unsubmitted
@@ -2295,7 +2888,7 @@ func TestGetUnsentGoogleUsages_ErrorInErrorStateQuery(t *testing.T) {
 
 	// Expect error in ERROR state query with conditions format
 	mockDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
-		if len(conditions) != 3 {
+		if len(conditions) < 3 {
 			return false
 		}
 		return conditions[0][0] == "state = ?" && conditions[0][1] == datamodel2.Error

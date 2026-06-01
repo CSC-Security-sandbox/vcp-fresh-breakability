@@ -152,6 +152,8 @@ type (
 		// ListAccountsForTelemetry retrieves accounts with only the fields required for telemetry/bizops operations.
 		// This is an optimized query that selects only id, name, and state columns.
 		ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error)
+		// ListFreeTrialAccountsForBilling returns account IDs and trial end from account_metadata (billing prefetch).
+		ListFreeTrialAccountsForBilling(ctx context.Context) (map[int64]*time.Time, error)
 		UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error
 		UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error
 		// UpdateAccountTrialMetadata merges trial fields into account_metadata JSONB.
@@ -349,7 +351,7 @@ type (
 		GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)
 		GetBackupChainMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)
 		GetDistinctVolumeGCBDRVaultPairs(ctx context.Context) ([]VolumeVaultPair, error)
-		GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)
+		GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination, freeTrialAccounts map[int64]*time.Time) ([]*datamodel.Backup, error)
 		GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error)
 		ListBackupChainHistoriesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupChainHistory, error)
 		// TODO: remove ListVolumesWithAccounts as it has been replaced by ListVolumesForTelemetryMetrics

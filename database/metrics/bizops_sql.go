@@ -34,7 +34,8 @@ continent VARCHAR (255) NOT NULL
  	source_region,
  	coalesce(destination_region, '') as destination_region,
     coalesce(volume_style, '') as volume_style,
- 	coalesce(replication_type, '') as replication_type
+	coalesce(replication_type, '') as replication_type,
+	billing_mode
  from
  	aggregated_usages
  where
@@ -66,7 +67,8 @@ continent VARCHAR (255) NOT NULL
  	service_level,
  	resource_type,
  	destination_region,
- 	volume_style
+	volume_style,
+	billing_mode
  from
  	aggregated_usage_constrained
  group by
@@ -74,7 +76,8 @@ continent VARCHAR (255) NOT NULL
  	resource_type,
  	service_level,
  	destination_region,
- 	volume_style
+	volume_style,
+	billing_mode
  ;
  `
 	googleContinents = `create temp table google_continents
@@ -84,6 +87,7 @@ continent VARCHAR (255) NOT NULL
 	   service_level,
 	   resource_type,
 	   source_region,
+	   billing_mode,
 	   $1 AS destination_region,
 	
 	   -- Source Continent
@@ -125,7 +129,8 @@ continent VARCHAR (255) NOT NULL
 	   service_level,
 	   resource_type,
 	   source_region,
-	   destination_region;
+	   destination_region,
+	   billing_mode;
 	`
 
 	poolUsageCalculated = `create temp table pool_usage_calculated
@@ -137,7 +142,8 @@ continent VARCHAR (255) NOT NULL
  	source_region,
  	resource_type,
  	volume_style,
- 	replication_type,
+	replication_type,
+	billing_mode,
  	sum(hourly_allocated_quantity) / 1024 as total_allocated_gibh,
  	case
  		when resource_type in ('VOLUME', 'VOLUME_REGIONAL_HA')  then sum(hourly_logical_quantity) / 1024 / 86400*3600
@@ -170,6 +176,7 @@ continent VARCHAR (255) NOT NULL
 		resource_type,
 		volume_style,
 		replication_type,
+		billing_mode,
 		sum(case when(measured_type = 'LOGICAL_SIZE') then quantity else 0 end) as hourly_logical_quantity,
 		sum(case when(measured_type in ('ALLOCATED_SIZE' ,'POOL_ALLOCATED_SIZE')) then quantity else 0 end) as hourly_allocated_quantity,
 		sum(case when(measured_type = 'TOTAL_LOGICAL_SIZE') then quantity else 0 end) as hourly_pool_logical_quantity,
@@ -186,7 +193,7 @@ continent VARCHAR (255) NOT NULL
     	sum(case when(measured_type = 'POOL_TOTAL_IOPS') then quantity else 0 end) as pool_billable_iops,
  		sum(case when(state = 1) then quantity else 0 end) as submitted_quantity
  	from aggregated_usage_constrained
- 	group by account_id, aggregation_start, destination_region, service_level, source_region, resource_type, volume_style, replication_type
+	group by account_id, aggregation_start, destination_region, service_level, source_region, resource_type, volume_style, replication_type, billing_mode
  	) as agg
  group by
  	account_id,
@@ -195,7 +202,8 @@ continent VARCHAR (255) NOT NULL
  	source_region,
  	resource_type,
  	volume_style,
- 	replication_type;
+	replication_type,
+	billing_mode;
  `
 
 	finalReport = `
@@ -206,6 +214,10 @@ continent VARCHAR (255) NOT NULL
  		when aa.is_active = 'false' then 'FALSE'
  		else 'TRUE'
  	end as is_active,
+ 	case
+ 		when puc.account_id is null then ''
+		else puc.billing_mode
+ 	end as chargeability,
  	case
  		when puc.resource_type in ('VOLUME_POOL', 'VOLUME_POOL_REGIONAL_HA') then us.resource_count
  		else 0
@@ -283,9 +295,9 @@ continent VARCHAR (255) NOT NULL
      end as actual_submitted_quantity
  from
  	(select user_name, account_id, is_active from customer_account) aa
- 	left join pool_usage_calculated puc on aa.account_id = puc.account_id
- 	left join usage_statistics us on aa.account_id = us.account_id and puc.resource_type = us.resource_type and puc.service_level = us.service_level and puc.volume_style = us.volume_style and puc.destination_region =us.destination_region
- 	left join google_continents gc on aa.account_id = gc.account_id and puc.resource_type = gc.resource_type and puc.service_level = gc.service_level and puc.source_region = gc.source_region
+ 	inner join pool_usage_calculated puc on aa.account_id = puc.account_id
+	left join usage_statistics us on aa.account_id = us.account_id and puc.resource_type = us.resource_type and puc.service_level = us.service_level and puc.volume_style = us.volume_style and puc.destination_region =us.destination_region and puc.billing_mode IS NOT DISTINCT FROM us.billing_mode
+	left join google_continents gc on aa.account_id = gc.account_id and puc.resource_type = gc.resource_type and puc.service_level = gc.service_level and puc.source_region = gc.source_region and puc.billing_mode IS NOT DISTINCT FROM gc.billing_mode
  group by
  	aa.user_name,
  	aa.is_active,
@@ -296,7 +308,8 @@ continent VARCHAR (255) NOT NULL
  	puc.resource_type,
  	puc.volume_style,
  	puc.replication_type,
- 	puc.source_region,
+	puc.source_region,
+	puc.billing_mode,
  	puc.total_transfer_bytes_crr,
  	puc.total_allocated_gibh,
  	puc.total_avg_gib_used,

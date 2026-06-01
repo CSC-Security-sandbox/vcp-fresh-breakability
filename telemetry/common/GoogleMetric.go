@@ -513,3 +513,22 @@ func (gm *GoogleMetric) GetDestinationRegion() (string, error) {
 		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
 	}
 }
+
+func (gm *GoogleMetric) GetBillingMode() (string, error) {
+	if gm.Record == nil {
+		return "", errors.New("record is nil")
+	}
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return "", err
+		}
+		if metric.BillingMode != "" {
+			return string(metric.BillingMode), nil
+		}
+		return "", nil
+	default:
+		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}

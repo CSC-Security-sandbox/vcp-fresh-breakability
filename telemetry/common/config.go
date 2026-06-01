@@ -65,6 +65,7 @@ type TelemetryConfig struct {
 	InjectionWindowMinutes                       int
 	EnableCounterFormatter                       bool
 	RegionNumberMap                              string
+	EnableFreeTrialBilling                       bool
 }
 
 type MetricItem struct {
@@ -129,6 +130,7 @@ func LoadConfig() *TelemetryConfig {
 	injectionWindowMinutes := env.GetInt("INJECTION_WINDOW_MINUTES", 10)
 	enableCounterFormatter := env.GetBool("ENABLE_COUNTER_FORMATTER", false)
 	regionNumberMap := env.GetString("REGION_NUMBER_MAP", DefaultRegionNumberMap)
+	enableFreeTrialBilling := env.GetBool("ENABLE_FREE_TRIAL_BILLING", false)
 
 	return &TelemetryConfig{
 		PerformanceRootUrl:                           performanceRootURL,
@@ -180,6 +182,7 @@ func LoadConfig() *TelemetryConfig {
 		InjectionWindowMinutes:                       injectionWindowMinutes,
 		EnableCounterFormatter:                       enableCounterFormatter,
 		RegionNumberMap:                              regionNumberMap,
+		EnableFreeTrialBilling:                       enableFreeTrialBilling,
 	}
 }
 

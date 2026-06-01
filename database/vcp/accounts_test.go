@@ -3,15 +3,18 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -1036,5 +1039,101 @@ func TestUpdateAccountTrialMetadata(t *testing.T) {
 			EndTime:   &end,
 		})
 		assert.Error(tt, err)
+	})
+}
+
+func TestListFreeTrialAccountsForBilling(t *testing.T) {
+	t.Run("ReturnsAccountsWithTrialEndTime", func(tt *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		defer func() { _ = dbSQL.Close() }()
+
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
+		require.NoError(tt, err)
+
+		trialEnd := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+		rows := sqlmock.NewRows([]string{"id", "free_trial_end_at"}).
+			AddRow(int64(10), trialEnd).
+			AddRow(int64(20), trialEnd)
+
+		mock.ExpectQuery(`SELECT`).WillReturnRows(rows)
+
+		wrapper := gormwrapper.New(gormDB)
+		store := NewDataStoreRepository(wrapper)
+
+		result, err := store.ListFreeTrialAccountsForBilling(context.Background())
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, &trialEnd, result[int64(10)])
+		assert.Equal(tt, &trialEnd, result[int64(20)])
+		assert.NoError(tt, mock.ExpectationsWereMet())
+	})
+
+	t.Run("ReturnsEmptyMapWhenNoRows", func(tt *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		defer func() { _ = dbSQL.Close() }()
+
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
+		require.NoError(tt, err)
+
+		rows := sqlmock.NewRows([]string{"id", "free_trial_end_at"})
+		mock.ExpectQuery(`SELECT`).WillReturnRows(rows)
+
+		wrapper := gormwrapper.New(gormDB)
+		store := NewDataStoreRepository(wrapper)
+
+		result, err := store.ListFreeTrialAccountsForBilling(context.Background())
+		assert.NoError(tt, err)
+		assert.Empty(tt, result)
+		assert.NoError(tt, mock.ExpectationsWereMet())
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		defer func() { _ = dbSQL.Close() }()
+
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
+		require.NoError(tt, err)
+
+		mock.ExpectQuery(`SELECT`).WillReturnError(fmt.Errorf("connection refused"))
+
+		wrapper := gormwrapper.New(gormDB)
+		store := NewDataStoreRepository(wrapper)
+
+		result, err := store.ListFreeTrialAccountsForBilling(context.Background())
+		assert.Nil(tt, result)
+		assert.Error(tt, err)
+		assert.NoError(tt, mock.ExpectationsWereMet())
+	})
+
+	t.Run("SkipsRowsWithNilFreeTrialEndAt", func(tt *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		defer func() { _ = dbSQL.Close() }()
+
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
+		require.NoError(tt, err)
+
+		trialEnd := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+		rows := sqlmock.NewRows([]string{"id", "free_trial_end_at"}).
+			AddRow(int64(10), trialEnd).
+			AddRow(int64(20), nil)
+
+		mock.ExpectQuery(`SELECT`).WillReturnRows(rows)
+
+		wrapper := gormwrapper.New(gormDB)
+		store := NewDataStoreRepository(wrapper)
+
+		result, err := store.ListFreeTrialAccountsForBilling(context.Background())
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, &trialEnd, result[int64(10)])
+		assert.NoError(tt, mock.ExpectationsWereMet())
 	})
 }

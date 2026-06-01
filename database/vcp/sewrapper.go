@@ -1564,6 +1564,22 @@ func (re *retryEngine) ListAccountsForTelemetry(ctx context.Context, pagination 
 	return var0, err
 }
 
+func (re *retryEngine) ListFreeTrialAccountsForBilling(ctx context.Context) (map[int64]*time.Time, error) {
+	var var0 map[int64]*time.Time
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListFreeTrialAccountsForBilling(ctx)
+		if err != nil {
+			re.logError("ListFreeTrialAccountsForBilling", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
@@ -4410,11 +4426,11 @@ func (re *retryEngine) GetDistinctVolumeGCBDRVaultPairs(ctx context.Context) ([]
 	return var0, err
 }
 
-func (re *retryEngine) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+func (re *retryEngine) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination, freeTrialAccounts map[int64]*time.Time) ([]*datamodel.Backup, error) {
 	var var0 []*datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination)
+		var0, err = re.dataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination, freeTrialAccounts)
 		if err != nil {
 			re.logError("GetBackupResourceDataForAggregation", err)
 			if !dbutils.IsTransientErr(err) {

@@ -1505,8 +1505,8 @@ func (s *PersistenceStore) GetDistinctVolumeGCBDRVaultPairs(ctx context.Context)
 	return s.dataStore.GetDistinctVolumeGCBDRVaultPairs(ctx)
 }
 
-func (s *PersistenceStore) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
-	return s.dataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination)
+func (s *PersistenceStore) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination, freeTrialAccounts map[int64]*time.Time) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination, freeTrialAccounts)
 }
 
 func (s *PersistenceStore) GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error) {
@@ -1543,6 +1543,10 @@ func (s *PersistenceStore) GetAccounts(ctx context.Context, includeDelete bool, 
 
 func (s *PersistenceStore) ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error) {
 	return s.dataStore.ListAccountsForTelemetry(ctx, pagination)
+}
+
+func (s *PersistenceStore) ListFreeTrialAccountsForBilling(ctx context.Context) (map[int64]*time.Time, error) {
+	return s.dataStore.ListFreeTrialAccountsForBilling(ctx)
 }
 
 func (s *PersistenceStore) CreatePendingResourceDeletion(ctx context.Context, resourceType, resourceName, errorMessage, accountName string, poolID int64) (*datamodel.PendingResourceDeletions, error) {

@@ -52,6 +52,7 @@ type BackupMetricsData struct {
 	VaultAccountID        int64   `gorm:"column:vault_account_id"`
 	VaultName             string  `gorm:"column:vault_name"`
 	VaultBackupRegionName *string `gorm:"column:vault_backup_region_name"`
+	VolumeAccountID       int64   `gorm:"column:volume_account_id"`
 }
 
 // createBackupChainHistoryEntry creates a new backup chain history entry
@@ -1205,7 +1206,7 @@ func (d *DataStoreRepository) GetDistinctVolumeGCBDRVaultPairs(ctx context.Conte
 	return results, nil
 }
 
-func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination, freeTrialAccounts map[int64]*time.Time) ([]*datamodel.Backup, error) {
 	db := d.db.Unscoped().ApplyFilter(conditions).GORM().WithContext(ctx)
 
 	var metricsData []*BackupMetricsData
@@ -1214,7 +1215,7 @@ func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Co
 		Select("MAX(id)").
 		Group("volume_uuid")
 
-	// Query backups table with JOIN to backup_vaults
+	// Query backups table with JOIN to backup_vaults and volumes
 	query := db.Table("backups").
 		Select(`
 			backups.uuid,
@@ -1223,9 +1224,11 @@ func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Co
 			backups.backup_vault_id,
 			backup_vaults.account_id AS vault_account_id,
 			backup_vaults.name AS vault_name,
-			backup_vaults.backup_region_name AS vault_backup_region_name
+			backup_vaults.backup_region_name AS vault_backup_region_name,
+			volumes.account_id AS volume_account_id
 		`).
 		Joins("LEFT JOIN backup_vaults ON backups.backup_vault_id = backup_vaults.id").
+		Joins("LEFT JOIN volumes ON backups.volume_uuid = volumes.uuid").
 		Where("backups.id IN (?)", subquery)
 
 	// Apply pagination
@@ -1246,6 +1249,16 @@ func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Co
 	// Convert BackupMetricsData to datamodel.Backup for backward compatibility
 	results := make([]*datamodel.Backup, len(metricsData))
 	for i, data := range metricsData {
+		var vaultAccount *datamodel.Account
+		if data.VolumeAccountID != 0 {
+			vaultAccount = &datamodel.Account{
+				BaseModel:       datamodel.BaseModel{ID: data.VolumeAccountID},
+				AccountMetadata: &datamodel.AccountMetadata{},
+			}
+			if end, ok := freeTrialAccounts[data.VolumeAccountID]; ok {
+				vaultAccount.AccountMetadata.TrialMode = &datamodel.AccountTrialMode{EndTime: end}
+			}
+		}
 		results[i] = &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{
 				UUID: data.UUID,
@@ -1260,6 +1273,7 @@ func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Co
 				Name:             data.VaultName,
 				AccountID:        data.VaultAccountID,
 				BackupRegionName: data.VaultBackupRegionName,
+				Account:          vaultAccount,
 			},
 		}
 	}

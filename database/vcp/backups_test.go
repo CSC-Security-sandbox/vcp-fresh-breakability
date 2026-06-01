@@ -5235,7 +5235,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		err = store.db.Create(backup2).Error()
 		assert.NoError(tt, err)
 
-		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 
@@ -5260,7 +5260,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
-		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil, nil)
 		assert.NoError(tt, err)
 		assert.Empty(tt, results)
 	})
@@ -5296,12 +5296,12 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		}
 
 		pagination := &dbutils.Pagination{Limit: 2, Offset: 0}
-		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, pagination)
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, pagination, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 2)
 
 		pagination2 := &dbutils.Pagination{Limit: 2, Offset: 2}
-		results2, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, pagination2)
+		results2, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, pagination2, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results2, 1)
 	})
@@ -5337,7 +5337,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		err = store.db.Delete(backup).Error()
 		assert.NoError(tt, err)
 
-		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 		assert.Equal(tt, "del-backup-1", results[0].UUID)
@@ -5373,7 +5373,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
 
-		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 
@@ -5413,7 +5413,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
 
-		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 
@@ -5470,7 +5470,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		err = store.db.Create(backup2).Error()
 		assert.NoError(tt, err)
 
-		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 2)
 
@@ -5529,7 +5529,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
 
-		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 

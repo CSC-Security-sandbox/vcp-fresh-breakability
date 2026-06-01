@@ -7029,7 +7029,7 @@ func (_c *MockStorage_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) RunAndReturn
 }
 
 // GetBackupResourceDataForAggregation provides a mock function with given fields: ctx, conditions, pagination
-func (_m *MockStorage) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Backup, error) {
+func (_m *MockStorage) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination,freeTrialAccounts map[int64]*time.Time) ([]*datamodel.Backup, error) {
 	ret := _m.Called(ctx, conditions, pagination)
 
 	if len(ret) == 0 {
@@ -16197,6 +16197,64 @@ func (_c *MockStorage_ListExpertModeVolumesWithPagination_Call) Return(_a0 []*da
 }
 
 func (_c *MockStorage_ListExpertModeVolumesWithPagination_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.ExpertModeVolumes, error)) *MockStorage_ListExpertModeVolumesWithPagination_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListFreeTrialAccountsForBilling provides a mock function with given fields: ctx
+func (_m *MockStorage) ListFreeTrialAccountsForBilling(ctx context.Context) (map[int64]*time.Time, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFreeTrialAccountsForBilling")
+	}
+
+	var r0 map[int64]*time.Time
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (map[int64]*time.Time, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) map[int64]*time.Time); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[int64]*time.Time)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListFreeTrialAccountsForBilling_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFreeTrialAccountsForBilling'
+type MockStorage_ListFreeTrialAccountsForBilling_Call struct {
+	*mock.Call
+}
+
+// ListFreeTrialAccountsForBilling is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockStorage_Expecter) ListFreeTrialAccountsForBilling(ctx interface{}) *MockStorage_ListFreeTrialAccountsForBilling_Call {
+	return &MockStorage_ListFreeTrialAccountsForBilling_Call{Call: _e.mock.On("ListFreeTrialAccountsForBilling", ctx)}
+}
+
+func (_c *MockStorage_ListFreeTrialAccountsForBilling_Call) Run(run func(ctx context.Context)) *MockStorage_ListFreeTrialAccountsForBilling_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListFreeTrialAccountsForBilling_Call) Return(_a0 map[int64]*time.Time, _a1 error) *MockStorage_ListFreeTrialAccountsForBilling_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListFreeTrialAccountsForBilling_Call) RunAndReturn(run func(context.Context) (map[int64]*time.Time, error)) *MockStorage_ListFreeTrialAccountsForBilling_Call {
 	_c.Call.Return(run)
 	return _c
 }

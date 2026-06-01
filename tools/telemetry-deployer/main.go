@@ -553,6 +553,7 @@ func getDefaultEnvVars() map[string]string {
 		"ENABLE_COUNTER_FORMATTER":                 getEnvOrDefault("ENABLE_COUNTER_FORMATTER", "false"),
 		"ENABLE_EXPERT_MODE_BACKUP_BILLING":        getEnvOrDefault("ENABLE_EXPERT_MODE_BACKUP_BILLING", "false"),
 		"SKIP_HYBRID_REPLICATION_BASELINE_BILLING": getEnvOrDefault("SKIP_HYBRID_REPLICATION_BASELINE_BILLING", "true"),
+		"ENABLE_FREE_TRIAL_BILLING":       getEnvOrDefault("ENABLE_FREE_TRIAL_BILLING", "false"),
 	}
 }
 
