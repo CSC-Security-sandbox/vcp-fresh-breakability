@@ -3008,6 +3008,44 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 		assert.False(tt, result.Name.IsSet())
 		assert.False(tt, result.Done.IsSet())
 	})
+
+	t.Run("WhenIdempotentDeleteOnDestinationRegion_ReturnsCompletedOperationNot500", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaInternalDeleteBackupVaultParams{
+			ProjectNumber: "123456789012",
+			LocationId:    "us-west1",
+			BackupVaultId: "external-backup-vault-uuid",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-west1", "", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.MatchedBy(func(p *commonparams.BackupVaultParams) bool {
+			return p != nil &&
+				p.BackupVaultID == params.BackupVaultId &&
+				p.OwnerID == params.ProjectNumber &&
+				p.Region == params.LocationId
+		})).Return("", nil)
+
+		resp, err := handler.V1betaInternalDeleteBackupVault(context.Background(), params)
+		assert.NoError(tt, err)
+
+		_, isInternalServerError := resp.(*gcpgenserver.V1betaInternalDeleteBackupVaultInternalServerError)
+		assert.False(tt, isInternalServerError)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.False(tt, result.Name.IsSet())
+		assert.False(tt, result.Done.IsSet())
+	})
 }
 
 func TestV1betaInternalUpdateBackupVault(t *testing.T) {

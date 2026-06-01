@@ -86,6 +86,10 @@ func (o *GCPOrchestrator) DeleteBackupVaultInternal(ctx context.Context, params 
 
 	account, err := se.GetAccount(ctx, params.OwnerID)
 	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger.Infof("Account %s not found, nothing to delete", params.OwnerID)
+			return "", nil
+		}
 		return "", err
 	}
 	remoteBv, err := se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)

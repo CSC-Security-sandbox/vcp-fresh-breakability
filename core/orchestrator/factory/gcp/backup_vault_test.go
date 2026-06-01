@@ -15,6 +15,7 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -3440,7 +3441,7 @@ func TestDeleteBackupVaultInternal(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("WhenGetAccountFails_ReturnsError", func(tt *testing.T) {
+	t.Run("WhenAccountNotFound_ReturnsEmptyStringAndNoError", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		orchestrator := &GCPOrchestrator{
 			storage: mockStorage,
@@ -3452,22 +3453,125 @@ func TestDeleteBackupVaultInternal(t *testing.T) {
 			Name:          "test-backup-vault",
 		}
 
-		expectedError := errors.New("account not found")
+		notFoundError := utilErrors.NewNotFoundErr("account", nil)
 
-		// Mock GetAccount - fails
-		mockStorage.On("GetAccount", ctx, ownerID).Return(nil, expectedError)
+		mockStorage.On("GetAccount", ctx, ownerID).Return(nil, notFoundError)
 
-		// Act
 		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
 
-		// Assert
-		assert.Error(tt, err)
-		assert.Equal(tt, expectedError, err)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, externalUUID, params.BackupVaultID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAccountNotFoundWrappedInVCPError_ReturnsEmptyStringAndNoError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &GCPOrchestrator{
+			storage: mockStorage,
+		}
+
+		// Matches database/vcp/accounts.go GetAccount not-found path.
+		projectNumber := "123456789012"
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       projectNumber,
+			Name:          "test-backup-vault",
+			Region:        "us-east4",
+		}
+
+		accountNotFound := vsaerrors.NewVCPError(
+			vsaerrors.ErrAccountNotFound,
+			utilErrors.NewNotFoundErr("account", nil),
+		)
+		mockStorage.On("GetAccount", ctx, projectNumber).Return(nil, accountNotFound)
+
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.True(tt, utilErrors.IsNotFoundErr(accountNotFound))
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, externalUUID, params.BackupVaultID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupVaultNotFound_ReturnsEmptyStringAndNoError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &GCPOrchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+			Region:        "us-west1",
+		}
+
+		backupVaultNotFound := utilErrors.NewNotFoundErr("backup vault", &externalUUID)
+
+		mockStorage.On("GetAccount", ctx, ownerID).Return(account, nil)
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(nil, backupVaultNotFound)
+
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, externalUUID, params.BackupVaultID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCrossRegionDestinationAccountNotFound_ReturnsEmptyStringAndNoError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &GCPOrchestrator{
+			storage: mockStorage,
+		}
+
+		destinationProject := "987654321098"
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       destinationProject,
+			Name:          "test-backup-vault",
+			Region:        "us-west1",
+		}
+
+		mockStorage.On("GetAccount", ctx, destinationProject).Return(nil, vsaerrors.NewVCPError(
+			vsaerrors.ErrAccountNotFound,
+			utilErrors.NewNotFoundErr("account", nil),
+		))
+
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
 		assert.Equal(tt, "", operationID)
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("WhenGetBackupVaultByExternalUUIDAndOwnerIDFails_ReturnsError", func(tt *testing.T) {
+	t.Run("WhenCrossRegionDestinationBackupVaultAlreadyDeleted_ReturnsEmptyStringAndNoError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &GCPOrchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+			Region:        "us-west1",
+		}
+
+		mockStorage.On("GetAccount", ctx, ownerID).Return(account, nil)
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).
+			Return(nil, utilErrors.NewNotFoundErr("backup vault", &externalUUID))
+
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetBackupVaultByExternalUUIDAndOwnerIDFailsWithNonNotFoundError_ReturnsError", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		orchestrator := &GCPOrchestrator{
 			storage: mockStorage,
@@ -3479,21 +3583,17 @@ func TestDeleteBackupVaultInternal(t *testing.T) {
 			Name:          "test-backup-vault",
 		}
 
-		expectedError := gorm.ErrRecordNotFound
+		expectedError := errors.New("database read failed")
 
-		// Mock GetAccount - successful
 		mockStorage.On("GetAccount", ctx, ownerID).Return(account, nil)
-
-		// Mock GetBackupVaultByExternalUUIDAndOwnerID - fails
 		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(nil, expectedError)
 
-		// Act
 		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
 
-		// Assert
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 		assert.Equal(tt, "", operationID)
+		assert.False(tt, utilErrors.IsNotFoundErr(err))
 		mockStorage.AssertExpectations(tt)
 	})
 
