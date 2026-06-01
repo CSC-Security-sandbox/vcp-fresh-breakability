@@ -2033,6 +2033,9 @@ func (a VolumeCreateActivity) FetchBackupMetadataForRestore(ctx context.Context,
 	// Fetch backup (VCP DB or remote VCP)
 	backup, err := FetchBackupOrFallbackToRemoteVCP(ctx, a.SE, pathInfo, backupVault, volume, region)
 	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, err))
+		}
 		return nil, err
 	}
 

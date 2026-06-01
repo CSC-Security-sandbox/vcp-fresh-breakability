@@ -16,6 +16,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -261,7 +262,11 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		params.BackupPath, backupVault, volume, volumeRegion).Get(ctx, &backup)
 	if err != nil {
 		log.Errorf("Failed to fetch backup metadata for restore: %v", err)
-		return nil, ConvertToVSAError(err)
+		ce := ConvertToVSAError(err)
+		if customerrors.IsNotFoundErr(err) || (ce != nil && ce.TrackingID == vsaerrors.ErrResourceNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, err)
+		}
+		return nil, ce
 	}
 
 	if backup == nil {

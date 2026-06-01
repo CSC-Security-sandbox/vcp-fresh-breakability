@@ -284,6 +284,75 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 
+	t.Run("backupMetadataNotFoundReturnsBadRequest", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+			BackupPath:     "projects/test-project/locations/us-east1/backupVaults/test-vault/backups/missing-backup",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid", ID: 1},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			Account:   account,
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		// Simulate exactly what the activity emits for a not-found backup: a CustomError carrying
+		// ErrResourceNotFound wrapped as a Temporal ApplicationError so the tracking ID survives.
+		notFoundErr := vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("Backup 'missing-backup' not found")))
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/backup.txt"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, notFoundErr)
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		// Workflow maps the not-found to a Bad Request (400) rather than a 500.
+		assert.Contains(t, wfErr.Error(), "Bad Request")
+	})
+
 	t.Run("GenerateResourceTimestampFailure", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
