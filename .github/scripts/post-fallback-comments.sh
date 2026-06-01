@@ -543,7 +543,7 @@ print(' · '.join(parts))
   if [[ -n "$_FIXES_CVE_DATA" && -z "$CVE_LINE" ]]; then
     # Only add if CVE_LINE is empty (PR body didn't have CVEs)
     FIXES_CVE_LINE="
-🛡️ **This PR fixes known vulnerabilities:** $_FIXES_CVE_DATA — **merge with priority**"
+🛡️ **This PR fixes known vulnerabilities:** $_FIXES_CVE_DATA — **merge with priority** (CVE reachability is a hint only)"
   elif [[ -n "$_FIXES_CVE_DATA" && -n "$CVE_LINE" ]]; then
     # PR body already has CVEs, append Dependabot-matched ones if different
     FIXES_CVE_LINE=""
@@ -601,7 +601,8 @@ ${_SHOWN_FILES}${_MORE_NOTE}
 - ℹ️ go.sum: $GOSUM_NEW_COUNT new transitive deps${_GOSUM_NAMES_NOTE}${_GOSUM_CONTEXT}"
     fi
   fi
-  # Build govulncheck note (inline checklist item) + top-of-comment header badge
+  # Build govulncheck note (inline checklist item) + top-of-comment header badge.
+  # CVE reachability is advisory only; break-reachability (API calls) drives merge risk.
   # V9.7b: distinguish NEW findings (this PR introduces) from pre-existing on main
   _VULN_NOTE=""
   _VULN_HEADER_BADGE=""
@@ -615,11 +616,11 @@ ${_SHOWN_FILES}${_MORE_NOTE}
     ok_preexisting)
       # PR scan found vulns, but ALL were already on main — PR introduces none.
       _VULN_NOTE="
-- ✅ govulncheck: PR introduces **no new vulnerabilities** (${VULN_PREEXISTING_COUNT} pre-existing on main — unaffected by this PR)"
+- ✅ govulncheck: PR introduces **no new vulnerabilities** (${VULN_PREEXISTING_COUNT} pre-existing on main — unaffected by this PR; CVE reachability is hint-only)"
       ;;
     vulns_found)
       _VULN_NOTE="
-- 🚨 govulncheck: **${VULN_NEW_COUNT} NEW vulnerability(ies) introduced by this PR** — ${VULN_NEW_LIST}${_PRE_NOTE}"
+- 🚨 Heads-up: CVE reachability (hint only): govulncheck found **${VULN_NEW_COUNT} NEW vulnerability(ies) introduced by this PR** — ${VULN_NEW_LIST}${_PRE_NOTE}"
       _VULN_HEADER_BADGE="> 🚨 **Security:** This PR introduces **${VULN_NEW_COUNT} new vulnerability(ies)** not present on main: ${VULN_NEW_LIST}${_PRE_NOTE}. **Review before merge.**
 "
       ;;
@@ -726,7 +727,7 @@ b=nt.get('basis') or {}
 print('### Confidence without tests')
 print(f'Derived confidence: **{nt.get("confidence","unknown")}** (no Go test files were present).')
 print(f'- API diff changes: `{b.get("api_changes", 0)}`')
-print(f'- Usage/reachability signals: `{b.get("usage_signals", 0)}`')
+print(f'- BREAK-reachability signals (changed API symbols your code calls/accesses): `{b.get("usage_signals", 0)}`')
 print(f'- Semver bump: `{b.get("semver_bump", "?")}` · dep type: `{b.get("dep_type", "?")}`')
 print(f'- **Residual risk:** {nt.get("residual_risk","Runtime behavior is not covered by tests.")}')
 " 2>/dev/null || true)
@@ -1364,18 +1365,18 @@ for vid in new_ids:
     if sect == 'symbol' and block:
         ch = chain(block)
         if ch:
-            lines.append('  - Reachability: reachable from your code — ' + ' → '.join(f'`{x}`' for x in ch))
+            lines.append('  - CVE exploitability reachability (hint only): reachable from your code — ' + ' → '.join(f'`{x}`' for x in ch))
         else:
-            lines.append('  - Reachability: reachable from your code (govulncheck Symbol Results; call-chain text not emitted)')
+            lines.append('  - CVE exploitability reachability (hint only): reachable from your code (govulncheck Symbol Results; call-chain text not emitted)')
     elif sect == 'imported':
-        lines.append('  - Reachability: not reachable from your code; vulnerable package/module is imported but no vulnerable symbol call was found')
+        lines.append('  - CVE exploitability reachability (hint only): no reachable path found in govulncheck Symbol Results; this is not safe-to-ignore evidence')
     else:
-        lines.append('  - Reachability: not determined in govulncheck output; run `govulncheck ./...` locally to confirm')
+        lines.append('  - CVE exploitability reachability (hint only): not determined in govulncheck output; run `govulncheck ./...` locally to confirm')
     lines.append('  - Does merging this PR fix it? **No** — absent on `main`, present on this PR branch (introduced by the upgrade).')
 if not lines:
-    lines.append('❓ Reachability unknown — govulncheck produced no per-finding call-graph data; run `govulncheck ./...` locally to check')
+    lines.append('❓ CVE reachability unknown (hint only) — govulncheck produced no per-finding call-graph data; run `govulncheck ./...` locally to check')
 print('\n'.join(lines))
-" 2>/dev/null || echo "❓ Reachability unknown — run \`govulncheck ./...\` locally to check")
+" 2>/dev/null || echo "❓ CVE reachability unknown (hint only) — run \`govulncheck ./...\` locally to check")
     # EU-6: Get max severity for the new vulns
     _VULN_SEVERITY_NOTE=""
     if [[ -n "$CVE_MAX_SEVERITY" ]]; then
@@ -1389,6 +1390,8 @@ Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT f
 ### 🚨 This PR introduces **$VULN_NEW_COUNT NEW vulnerability(ies)** not present on \`main\`
 
 **New CVEs:** $_VULN_IDS_LIST
+### Heads-up: CVE reachability (hint only)
+> Snyk-style caveat: **no reachable path found** means “not observed in this scan”, not “safe to ignore”.
 ${_VULN_REACHABILITY}
 
 Pre-existing on main: $VULN_PREEXISTING_COUNT (unaffected by this PR).
@@ -1396,7 +1399,7 @@ Pre-existing on main: $VULN_PREEXISTING_COUNT (unaffected by this PR).
 **Recommendation:** Do **NOT** merge until these vulnerabilities are addressed. Options:
 1. Bump to a later fixed version that patches these CVEs, or
 2. Close this PR and wait for an upstream fix, or
-3. If the vulnerable paths are not reachable from your code, document the risk and override with \`breakability:override-security\` label.
+3. Treat any "no reachable path found" result as a prioritization hint only, not as permission to ignore the introduced CVE.
 ${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — govulncheck diffed against \`main\` baseline*"
@@ -1458,6 +1461,9 @@ $(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** 
 **Build Impact:** No new errors introduced by this upgrade.${MODULE_LINE}
 $(if [[ "$VERDICT" == "pre_existing" ]]; then echo "Baseline build has pre-existing failures (not related to this package)."; elif [[ "$VERDICT" == "pass" ]]; then echo "Build passes on PR branch."; else echo "Build status: \`$VERDICT\` — no new errors detected."; fi)
 
+### Heads-up: CVE reachability (hint only)
+No reachable path found by a scanner is **not** safe-to-ignore evidence. Patch regardless: this PR resolves the advisory.
+
 ### Recommendation
 **MERGE THIS PR IMMEDIATELY.** It resolves $CVE_COUNT known CVE(s) and introduces zero new build errors.
 Security fixes should be prioritized over routine dependency upgrades.
@@ -1475,6 +1481,9 @@ ${RUN_LINK}
 $(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** — This PR fixes a known security vulnerability."; fi)
 
 **Build Impact:** ❌ $NEW_ERR_COUNT new error(s) introduced by this upgrade.${MODULE_LINE}
+
+### Heads-up: CVE reachability (hint only)
+No reachable path found by a scanner is **not** safe-to-ignore evidence. Patch regardless once the build break is fixed.
 
 ### Recommendation
 **This PR fixes a $CVE_MAX_SEVERITY CVE but also introduces build errors.** Fix the build errors, then merge immediately.
@@ -1801,11 +1810,11 @@ _sec_safe = _sec_safe_l4 + _sec_safe_l2  # combined for later reference
 _sec_blocked = [e for e in blocked if e.get("cves") or e["num"] in _cve_fix_prs]
 if _sec_safe_l4:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe_l4)
-    lines.append(f"{_step}. **MERGE NOW — security fixes:** {_sec_nums} ({len(_sec_safe_l4)} PR(s) fix known CVEs — tests verified L4)")
+    lines.append(f"{_step}. **MERGE NOW — security fixes:** {_sec_nums} ({len(_sec_safe_l4)} PR(s) fix known CVEs — tests verified L4; CVE reachability is hint-only, patch regardless)")
     _step += 1
 if _sec_safe_l2:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe_l2)
-    lines.append(f"{_step}. **MERGE AFTER REVIEW — security fixes (tests not run):** {_sec_nums} ({len(_sec_safe_l2)} PR(s) fix known CVEs — build verified L2/L3 but tests were not run, verify manually before merging)")
+    lines.append(f"{_step}. **MERGE AFTER REVIEW — security fixes (tests not run):** {_sec_nums} ({len(_sec_safe_l2)} PR(s) fix known CVEs — build verified L2/L3 but tests were not run; CVE reachability is hint-only, patch regardless)")
     _step += 1
 if _sec_blocked:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_blocked)
