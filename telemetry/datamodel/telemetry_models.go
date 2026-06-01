@@ -47,7 +47,7 @@ type AggregatedUsage struct {
 	ErrorMessage           *string               `gorm:"column:error_message;type:text" json:"error_message"`
 	Submission             *string               `gorm:"column:submission;type:jsonb" json:"submission"`
 	IsBillable             bool                  `gorm:"column:is_billable;default:false" json:"is_billable"`
-	BillingMode            BillingMode           `gorm:"column:billing_mode;size:32;not null;index" json:"billing_mode"`
+	BillingMode            BillingMode           `gorm:"column:billing_mode;size:32;index" json:"billing_mode"`
 	CreatedAt              time.Time             `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt              time.Time             `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 	VolumeStyle            string                `gorm:"column:volume_style;size:255" json:"volume_style"`
