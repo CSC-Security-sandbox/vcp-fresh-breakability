@@ -173,7 +173,7 @@ func (a *DeleteVolumeReplicationActivity) ReleaseReplicationOnSrc(ctx context.Co
 	if err != nil {
 		logger.Errorf("Failed to release volume replication: %v", err)
 		if strings.Contains(err.Error(), "Timeout during cleanup of peering infrastructure") {
-			return nil, errors.WrapAsTemporalApplicationError(errors.NewVCPError(errors.ErrCleanupSvmPeering, err))
+			return nil, errors.WrapAsNonRetryableTemporalApplicationError(errors.NewVCPError(errors.ErrCleanupSvmPeering, err))
 		}
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, err)
 	}

@@ -102,7 +102,11 @@ func (wf *hybridReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...int
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	releaseAo := ao
+	// Keep activity timeout above SVM cleanup timeout to avoid losing mapped business error on deadline boundary.
+	releaseAo.StartToCloseTimeout = time.Duration(workflows.StartToCloseTimeoutForReplicationActivities+120) * time.Second
 
+	releaseCtx := workflow.WithActivityOptions(ctx, releaseAo)
 	ao1 := ao
 	ao1.RetryPolicy.MaximumAttempts = int32(ReplicationJobsRetryMaxAttempts)
 	ctx1 := workflow.WithActivityOptions(ctx, ao1)
@@ -167,7 +171,7 @@ func (wf *hybridReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...int
 		})
 
 		// Release replication on source
-		err = workflow.ExecuteActivity(ctx, replicationActivity.ReleaseReplicationOnSrc, &replicationResult, node).Get(ctx, &replicationResult)
+		err = workflow.ExecuteActivity(releaseCtx, replicationActivity.ReleaseReplicationOnSrc, &replicationResult, node).Get(ctx, &replicationResult)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}

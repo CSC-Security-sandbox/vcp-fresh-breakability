@@ -5449,6 +5449,14 @@ func TestDeleteVolumeReplicationActivity_ReleaseReplicationOnSrc(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
+		appErr, ok := err.(*temporal.ApplicationError)
+		assert.True(tt, ok, "expected Temporal ApplicationError, got %T", err)
+		assert.True(tt, appErr.NonRetryable(), "expected non-retryable error for SVM peering cleanup timeout")
+		var trackingID int
+		var errorDetails string
+		detailsErr := appErr.Details(&trackingID, &errorDetails)
+		assert.NoError(tt, detailsErr)
+		assert.Equal(tt, vsaerrors.ErrCleanupSvmPeering, trackingID)
 		assert.Contains(tt, err.Error(), "Relationship is in use by SnapMirror in peer cluster, Delete the replication first on on-prem cluster and then try again")
 		mockProvider.AssertExpectations(tt)
 	})
