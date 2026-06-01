@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -651,6 +652,12 @@ func (wf *clusterUpgradeWorkflow) executeClusterUpgradeBatchUpdates(
 
 // postUpgradePhase handles license updates and power off operations
 func (wf *clusterUpgradeWorkflow) postUpgradePhase(ctx workflow.Context, upgradeContext *UpgradeContext, upgradeResult *UpgradeResult, upgradeError error) *vsaerrors.CustomError {
+	if upgradeContext == nil {
+		wf.Logger.Error("postUpgradePhase called with nil upgradeContext")
+		return vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError,
+			errors.New("postUpgradePhase: upgradeContext is nil"))
+	}
+
 	wf.Logger.Info("Starting post-upgrade phase", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID, "upgradeSuccess", upgradeResult.Success)
 
 	// Step 1: Update license if upgrade was successful
@@ -662,7 +669,15 @@ func (wf *clusterUpgradeWorkflow) postUpgradePhase(ctx workflow.Context, upgrade
 		}
 	}
 
-	// Step 2: Power off cluster if it was originally disabled
+	// Step 2: Apply updated RBAC for ONTAP-mode pools
+	if upgradeResult.Success && upgradeContext.Pool != nil && upgradeContext.Pool.APIAccessMode == common.ONTAPMode {
+		err := wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		if err != nil {
+			wf.Logger.Error("Failed to update expert mode RBAC after upgrade", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID, "error", err)
+		}
+	}
+
+	// Step 3: Power off cluster if it was originally disabled
 	if upgradeContext.ClusterWasDisabled {
 		wf.Logger.Info("Cluster was originally disabled, powering off after upgrade", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID)
 
@@ -779,5 +794,82 @@ func (wf *clusterUpgradeWorkflow) updateLicense(ctx workflow.Context, params *Cl
 	}
 
 	wf.Logger.Info("License update process completed for all nodes", "jobID", params.JobID, "clusterID", params.ClusterID, "totalNodes", len(nodeManagementIPs))
+	return nil
+}
+
+// updateExpertModeRbacPostUpgrade applies the updated RBAC file post-upgrade. Only applies to pools in ONTAP (expert) mode.
+func (wf *clusterUpgradeWorkflow) updateExpertModeRbacPostUpgrade(ctx workflow.Context, upgradeContext *UpgradeContext, upgradeResult *UpgradeResult) error {
+	if upgradeContext == nil {
+		wf.Logger.Error("updateExpertModeRbacPostUpgrade called with nil upgradeContext")
+		return errors.New("updateExpertModeRbacPostUpgrade: upgradeContext is nil")
+	}
+	if upgradeContext.Pool.APIAccessMode != common.ONTAPMode {
+		wf.Logger.Info("Skipping RBAC update — pool is not in ONTAP mode", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID)
+		return nil
+	}
+
+	poolActivities := &activities.PoolActivity{}
+
+	// Step 1: Apply updated RBAC file via VLM ExpertModeUser creation workflow
+	rbacFileDetails := &hyperscalermodels.BucketFileDetails{}
+	var err error
+	err = workflow.ExecuteActivity(ctx, poolActivities.GetRbacHash, upgradeContext.Params.TargetVersion).Get(ctx, &rbacFileDetails)
+	if err != nil {
+		return err
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivities.ValidateRbacHash, upgradeContext.Params.TargetVersion, rbacFileDetails).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	var ontapCredentials *vlm.OntapCredentials
+	err = workflow.ExecuteActivity(ctx, poolActivities.GetOnTapCredentials, upgradeContext.Pool).Get(ctx, &ontapCredentials)
+	if err != nil {
+		return err
+	}
+
+	var expertModeCredentials *vlm.OntapCredentials
+	err = workflow.ExecuteActivity(ctx, poolActivities.GetExpertModeCredentials, upgradeContext.Pool).Get(ctx, &expertModeCredentials)
+	if err != nil {
+		return err
+	}
+
+	createVSAExpertModeReq := &vlm.OntapExpertModeUserConfig{}
+	err = workflow.ExecuteActivity(ctx, poolActivities.PrepareCreateVSAExpertModeReq,
+		*upgradeResult.FinalVlmConfig, *ontapCredentials, *expertModeCredentials,
+		upgradeContext.Pool, rbacFileDetails).Get(ctx, &createVSAExpertModeReq)
+	if err != nil {
+		return err
+	}
+
+	ontapExpertModeUserResponse, err := upgradeContext.VlmClient.CreateVSAExpertModeUser(ctx, createVSAExpertModeReq)
+	if err != nil {
+		return err
+	}
+
+	rbacFileDetails.FileHashSHA256 = ontapExpertModeUserResponse.RbacFileChecksum
+	err = workflow.ExecuteActivity(ctx, poolActivities.UpdateRbacCheckSumInPool, upgradeContext.Pool, rbacFileDetails).Get(ctx, nil)
+	if err != nil {
+		wf.Logger.Error("Failed to update RBAC checksum in pool after upgrade", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID, "error", err)
+		return err
+	}
+
+	// Persist VLM config
+	vlmConfigBytes, err := json.Marshal(upgradeResult.FinalVlmConfig)
+	if err != nil {
+		wf.Logger.Error("Failed to marshal VLM config after RBAC update", "jobID", upgradeContext.Params.JobID, "error", err)
+		return err
+	}
+	updates := map[string]interface{}{
+		"vlm_config": string(vlmConfigBytes),
+	}
+	updateErr := workflow.ExecuteActivity(ctx, poolActivities.UpdatePoolFields, upgradeContext.Pool.UUID, updates).Get(ctx, nil)
+	if updateErr != nil {
+		wf.Logger.Error("Failed to persist VLM config after RBAC update", "jobID", upgradeContext.Params.JobID, "error", updateErr)
+		return err
+	}
+
+	wf.Logger.Info("Expert mode RBAC update completed successfully", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID)
 	return nil
 }

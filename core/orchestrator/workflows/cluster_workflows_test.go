@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -2365,6 +2366,7 @@ func TestUpgradePhase(t *testing.T) {
 	poolActivity := &activities.PoolActivity{}
 	commonActivity := &activities.CommonActivities{}
 	env.RegisterActivity(poolActivity.UpdatePoolFields)
+	env.RegisterActivity(poolActivity.HasNasLifInVLMConfig)
 	env.RegisterActivity(commonActivity.GenerateVSASignedURLActivity)
 	env.RegisterActivity(commonActivity.GetNode)
 	env.RegisterActivity(poolActivity.GetOntapVersion)
@@ -2372,6 +2374,7 @@ func TestUpgradePhase(t *testing.T) {
 	// Mock the activities to return success
 	ontapVersion := "9.17.1"
 	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
 	env.OnActivity(commonActivity.GenerateVSASignedURLActivity, mock.Anything, mock.Anything).Return("https://signed-url.example.com", nil)
 	env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity(poolActivity.GetOntapVersion, mock.Anything, mock.Anything).Return(&ontapVersion, nil)
@@ -3164,6 +3167,9 @@ func TestPostUpgradePhase(t *testing.T) {
 				JobID:     "test-job",
 				ClusterID: "test-cluster",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			},
 			Credentials: &vlm.OntapCredentials{
 				AdminPassword: "password",
 			},
@@ -3231,6 +3237,9 @@ func TestPostUpgradePhase_ClusterWasDisabled(t *testing.T) {
 			Params: &ClusterUpgradeWorkflowParams{
 				JobID:     "test-job",
 				ClusterID: "test-cluster",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 			},
 			Credentials: &vlm.OntapCredentials{
 				AdminPassword: "password",
@@ -3304,6 +3313,9 @@ func TestPostUpgradePhase_PowerOffError(t *testing.T) {
 				JobID:     "test-job",
 				ClusterID: "test-cluster",
 			},
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			},
 			Credentials: &vlm.OntapCredentials{
 				AdminPassword: "password",
 			},
@@ -3351,6 +3363,86 @@ func TestPostUpgradePhase_PowerOffError(t *testing.T) {
 	assert.NoError(t, env.GetWorkflowError())
 
 	// Verify mock expectations
+	mockVlm.AssertExpectations(t)
+}
+
+// TestPostUpgradePhase_NilUpgradeContext verifies postUpgradePhase fails fast with a
+// configuration error when invoked with a nil UpgradeContext, instead of panicking.
+func TestPostUpgradePhase_NilUpgradeContext(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	testWorkflow := func(ctx workflow.Context) error {
+		wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+		upgradeResult := &UpgradeResult{Success: true}
+		customErr := wf.postUpgradePhase(ctx, nil, upgradeResult, nil)
+		if customErr != nil {
+			return customErr
+		}
+		return nil
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "upgradeContext is nil")
+}
+
+// TestPostUpgradePhase_RbacUpdateFails_LogsButContinues verifies that when the RBAC
+// update sub-step fails for an ONTAP-mode pool, postUpgradePhase logs the error and
+// still returns nil so the cluster-upgrade workflow does not get marked as failed
+// for a post-step that is non-critical.
+func TestPostUpgradePhase_RbacUpdateFails_LogsButContinues(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+	mockPoolActivity := &activities.PoolActivity{}
+	env.RegisterActivity(mockPoolActivity.GetRbacHash)
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ctx = s3TestActivityOptions(ctx)
+		wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID: "test-job", ClusterID: "test-cluster", TargetVersion: "9.18.1P2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:     datamodel.BaseModel{UUID: "pool-uuid"},
+				APIAccessMode: common.ONTAPMode,
+			},
+			Credentials: &vlm.OntapCredentials{AdminPassword: "password"},
+			VlmClient:   mockVlm,
+		}
+		upgradeResult := &UpgradeResult{
+			Success: true,
+			FinalVlmConfig: &vlm.VLMConfig{
+				Cloud: vlm.CloudConfig{
+					HAPairs: []vlm.HAPair{
+						{
+							VM1: vlm.VMConfig{SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{vlm.LIFTypeNodeMgmt: {IP: "10.0.0.1"}}},
+							VM2: vlm.VMConfig{SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{vlm.LIFTypeNodeMgmt: {IP: "10.0.0.2"}}},
+						},
+					},
+				},
+			},
+		}
+		customErr := wf.postUpgradePhase(ctx, upgradeContext, upgradeResult, nil)
+		if customErr != nil {
+			return customErr
+		}
+		return nil
+	}
+
+	mockVlm.On("UpdateLicenseWorkflow", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(nil, errors.New("hash fetch failed"))
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
 	mockVlm.AssertExpectations(t)
 }
 
@@ -3837,5 +3929,477 @@ func TestUpdateClusterUpgradeJobStatus(t *testing.T) {
 		assert.Error(t, env.GetWorkflowError())
 		assert.Contains(t, env.GetWorkflowError().Error(), "activity failed")
 		env.AssertExpectations(t)
+	})
+}
+
+func s3TestActivityOptions(ctx workflow.Context) workflow.Context {
+	return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 60 * time.Second,
+		RetryPolicy:         &temporal.RetryPolicy{MaximumAttempts: 1},
+	})
+}
+
+func TestUpdateExpertModeRbacPostUpgrade_AppliesRbac(t *testing.T) {
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockPoolActivity := &activities.PoolActivity{}
+	env.RegisterActivity(mockPoolActivity.GetRbacHash)
+	env.RegisterActivity(mockPoolActivity.ValidateRbacHash)
+	env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+	env.RegisterActivity(mockPoolActivity.GetExpertModeCredentials)
+	env.RegisterActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq)
+	env.RegisterActivity(mockPoolActivity.UpdateRbacCheckSumInPool)
+	env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ctx = s3TestActivityOptions(ctx)
+		wf := &clusterUpgradeWorkflow{
+			BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)},
+		}
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID:         "test-job",
+				ClusterID:     "test-cluster",
+				TargetVersion: "9.18.1P2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+				APIAccessMode:  common.ONTAPMode,
+				DeploymentName: "test-deployment",
+				ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+					ExpertModeCredential: []*datamodel.ExpertModeCredential{
+						{Username: "expert-user"},
+					},
+				},
+			},
+			Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+			VlmClient:   mockVlm,
+		}
+		upgradeResult := &UpgradeResult{
+			Success: true,
+			FinalVlmConfig: &vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					UserBootargs: "bootarg.keymanager.ekmip.svm_context=false",
+				},
+			},
+		}
+		return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+	}
+
+	env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(&hyperscalermodels.BucketFileDetails{FileHashSHA256: "abc123"}, nil)
+	env.OnActivity(mockPoolActivity.ValidateRbacHash, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "pass"}, nil)
+	env.OnActivity(mockPoolActivity.GetExpertModeCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "expert-pass"}, nil)
+	env.OnActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.OntapExpertModeUserConfig{}, nil)
+	mockVlm.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).Return(vlm.OntapExpertModeUserResponse{RbacFileChecksum: "newchecksum"}, nil)
+	env.OnActivity(mockPoolActivity.UpdateRbacCheckSumInPool, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	mockVlm.AssertExpectations(t)
+	mockVlm.AssertNumberOfCalls(t, "UpdateVSAClusterDeployment", 0)
+	mockVlm.AssertNotCalled(t, "VSASvmUpgrade", mock.Anything, mock.Anything)
+}
+
+func TestUpdateExpertModeRbacPostUpgrade_SkipsForNonOntapMode(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ctx = s3TestActivityOptions(ctx)
+		wf := &clusterUpgradeWorkflow{
+			BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)},
+		}
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID:         "test-job",
+				ClusterID:     "test-cluster",
+				TargetVersion: "9.18.1P2",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:     datamodel.BaseModel{UUID: "pool-uuid"},
+				APIAccessMode: common.DEFAULTMode,
+			},
+			Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+			VlmClient:   mockVlm,
+		}
+		upgradeResult := &UpgradeResult{
+			Success: true,
+			FinalVlmConfig: &vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					UserBootargs: "bootarg.keymanager.ekmip.svm_context=false",
+				},
+			},
+		}
+		return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	mockVlm.AssertNotCalled(t, "UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything)
+	mockVlm.AssertNotCalled(t, "CreateVSAExpertModeUser", mock.Anything, mock.Anything)
+}
+
+func TestUpdateExpertModeRbacPostUpgrade_ErrorPaths(t *testing.T) {
+	t.Run("WhenUpgradeContextIsNil_ShouldReturnError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		testWorkflow := func(ctx workflow.Context) error {
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, nil, nil)
+		}
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "upgradeContext is nil")
+	})
+
+	t.Run("WhenGetRbacHashFails_ShouldReturnError", func(t *testing.T) {
+		mockVlm := &vlm.MockVlmWorkflowClient{}
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.GetRbacHash)
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ctx = s3TestActivityOptions(ctx)
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			upgradeContext := &UpgradeContext{
+				Params:      &ClusterUpgradeWorkflowParams{JobID: "j", ClusterID: "c", TargetVersion: "9.18.1"},
+				Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, APIAccessMode: common.ONTAPMode},
+				Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+				VlmClient:   mockVlm,
+			}
+			upgradeResult := &UpgradeResult{Success: true, FinalVlmConfig: &vlm.VLMConfig{}}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		}
+
+		env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(nil, errors.New("hash fetch failed"))
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("WhenValidateRbacHashFails_ShouldReturnError", func(t *testing.T) {
+		mockVlm := &vlm.MockVlmWorkflowClient{}
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.GetRbacHash)
+		env.RegisterActivity(mockPoolActivity.ValidateRbacHash)
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ctx = s3TestActivityOptions(ctx)
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			upgradeContext := &UpgradeContext{
+				Params:      &ClusterUpgradeWorkflowParams{JobID: "j", ClusterID: "c", TargetVersion: "9.18.1"},
+				Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, APIAccessMode: common.ONTAPMode},
+				Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+				VlmClient:   mockVlm,
+			}
+			upgradeResult := &UpgradeResult{Success: true, FinalVlmConfig: &vlm.VLMConfig{}}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		}
+
+		env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(&hyperscalermodels.BucketFileDetails{FileHashSHA256: "abc"}, nil)
+		env.OnActivity(mockPoolActivity.ValidateRbacHash, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("validation failed"))
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("WhenGetOnTapCredentialsFails_ShouldReturnError", func(t *testing.T) {
+		mockVlm := &vlm.MockVlmWorkflowClient{}
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.GetRbacHash)
+		env.RegisterActivity(mockPoolActivity.ValidateRbacHash)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ctx = s3TestActivityOptions(ctx)
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			upgradeContext := &UpgradeContext{
+				Params:      &ClusterUpgradeWorkflowParams{JobID: "j", ClusterID: "c", TargetVersion: "9.18.1"},
+				Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, APIAccessMode: common.ONTAPMode},
+				Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+				VlmClient:   mockVlm,
+			}
+			upgradeResult := &UpgradeResult{Success: true, FinalVlmConfig: &vlm.VLMConfig{}}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		}
+
+		env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(&hyperscalermodels.BucketFileDetails{FileHashSHA256: "abc"}, nil)
+		env.OnActivity(mockPoolActivity.ValidateRbacHash, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, errors.New("cred fetch failed"))
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("WhenGetExpertModeCredentialsFails_ShouldReturnError", func(t *testing.T) {
+		mockVlm := &vlm.MockVlmWorkflowClient{}
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.GetRbacHash)
+		env.RegisterActivity(mockPoolActivity.ValidateRbacHash)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+		env.RegisterActivity(mockPoolActivity.GetExpertModeCredentials)
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ctx = s3TestActivityOptions(ctx)
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			upgradeContext := &UpgradeContext{
+				Params:      &ClusterUpgradeWorkflowParams{JobID: "j", ClusterID: "c", TargetVersion: "9.18.1"},
+				Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, APIAccessMode: common.ONTAPMode},
+				Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+				VlmClient:   mockVlm,
+			}
+			upgradeResult := &UpgradeResult{Success: true, FinalVlmConfig: &vlm.VLMConfig{}}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		}
+
+		env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(&hyperscalermodels.BucketFileDetails{FileHashSHA256: "abc"}, nil)
+		env.OnActivity(mockPoolActivity.ValidateRbacHash, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.GetExpertModeCredentials, mock.Anything, mock.Anything).Return(nil, errors.New("expert cred failed"))
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("WhenPrepareCreateVSAExpertModeReqFails_ShouldReturnError", func(t *testing.T) {
+		mockVlm := &vlm.MockVlmWorkflowClient{}
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.GetRbacHash)
+		env.RegisterActivity(mockPoolActivity.ValidateRbacHash)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+		env.RegisterActivity(mockPoolActivity.GetExpertModeCredentials)
+		env.RegisterActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq)
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ctx = s3TestActivityOptions(ctx)
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			upgradeContext := &UpgradeContext{
+				Params: &ClusterUpgradeWorkflowParams{JobID: "j", ClusterID: "c", TargetVersion: "9.18.1"},
+				Pool: &datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+					APIAccessMode:  common.ONTAPMode,
+					DeploymentName: "test-deployment",
+					ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+						ExpertModeCredential: []*datamodel.ExpertModeCredential{{Username: "expert-user"}},
+					},
+				},
+				Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+				VlmClient:   mockVlm,
+			}
+			upgradeResult := &UpgradeResult{
+				Success:        true,
+				FinalVlmConfig: &vlm.VLMConfig{Deployment: vlm.DeploymentConfig{UserBootargs: "bootarg"}},
+			}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		}
+
+		env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(&hyperscalermodels.BucketFileDetails{FileHashSHA256: "abc"}, nil)
+		env.OnActivity(mockPoolActivity.ValidateRbacHash, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "pass"}, nil)
+		env.OnActivity(mockPoolActivity.GetExpertModeCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "expert-pass"}, nil)
+		env.OnActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("prepare failed"))
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "prepare failed")
+	})
+
+	t.Run("WhenCreateVSAExpertModeUserFails_ShouldReturnError", func(t *testing.T) {
+		mockVlm := &vlm.MockVlmWorkflowClient{}
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.GetRbacHash)
+		env.RegisterActivity(mockPoolActivity.ValidateRbacHash)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+		env.RegisterActivity(mockPoolActivity.GetExpertModeCredentials)
+		env.RegisterActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq)
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ctx = s3TestActivityOptions(ctx)
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			upgradeContext := &UpgradeContext{
+				Params: &ClusterUpgradeWorkflowParams{JobID: "j", ClusterID: "c", TargetVersion: "9.18.1"},
+				Pool: &datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+					APIAccessMode:  common.ONTAPMode,
+					DeploymentName: "test-deployment",
+					ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+						ExpertModeCredential: []*datamodel.ExpertModeCredential{{Username: "expert-user"}},
+					},
+				},
+				Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+				VlmClient:   mockVlm,
+			}
+			upgradeResult := &UpgradeResult{
+				Success:        true,
+				FinalVlmConfig: &vlm.VLMConfig{Deployment: vlm.DeploymentConfig{UserBootargs: "bootarg"}},
+			}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		}
+
+		env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(&hyperscalermodels.BucketFileDetails{FileHashSHA256: "abc"}, nil)
+		env.OnActivity(mockPoolActivity.ValidateRbacHash, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "pass"}, nil)
+		env.OnActivity(mockPoolActivity.GetExpertModeCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "expert-pass"}, nil)
+		env.OnActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.OntapExpertModeUserConfig{}, nil)
+		mockVlm.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).Return(vlm.OntapExpertModeUserResponse{}, errors.New("create user failed"))
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "create user failed")
+	})
+
+	t.Run("WhenUpdateRbacCheckSumFails_ShouldReturnError", func(t *testing.T) {
+		// updateExpertModeRbacPostUpgrade logs and returns the error when the RBAC checksum
+		// update activity fails — the workflow does NOT swallow the failure (see
+		// cluster_workflows.go:857-861). Subsequent steps (UpdatePoolFields) are never reached,
+		// so they are intentionally not registered as mocks here.
+		mockVlm := &vlm.MockVlmWorkflowClient{}
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.GetRbacHash)
+		env.RegisterActivity(mockPoolActivity.ValidateRbacHash)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+		env.RegisterActivity(mockPoolActivity.GetExpertModeCredentials)
+		env.RegisterActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq)
+		env.RegisterActivity(mockPoolActivity.UpdateRbacCheckSumInPool)
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ctx = s3TestActivityOptions(ctx)
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			upgradeContext := &UpgradeContext{
+				Params: &ClusterUpgradeWorkflowParams{JobID: "test-job", ClusterID: "test-cluster", TargetVersion: "9.18.1P2"},
+				Pool: &datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+					APIAccessMode:  common.ONTAPMode,
+					DeploymentName: "test-deployment",
+					ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+						ExpertModeCredential: []*datamodel.ExpertModeCredential{{Username: "expert-user"}},
+					},
+				},
+				Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+				VlmClient:   mockVlm,
+			}
+			upgradeResult := &UpgradeResult{
+				Success:        true,
+				FinalVlmConfig: &vlm.VLMConfig{Deployment: vlm.DeploymentConfig{UserBootargs: "bootarg"}},
+			}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		}
+
+		env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(&hyperscalermodels.BucketFileDetails{FileHashSHA256: "abc123"}, nil)
+		env.OnActivity(mockPoolActivity.ValidateRbacHash, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "pass"}, nil)
+		env.OnActivity(mockPoolActivity.GetExpertModeCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "expert-pass"}, nil)
+		env.OnActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.OntapExpertModeUserConfig{}, nil)
+		mockVlm.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).Return(vlm.OntapExpertModeUserResponse{RbacFileChecksum: "newchecksum"}, nil)
+		env.OnActivity(mockPoolActivity.UpdateRbacCheckSumInPool, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("checksum update failed"))
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "checksum update failed")
+	})
+
+	t.Run("WhenUpdatePoolFieldsFails_ShouldStillComplete", func(t *testing.T) {
+		mockVlm := &vlm.MockVlmWorkflowClient{}
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.GetRbacHash)
+		env.RegisterActivity(mockPoolActivity.ValidateRbacHash)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+		env.RegisterActivity(mockPoolActivity.GetExpertModeCredentials)
+		env.RegisterActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq)
+		env.RegisterActivity(mockPoolActivity.UpdateRbacCheckSumInPool)
+		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ctx = s3TestActivityOptions(ctx)
+			wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+			upgradeContext := &UpgradeContext{
+				Params: &ClusterUpgradeWorkflowParams{JobID: "test-job", ClusterID: "test-cluster", TargetVersion: "9.18.1P2"},
+				Pool: &datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+					APIAccessMode:  common.ONTAPMode,
+					DeploymentName: "test-deployment",
+					ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+						ExpertModeCredential: []*datamodel.ExpertModeCredential{{Username: "expert-user"}},
+					},
+				},
+				Credentials: &vlm.OntapCredentials{AdminPassword: "pass"},
+				VlmClient:   mockVlm,
+			}
+			upgradeResult := &UpgradeResult{
+				Success:        true,
+				FinalVlmConfig: &vlm.VLMConfig{Deployment: vlm.DeploymentConfig{UserBootargs: "bootarg"}},
+			}
+			return wf.updateExpertModeRbacPostUpgrade(ctx, upgradeContext, upgradeResult)
+		}
+
+		env.OnActivity(mockPoolActivity.GetRbacHash, mock.Anything, mock.Anything).Return(&hyperscalermodels.BucketFileDetails{FileHashSHA256: "abc123"}, nil)
+		env.OnActivity(mockPoolActivity.ValidateRbacHash, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "pass"}, nil)
+		env.OnActivity(mockPoolActivity.GetExpertModeCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{AdminPassword: "expert-pass"}, nil)
+		env.OnActivity(mockPoolActivity.PrepareCreateVSAExpertModeReq, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.OntapExpertModeUserConfig{}, nil)
+		mockVlm.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).Return(vlm.OntapExpertModeUserResponse{RbacFileChecksum: "newchecksum"}, nil)
+		env.OnActivity(mockPoolActivity.UpdateRbacCheckSumInPool, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("persist failed"))
+
+		env.ExecuteWorkflow(testWorkflow)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
 	})
 }
