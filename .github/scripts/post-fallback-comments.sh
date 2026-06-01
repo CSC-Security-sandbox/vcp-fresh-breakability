@@ -699,6 +699,10 @@ if not overall['production'] and any(overall[ctx] for ctx in ('test', 'cicd', 'g
       _VULN_NOTE="
 - ℹ️ govulncheck not installed — vuln scan skipped"
       ;;
+    skipped_disabled)
+      _VULN_NOTE="
+- ℹ️ govulncheck: disabled by config — CVE list sourced from Dependabot alerts (govulncheck is hint-only; not a merge gate)"
+      ;;
     *)
       _VULN_NOTE="
 - ℹ️ govulncheck: status unknown"
