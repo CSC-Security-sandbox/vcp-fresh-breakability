@@ -115,6 +115,7 @@ type (
 		GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error)
 		DereferenceVPGFromDeletedVolumes(ctx context.Context, vpgID int64) error
 		DereferencePoolVolumesFromVPGs(ctx context.Context, poolID int64) (int64, error)
+		HasDependentChildThinClone(ctx context.Context, poolID int64, parentVolumeUUID string) (bool, error)
 		GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
 		GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error)
 		GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)

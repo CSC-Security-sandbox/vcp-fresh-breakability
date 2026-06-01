@@ -648,6 +648,36 @@ func (d *DataStoreRepository) DereferenceVPGFromDeletedVolumes(ctx context.Conte
 	return nil
 }
 
+// HasDependentChildThinClone reports whether any active volume in the pool is still
+// a thin clone whose parent is parentVolumeUUID (blocks ONTAP split on the parent).
+//
+// If this query becomes slow in production (large pools, high clone churn), consider a
+// partial expression index, for example:
+//
+//	CREATE INDEX CONCURRENTLY idx_volumes_clone_parent_volume_uuid
+//	ON volumes ((volume_attributes->'clone_parent_info'->>'parent_volume_uuid'))
+//	WHERE volume_attributes->'clone_parent_info' IS NOT NULL;
+//
+// Optionally include pool_id in the index definition if plans show sequential scans per pool.
+func (d *DataStoreRepository) HasDependentChildThinClone(ctx context.Context, poolID int64, parentVolumeUUID string) (bool, error) {
+	var exists bool
+	err := d.db.GORM().WithContext(ctx).Raw(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM volumes
+			WHERE pool_id = ?
+				AND deleted_at IS NULL
+				AND state <> 'DELETED'
+				AND volume_attributes->'clone_parent_info' IS NOT NULL
+				AND volume_attributes->'clone_parent_info' <> 'null'::jsonb
+				AND volume_attributes->'clone_parent_info'->>'parent_volume_uuid' = ?
+		)`, poolID, parentVolumeUUID).Scan(&exists).Error
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 func (d *DataStoreRepository) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	var count int64
 	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).Where("pool_id = ?", poolID).Count(&count).Error

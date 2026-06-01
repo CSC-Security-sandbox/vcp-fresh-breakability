@@ -1042,6 +1042,22 @@ func (re *retryEngine) DereferencePoolVolumesFromVPGs(ctx context.Context, poolI
 	return var0, err
 }
 
+func (re *retryEngine) HasDependentChildThinClone(ctx context.Context, poolID int64, parentVolumeUUID string) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.HasDependentChildThinClone(ctx, poolID, parentVolumeUUID)
+		if err != nil {
+			re.logError("HasDependentChildThinClone", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {

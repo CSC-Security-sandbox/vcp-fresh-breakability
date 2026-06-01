@@ -14603,6 +14603,64 @@ func (_c *MockDataStore_HardDeleteVolumePerformanceGroup_Call) RunAndReturn(run 
 	return _c
 }
 
+// HasDependentChildThinClone provides a mock function with given fields: ctx, poolID, parentVolumeUUID
+func (_m *MockDataStore) HasDependentChildThinClone(ctx context.Context, poolID int64, parentVolumeUUID string) (bool, error) {
+	ret := _m.Called(ctx, poolID, parentVolumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HasDependentChildThinClone")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, string) (bool, error)); ok {
+		return rf(ctx, poolID, parentVolumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, string) bool); ok {
+		r0 = rf(ctx, poolID, parentVolumeUUID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, string) error); ok {
+		r1 = rf(ctx, poolID, parentVolumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_HasDependentChildThinClone_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HasDependentChildThinClone'
+type MockDataStore_HasDependentChildThinClone_Call struct {
+	*mock.Call
+}
+
+// HasDependentChildThinClone is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+//   - parentVolumeUUID string
+func (_e *MockDataStore_Expecter) HasDependentChildThinClone(ctx interface{}, poolID interface{}, parentVolumeUUID interface{}) *MockDataStore_HasDependentChildThinClone_Call {
+	return &MockDataStore_HasDependentChildThinClone_Call{Call: _e.mock.On("HasDependentChildThinClone", ctx, poolID, parentVolumeUUID)}
+}
+
+func (_c *MockDataStore_HasDependentChildThinClone_Call) Run(run func(ctx context.Context, poolID int64, parentVolumeUUID string)) *MockDataStore_HasDependentChildThinClone_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_HasDependentChildThinClone_Call) Return(_a0 bool, _a1 error) *MockDataStore_HasDependentChildThinClone_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_HasDependentChildThinClone_Call) RunAndReturn(run func(context.Context, int64, string) (bool, error)) *MockDataStore_HasDependentChildThinClone_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsBackupInCreatingorDeletingStateByVolume provides a mock function with given fields: ctx, volumeUUID
 func (_m *MockDataStore) IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error) {
 	ret := _m.Called(ctx, volumeUUID)

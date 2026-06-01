@@ -1265,6 +1265,12 @@
     "retriable": false,
     "http_code": 409
   },
+  "7018": {
+    "description": "Split Blocked By Dependent Child Clones",
+    "message": "Cannot split thin clone volume while dependent nested thin clone volumes exist; split or delete child thin clone volumes first.",
+    "retriable": false,
+    "http_code": 409
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",

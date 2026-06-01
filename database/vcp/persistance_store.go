@@ -685,6 +685,10 @@ func (s *PersistenceStore) DereferencePoolVolumesFromVPGs(ctx context.Context, p
 	return s.dataStore.DereferencePoolVolumesFromVPGs(ctx, poolID)
 }
 
+func (s *PersistenceStore) HasDependentChildThinClone(ctx context.Context, poolID int64, parentVolumeUUID string) (bool, error) {
+	return s.dataStore.HasDependentChildThinClone(ctx, poolID, parentVolumeUUID)
+}
+
 func (s *PersistenceStore) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	return s.dataStore.GetVolumeCountByPoolID(ctx, poolID)
 }

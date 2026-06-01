@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -16,6 +17,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -1433,6 +1435,91 @@ func TestGetVolumeCountByPoolID_ErrorHandling(t *testing.T) {
 		count, err := store.GetVolumeCountByPoolID(context.Background(), 1)
 		assert.Error(tt, err, "Expected error when database is closed")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 when error occurs")
+	})
+}
+
+func TestHasDependentChildThinClone(t *testing.T) {
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		require.NoError(tt, sqlDB.Close())
+
+		result, err := store.HasDependentChildThinClone(context.Background(), 1, "parent-uuid")
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.False(tt, result, "Expected false when error occurs")
+	})
+}
+
+// TestHasDependentChildThinClone_PostgresMock exercises the JSONB EXISTS query via sqlmock.
+func TestHasDependentChildThinClone_PostgresMock(t *testing.T) {
+	const poolID = int64(42)
+	const parentUUID = "parent-volume-uuid"
+
+	t.Run("WhenDependentChildExists", func(tt *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		defer func() {
+			require.NoError(tt, mock.ExpectationsWereMet())
+		}()
+
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
+		require.NoError(tt, err)
+
+		rows := sqlmock.NewRows([]string{"exists"}).AddRow(true)
+		mock.ExpectQuery("clone_parent_info").WillReturnRows(rows)
+
+		store := NewDataStoreRepository(gormwrapper.New(gormDB))
+		result, err := store.HasDependentChildThinClone(context.Background(), poolID, parentUUID)
+		assert.NoError(tt, err)
+		assert.True(tt, result)
+	})
+
+	t.Run("WhenNoDependentChild", func(tt *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		defer func() {
+			require.NoError(tt, mock.ExpectationsWereMet())
+		}()
+
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
+		require.NoError(tt, err)
+
+		rows := sqlmock.NewRows([]string{"exists"}).AddRow(false)
+		mock.ExpectQuery("clone_parent_info").WillReturnRows(rows)
+
+		store := NewDataStoreRepository(gormwrapper.New(gormDB))
+		result, err := store.HasDependentChildThinClone(context.Background(), poolID, parentUUID)
+		assert.NoError(tt, err)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenQueryFails", func(tt *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		defer func() {
+			require.NoError(tt, mock.ExpectationsWereMet())
+		}()
+
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
+		require.NoError(tt, err)
+
+		mock.ExpectQuery("clone_parent_info").WillReturnError(errors.New("simulated db failure"))
+
+		store := NewDataStoreRepository(gormwrapper.New(gormDB))
+		result, err := store.HasDependentChildThinClone(context.Background(), poolID, parentUUID)
+		assert.Error(tt, err)
+		assert.False(tt, result)
 	})
 }
 

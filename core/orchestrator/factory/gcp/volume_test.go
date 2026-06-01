@@ -32079,6 +32079,12 @@ func TestSplitStartVolume(t *testing.T) {
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
 
+		origValidate := validateSplitStartVolumeParams
+		validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() { validateSplitStartVolumeParams = origValidate }()
+
 		orch := GCPOrchestrator{
 			storage: store,
 		}
@@ -32103,6 +32109,7 @@ func TestSplitStartVolume(t *testing.T) {
 func TestValidateSplitStartVolumeParams(t *testing.T) {
 	t.Run("ValidParams", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
 		volume := &datamodel.Volume{
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
@@ -32122,13 +32129,15 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			},
 			QuotaInBytes: 2000,
 		}
+		mockStorage.EXPECT().HasDependentChildThinClone(ctx, volume.PoolID, volume.UUID).Return(false, nil)
 
-		err := _validateSplitStartVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, mockStorage, volume, pool)
 		assert.NoError(tt, err)
 	})
 
 	t.Run("WhenVolumeIsNotThinClone", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
 		volume := &datamodel.Volume{
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
@@ -32143,7 +32152,7 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			QuotaInBytes: 2000,
 		}
 
-		err := _validateSplitStartVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, mockStorage, volume, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume is not a thin clone volume, cannot perform split operation")
 		assert.True(tt, customerrors.IsUserInputValidationErr(err))
@@ -32151,6 +32160,7 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 
 	t.Run("WhenInsufficientSpaceInPool", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
 		volume := &datamodel.Volume{
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
@@ -32171,7 +32181,7 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			QuotaInBytes: 0,
 		}
 
-		err := _validateSplitStartVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, mockStorage, volume, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "insufficient space in pool to split the clone volume")
 		assert.True(tt, customerrors.IsUserInputValidationErr(err))
@@ -32179,6 +32189,7 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 
 	t.Run("WhenAvailableSpaceEqualsClonesSharedBytes", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
 		volume := &datamodel.Volume{
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
@@ -32198,13 +32209,15 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			},
 			QuotaInBytes: 1000, // Available space = 2000 - 1000 = 1000, which equals ClonesSharedBytes
 		}
+		mockStorage.EXPECT().HasDependentChildThinClone(ctx, volume.PoolID, volume.UUID).Return(false, nil)
 
-		err := _validateSplitStartVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, mockStorage, volume, pool)
 		assert.NoError(tt, err)
 	})
 
 	t.Run("WhenAvailableSpaceGreaterThanClonesSharedBytes", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
 		volume := &datamodel.Volume{
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
@@ -32224,10 +32237,76 @@ func TestValidateSplitStartVolumeParams(t *testing.T) {
 			},
 			QuotaInBytes: 2000, // Available space = 5000 - 2000 = 3000, which is greater than ClonesSharedBytes
 		}
+		mockStorage.EXPECT().HasDependentChildThinClone(ctx, volume.PoolID, volume.UUID).Return(false, nil)
 
-		err := _validateSplitStartVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, mockStorage, volume, pool)
 		assert.NoError(tt, err)
 	})
+}
+
+func TestValidateSplitStartVolumeParams_WhenDependentChildThinCloneExists(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage := database.NewMockStorage(t)
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+		PoolID:            42,
+		Name:              "test_volume",
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-volume-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			SizeInBytes: 10000,
+		},
+		QuotaInBytes: 2000,
+	}
+	mockStorage.EXPECT().HasDependentChildThinClone(ctx, int64(42), "test-volume-uuid").Return(true, nil)
+
+	err := _validateSplitStartVolumeParams(ctx, mockStorage, volume, pool)
+	assert.Error(t, err)
+	var customErr *vsaerrors.CustomError
+	assert.ErrorAs(t, err, &customErr)
+	assert.True(t, customErr.IsError(vsaerrors.ErrSplitBlockedByDependentChildClones))
+	ok, httpCode := customErr.GetHttpCode()
+	assert.True(t, ok)
+	assert.Equal(t, 409, httpCode)
+}
+
+func TestValidateSplitStartVolumeParams_WhenDependentChildCheckFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage := database.NewMockStorage(t)
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+		PoolID:            42,
+		Name:              "test_volume",
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-volume-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			SizeInBytes: 10000,
+		},
+		QuotaInBytes: 2000,
+	}
+	mockStorage.EXPECT().HasDependentChildThinClone(ctx, int64(42), "test-volume-uuid").Return(false, fmt.Errorf("db connection error"))
+
+	err := _validateSplitStartVolumeParams(ctx, mockStorage, volume, pool)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db connection error")
 }
 
 func TestCreateVolume_SMBShareSettings_Coverage(t *testing.T) {
@@ -37254,6 +37333,7 @@ func TestUpdateCloneState(t *testing.T) {
 
 func TestValidateSplitStartVolumeParams_AlreadySplitting(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage := database.NewMockStorage(t)
 	volume := &datamodel.Volume{
 		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
 		Name:              "test-volume",
@@ -37274,7 +37354,7 @@ func TestValidateSplitStartVolumeParams_AlreadySplitting(t *testing.T) {
 		QuotaInBytes: 2000,
 	}
 
-	err := _validateSplitStartVolumeParams(ctx, volume, pool)
+	err := _validateSplitStartVolumeParams(ctx, mockStorage, volume, pool)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "volume split is already in progress")
 	assert.True(t, customerrors.IsConflictErr(err))
@@ -37337,6 +37417,12 @@ func TestSplitStartVolume_UpdateCloneStateFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create volume: %v", err)
 	}
+
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
 
 	// Override updateCloneState to force a failure.
 	origUpdateCloneState := updateCloneState
@@ -37412,6 +37498,12 @@ func TestSplitStartVolume_ReserveCloneSharedBytesFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create volume: %v", err)
 	}
+
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
 
 	// updateCloneState succeeds; the reserve UpdateVolumeFields call is the one that fails.
 	// We delete the volume from the DB after creation so the UpdateVolumeFields call fails.
@@ -37511,6 +37603,12 @@ func TestSplitStartVolume_GetProviderFails(t *testing.T) {
 		t.Fatalf("Failed to create volume: %v", err)
 	}
 
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
+
 	origGetProviderByNode := vsa.GetProviderByNode
 	vsa.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 		return nil, errors2.New("provider creation failed")
@@ -37605,6 +37703,12 @@ func TestSplitStartVolume_MissingExternalUUID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create volume: %v", err)
 	}
+
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
 
 	mockProvider := new(vsa.MockProvider)
 
@@ -37703,6 +37807,12 @@ func TestSplitStartVolume_InitiateSplitVolumeFails_OntapError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create volume: %v", err)
 	}
+
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
 
 	mockProvider := new(vsa.MockProvider)
 	ontapErr := vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, errors2.New("ONTAP split failed"))
@@ -37808,6 +37918,12 @@ func TestSplitStartVolume_InitiateSplitVolumeFails_NonOntapError(t *testing.T) {
 		t.Fatalf("Failed to create volume: %v", err)
 	}
 
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
+
 	mockProvider := new(vsa.MockProvider)
 	// Non-ONTAP error (plain error, not in 5000-5999 range).
 	nonOntapErr := errors2.New("network timeout")
@@ -37911,6 +38027,12 @@ func TestSplitStartVolume_WorkflowExecutionFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create volume: %v", err)
 	}
+
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
 
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
@@ -38098,6 +38220,7 @@ func TestSplitStartVolume_PersistSplitJobUUIDFails(t *testing.T) {
 
 	mockSE.On("GetVolumeWithAccountID", mock.Anything, "vol-uuid", account.ID).Return(volume, nil)
 	mockSE.On("GetPool", mock.Anything, "pool-uuid", account.ID).Return(poolView, nil).Times(2)
+	mockSE.On("HasDependentChildThinClone", mock.Anything, pool.ID, volume.UUID).Return(false, nil)
 
 	origUpdateCloneState := updateCloneState
 	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
@@ -38165,6 +38288,12 @@ func TestSplitStartVolume_WaitForTemporalEnabled_UpdateJobSucceeds(t *testing.T)
 	origFlag := splitWaitForTemporalEnabled
 	splitWaitForTemporalEnabled = true
 	defer func() { splitWaitForTemporalEnabled = origFlag }()
+
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
 
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
@@ -38234,6 +38363,12 @@ func TestSplitStartVolume_WaitForTemporalEnabled_ErrClearedReturnsSuccess(t *tes
 	origFlag := splitWaitForTemporalEnabled
 	splitWaitForTemporalEnabled = true
 	defer func() { splitWaitForTemporalEnabled = origFlag }()
+
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	defer func() { validateSplitStartVolumeParams = origValidate }()
 
 	mockProvider := new(vsa.MockProvider)
 	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)

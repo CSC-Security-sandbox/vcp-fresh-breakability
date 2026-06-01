@@ -1184,7 +1184,7 @@ func setupSplitStartVolumeBase(t *testing.T, ctx context.Context) (mockStorage *
 		return account, nil
 	}
 	origValidate := validateSplitStartVolumeParams
-	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
 		return nil
 	}
 	origUpdateCloneState := updateCloneState
@@ -1298,7 +1298,7 @@ func TestSplitStartVolume_WorkflowExecutionFails_MockBased(t *testing.T) {
 		return account, nil
 	}
 	origValidate := validateSplitStartVolumeParams
-	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
 		return nil
 	}
 	origUpdateCloneState := updateCloneState
@@ -1447,7 +1447,7 @@ func TestSplitStartVolume_Success(t *testing.T) {
 		return account, nil
 	}
 	origValidate := validateSplitStartVolumeParams
-	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
 		return nil
 	}
 	origUpdateCloneState := updateCloneState
@@ -1551,7 +1551,7 @@ func TestSplitStartVolume_DeferRevertClonesSharedBytesFails(t *testing.T) {
 		return account, nil
 	}
 	origValidate := validateSplitStartVolumeParams
-	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
 		return nil
 	}
 	origUpdateCloneState := updateCloneState
@@ -1651,7 +1651,7 @@ func setupSplitAfterInitiatedBase(t *testing.T, ctx context.Context) (mockStorag
 		return account, nil
 	}
 	origValidate := validateSplitStartVolumeParams
-	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
 		return nil
 	}
 	origUpdateCloneState := updateCloneState
@@ -1868,7 +1868,7 @@ func TestSplitStartVolume_WaitForTemporal_AllRetriesExhausted_DeleteJobFails(t *
 	defer func() { getAccountWithName = origGetAccountWithName }()
 
 	origValidate := validateSplitStartVolumeParams
-	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+	validateSplitStartVolumeParams = func(_ context.Context, _ database.Storage, _ *datamodel.Volume, _ *datamodel.PoolView) error {
 		return nil
 	}
 	defer func() { validateSplitStartVolumeParams = origValidate }()

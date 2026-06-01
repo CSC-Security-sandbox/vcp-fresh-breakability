@@ -3782,7 +3782,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 		return nil, "", customerrors.NewConflictErr("Volume is not in READY state, state: " + volume.State)
 	}
 
-	err = validateSplitStartVolumeParams(ctx, volume, pool)
+	err = validateSplitStartVolumeParams(ctx, se, volume, pool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -4231,7 +4231,7 @@ func _validateSplitStopVolumeParams(ctx context.Context, volume *datamodel.Volum
 	return nil
 }
 
-func _validateSplitStartVolumeParams(ctx context.Context, volume *datamodel.Volume, pool *datamodel.PoolView) error {
+func _validateSplitStartVolumeParams(ctx context.Context, se database.Storage, volume *datamodel.Volume, pool *datamodel.PoolView) error {
 	logger := util.GetLogger(ctx)
 
 	if volume.VolumeAttributes == nil || volume.VolumeAttributes.CloneParentInfo == nil {
@@ -4245,6 +4245,14 @@ func _validateSplitStartVolumeParams(ctx context.Context, volume *datamodel.Volu
 	if pool.QuotaInBytes+volume.ClonesSharedBytes > uint64(pool.SizeInBytes) {
 		logger.Errorf("Insufficient space in pool %s to split the clone volume %s", pool.Name, volume.Name)
 		return customerrors.NewUserInputValidationErr("insufficient space in pool to split the clone volume, please free up space and try again")
+	}
+
+	hasChild, err := se.HasDependentChildThinClone(ctx, volume.PoolID, volume.UUID)
+	if err != nil {
+		return err
+	}
+	if hasChild {
+		return vsaerrors.NewVCPError(vsaerrors.ErrSplitBlockedByDependentChildClones, nil)
 	}
 
 	return nil
