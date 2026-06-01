@@ -103,6 +103,7 @@ data:
   CREATE_BACKUP_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "createBackupWorkflowTimeoutMinutes" }}"
   DELETE_BACKUP_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "deleteBackupWorkflowTimeoutMinutes" }}"
   SFR_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "sfrWorkflowTimeoutMinutes" }}"
+  UPDATE_BACKUP_SCHEDULE_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "updateBackupScheduleWorkflowTimeoutMinutes" }}"
   CMEK_BACKUP_ENABLED: "{{ index .Values "cmekBackupEnabled" }}"
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{ index .Values "workflowGlobalTimeoutForReplicationMinutes" | quote }}
   MAX_HOSTS_PER_HOSTGROUP: "{{ index .Values "maxHostsPerHostgroup" }}"

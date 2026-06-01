@@ -101,6 +101,7 @@ updatePoolWorkflowTimeoutMinutesLV: "150" # Update pool workflow run timeout (LV
 createBackupWorkflowTimeoutMinutes: "8640"
 deleteBackupWorkflowTimeoutMinutes: "6480"
 sfrWorkflowTimeoutMinutes: "13680"
+updateBackupScheduleWorkflowTimeoutMinutes: "180" # Update backup schedule workflow run timeout in minutes
 cmekBackupEnabled: false
 workflowGlobalTimeoutForReplicationMinutes: 10
 gcpKmsKeyRotationEnabled: "false" # Flag to enable GCP KMS key rotation

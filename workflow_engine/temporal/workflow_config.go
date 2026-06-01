@@ -26,6 +26,7 @@ var (
 	VolumeRefreshWorkflowTimeoutMinutes            = env.GetString("VOLUME_REFRESH_WORKFLOW_TIMEOUT_MINUTES", "20")
 	SplitVolumeWorkflowTimeoutMinutes              = env.GetString("SPLIT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "120")
 	SplitVolumeRunContinueAsNewMinutes             = env.GetString("SPLIT_VOLUME_RUN_CONTINUE_AS_NEW_MINUTES", "60")
+	UpdateBackupScheduleWorkflowTimeoutMinutes     = env.GetString("UPDATE_BACKUP_SCHEDULE_WORKFLOW_TIMEOUT_MINUTES", "180")
 )
 
 // Struct for RetryPolicy configuration
@@ -196,6 +197,10 @@ func GetVolumeRefreshWorkflowTimeout() *time.Duration {
 
 func GetSplitVolumeWorkflowTimeout() *time.Duration {
 	return getWorkflowTimeoutWithDefault(SplitVolumeWorkflowTimeoutMinutes, 120)
+}
+
+func GetUpdateBackupScheduleWorkflowTimeout() *time.Duration {
+	return getWorkflowTimeoutWithDefault(UpdateBackupScheduleWorkflowTimeoutMinutes, 180)
 }
 
 // GetSplitVolumeRunContinueAsNewDuration returns how long a single split workflow run

@@ -255,6 +255,7 @@ func launchUpdateBackupScheduleWorkflow(ctx context.Context, cfg *common.Config,
 			TaskQueue:                workflowengine.BackgroundTaskQueue,
 			ID:                       scheduler.UpdateBackupScheduleWorkflowID,
 			WorkflowIDConflictPolicy: enums.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
+			WorkflowRunTimeout:       *workflowengine.GetUpdateBackupScheduleWorkflowTimeout(),
 		},
 		backgroundworkflows.UpdateBackupScheduleWorkflow,
 	)
