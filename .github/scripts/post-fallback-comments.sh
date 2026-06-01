@@ -585,6 +585,59 @@ print(' · '.join(parts))
 ${_SHOWN_FILES}${_MORE_NOTE}
 </details>"
   fi
+  _USAGE_CONTEXT_INLINE=""
+  _USAGE_CONTEXT_BLOCK=""
+  if [[ "$ECOSYSTEM" == "gomod" ]]; then
+    _USAGE_CONTEXT_BLOCK=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+usages = ((d.get('deterministic') or {}).get('usages') or [])
+active = [u for u in usages if u.get('usageType') in ('DIRECT_CALL', 'PROPERTY_ACCESS')]
+if not active:
+    sys.exit(0)
+order = ['production', 'test', 'cicd', 'generated', 'iac']
+labels = {'production': 'prod', 'test': 'test', 'cicd': 'CI/CD', 'generated': 'generated', 'iac': 'IaC'}
+def files_by_context(items):
+    out = {ctx: set() for ctx in order}
+    for u in items:
+        ctx = u.get('context') or 'production'
+        if ctx not in out:
+            ctx = 'production'
+        f = (u.get('file') or '').split(':')[0]
+        if f:
+            out[ctx].add(f)
+    return out
+def fmt(counts):
+    parts = []
+    for ctx in order:
+        n = len(counts.get(ctx, set()))
+        if n:
+            noun = 'file' if n == 1 else 'files'
+            parts.append(f'{n} {labels[ctx]} {noun}')
+    return ', '.join(parts)
+overall = files_by_context(active)
+inline = fmt(overall)
+print('INLINE= · Context: ' + inline if inline else 'INLINE=')
+print('---BLOCK---')
+print('### BREAK-reachability context')
+symbols = []
+for u in active:
+    sym = u.get('symbol') or 'unknown'
+    if sym not in symbols:
+        symbols.append(sym)
+for sym in symbols[:12]:
+    counts = files_by_context([u for u in active if (u.get('symbol') or 'unknown') == sym])
+    print(f'- changed symbol `{sym}` called/accessed in {fmt(counts)}')
+if len(symbols) > 12:
+    print(f'- ...and {len(symbols) - 12} more changed symbol(s)')
+if not overall['production'] and any(overall[ctx] for ctx in ('test', 'cicd', 'generated')):
+    print('- Non-production-only reachability (test/CI/generated) is down-weighted in the merge-risk score.')
+" 2>/dev/null || true)
+  fi
+  if [[ -n "$_USAGE_CONTEXT_BLOCK" ]]; then
+    _USAGE_CONTEXT_INLINE=$(echo "$_USAGE_CONTEXT_BLOCK" | grep '^INLINE=' | head -1 | cut -d= -f2-)
+    _USAGE_CONTEXT_BLOCK=$(echo "$_USAGE_CONTEXT_BLOCK" | sed -n '/^---BLOCK---$/,$p' | tail -n +2)
+  fi
   # Build transitive dep note — with threshold warning for high counts
   _TRANSITIVE_NOTE=""
   if [[ -n "$GOSUM_NEW_COUNT" && "$GOSUM_NEW_COUNT" -gt 0 ]]; then
@@ -835,7 +888,7 @@ ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ✅ Tests pass (exit=$TEST_EXIT_CODE)${_EV_TEST} — no regressions vs main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_TEST_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
+</details>${_USAGE_CONTEXT_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_TEST_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
       ;;
     L3*)
       HOW_CHECKED="
@@ -845,7 +898,7 @@ ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
+</details>${_USAGE_CONTEXT_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
       ;;
     L2*)
       # V9.3 FIX (P1-2): BUILD_FAILS PRs must NOT use the "builds clean" checklist.
@@ -887,7 +940,7 @@ ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — pre-existing, same failure on main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
+</details>${_USAGE_CONTEXT_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
         else
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
@@ -896,7 +949,7 @@ ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
+</details>${_USAGE_CONTEXT_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
         fi
       fi
       ;;
@@ -1022,6 +1075,10 @@ Fix these on \`main\` to unlock full L2+ verification.
       *"Changelog signals"*) ;;
       *) HOW_CHECKED="${HOW_CHECKED}${CHANGELOG_LINK}" ;;
     esac
+    case "$HOW_CHECKED" in
+      *"BREAK-reachability context"*) ;;
+      *) HOW_CHECKED="${HOW_CHECKED}${_USAGE_CONTEXT_BLOCK}" ;;
+    esac
   fi
 
   # Prepend govulncheck header badge (if status is failure/vulns_found) so it sits
@@ -1120,7 +1177,7 @@ ${_OOM_PKG_LIST}
     COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ infra OOM on unrelated sub-packages — not caused by this upgrade · Verification: **${VER_LABEL:-L2}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${_DEV_DEP_NOTE}${CVE_LINE}${FIXES_CVE_LINE}
+Build: ✅ infra OOM on unrelated sub-packages — not caused by this upgrade · Verification: **${VER_LABEL:-L2}** · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${MODULE_LINE}${_DEV_DEP_NOTE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### What this means
 The CI runner ran out of memory (\`signal: killed\`) building sub-packages unrelated to \`$PKG\`. This PR's targeted packages are not affected. The same OOM occurs on \`main\` — it is an infrastructure limitation, not a code regression.${_OOM_PKG_NOTE}
@@ -1134,7 +1191,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · patch
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${MODULE_LINE}
 
 $BUMP_DISPLAY bump with passing build. No new type errors introduced.${CVE_LINE}${FIXES_CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
@@ -1160,7 +1217,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## 🔍 BUILD ANALYSIS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}$NEW_ERR_NOTE${CVE_LINE}${FIXES_CVE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${MODULE_LINE}$NEW_ERR_NOTE${CVE_LINE}${FIXES_CVE_LINE}
 
 ### Summary (deterministic analysis)
 - Package: \`$PKG\` $FROM → $TO ($BUMP_DISPLAY bump)
@@ -1204,7 +1261,7 @@ ${BUILD_EXCERPT}
     COMMENT="<!-- breakability-check -->
 ## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)${CVE_LINE}${FIXES_CVE_LINE}${_FALSE_POSITIVE_NOTE}
+Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${CVE_LINE}${FIXES_CVE_LINE}${_FALSE_POSITIVE_NOTE}
 
 ### Build errors (excerpt)$EXCERPT_BLOCK
 
@@ -1227,7 +1284,7 @@ ${RUN_LINK}
       COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ verified — same result as main baseline, not caused by this change · Verification: **${VER_LABEL}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${CVE_LINE}${FIXES_CVE_LINE}
+Build: ✅ verified — same result as main baseline, not caused by this change · Verification: **${VER_LABEL}** · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${MODULE_LINE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### What this means
 The build produces the same errors on both \`main\` and this PR branch. This upgrade does **not** introduce new failures. Verified at **${VER_LABEL}**.
@@ -1298,7 +1355,7 @@ ${RUN_LINK}
     COMMENT="<!-- breakability-check -->
 ## ⚠️ SECURITY REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${CVE_LINE}${FIXES_CVE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### Security concern
 Build passes, but \`npm audit\` found **critical or high** vulnerabilities in this upgrade. Manual security review recommended before merging.
@@ -1385,7 +1442,7 @@ print('\n'.join(lines))
     COMMENT="<!-- breakability-check -->
 ## 🚨 SECURITY RISK — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${_VULN_SEVERITY_NOTE}${CVE_LINE}${FIXES_CVE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${_VULN_SEVERITY_NOTE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ### 🚨 This PR introduces **$VULN_NEW_COUNT NEW vulnerability(ies)** not present on \`main\`
 
