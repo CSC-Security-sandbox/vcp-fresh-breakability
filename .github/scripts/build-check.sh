@@ -6,8 +6,13 @@
 # produces /tmp/build-results.json with structured analysis data.
 # ──────────────────────────────────────────────────────────────────────────────
 set -u
+export LC_ALL=en_US.UTF-8
+unset GH_TOKEN
 
 _bc_cleanup() {
+  if [[ -n "${BC_SCRATCH_DIR:-}" && -n "${REPO_ROOT:-}" && "$BC_SCRATCH_DIR" == "${REPO_ROOT}"/.breakability-scratch* ]]; then
+    rm -rf "$BC_SCRATCH_DIR" 2>/dev/null || true
+  fi
   rm -rf "${WORKTREE_BASE:-/tmp/worktree}"-*/ 2>/dev/null || true
   git worktree list --porcelain 2>/dev/null | grep '^/' | while IFS= read -r wt; do
     git worktree remove "$wt" --force 2>/dev/null || true
@@ -26,6 +31,8 @@ else
 fi
 CLI_PATH="${CLI_PATH:-.github/actions/breakability-check/index.js}"
 REPO_ROOT="$(pwd)"
+export BC_SCRATCH_DIR="${BC_SCRATCH_DIR:-$REPO_ROOT/.breakability-scratch}"
+mkdir -p "$BC_SCRATCH_DIR"
 WORKTREE_BASE="/tmp/worktree"
 
 # ── Private Registry Configuration ───────────────────────────────────────────
@@ -1615,6 +1622,9 @@ for i in $(seq 0 $(( PR_COUNT - 1 )) ); do
   printf '' > "/tmp/_bc_vuln_new_findings_${PR_NUM}.txt"
   printf '0' > "/tmp/_bc_vuln_preexisting_count_${PR_NUM}.txt"
   printf '' > "/tmp/_bc_vuln_output_${PR_NUM}.txt"
+  printf '' > "$BC_SCRATCH_DIR/_bc_go_resolution_command_${PR_NUM}.txt"
+  printf '' > "$BC_SCRATCH_DIR/_bc_go_resolution_output_${PR_NUM}.txt"
+  printf '' > "$BC_SCRATCH_DIR/_bc_go_modsum_diff_${PR_NUM}.txt"
 
   # Respect breakability:skip label — opt-out for PRs that should bypass analysis
   PR_SKIP=$(echo "$PR_JSON" | jq -r ".[$i].labels[] | select(.name==\"breakability:skip\") | .name" 2>/dev/null | head -1)
@@ -1977,6 +1987,8 @@ except Exception as e:
   if [[ "$ECOSYSTEM" == "npm" || "$ECOSYSTEM" == "gomod" || "$ECOSYSTEM" == "pip" ]] && [[ -n "$PKG" && -n "$FROM_VER" && -n "$TO_VER" ]]; then
     echo "  running TS pipeline..."
     CLI_ECO="$ECOSYSTEM"
+    PR_BODY_FILE="/tmp/_bc_pr_${PR_NUM}.body"
+    printf '%s' "$PR_BODY" > "$PR_BODY_FILE"
 
     # CLI sends logs to stdout mixed with JSON.  Capture all stdout,
     # then extract only the JSON portion (from first '{' to end).
@@ -1985,6 +1997,7 @@ except Exception as e:
     timeout 180 node "$CLI_PATH" \
       -p "$PKG" -f "$FROM_VER" -t "$TO_VER" \
       -r "$REPO_ROOT" -e "$CLI_ECO" -d "$DEP_TYPE" \
+      --pr-body-file "$PR_BODY_FILE" \
       --json > "$CLI_OUTPUT_FILE" 2>/dev/null || true
 
     # Extract JSON: find the first line starting with '{' and take everything from there
@@ -2007,8 +2020,10 @@ result = {
   },
   'score': data.get('score', {}).get('total', 0),
   'classification': data.get('classification', 'INCONCLUSIVE'),
+  'merge_risk': data.get('mergeRisk', {}),
   'confidence': data.get('confidence', 'UNVERIFIED'),
   'adapter': data.get('adapterUsed', 'unknown'),
+  'api_diff_tool': data.get('apiDiffTool', None),
   'security': data.get('securityUpdate', None)
 }
 print(json.dumps(result))
@@ -2334,6 +2349,29 @@ $GO_VET_OUT"
               printf '%s' "$VULN_OUTPUT" > "/tmp/_bc_vuln_output_${PR_NUM}.txt"
             else
               printf '' > "/tmp/_bc_vuln_output_${PR_NUM}.txt"
+            fi
+          fi
+          if [[ "$ECOSYSTEM" == "gomod" ]]; then
+            if [[ -n "${_GO_TIDY_OUT:-}" ]]; then
+              if [[ "${_GO_MULTI_MODULE:-false}" == "true" ]]; then
+                printf 'go mod tidy (affected modules) for %s %s→%s' "$PKG" "$FROM_VER" "$TO_VER" > "$BC_SCRATCH_DIR/_bc_go_resolution_command_${PR_NUM}.txt"
+              else
+                printf 'go mod tidy for %s %s→%s' "$PKG" "$FROM_VER" "$TO_VER" > "$BC_SCRATCH_DIR/_bc_go_resolution_command_${PR_NUM}.txt"
+              fi
+              printf '%s' "$_GO_TIDY_OUT" > "$BC_SCRATCH_DIR/_bc_go_resolution_output_${PR_NUM}.txt"
+            elif [[ -n "${_GO_SYNC_OUT:-}" ]]; then
+              printf 'go work sync for %s %s→%s' "$PKG" "$FROM_VER" "$TO_VER" > "$BC_SCRATCH_DIR/_bc_go_resolution_command_${PR_NUM}.txt"
+              printf '%s' "$_GO_SYNC_OUT" > "$BC_SCRATCH_DIR/_bc_go_resolution_output_${PR_NUM}.txt"
+            fi
+            _GO_MODSUM_FILES=$(cd "$PR_WORKTREE" && git --no-pager diff --name-only origin/main -- 2>/dev/null | grep -E '(^|/)go\.(mod|sum)$' || true)
+            if [[ -n "$_GO_MODSUM_FILES" ]]; then
+              _go_modsum_args=()
+              while IFS= read -r _go_modsum_file; do
+                [[ -n "$_go_modsum_file" ]] && _go_modsum_args+=("$_go_modsum_file")
+              done <<< "$_GO_MODSUM_FILES"
+              if [[ ${#_go_modsum_args[@]} -gt 0 ]]; then
+                (cd "$PR_WORKTREE" && git --no-pager diff --unified=0 origin/main -- "${_go_modsum_args[@]}" 2>/dev/null || true) > "$BC_SCRATCH_DIR/_bc_go_modsum_diff_${PR_NUM}.txt"
+              fi
             fi
           fi
           # Classify Go build error for JSON output (pass exit code for timeout detection — A2-2)
@@ -3098,6 +3136,7 @@ if new_errors:
 test_ran = True if "$TEST_RAN" == "true" else False
 test_exit_raw = "$TEST_EXIT"
 test_exit = int(test_exit_raw) if test_exit_raw not in ("null", "") else None
+no_go_tests = (eco == "gomod" and test_ran and test_exit == 0 and "[no test files]" in (test_output or ""))
 
 # If all "new" errors were infra artifacts, downgrade verdict to pre_existing
 build_verdict = "$BUILD_VERDICT"
@@ -3180,6 +3219,7 @@ pr_data = {
     "cves": cves,
     "cve_details": cve_details,
     "deterministic": deterministic,
+    "merge_risk": deterministic.get("merge_risk", {}) if deterministic else {},
     "build": {
         "main_exit": $MAIN_EXIT_FOR_ECO,
         "pr_exit": $BUILD_EXIT,
@@ -3218,6 +3258,11 @@ pr_data = {
     "vuln_new_findings": vuln_new_findings,
     "vuln_preexisting_count": vuln_preexisting_count,
     "vuln_output": vuln_output,
+    "go_resolution": {
+        "command": open(f"$BC_SCRATCH_DIR/_bc_go_resolution_command_{pr_num}.txt").read().strip() if os.path.exists(f"$BC_SCRATCH_DIR/_bc_go_resolution_command_{pr_num}.txt") else "",
+        "output_tail": open(f"$BC_SCRATCH_DIR/_bc_go_resolution_output_{pr_num}.txt").read()[-20000:] if os.path.exists(f"$BC_SCRATCH_DIR/_bc_go_resolution_output_{pr_num}.txt") else "",
+        "modsum_diff": open(f"$BC_SCRATCH_DIR/_bc_go_modsum_diff_{pr_num}.txt").read()[-30000:] if os.path.exists(f"$BC_SCRATCH_DIR/_bc_go_modsum_diff_{pr_num}.txt") else "",
+    },
     "nestjs_peer_warning": open(f"/tmp/_bc_peer_warn_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_peer_warn_{pr_num}.txt") else "",
     "install_ok": True if "$INSTALL_OK" == "true" else False,
     "additional_packages": open(f"/tmp/_bc_addl_pkgs_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_addl_pkgs_{pr_num}.txt") else "",
@@ -3225,8 +3270,50 @@ pr_data = {
     "npm_audit": {
         "critical": $AUDIT_CRITICAL,
         "high": $AUDIT_HIGH
-    }
+    },
+    "no_test_confidence": {}
 }
+
+if eco == "gomod" and no_go_tests:
+    api_changes = len(deterministic.get("apiChanges", [])) if deterministic else 0
+    symbol_results = deterministic.get("verification", {}).get("symbolResults", {}) if deterministic else {}
+    used_symbols = 0
+    if isinstance(symbol_results, dict):
+        for val in symbol_results.values():
+            if isinstance(val, dict) and val.get("used"):
+                used_symbols += 1
+            elif isinstance(val, (list, tuple, set)):
+                used_symbols += len(val)
+    usage = len(files_importing) + used_symbols
+    score = 0
+    if api_changes == 0:
+        score += 2
+    elif api_changes <= 2:
+        score += 1
+    if usage == 0:
+        score += 2
+    elif usage <= 3:
+        score += 1
+    if bump in ("patch", "minor"):
+        score += 1
+    if dep_type in ("dev", "development"):
+        score += 1
+    confidence = "high" if score >= 5 else ("medium" if score >= 3 else "low")
+    residual = "No Go test files were present, so runtime behavior is not exercised by CI. "
+    if api_changes:
+        residual += f"API diff reported {api_changes} change(s). "
+    else:
+        residual += "API diff reported no removed/changed exported APIs. "
+    if usage:
+        residual += f"Reachability saw {usage} usage signal(s); review touched call sites if behavior changed."
+    else:
+        residual += "No direct usage was found in scanned files; remaining risk is transitive/runtime behavior."
+    pr_data["no_test_confidence"] = {
+        "applies": True,
+        "confidence": confidence,
+        "basis": {"api_changes": api_changes, "usage_signals": usage, "semver_bump": bump, "dep_type": dep_type},
+        "residual_risk": residual
+    }
 
 # ── Ownership classification ─────────────────────────────────
 # Tells reviewers WHO fixes this and whether THEIR code is affected.
@@ -3394,7 +3481,9 @@ else:
     main_npm_test_exit_raw = "$MAIN_NPM_TEST_EXIT_PR"
     main_npm_test_exit_val = int(main_npm_test_exit_raw) if main_npm_test_exit_raw not in ("-1", "") else -1
     if test_ran_val and test_exit_val is not None:
-        if test_exit_val == 0:
+        if eco == "gomod" and no_go_tests:
+            steps.append({"step": "test_suite", "status": "skip", "detail": "go test reported [no test files]; see no_test_confidence"})
+        elif test_exit_val == 0:
             level = max(level, 4)
             steps.append({"step": "test_suite", "status": "pass"})
         else:
@@ -3483,6 +3572,11 @@ if eco == "actions":
 else:
     pr_data["verification_level"] = level
     pr_data["verification_label"] = LEVEL_LABELS.get(level, f"L{level}")
+if isinstance(pr_data.get("merge_risk"), dict):
+    pr_data["merge_risk"].setdefault("evidenceAxis", "limited evidence")
+    pr_data["merge_risk"]["confidenceAxis"] = f"L{level}" if level >= 0 else pr_data["verification_label"]
+    if isinstance(pr_data.get("deterministic"), dict) and isinstance(pr_data["deterministic"].get("merge_risk"), dict):
+        pr_data["deterministic"]["merge_risk"] = pr_data["merge_risk"]
 pr_data["verification_steps"] = steps
 
 data["prs"][pr_num] = pr_data

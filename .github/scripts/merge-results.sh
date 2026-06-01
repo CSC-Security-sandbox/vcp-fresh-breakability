@@ -13,6 +13,8 @@
 #   - GH_TOKEN / GITHUB_TOKEN env
 # ──────────────────────────────────────────────────────────────────────────────
 set -u
+export LC_ALL=en_US.UTF-8
+unset GH_TOKEN
 
 RESULTS_FILE="/tmp/build-results.json"
 OWNER_REPO="${GITHUB_REPOSITORY:-}"
@@ -417,6 +419,34 @@ print(f"  Alerts fixable by merging open PRs: {security_posture['alerts_fixable_
 if total_cve_count:
     print(f"  CVEs referenced in PR bodies: {total_cve_count}")
 SECURITYEOF
+
+# ── Step 5b: Merge-risk taxonomy on merged results ────────────────────────────
+python3 << 'RISKEOF'
+import json
+
+with open("/tmp/build-results.json") as f:
+    data = json.load(f)
+
+def normalize(pr):
+    existing = pr.get("merge_risk") or (pr.get("deterministic") or {}).get("merge_risk") or {}
+    return {
+        "tag": existing.get("tag") or "Medium",
+        "reason": existing.get("reason") or "change evidence is limited; default caution",
+        "evidenceAxis": existing.get("evidenceAxis") or "limited evidence",
+        "confidenceAxis": existing.get("confidenceAxis") or pr.get("verification_label") or "unverified",
+    }
+
+counts = {"Low": 0, "Medium": 0, "High": 0}
+for pr in data.get("prs", {}).values():
+    risk = normalize(pr)
+    pr["merge_risk"] = risk
+    counts[risk["tag"]] = counts.get(risk["tag"], 0) + 1
+
+with open("/tmp/build-results.json", "w") as f:
+    json.dump(data, f, indent=2)
+
+print(f"  Merge Risk: High={counts.get('High', 0)} Medium={counts.get('Medium', 0)} Low={counts.get('Low', 0)}")
+RISKEOF
 
 # ── Step 6: Comment cleanup ──────────────────────────────────────────────────
 # CR4-9: Comment cleanup is now handled per-PR atomically in post-fallback-comments.sh

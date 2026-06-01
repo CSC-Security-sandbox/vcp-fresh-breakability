@@ -17,6 +17,8 @@
 #   - Pre-existing (L1, zero new errors): LIKELY SAFE
 # ──────────────────────────────────────────────────────────────────────────────
 set -u
+export LC_ALL=en_US.UTF-8
+unset GH_TOKEN
 
 RESULTS_FILE="/tmp/build-results.json"
 
@@ -150,6 +152,90 @@ for num in sorted(data.get('prs', {}).keys(), key=int):
     print(num)
 ")
 
+build_go_changelog_block() {
+  local _pkg="$1" _from="$2" _to="$3" _gh_path _releases _changelog _content _signals
+  [[ -z "$_pkg" || -z "$_from" || -z "$_to" ]] && return 0
+  _gh_path=$(echo "$_pkg" | grep -oE '^github\.com/[^/]+/[^/]+' || echo "")
+  if [[ -z "$_gh_path" ]]; then
+    _gh_path=$(echo "$_pkg" | sed -n 's|^golang.org/x/\([^/]*\)|github.com/golang/\1|p')
+  fi
+  if [[ -z "$_gh_path" ]]; then
+    _gh_path=$(echo "$_pkg" | sed -n 's|^go.opentelemetry.io/.*|github.com/open-telemetry/opentelemetry-go|p' | head -1)
+  fi
+  [[ -z "$_gh_path" ]] && return 0
+
+  unset GH_TOKEN
+  _releases=$(gh api "repos/${_gh_path#github.com/}/releases?per_page=100" --jq '[.[] | {tag_name,name,body: ((.body // "")[0:4000])}]' 2>/dev/null || echo '[]')
+  _changelog=""
+  for _candidate in CHANGELOG.md CHANGES.md HISTORY.md RELEASES.md; do
+    unset GH_TOKEN
+    _content=$(gh api "repos/${_gh_path#github.com/}/contents/${_candidate}" --jq '.content // ""' 2>/dev/null | python3 -c 'import base64,sys; data=sys.stdin.read().strip(); print(base64.b64decode(data).decode("utf-8","replace") if data else "")' 2>/dev/null | head -c 24000 || true)
+    if [[ -n "$_content" ]]; then
+      _changelog="$_content"
+      break
+    fi
+  done
+
+  _signals=$(_BC_RELEASES="$_releases" _BC_CHANGELOG="$_changelog" _BC_FROM="$_from" _BC_TO="$_to" _BC_GH_PATH="$_gh_path" python3 -c '
+import json, os, re
+releases = json.loads(os.environ.get("_BC_RELEASES", "[]") or "[]")
+changelog = os.environ.get("_BC_CHANGELOG", "") or ""
+from_v = os.environ.get("_BC_FROM", "")
+to_v = os.environ.get("_BC_TO", "")
+gh_path = os.environ.get("_BC_GH_PATH", "")
+
+def norm(v):
+    v = (v or "").strip().lstrip("v")
+    m = re.search(r"(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", v)
+    return m.group(1) if m else v
+def tup(v):
+    m = re.match(r"(\d+)\.(\d+)\.(\d+)", norm(v))
+    return tuple(map(int, m.groups())) if m else None
+lo, hi = tup(from_v), tup(to_v)
+def in_range(tag):
+    tv = tup(tag)
+    if not tv or not lo or not hi:
+        return norm(to_v) in norm(tag)
+    return lo < tv <= hi
+patterns = re.compile(r"\b(BREAKING|removed?|incompatible|migration|required|default(?:s| value)? change|deprecated|renamed|deleted|no longer|behavior change|API change)\b", re.I)
+items = []
+for rel in releases:
+    tag = rel.get("tag_name") or rel.get("name") or ""
+    if not in_range(tag):
+        continue
+    text = "\n".join([str(rel.get("name") or tag), str(rel.get("body") or "")])
+    for line in text.splitlines():
+        line = line.strip(" -*\t")
+        if line and patterns.search(line):
+            items.append((tag, line[:220]))
+            break
+if changelog:
+    for line in changelog.splitlines():
+        line = line.strip(" -*\t")
+        if line and patterns.search(line):
+            items.append(("CHANGELOG", line[:220]))
+            if len(items) >= 10:
+                break
+seen=[]
+for tag,line in items:
+    val=(tag,line)
+    if val not in seen:
+        seen.append(val)
+if seen:
+    print("### Changelog signals")
+    print(f"Source: GitHub releases/CHANGELOG for `{gh_path}` between `{from_v}` → `{to_v}`")
+    for tag,line in seen[:10]:
+        print(f"- `{tag}`: {line}")
+else:
+    print("### Changelog signals")
+    print(f"Source: [{gh_path} compare](https://{gh_path}/compare/v{from_v}...v{to_v})")
+    print("- No deterministic breaking-change markers found in fetched Releases/CHANGELOG (checked for BREAKING, removed APIs, incompatible/default-value changes).")
+' 2>/dev/null || true)
+  [[ -n "$_signals" ]] && printf '
+%s
+' "$_signals"
+}
+
 for PR_NUM in $PR_NUMBERS; do
   # Per-PR atomic comment management (A3-9):
   # 1. Check for existing AI agent comments (preserve those)
@@ -237,6 +323,11 @@ print(json.dumps({
     'vuln_new_findings': pr.get('vuln_new_findings', []),
     'vuln_output':     pr.get('vuln_output', ''),
     'vuln_preexisting_count': pr.get('vuln_preexisting_count', 0),
+    'go_resolution': pr.get('go_resolution', {}),
+    'no_test_confidence': pr.get('no_test_confidence', {}),
+    'deterministic': pr.get('deterministic', {}),
+    'merge_risk': pr.get('merge_risk', {}) or (pr.get('deterministic', {}) or {}).get('merge_risk', {}),
+    'cve_details': pr.get('cve_details', []),
     'verification_steps': pr.get('verification_steps', []),
     'fixes_cves': pr.get('fixes_cves', []),
 }))
@@ -284,6 +375,10 @@ fields = {
     'TEST_EXIT_CODE': str(d.get('test_exit', -1)),
     'BUILD_EVIDENCE': (lambda t: next((l.strip() for l in t.splitlines() if 'targeted build' in l or 'full build' in l or 'npm run build' in l), ''))(d.get('output_tail', '')),
     'BUILD_DIRS': (lambda t: next((l.strip() for l in t.splitlines() if 'dirs:' in l), ''))(d.get('output_tail', '')),
+    'MERGE_RISK_TAG': (d.get('merge_risk') or {}).get('tag', ''),
+    'MERGE_RISK_REASON': (d.get('merge_risk') or {}).get('reason', ''),
+    'MERGE_RISK_EVIDENCE': (d.get('merge_risk') or {}).get('evidenceAxis', ''),
+    'MERGE_RISK_CONFIDENCE': (d.get('merge_risk') or {}).get('confidenceAxis', ''),
 }
 for k, v in fields.items():
     # Use null byte as delimiter to safely handle any value content
@@ -338,6 +433,10 @@ for k, v in fields.items():
   TEST_EXIT_CODE=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_EXIT_CODE=' | cut -d= -f2-)
   BUILD_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_EVIDENCE=' | cut -d= -f2-)
   BUILD_DIRS=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_DIRS=' | cut -d= -f2-)
+  MERGE_RISK_TAG=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_TAG=' | cut -d= -f2-)
+  MERGE_RISK_REASON=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_REASON=' | cut -d= -f2-)
+  MERGE_RISK_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_EVIDENCE=' | cut -d= -f2-)
+  MERGE_RISK_CONFIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_CONFIDENCE=' | cut -d= -f2-)
   VULN_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_EVIDENCE=' | cut -d= -f2-)
   TEST_SUMMARY=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_SUMMARY=' | cut -d= -f2-)
   FILES_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_LIST=' | cut -d= -f2-)
@@ -450,28 +549,23 @@ print(' · '.join(parts))
     FIXES_CVE_LINE=""
   fi
 
-  # V9.9 iter9: Changelog compare link for Go/npm packages
+  # V9.9 iter9/G2: Changelog evidence for Go/npm packages
   CHANGELOG_LINK=""
+  CHANGELOG_BLOCK=""
   if [[ "$ECOSYSTEM" == "gomod" && -n "$PKG" && -n "$FROM" && -n "$TO" ]]; then
-    # Go module: github.com/org/repo → compare link
-    _GH_PATH=$(echo "$PKG" | grep -oE '^github\.com/[^/]+/[^/]+' || echo "")
-    if [[ -z "$_GH_PATH" ]]; then
-      # golang.org/x/foo → github.com/golang/foo
-      _GH_PATH=$(echo "$PKG" | sed -n 's|^golang.org/x/\([^/]*\)|github.com/golang/\1|p')
-    fi
-    if [[ -z "$_GH_PATH" ]]; then
-      # google.golang.org/grpc → github.com/grpc/grpc-go (common case)
-      _GH_PATH=$(echo "$PKG" | sed -n 's|^go.opentelemetry.io/\(.*\)|github.com/open-telemetry/opentelemetry-go|p' | head -1)
-    fi
-    if [[ -n "$_GH_PATH" ]]; then
-      CHANGELOG_LINK="
-📝 [Changelog](https://${_GH_PATH}/compare/v${FROM}...v${TO})"
-    fi
+    CHANGELOG_BLOCK=$(build_go_changelog_block "$PKG" "$FROM" "$TO")
+    CHANGELOG_LINK="${CHANGELOG_BLOCK}"
   elif [[ "$ECOSYSTEM" == "npm" && -n "$PKG" && -n "$FROM" && -n "$TO" ]]; then
     # npm: try npmjs changelog
     CHANGELOG_LINK="
 📝 [Changelog](https://github.com/search?q=repo%3A${PKG}+path%3ACHANGELOG&type=code)"
   fi
+
+  MERGE_RISK_TAG="${MERGE_RISK_TAG:-Medium}"
+  MERGE_RISK_REASON="${MERGE_RISK_REASON:-change evidence is limited; default caution}"
+  MERGE_RISK_EVIDENCE="${MERGE_RISK_EVIDENCE:-limited evidence}"
+  MERGE_RISK_CONFIDENCE="${MERGE_RISK_CONFIDENCE:-${VER_LABEL:-unverified}}"
+  MERGE_RISK_LINE="**Merge Risk: ${MERGE_RISK_TAG}** (Evidence: ${MERGE_RISK_EVIDENCE} × Confidence: ${MERGE_RISK_CONFIDENCE}) — ${MERGE_RISK_REASON}"
 
     # Build "How we checked" checklist from verification_label
   # Build file-list detail block for evidence
@@ -558,6 +652,104 @@ ${_SHOWN_FILES}${_MORE_NOTE}
   esac
   # Suppress advisory disclaimer when security risk is flagged
   [[ -n "$_VULN_HEADER_BADGE" ]] && ADVISORY_FOOTER=""
+  # Build Go dependency-resolution evidence blocks
+  _DEP_RESOLUTION_LINE="- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0"
+  _GO_RESOLUTION_BLOCK=""
+  if [[ "$ECOSYSTEM" == "gomod" ]]; then
+    _GO_RESOLUTION_PARSE=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys, re
+d=json.load(sys.stdin)
+gr=d.get('go_resolution') or {}
+cmd=gr.get('command','')
+out=gr.get('output_tail','') or ''
+diff=gr.get('modsum_diff','') or ''
+if cmd:
+    print('CMD=' + cmd)
+adds=[]; rems=[]
+for line in diff.splitlines():
+    if not line or line[0] not in '+-':
+        continue
+    m=re.match(r'^[+-]\s*(?:require\s+)?([A-Za-z0-9_.:/@-]+)\s+(v?\d[^\s]*)', line)
+    if not m:
+        continue
+    (adds if line[0]=='+' else rems).append(m.group(1)+' '+m.group(2))
+changed=[]
+rem_by={x.split()[0]:x.split()[1] for x in rems}
+add_by={x.split()[0]:x.split()[1] for x in adds}
+for name in sorted(set(rem_by)&set(add_by)):
+    if rem_by[name] != add_by[name]:
+        changed.append(f'{name} {rem_by[name]}→{add_by[name]}')
+new=[x for x in adds if x.split()[0] not in rem_by]
+removed=[x for x in rems if x.split()[0] not in add_by]
+if changed or new or removed:
+    print('SUMMARY=' + f'{len(changed)} changed, {len(new)} new, {len(removed)} removed' + (': ' + '; '.join((changed+new+removed)[:6]) if (changed+new+removed) else ''))
+print('---OUT---')
+print('\n'.join([l for l in out.splitlines() if l.strip()][-20:]))
+print('---DIFF---')
+print('\n'.join(diff.splitlines()[:160]))
+" 2>/dev/null || true)
+    _GO_RES_CMD=$(echo "$_GO_RESOLUTION_PARSE" | grep '^CMD=' | head -1 | cut -d= -f2-)
+    _GO_RES_SUMMARY=$(echo "$_GO_RESOLUTION_PARSE" | grep '^SUMMARY=' | head -1 | cut -d= -f2-)
+    _GO_RES_OUT=$(echo "$_GO_RESOLUTION_PARSE" | sed -n '/^---OUT---$/,/^---DIFF---$/p' | sed '1d;$d')
+    _GO_RES_DIFF=$(echo "$_GO_RESOLUTION_PARSE" | sed -n '/^---DIFF---$/,$p' | tail -n +2)
+    if [[ -n "$_GO_RES_CMD" ]]; then
+      _DEP_RESOLUTION_LINE="- ✅ Dependency resolved — \`$_GO_RES_CMD\`"
+      [[ -n "$_GO_RES_SUMMARY" ]] && _DEP_RESOLUTION_LINE="${_DEP_RESOLUTION_LINE} — go.mod/go.sum: ${_GO_RES_SUMMARY}"
+    fi
+    if [[ -n "$_GO_RES_OUT" ]]; then
+      _GO_RESOLUTION_BLOCK="
+<details><summary>📦 Go dependency-resolution output</summary>
+
+\`\`\`
+${_GO_RES_OUT}
+\`\`\`
+</details>"
+    fi
+    if [[ -n "$_GO_RES_DIFF" ]]; then
+      _GO_RESOLUTION_BLOCK="${_GO_RESOLUTION_BLOCK}
+<details><summary>🧾 go.mod / go.sum diff</summary>
+
+\`\`\`diff
+${_GO_RES_DIFF}
+\`\`\`
+</details>"
+    fi
+  fi
+
+  _NO_TEST_CONFIDENCE_BLOCK=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d=json.load(sys.stdin)
+nt=d.get('no_test_confidence') or {}
+if not nt.get('applies'):
+    sys.exit(0)
+b=nt.get('basis') or {}
+print('### Confidence without tests')
+print(f'Derived confidence: **{nt.get("confidence","unknown")}** (no Go test files were present).')
+print(f'- API diff changes: `{b.get("api_changes", 0)}`')
+print(f'- Usage/reachability signals: `{b.get("usage_signals", 0)}`')
+print(f'- Semver bump: `{b.get("semver_bump", "?")}` · dep type: `{b.get("dep_type", "?")}`')
+print(f'- **Residual risk:** {nt.get("residual_risk","Runtime behavior is not covered by tests.")}')
+" 2>/dev/null || true)
+
+  _API_DIFF_TOOL_BLOCK=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d=json.load(sys.stdin)
+tool=((d.get('deterministic') or {}).get('api_diff_tool') or {})
+if not tool:
+    sys.exit(0)
+status=tool.get('status')
+print('### API diff signal')
+if status == 'semantic':
+    print(f'- ✅ Go apidiff ran in **{tool.get(\"mode\",\"module\")} mode** using `{tool.get(\"package\",\"golang.org/x/exp/cmd/apidiff\")}@{tool.get(\"version\",\"unknown\")}`')
+    if tool.get('command'):
+        print(f'- Command: `{tool.get(\"command\")}`')
+elif status == 'structural_fallback':
+    print(f'- ⚠️ Go apidiff was unavailable; structural fallback ran instead.')
+    if tool.get('warning'):
+        print(f'- Reason: {tool.get(\"warning\")}')
+    print('- Coverage note: fallback is evidence, but may miss subpackage/type-compatibility breaks that module-mode apidiff would catch.')
+" 2>/dev/null || true)
+
   # Build build-stdout evidence block
   _BUILD_STDOUT_BLOCK=""
   _BUILD_STDOUT_SNIPPET=$(echo "$PR_FIELDS" | python3 -c "
@@ -638,21 +830,21 @@ ${_TEST_TAIL}
       HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ✅ Tests pass (exit=$TEST_EXIT_CODE)${_EV_TEST} — no regressions vs main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}${_TEST_STDOUT_BLOCK}"
+</details>${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_TEST_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
       ;;
     L3*)
       HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
+</details>${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
       ;;
     L2*)
       # V9.3 FIX (P1-2): BUILD_FAILS PRs must NOT use the "builds clean" checklist.
@@ -663,7 +855,7 @@ ${_TEST_TAIL}
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+${_DEP_RESOLUTION_LINE}
 - ⚙️ Build hit OOM (\`signal: killed\`) on unrelated sub-packages — not caused by this upgrade
 - ✅ PR's targeted packages are not affected
 - ✅ No new type errors introduced vs. main
@@ -672,7 +864,7 @@ ${_TEST_TAIL}
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+${_DEP_RESOLUTION_LINE}
 - ❌ Project build fails on PR branch
 - ✅ Build passes on main — errors are introduced by this upgrade
 - ⬜ Tests not run (build must pass first)
@@ -690,20 +882,20 @@ ${_TEST_TAIL}
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — pre-existing, same failure on main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
+</details>${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
         else
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
+</details>${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
         fi
       fi
       ;;
@@ -780,7 +972,7 @@ ${_L1_EXCERPT}
       HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ✅ Dependency resolved — \`go get\`/\`npm install\` exit 0
+${_DEP_RESOLUTION_LINE}
 - ⚠️ Build fails on both \`main\` (exit=${_L1_MAIN_EXIT}${_L1_MAIN_CLASS}) and PR branch — same errors${_L1_MODULE_NOTE}${_L1_OOM_NOTE}
 - ✅ No NEW errors introduced by this upgrade
 
@@ -811,6 +1003,25 @@ Fix these on \`main\` to unlock full L2+ verification.
       fi
       ;;
   esac
+
+  if [[ "$ECOSYSTEM" == "gomod" && -n "$HOW_CHECKED" ]]; then
+    case "$HOW_CHECKED" in
+      *"Go dependency-resolution output"*|*"go.mod / go.sum diff"*) ;;
+      *) HOW_CHECKED="${HOW_CHECKED}${_GO_RESOLUTION_BLOCK}" ;;
+    esac
+    case "$HOW_CHECKED" in
+      *"Confidence without tests"*) ;;
+      *) HOW_CHECKED="${HOW_CHECKED}${_NO_TEST_CONFIDENCE_BLOCK}" ;;
+    esac
+    case "$HOW_CHECKED" in
+      *"API diff signal"*) ;;
+      *) HOW_CHECKED="${HOW_CHECKED}${_API_DIFF_TOOL_BLOCK}" ;;
+    esac
+    case "$HOW_CHECKED" in
+      *"Changelog signals"*) ;;
+      *) HOW_CHECKED="${HOW_CHECKED}${CHANGELOG_LINK}" ;;
+    esac
+  fi
 
   # Prepend govulncheck header badge (if status is failure/vulns_found) so it sits
   # right above the HOW_CHECKED collapsible — visible without expanding details.
@@ -1099,71 +1310,70 @@ ${RUN_LINK}
     # V9.8 iter6 (A): PR build passes but govulncheck found NEW CVE(s) not on main.
     # This overrides SAFE because a PR that introduces vulnerabilities is never SAFE.
     _VULN_IDS_LIST="${VULN_NEW_LIST:-unknown}"
-    # EU-7: Extract reachability info from vuln_output (govulncheck shows call stacks for reachable vulns)
+    # G4: Extract per-finding reachability info from govulncheck output.
     _VULN_REACHABILITY=$(echo "$PR_FIELDS" | python3 -c "
 import json, sys, re
 d = json.load(sys.stdin)
 output = d.get('vuln_output', '') or ''
-new_ids = d.get('vuln_new_findings', [])
-reachable = []       # govulncheck found a call path (Symbol Results)
-imported = []        # vulnerable pkg imported but no symbol called (Package/Module Results)
-unknown = []         # CVE not located in govulncheck output — cannot claim reachability
-symbols = {}
+new_ids = d.get('vuln_new_findings', []) or []
+details = d.get('cve_details', []) or []
+sev_by_id = {}
+for item in details:
+    if not isinstance(item, dict):
+        continue
+    ids = [item.get('cve_id'), item.get('ghsa_id'), item.get('id')]
+    sev = (item.get('severity') or item.get('cvss_severity') or '').upper()
+    for k in ids:
+        if k and sev:
+            sev_by_id[k] = sev
 
-# govulncheck text output is split into sections. A CVE under '=== Symbol Results ==='
-# means user code actually CALLS a vulnerable symbol (truly reachable). Under
-# '=== Package Results ===' or '=== Module Results ===' the dependency is only
-# imported/required, not called — lower risk. We must NOT conflate the two.
 def section_of(pos):
     sym = output.rfind('=== Symbol Results ===', 0, pos)
     pkg = output.rfind('=== Package Results ===', 0, pos)
     mod = output.rfind('=== Module Results ===', 0, pos)
     best = max(sym, pkg, mod)
-    if best < 0:
-        return 'symbol'  # no section headers (older govulncheck) — treat as symbol/reachable
-    if best == sym:
+    if best < 0 or best == sym:
         return 'symbol'
     return 'imported'
 
-for vid in new_ids:
+def block_for(vid):
     idx = output.find(vid)
     if idx < 0:
-        unknown.append(vid)
-        continue
-    next_vuln = output.find('Vulnerability #', idx + 10)
-    block = output[idx:next_vuln] if next_vuln > 0 else output[idx:]
-    sect = section_of(idx)
-    has_trace = bool(re.search(r'example traces found|\bcalls\b|\.go:\d+:\d+', block, re.IGNORECASE))
-    if sect == 'symbol' and has_trace:
-        reachable.append(vid)
-        funcs = re.findall(r'\b([\w./]+\.\w+)\s+calls\s+', block)
-        if not funcs:
-            funcs = re.findall(r'#\d+:\s+\S+\.go:\d+:\d+:\s+(.+)', block)
-        if funcs:
-            symbols[vid] = [f.strip() for f in funcs[:3]]
-    elif sect == 'symbol':
-        # in symbol section but no explicit trace text — still reachable, no trace captured
-        reachable.append(vid)
-    else:
-        imported.append(vid)
+        return '', 'unknown'
+    nexts = [p for p in [output.find('Vulnerability #', idx + len(vid)), output.find('GO-', idx + len(vid))] if p > idx]
+    end = min(nexts) if nexts else len(output)
+    return output[idx:end], section_of(idx)
+
+def chain(block):
+    vals = []
+    for pat in [r'#\d+:\s+[^:]+:\d+:\d+:\s*(.+)', r'\b([\w./-]+\.[\w*]+)\s+calls\s+([\w./-]+\.[\w*]+)']:
+        for m in re.findall(pat, block):
+            if isinstance(m, tuple):
+                vals.append(' → '.join(x for x in m if x))
+            else:
+                vals.append(m.strip())
+    return vals[:4]
 
 lines = []
-if reachable:
-    parts = []
-    for vid in reachable:
-        link = f'[{vid}](https://pkg.go.dev/vuln/{vid})'
-        if vid in symbols:
-            link += ' (your code calls \`' + '\`, \`'.join(symbols[vid]) + '\`)'
-        parts.append(link)
-    lines.append('\u26a0\ufe0f **Reachable \u2014 your code calls the vulnerable symbol(s):** ' + ', '.join(parts))
-if imported:
-    parts = [f'[{vid}](https://pkg.go.dev/vuln/{vid})' for vid in imported]
-    lines.append('\u2139\ufe0f Imported but **no vulnerable symbol is called** (lower risk): ' + ', '.join(parts))
-if unknown:
-    parts = [f'[{vid}](https://pkg.go.dev/vuln/{vid})' for vid in unknown]
-    lines.append('\u2753 Reachability **not determined** for: ' + ', '.join(parts) + ' \u2014 not located in govulncheck call-graph output; run \`govulncheck ./...\` locally to confirm')
+for vid in new_ids:
+    block, sect = block_for(vid)
+    aliases = sorted(set(re.findall(r'CVE-\d{4}-\d+|GHSA-[0-9a-z-]+', block, re.I)))
+    sev = next((sev_by_id.get(x) for x in [vid]+aliases if sev_by_id.get(x)), 'UNKNOWN')
+    cve_label = ', '.join(aliases) if aliases else vid
+    lines.append(f'- **{cve_label}** (`{vid}`) · Severity: **{sev}**')
+    if sect == 'symbol' and block:
+        ch = chain(block)
+        if ch:
+            lines.append('  - Reachability: reachable from your code — ' + ' → '.join(f'`{x}`' for x in ch))
+        else:
+            lines.append('  - Reachability: reachable from your code (govulncheck Symbol Results; call-chain text not emitted)')
+    elif sect == 'imported':
+        lines.append('  - Reachability: not reachable from your code; vulnerable package/module is imported but no vulnerable symbol call was found')
+    else:
+        lines.append('  - Reachability: not determined in govulncheck output; run `govulncheck ./...` locally to confirm')
+    lines.append('  - Does merging this PR fix it? **No** — absent on `main`, present on this PR branch (introduced by the upgrade).')
 if not lines:
-    lines.append('\u2753 Reachability unknown \u2014 govulncheck produced no call-graph data; run \`govulncheck ./...\` locally to check')
+    lines.append('❓ Reachability unknown — govulncheck produced no per-finding call-graph data; run `govulncheck ./...` locally to check')
 print('\n'.join(lines))
 " 2>/dev/null || echo "❓ Reachability unknown — run \`govulncheck ./...\` locally to check")
     # EU-6: Get max severity for the new vulns
@@ -1275,6 +1485,20 @@ ${RUN_LINK}
   fi
 
   if [[ -n "$COMMENT" ]]; then
+    COMMENT=$(COMMENT_BODY="$COMMENT" MERGE_RISK_LINE="$MERGE_RISK_LINE" python3 -c '
+import os
+body = os.environ.get("COMMENT_BODY", "")
+risk = os.environ.get("MERGE_RISK_LINE", "").strip()
+if risk and "Merge Risk:" not in body:
+    lines = body.splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith("## "):
+            lines.insert(i + 1, "")
+            lines.insert(i + 2, risk)
+            body = "\n".join(lines)
+            break
+print(body)
+' 2>/dev/null || printf '%s' "$COMMENT")
     if gh pr comment "$PR_NUM" --body "$COMMENT" 2>/dev/null; then
       echo "  Posted comment for PR #$PR_NUM ($PKG ${FROM}→${TO}, $VERDICT)"
       POSTED=$((POSTED + 1))
@@ -1330,6 +1554,14 @@ def fmt_bump(bump, from_ver=""):
         return "major"
     return bump
 
+def fmt_merge_risk(pr):
+    risk = pr.get("merge_risk") or (pr.get("deterministic") or {}).get("merge_risk") or {}
+    tag = risk.get("tag") or "Medium"
+    reason = risk.get("reason") or "change evidence is limited; default caution"
+    evidence = risk.get("evidenceAxis") or "limited evidence"
+    confidence = risk.get("confidenceAxis") or pr.get("verification_label") or "unverified"
+    return f"{tag} (Evidence: {evidence} × Confidence: {confidence}) — {reason}"
+
 # Categorize PRs
 safe = []        # pass verdicts + pre_existing with L2+ verification
 blocked = []     # fail / pre_existing_plus_new
@@ -1354,7 +1586,7 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     error_class = pr.get("build", {}).get("error_class", "")
     new_errors = pr.get("build", {}).get("new_errors", [])
     main_exit = pr.get("build", {}).get("main_exit", -1)
-    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit}
+    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr)}
 
     # V9.8 iter6 (A): security verdict gate — a PR that INTRODUCES new CVEs must never be "safe"
     vuln_status = pr.get("vuln_status", "")
@@ -1547,6 +1779,16 @@ if not_analyzed:
     lines.append(f"| ❓ Not analyzed | {len(not_analyzed)} |")
 lines.append("")
 
+# Merge-risk taxonomy summary (same Low/Medium/High tag shown in PR comments).
+_all_entries = safe + blocked + review + skipped + ci_only + companion_blocked + not_analyzed + cancelled
+if _all_entries:
+    from collections import Counter as _Counter
+    _risk_counts = _Counter((e.get("merge_risk", "Medium —").split(" — ", 1)[0] or "Medium") for e in _all_entries)
+    lines.append("## Merge Risk Summary")
+    lines.append("")
+    lines.append(f"**High:** {_risk_counts.get('High', 0)} · **Medium:** {_risk_counts.get('Medium', 0)} · **Low:** {_risk_counts.get('Low', 0)}")
+    lines.append("")
+
 # V8 FIX (M4): Developer Action Summary — prioritized numbered steps (regression from ref plan #39)
 lines.append("## Developer Action Summary")
 lines.append("")
@@ -1708,11 +1950,11 @@ safe_l2 = [e for e in safe if not (e["ver"].startswith("L4") or e["ver"].startsw
 if safe_l4:
     lines.append("## ✅ Safe to Merge — Tests Pass (L4 verified, lowest risk)")
     lines.append("")
-    lines.append("| PR | Package | Version | Bump | Verification |")
-    lines.append("|----|---------|---------|----|-------------|")
+    lines.append("| PR | Package | Version | Bump | Merge Risk | Verification |")
+    lines.append("|----|---------|---------|----|------------|-------------|")
     for e in safe_l4:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e['cves'] else ""
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']}{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | {e['ver']}{cve_badge} |")
     lines.append("")
 
 if safe_l2:
@@ -1720,11 +1962,11 @@ if safe_l2:
     lines.append("")
     lines.append("> Build and type-check pass. Tests were not run or had pre-existing failures. Review changelog for major bumps.")
     lines.append("")
-    lines.append("| PR | Package | Version | Bump | Verification |")
-    lines.append("|----|---------|---------|----|-------------|")
+    lines.append("| PR | Package | Version | Bump | Merge Risk | Verification |")
+    lines.append("|----|---------|---------|----|------------|-------------|")
     for e in safe_l2:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e['cves'] else ""
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']}{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | {e['ver']}{cve_badge} |")
     lines.append("")
 
 # Companion-blocked: safe PRs that can't be merged yet because their coordinated partner is broken
@@ -1734,11 +1976,11 @@ if companion_blocked:
     lines.append("These PRs pass build verification but are **blocked** because a companion PR (coordinated upgrade) currently has build failures or security issues.")
     lines.append("Fix the companion PR first, then merge both together.")
     lines.append("")
-    lines.append("| PR | Package | Version | Bump | Verification | Blocked By |")
-    lines.append("|----|---------|---------|------|-------------|------------|")
+    lines.append("| PR | Package | Version | Bump | Merge Risk | Verification | Blocked By |")
+    lines.append("|----|---------|---------|------|------------|-------------|------------|")
     for e in companion_blocked:
         companions = ", ".join(f"#{n}" for n in e.get("companion_blocked_by", []))
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']} ✅ | Fix {companions} first |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | {e['ver']} ✅ | Fix {companions} first |")
     lines.append("")
 
 # Cross-PR deps
@@ -1804,8 +2046,8 @@ if cross:
 if blocked:
     lines.append("## ❌ Fix Required — Do Not Merge")
     lines.append("")
-    lines.append("| PR | Package | Version | Bump | Issue |")
-    lines.append("|----|---------|---------|----|-------|")
+    lines.append("| PR | Package | Version | Bump | Merge Risk | Issue |")
+    lines.append("|----|---------|---------|----|------------|-------|")
     for e in blocked:
         if e["verdict"] == "fail":
             issue = "Build fails"
@@ -1815,7 +2057,7 @@ if blocked:
             issue = f"🚨 {e.get('vuln_new_count', 0)} NEW CVE(s) introduced — see Security Risk section"
         else:
             issue = "New errors on top of pre-existing"
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {issue} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | {issue} |")
     lines.append("")
 
 # Review — split into "Likely Safe" and "Needs Review".
@@ -1833,13 +2075,13 @@ if likely_safe:
     lines.append("produce the same build errors. The upgrades are likely safe to merge.")
     lines.append("Fix baseline build on `main` and re-run for full L2+ verification.")
     lines.append("")
-    lines.append("| PR | Package | Version | Bump | Module | Status |")
-    lines.append("|----|---------|---------|----|--------|--------|")
+    lines.append("| PR | Package | Version | Bump | Merge Risk | Module | Status |")
+    lines.append("|----|---------|---------|----|------------|--------|--------|")
     for e in likely_safe:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
         pkg_dir = e.get('pkg_dir', '/')
         mod_col = pkg_dir if pkg_dir != '/' else 'root'
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {mod_col} | {e['ver']} — no new errors{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | {mod_col} | {e['ver']} — no new errors{cve_badge} |")
     lines.append("")
 
 if unverified:
@@ -1848,13 +2090,13 @@ if unverified:
     lines.append("These PRs have new errors or could not be compared against the baseline.")
     lines.append("Manual review is recommended before merging.")
     lines.append("")
-    lines.append("| PR | Package | Version | Bump | Module | Issue |")
-    lines.append("|----|---------|---------|----|--------|-------|")
+    lines.append("| PR | Package | Version | Bump | Merge Risk | Module | Issue |")
+    lines.append("|----|---------|---------|----|------------|--------|-------|")
     for e in unverified:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
         pkg_dir = e.get('pkg_dir', '/')
         mod_col = pkg_dir if pkg_dir != '/' else 'root'
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {mod_col} | Deps failed — infra issue{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | {mod_col} | Deps failed — infra issue{cve_badge} |")
     lines.append("")
 
 if needs_review:
@@ -1865,7 +2107,7 @@ if needs_review:
             reason = "Build passes but npm audit found critical/high vulnerabilities"
         else:
             reason = "Build error / infrastructure issue"
-        lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {reason}")
+        lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — Merge Risk: {e.get('merge_risk', 'Medium — default caution')} — {reason}")
     lines.append("")
 
 # V8 FIX (H3/L3): CI-only PRs in their own section, not mixed with verified Go/npm PRs
@@ -1874,11 +2116,11 @@ if ci_only:
     lines.append("")
     lines.append("These PRs only affect CI/CD workflows. No build verification needed — zero app code impact.")
     lines.append("")
-    lines.append("| PR | Package | Version | Bump | Verification |")
-    lines.append("|----|---------|---------|----|-------------|")
+    lines.append("| PR | Package | Version | Bump | Merge Risk | Verification |")
+    lines.append("|----|---------|---------|----|------------|-------------|")
     for e in ci_only:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | CI_ONLY — auto-safe{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | CI_ONLY — auto-safe{cve_badge} |")
     lines.append("")
 
 # Skipped (breakability:skip label)
