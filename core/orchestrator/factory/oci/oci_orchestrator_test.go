@@ -30,16 +30,27 @@ func TestNewOCIOrchestrator(t *testing.T) {
 	})
 }
 
+// TestOCIOrchestrator_UpdatePool documents the orchestrator's contract for
+// degenerate UpdatePoolParams. The endpoint layer (oci-proxy/api/endpoints/
+// pool_endpoints.go) already rejects an empty PoolOCID with 400 before the
+// request reaches this factory, so the orchestrator does NOT re-validate it.
+// If a future caller smuggles an empty-everything params struct through, the
+// orchestrator must still degrade gracefully — GetPoolByName returns
+// ErrRecordNotFound and the factory surfaces a typed NotFoundErr rather than
+// panicking on a nil storage or returning a misleading 500.
 func TestOCIOrchestrator_UpdatePool(t *testing.T) {
-	t.Run("ReturnsBadRequestWhenPoolExternalIdentifierMissing", func(tt *testing.T) {
-		orch := &OCIOrchestrator{}
+	t.Run("EmptyParamsFlowThroughAsNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetAccount(mock.Anything, mock.Anything).Return(
+			&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil)
+		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, gorm.ErrRecordNotFound)
+		orch := &OCIOrchestrator{storage: mockStorage}
 		ctx := context.Background()
-		params := &commonparams.UpdatePoolParams{}
 
-		result, jobID, err := orch.UpdatePool(ctx, params)
+		result, jobID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{})
 
 		assert.Error(tt, err)
-		assert.True(tt, errors.IsBadRequestErr(err))
+		assert.True(tt, errors.IsNotFoundErr(err))
 		assert.Nil(tt, result)
 		assert.Empty(tt, jobID)
 	})

@@ -5,20 +5,19 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	ociworkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/oci"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -40,27 +39,8 @@ var (
 	// ociDeploymentPrefix is the OCI deployment name prefix, from OCI_DEPLOYMENT_NAME_PREFIX (default "ocnv-").
 	ociDeploymentPrefix         = env.GetString("OCI_DEPLOYMENT_NAME_PREFIX", "ocnv-")
 	ociDeploymentNameValidChars = regexp.MustCompile(`[^a-z0-9-]`)
-
-	// ociThroughputThresholdGBps is the exclusive upper bound on per-pool throughput accepted
-	// by UpdatePool, expressed in GBps to match the public API contract (ThroughputGBps).
-	// Read once at startup from OCI_THROUGHPUT_THRESHOLD_GBPS; default 5 GBps. The orchestrator
-	// converts to MiBps internally for comparison against params.TotalThroughputMibps.
-	ociThroughputThresholdGBps = env.GetInt("OCI_THROUGHPUT_THRESHOLD_GBPS", 5)
-
-	// ociNodeCapacityMaxTiB is the inclusive upper bound on per-node data-disk size accepted by
-	// UpdatePool, expressed in TiB. The public API field is NodeCapacity.sizeInGiB, so the cap
-	// is converted to GiB (cap*1024) at the comparison site. Read once at startup from
-	// OCI_NODE_CAPACITY_MAX_TIB; default 425 TiB. A request whose sizeInGiB strictly exceeds
-	// the GiB-equivalent of this value is rejected as a 400 user-input error before any DB
-	// lookup, so an oversized payload fails fast.
-	ociNodeCapacityMaxTiB = env.GetInt("OCI_NODE_CAPACITY_MAX_TIB", 425)
-
-	// ociNodeCapacityMinTiB is the inclusive lower bound on per-node data-disk size accepted by
-	// UpdatePool, expressed in TiB. The public API field is NodeCapacity.sizeInGiB, so the
-	// floor is converted to GiB (floor*1024) at the comparison site. Read once at startup from
-	// OCI_NODE_CAPACITY_MIN_TIB; default 2 TiB. A request whose sizeInGiB is strictly below the
-	// GiB-equivalent of this value is rejected as a 400 user-input error before any DB lookup.
-	ociNodeCapacityMinTiB = env.GetInt("OCI_NODE_CAPACITY_MIN_TIB", 2)
+	ociThroughputThresholdGBps  = env.GetInt("OCI_THROUGHPUT_THRESHOLD_GBPS", 5)
+	ociNodeCapacityMaxTiB       = env.GetFloat64("OCI_NODE_CAPACITY_MAX_TIB", 425)
 )
 
 // GenerateDeploymentNameFromOCID generates a deployment name from OCID following OCI naming conventions.
@@ -264,11 +244,6 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 	se := o.storage
 	temporal := o.temporal
 
-	if params.PoolExternalIdentifier == "" {
-		logger.Error("PoolExternalIdentifier is required", "error", customerrors.NewBadRequestErr("PoolExternalIdentifier is required"))
-		return nil, "", customerrors.NewBadRequestErr("PoolExternalIdentifier is required")
-	}
-
 	account, err := common.GetAccount(ctx, se, params.AccountName)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
@@ -296,12 +271,12 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 		return nil, "", err
 	}
 
-	pool := database.ConvertPoolViewToPool(poolView)
-
-	if err = validateUpdatePoolSingleAD(pool); err != nil {
-		logger.Error("Invalid pool single AD", "poolExternalIdentifier", params.PoolExternalIdentifier, "error", err)
+	if err = validateNoActiveClusterUpgrade(ctx, se, poolView.UUID, params.PoolExternalIdentifier); err != nil {
+		logger.Error("Active cluster upgrade in progress", "poolExternalIdentifier", params.PoolExternalIdentifier, "error", err)
 		return nil, "", err
 	}
+
+	pool := database.ConvertPoolViewToPool(poolView)
 
 	if err = validateUpdatePoolThroughput(params); err != nil {
 		logger.Error("Invalid pool throughput", "poolExternalIdentifier", params.PoolExternalIdentifier, "error", err)
@@ -311,6 +286,10 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 	if err = validateUpdatePoolNodeCapacities(ctx, se, pool, params); err != nil {
 		logger.Error("Invalid pool node capacities", "poolExternalIdentifier", params.PoolExternalIdentifier, "error", err)
 		return nil, "", err
+	}
+
+	if len(params.NodeCapacities) > 0 {
+		params.SizeInBytes = computeUpdatePoolSizeInBytes(params, pool.PoolAttributes.IsRegionalHA)
 	}
 
 	pool, err = se.UpdatingPool(ctx, pool)
@@ -348,17 +327,6 @@ func (o *OCIOrchestrator) updatePool(ctx context.Context, params *commonparams.U
 	return common.ConvertDatastorePoolToModel(poolView, account.Name), workflowID, nil
 }
 
-// validateUpdatePoolState gates UpdatePool on the persisted lifecycle state of the pool.
-//
-//   - READY / ERROR     → nil (allowed; ERROR is the post-failure retry path)
-//   - DELETED           → 400 (pool is gone, nothing to update)
-//   - any in-progress   → 409 (UPDATING, CREATING, DELETING, PREPARING, MIGRATING — an operation
-//     is already running for this pool)
-//   - anything else     → 409 (defensive catch-all so unexpected states do not silently fall
-//     through to the workflow start)
-//
-// Callers receive a typed customerrors error so the endpoint layer can map it to the correct
-// HTTP status via IsBadRequestErr / IsConflictErr.
 func validateUpdatePoolState(state, poolExternalIdentifier string) error {
 	switch state {
 	case models.LifeCycleStateREADY, models.LifeCycleStateError:
@@ -374,6 +342,25 @@ func validateUpdatePoolState(state, poolExternalIdentifier string) error {
 	default:
 		return customerrors.NewConflictErr(fmt.Sprintf("pool cannot be updated in state %s, must be READY or ERROR after a failed update", state))
 	}
+}
+
+func validateNoActiveClusterUpgrade(ctx context.Context, se database.Storage, clusterUUID, poolExternalIdentifier string) error {
+	jobs, err := se.GetClusterUpgradeJobsByClusterID(ctx, clusterUUID)
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError,
+			fmt.Errorf("validateNoActiveClusterUpgrade: list cluster upgrade jobs for pool %q: %w", poolExternalIdentifier, err))
+	}
+	for _, job := range jobs {
+		if job == nil {
+			continue
+		}
+		if job.Status == string(models.UpgradeStatusPending) || job.Status == string(models.UpgradeStatusInProgress) {
+			return customerrors.NewConflictErr(
+				fmt.Sprintf("pool %s cannot be updated: a cluster upgrade is in progress (jobUUID=%s, status=%s)",
+					poolExternalIdentifier, job.UUID, job.Status))
+		}
+	}
+	return nil
 }
 
 // validateUpdatePoolThroughput enforces the per-pool throughput contract for UpdatePool.
@@ -402,48 +389,17 @@ func validateUpdatePoolThroughput(params *commonparams.UpdatePoolParams) error {
 	return nil
 }
 
-// validateUpdatePoolSingleAD rejects updates targeting pools that span multiple availability domains.
-// OCI pool update is currently supported only for single-AD pools; multi-AD (regional HA) pools
-// must be onboarded explicitly. The signal is pool_attributes.is_regional_ha persisted at create time.
-// A nil PoolAttributes is treated as single AD (default zero value of IsRegionalHA is false).
-func validateUpdatePoolSingleAD(pool *datamodel.Pool) error {
-	if pool == nil || pool.PoolAttributes == nil {
-		return nil
+func computeUpdatePoolSizeInBytes(params *commonparams.UpdatePoolParams, isRegionalHA bool) uint64 {
+	var totalNodeGiB int64
+	for _, nc := range params.NodeCapacities {
+		totalNodeGiB += nc.SizeInGiB
 	}
-	if pool.PoolAttributes.IsRegionalHA {
-		return customerrors.NewUserInputValidationErr(
-			"pool update is supported only for single-AD pools; pool is configured as regional HA (multi-AD)")
+	if isRegionalHA {
+		totalNodeGiB = totalNodeGiB / 2
 	}
-	return nil
+	return uint64(totalNodeGiB) * 1024 * 1024 * 1024
 }
 
-// validateUpdatePoolNodeCapacities verifies, for every entry in params.NodeCapacities, that:
-//  1. sizeInGiB falls within the configured per-node bounds [ociNodeCapacityMinTiB,
-//     ociNodeCapacityMaxTiB] (sourced from OCI_NODE_CAPACITY_MIN_TIB / OCI_NODE_CAPACITY_MAX_TIB;
-//     defaults 2 TiB and 425 TiB respectively, compared as bound*1024 GiB). This is a pure
-//     params check and runs before any DB lookup so an out-of-range payload fails fast with
-//     a 400.
-//  2. node_uuid is a valid node UUID on this pool (must exist in the nodes table for pool.ID),
-//     otherwise the whole payload is rejected. This makes "wrong pool" / "stale UUID" attempts
-//     fail fast instead of being interpreted downstream.
-//  3. sizeInGiB is not smaller than the node's currently-persisted total data-disk size,
-//     parsed from pool.VLMConfig. The per-node total is summed across vm.DataDisks[].Size —
-//     the same field used by dataDiskTotals in utils/workflowquery/vm_metadata.go — so the
-//     comparison is consistent with the size reported by the GetWorkflow endpoint.
-//
-// Uniqueness of node_uuid within the request is enforced earlier at the endpoint layer
-// (validateUpdatePoolNodeCapacityUniqueness), so this function does not duplicate that check.
-// HA-pair partner completeness is intentionally NOT enforced here.
-//
-// Returns:
-//   - nil when params.NodeCapacities is empty (caller is updating throughput/DEC only and has
-//     not requested any per-node size change), so there is nothing to validate;
-//   - a customerrors.NewUserInputValidationErr (→ 400) for user-attributable failures
-//     (size below minimum, size-cap exceeded, unknown UUID, shrink attempt);
-//   - a plain error (→ 500) for internal failures: DB lookup error, malformed stored VLM
-//     config, a nil pool, or an established pool whose VLMConfig is empty (treated as a
-//     stored-state invariant violation rather than silently skipping the no-shrink check,
-//     which could otherwise let a bad request through unvalidated).
 func validateUpdatePoolNodeCapacities(
 	ctx context.Context,
 	se database.Storage,
@@ -451,95 +407,64 @@ func validateUpdatePoolNodeCapacities(
 	params *commonparams.UpdatePoolParams,
 ) error {
 	if pool == nil {
-		return fmt.Errorf("validateUpdatePoolNodeCapacities: pool is nil")
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("validateUpdatePoolNodeCapacities: pool is nil"))
 	}
 	if len(params.NodeCapacities) == 0 {
 		return nil
 	}
 
-	// Bounds are configured in TiB but the API field is sizeInGiB, so convert TiB→GiB (×1024)
-	// at the comparison site.
-	minGiB := int64(ociNodeCapacityMinTiB) * 1024
-	maxGiB := int64(ociNodeCapacityMaxTiB) * 1024
+	maxGiB := int64(ociNodeCapacityMaxTiB * 1024)
+	totalInputGiB := int64(0)
 	for _, nc := range params.NodeCapacities {
-		if nc.SizeInGiB < minGiB {
-			return customerrors.NewUserInputValidationErr(
-				fmt.Sprintf("nodeCapacities.sizeInGiB %d for node_uuid %q is below the configured minimum of %d GiB (%d TiB)",
-					nc.SizeInGiB, nc.NodeUUID, minGiB, ociNodeCapacityMinTiB))
-		}
 		if nc.SizeInGiB > maxGiB {
 			return customerrors.NewUserInputValidationErr(
-				fmt.Sprintf("nodeCapacities.sizeInGiB %d for node_uuid %q exceeds the configured maximum of %d GiB (%d TiB)",
+				fmt.Sprintf("nodeCapacities.sizeInGiB %d for node_uuid %q exceeds the configured per-node maximum of %d GiB (%g TiB)",
 					nc.SizeInGiB, nc.NodeUUID, maxGiB, ociNodeCapacityMaxTiB))
 		}
+		totalInputGiB += nc.SizeInGiB
 	}
 
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
-		return fmt.Errorf("validateUpdatePoolNodeCapacities: list nodes for pool %q (id=%d): %w", pool.UUID, pool.ID, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError,
+			fmt.Errorf("validateUpdatePoolNodeCapacities: list nodes for pool %q (id=%d): %w", pool.UUID, pool.ID, err))
 	}
-
-	nodeByUUID := make(map[string]*datamodel.Node, len(nodes))
+	nodeByUUID := make(map[string]struct{}, len(nodes))
 	for _, n := range nodes {
-		if n == nil {
-			continue
-		}
-		if n.UUID != "" {
-			nodeByUUID[n.UUID] = n
+		if n != nil && n.UUID != "" {
+			nodeByUUID[n.UUID] = struct{}{}
 		}
 	}
-
+	var unknown []string
 	for _, nc := range params.NodeCapacities {
-		u := strings.TrimSpace(nc.NodeUUID)
-		if _, ok := nodeByUUID[u]; !ok {
-			return customerrors.NewUserInputValidationErr(
-				fmt.Sprintf("nodeCapacities.node_uuid %q is not a valid node for pool %q", nc.NodeUUID, pool.PoolExternalIdentifier))
+		if _, ok := nodeByUUID[strings.TrimSpace(nc.NodeUUID)]; !ok {
+			unknown = append(unknown, fmt.Sprintf("%q", nc.NodeUUID))
 		}
 	}
-
-	if strings.TrimSpace(pool.VLMConfig) == "" {
-		return fmt.Errorf("validateUpdatePoolNodeCapacities: pool %q (id=%d) has empty VLM config; cannot verify no-shrink invariant", pool.UUID, pool.ID)
+	if len(unknown) > 0 {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("nodeCapacities references node_uuid(s) that are not part of pool %q: %s",
+				pool.PoolExternalIdentifier, strings.Join(unknown, ", ")))
 	}
 
-	var cfg vlm.VLMConfig
-	if err := json.Unmarshal([]byte(pool.VLMConfig), &cfg); err != nil {
-		return fmt.Errorf("validateUpdatePoolNodeCapacities: parse stored VLM config for pool %q (id=%d): %w", pool.UUID, pool.ID, err)
+	if len(params.NodeCapacities) != len(nodeByUUID) {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("nodeCapacities must cover every node in pool %q: pool has %d nodes, request has %d entries",
+				pool.PoolExternalIdentifier, len(nodeByUUID), len(params.NodeCapacities)))
 	}
 
-	// Map current per-node data-disk size by node Name. Empty HostName entries are skipped —
-	// they cannot be matched back to a node row and so cannot anchor a shrink check.
-	// Node.Name is populated from vmConfig.HostName at create time (see activities.SaveNodeDetails),
-	// so request membership (keyed by Node.Name → vmCfg.HostName) lines up with stored disk totals.
-	sizeByNodeName := make(map[string]int64)
-	for _, pair := range cfg.Cloud.HAPairs {
-		for _, vmCfg := range []vlm.VMConfig{pair.VM1, pair.VM2} {
-			if vmCfg.HostName == "" {
-				continue
-			}
-			var total int64
-			for _, d := range vmCfg.DataDisks {
-				total += int64(d.Size)
-			}
-			sizeByNodeName[vmCfg.HostName] = total
-		}
+	var requestedPoolGiB int64
+	if pool.PoolAttributes != nil && pool.PoolAttributes.IsRegionalHA {
+		requestedPoolGiB = totalInputGiB / 2
+	} else {
+		requestedPoolGiB = totalInputGiB
 	}
-
-	for _, nc := range params.NodeCapacities {
-		node := nodeByUUID[strings.TrimSpace(nc.NodeUUID)]
-		if node == nil || node.Name == "" {
-			continue
-		}
-		current, ok := sizeByNodeName[node.Name]
-		if !ok {
-			continue
-		}
-		if nc.SizeInGiB < current {
-			return customerrors.NewUserInputValidationErr(
-				fmt.Sprintf("nodeCapacities.sizeInGiB cannot be reduced for node_uuid %q (name=%q): current=%d GiB, requested=%d GiB",
-					nc.NodeUUID, node.Name, current, nc.SizeInGiB))
-		}
+	currentPoolGiB := int64(pool.SizeInBytes / (1024 * 1024 * 1024))
+	if requestedPoolGiB > 0 && currentPoolGiB > requestedPoolGiB {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("nodeCapacities cannot shrink pool %q: current size=%d GiB, requested size=%d GiB",
+				pool.PoolExternalIdentifier, currentPoolGiB, requestedPoolGiB))
 	}
-
 	return nil
 }
 

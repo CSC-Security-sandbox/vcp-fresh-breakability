@@ -3,6 +3,8 @@
 package vlm
 
 import (
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -158,6 +160,7 @@ type DevFlags struct {
 	EnableIlbSupport              bool `json:"enable_ilb_support"`                // Enable ILB support
 	DisableBootDiskSnapshotPolicy bool `json:"disable_boot_disk_snapshot_policy"` // Disable boot disk snapshot policy creation and attachment (default: false/enabled)
 	DisableAzureVNetCreation      bool `json:"disable_azure_vnet_creation"`       // Skip Azure VNet/subnet/NSG creation and use existing network
+	UseSecondaryIPsForLIFs        bool `json:"use_secondary_ips_for_lifs"`         // OCI: use secondary IPs for all LIFs (movable between VMs); false = use primary IPs (existing behaviour)
 }
 
 type SnapshotConfig struct {
@@ -280,9 +283,38 @@ type ImageConfig struct {
 }
 
 type SPConfig struct {
-	Size       string `json:"size"` // Size of the storage pool in GB
-	IOps       int64  `json:"iops"` // IOPS for the storage pool
-	Throughput int64  `json:"tput"` // Throughput for the storage pool
+	Size            string           `json:"size"`                        // Size of the storage pool in GB (homogeneous, pool-level)
+	IOps            int64            `json:"iops"`                        // IOPS for the storage pool (pool-level)
+	Throughput      int64            `json:"tput"`                        // Throughput for the storage pool (pool-level)
+	IsHeterogeneous bool             `json:"is_heterogeneous"`            // When true, HAPairConfigs carry per-HA-pair config set by VCP
+	HAPairConfigs   []SPHAPairConfig `json:"sp_ha_pair_config,omitempty"` // Per-HA-pair configuration; populated via PopulateSPHAPairConfig before use
+}
+
+func (s SPConfig) SizeGiB() int64 { return ParseSizeStringGiB(s.Size) }
+
+
+func ParseSizeStringGiB(s string) int64 {
+	end := 0
+	for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+		end++
+	}
+	if end == 0 {
+		return 0
+	}
+	n, err := strconv.ParseInt(s[:end], 10, 64)
+	if err != nil {
+		return 0
+	}
+	switch strings.ToLower(s[end:]) {
+	case "", "g", "gi", "gb", "gib":
+		return n
+	default:
+		return 0
+	}
+}
+
+type SPHAPairConfig struct {
+	InstanceType string       `json:"instance_type"` // VM instance type for both nodes in this HA pai
 }
 
 type OntapCertificate struct {
@@ -526,6 +558,9 @@ type UpdateVSAClusterDeploymentRequest struct {
 	SPConfig                 SPConfig           `json:"spconfig"`                     // Storagepool specific configuration
 	OntapCredentials         OntapCredentials   `json:"ontap_credentials"`            // ONTAP credentials for the VSA cluster
 	NewInstanceType          string             `json:"new_instance_type"`            // Instance type for the storage pool
+	DataDiskVpus             *int64             `json:"data_disk_vpus,omitempty"`         // OCI only: per-data-disk VPU override (1..120, step 10); nil = leave unchanged
+	VSAFlexOcpus             *float32           `json:"vsa_flex_ocpus,omitempty"`         // OCI only: VSA flex OCPUs for update (applied to VLMConfig when set); nil = leave unchanged
+	VSAFlexMemoryInGBs       *float32           `json:"vsa_flex_memory_in_gbs,omitempty"` // OCI only: VSA flex memory in GB for update (applied to VLMConfig when set); nil = leave unchanged
 	OntapUpgrade             OntapUpgradeConfig `json:"ontap_upgrade"`                // ONTAP upgrade configuration
 	HAPairIndices            []int              `json:"ha_pair_indices"`              // Selected HA pair indices for targeted operations
 	ITCRecovery              bool               `json:"itc_recovery"`                 // Flag to indicate if this is a recovery operation (ITC)

@@ -115,6 +115,8 @@ data:
   OCI_COMPARTMENT_OCID: {{ $.Values.workerConfig.ociCompartmentOcid | quote }}
   LOCAL_CELL: {{ $.Values.workerConfig.localCell | quote }}
   OCI_VSA_SERIAL_NUMBER_ALLOCATION_ENABLED: {{ $.Values.workerConfig.ociVSASerialAllocationEnabled | quote }}
-
+  OCI_NODE_CAPACITY_MAX_TIB: {{ $.Values.workerConfig.ociNodeCapacityMaxTib | quote }}
+  OCI_THROUGHPUT_THRESHOLD_GBPS: {{ $.Values.workerConfig.ociThroughputThresholdGbps | quote }}
+  OCI_VSA_USE_SECONDARY_IPS_FOR_LIFS: {{ $.Values.workerConfig.ociVsaUseSecondaryIpsForLifs | quote }}
 ---
 {{- end }}

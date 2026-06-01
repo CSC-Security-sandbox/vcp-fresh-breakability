@@ -259,6 +259,7 @@ func initializeTemporalClient(logger log.Logger) (workflowEngine.WorkflowEngine,
 func RegisterOCICustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage, temporal client.Client) {
 	// Register OCI workflows
 	worker.RegisterWorkflow(ociworkflows.OCICreatePoolWorkflow)
+	worker.RegisterWorkflow(ociworkflows.OCIUpdatePoolWorkflow)
 	worker.RegisterWorkflow(ociworkflows.OCIDeletePoolWorkflow)
 	worker.RegisterWorkflow(ociworkflows.OCICreateSVMWorkflow)
 	worker.RegisterWorkflow(ociworkflows.OCIDeleteSVMWorkflow)

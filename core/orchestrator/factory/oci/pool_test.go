@@ -19,6 +19,7 @@ import (
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/workflowquery"
 	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"gorm.io/gorm"
 )
@@ -599,16 +600,28 @@ func TestCreatePool_WorkflowStartFails(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestUpdatePool_EmptyPoolExternalIdentifier pins the orchestrator's behavior
+// when an empty PoolExternalIdentifier slips past the endpoint layer (which
+// already rejects empty PoolOCID in oci-proxy/api/endpoints/pool_endpoints.go).
+// The orchestrator no longer carries a redundant guard of its own; instead the
+// empty identifier flows into GetPoolByName, which returns ErrRecordNotFound,
+// and the factory maps that to a typed NotFoundErr. This proves the path
+// degrades safely (no panic, no 500) rather than asserting on a duplicate
+// 400-rejection that the endpoint layer already owns.
 func TestUpdatePool_EmptyPoolExternalIdentifier(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.EXPECT().GetAccount(mock.Anything, "acc").Return(
+		&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, gorm.ErrRecordNotFound)
 	orch := &OCIOrchestrator{
-		storage:  database.NewMockStorage(t),
+		storage:  mockStorage,
 		temporal: workflowenginemock.NewMockTemporalTestClient(t),
 	}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{AccountName: "acc", PoolExternalIdentifier: ""})
 	assert.Error(t, err)
-	assert.True(t, utilserrors.IsBadRequestErr(err))
+	assert.True(t, utilserrors.IsNotFoundErr(err))
 }
 
 func TestUpdatePool_AccountNotFound(t *testing.T) {
@@ -618,8 +631,8 @@ func TestUpdatePool_AccountNotFound(t *testing.T) {
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(nil, gorm.ErrRecordNotFound)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		AccountName: "ocid1.tenancy..x",
+		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsNotFoundErr(err))
@@ -632,8 +645,8 @@ func TestUpdatePool_GetAccountGenericError(t *testing.T) {
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(nil, errors.New("db down"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		AccountName: "ocid1.tenancy..x",
+		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.Equal(t, "db down", err.Error())
@@ -648,8 +661,8 @@ func TestUpdatePool_PoolNotFound(t *testing.T) {
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, gorm.ErrRecordNotFound)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		AccountName: "ocid1.tenancy..x",
+		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsNotFoundErr(err))
@@ -666,12 +679,13 @@ func TestUpdatePool_PoolNotReady(t *testing.T) {
 	}, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		AccountName: "ocid1.tenancy..x",
+		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsConflictErr(err))
-	assert.Contains(t, err.Error(), "operation is already in progress")
+	assert.Contains(t, err.Error(), "already in progress")
+	assert.Contains(t, err.Error(), "CREATING")
 }
 
 func TestUpdatePool_UpdatingPoolDbFails(t *testing.T) {
@@ -687,12 +701,13 @@ func TestUpdatePool_UpdatingPoolDbFails(t *testing.T) {
 			State:     models.LifeCycleStateREADY,
 		},
 	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 	mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(nil, errors.New("state transition failed"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
-		TotalThroughputMibps:   256,
+		AccountName:          "ocid1.tenancy..x",
+		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
+		TotalThroughputMibps: 128,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "state transition failed")
@@ -711,6 +726,7 @@ func TestUpdatePool_WorkflowFails(t *testing.T) {
 			State:     models.LifeCycleStateREADY,
 		},
 	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, Name: "p1"}
 	mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(pool, nil)
 	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
@@ -721,9 +737,9 @@ func TestUpdatePool_WorkflowFails(t *testing.T) {
 		Return(nil, errors.New("temporal start failed"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
-		TotalThroughputMibps:   256,
+		AccountName:          "ocid1.tenancy..x",
+		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
+		TotalThroughputMibps: 128,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "temporal start failed")
@@ -742,6 +758,7 @@ func TestUpdatePool_WorkflowFailsAndRollbackFails(t *testing.T) {
 			State:     models.LifeCycleStateREADY,
 		},
 	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, Name: "p1"}
 	mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(pool, nil)
 	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("rollback db error"))
@@ -752,9 +769,9 @@ func TestUpdatePool_WorkflowFailsAndRollbackFails(t *testing.T) {
 		Return(nil, errors.New("temporal unavailable"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
-		TotalThroughputMibps:   256,
+		AccountName:          "ocid1.tenancy..x",
+		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
+		TotalThroughputMibps: 128,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "temporal unavailable")
@@ -769,30 +786,58 @@ func TestUpdatePool_GetPoolByNameGenericError(t *testing.T) {
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(nil, errors.New("query timeout"))
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		AccountName: "ocid1.tenancy..x",
+		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.Equal(t, "query timeout", err.Error())
 }
 
-func TestUpdatePool_PoolInUpdatingState(t *testing.T) {
+func TestUpdatePool_PoolInUpdatingState_Returns409(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
 	mockStorage := database.NewMockStorage(t)
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
 	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
 	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{State: models.LifeCycleStateUpdating},
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "p1",
+			State:     models.LifeCycleStateUpdating,
+		},
 	}, nil)
+
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		AccountName: "ocid1.tenancy..x",
+		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsConflictErr(err))
 	assert.Contains(t, err.Error(), "UPDATING")
+	assert.Contains(t, err.Error(), "already in progress")
+}
+
+func TestUpdatePool_PoolInDeletedState_Returns400(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{State: models.LifeCycleStateDeleted},
+	}, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
+		AccountName: "ocid1.tenancy..x",
+		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
+	})
+	assert.Error(t, err)
+	assert.True(t, utilserrors.IsBadRequestErr(err))
+	assert.False(t, utilserrors.IsConflictErr(err))
+	assert.Contains(t, err.Error(), "deleted")
+	assert.Contains(t, err.Error(), "ocid1.pool.oc1..y")
 }
 
 func TestUpdatePool_PoolInDeletingState(t *testing.T) {
@@ -806,17 +851,186 @@ func TestUpdatePool_PoolInDeletingState(t *testing.T) {
 	}, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
 	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		AccountName: "ocid1.tenancy..x",
+		PoolExternalIdentifier:    "ocid1.pool.oc1..y",
 	})
 	assert.Error(t, err)
 	assert.True(t, utilserrors.IsConflictErr(err))
 	assert.Contains(t, err.Error(), "DELETING")
 }
 
-// TestUpdatePool_PoolInErrorState confirms ERROR is now an accepted entry state for UpdatePool
-// (post-failure retry path). The pool reaches UpdatingPool and the workflow is started.
-func TestUpdatePool_PoolInErrorState(t *testing.T) {
+// TestUpdatePool_ClusterUpgradePending_Returns409 pins the cluster-upgrade guard:
+// the pool's lifecycle is READY (so validateUpdatePoolState would accept it), but a
+// cluster_upgrade_jobs row is still PENDING. UpdatePool must reject with 409 and
+// must not call UpdatingPool or start a workflow. This catches the race where a
+// long-running upgrade has been enqueued but the pool row hasn't transitioned yet.
+func TestUpdatePool_ClusterUpgradePending_Returns409(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "p1",
+			State:     models.LifeCycleStateREADY,
+		},
+	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return(
+		[]*datamodel.ClusterUpgradeJob{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "job-pending-1"},
+				ClusterID: "pool-uuid",
+				PoolID:    "pool-uuid",
+				Status:    string(models.UpgradeStatusPending),
+			},
+		}, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   128,
+	})
+	assert.Error(t, err)
+	assert.True(t, utilserrors.IsConflictErr(err), "PENDING upgrade must surface as 409")
+	assert.Contains(t, err.Error(), "cluster upgrade is in progress")
+	assert.Contains(t, err.Error(), "job-pending-1")
+	assert.Contains(t, err.Error(), string(models.UpgradeStatusPending))
+}
+
+// TestUpdatePool_ClusterUpgradeInProgress_Returns409 covers the second active-upgrade
+// status (IN_PROGRESS / "upgrading"). Same contract as the PENDING case: 409, no
+// workflow started, and the conflict message names the offending job.
+func TestUpdatePool_ClusterUpgradeInProgress_Returns409(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "p1",
+			State:     models.LifeCycleStateREADY,
+		},
+	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return(
+		[]*datamodel.ClusterUpgradeJob{
+			// A terminal-status job for the same pool must not mask the active one; the
+			// guard must scan all rows and react to any active status it finds.
+			{
+				BaseModel: datamodel.BaseModel{UUID: "job-old-completed"},
+				ClusterID: "pool-uuid",
+				PoolID:    "pool-uuid",
+				Status:    string(models.UpgradeStatusCompleted),
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "job-active-1"},
+				ClusterID: "pool-uuid",
+				PoolID:    "pool-uuid",
+				Status:    string(models.UpgradeStatusInProgress),
+			},
+		}, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   128,
+	})
+	assert.Error(t, err)
+	assert.True(t, utilserrors.IsConflictErr(err), "IN_PROGRESS upgrade must surface as 409")
+	assert.Contains(t, err.Error(), "cluster upgrade is in progress")
+	assert.Contains(t, err.Error(), "job-active-1")
+	assert.Contains(t, err.Error(), string(models.UpgradeStatusInProgress))
+}
+
+// TestUpdatePool_ClusterUpgradeTerminalStatesDoNotBlock proves the guard only fires on
+// active statuses. A pool whose only upgrade-job rows are COMPLETED/FAILED/CANCELLED
+// must be allowed through to the next validator (and ultimately the workflow). This
+// pins the contract that historical upgrade jobs do not permanently freeze a pool.
+func TestUpdatePool_ClusterUpgradeTerminalStatesDoNotBlock(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:           "p1",
+			State:          models.LifeCycleStateREADY,
+			SizeInBytes:    1024 * 1024 * 1024 * 1024,
+			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
+		},
+	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return(
+		[]*datamodel.ClusterUpgradeJob{
+			{BaseModel: datamodel.BaseModel{UUID: "j1"}, ClusterID: "pool-uuid", PoolID: "pool-uuid", Status: string(models.UpgradeStatusCompleted)},
+			{BaseModel: datamodel.BaseModel{UUID: "j2"}, ClusterID: "pool-uuid", PoolID: "pool-uuid", Status: string(models.UpgradeStatusFailed)},
+			{BaseModel: datamodel.BaseModel{UUID: "j3"}, ClusterID: "pool-uuid", PoolID: "pool-uuid", Status: string(models.UpgradeStatusCancelled)},
+		}, nil)
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:           "p1",
+		SizeInBytes:    1024 * 1024 * 1024 * 1024,
+		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
+	}
+	mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(pool, nil)
+
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   256,
+	})
+	assert.NoError(t, err, "only PENDING/IN_PROGRESS may block UpdatePool; terminal-status history must not")
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, workflowID)
+}
+
+// TestUpdatePool_ClusterUpgradeLookupDbError_PropagatesError pins fail-closed behavior
+// when the cluster_upgrade_jobs read itself fails: we must NOT silently bypass the
+// guard. The error is surfaced as a VCP/database read error (the endpoint layer maps
+// this to 5xx), so the caller retries against a healthy DB instead of running the
+// update concurrently with a possibly-active upgrade.
+func TestUpdatePool_ClusterUpgradeLookupDbError_PropagatesError(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "p1",
+			State:     models.LifeCycleStateREADY,
+		},
+	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").
+		Return(nil, errors.New("db unreachable"))
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   128,
+	})
+	assert.Error(t, err)
+	var vcpErr *vsaerrors.CustomError
+	require.True(t, errors.As(err, &vcpErr), "lookup failure must surface as a VCP error so the endpoint maps it to 5xx, not a silent bypass")
+	require.NotNil(t, vcpErr.OriginalErr, "VCP error must wrap the underlying DB failure so ops can triage the root cause")
+	assert.Contains(t, vcpErr.OriginalErr.Error(), "db unreachable", "underlying DB error must be preserved in the chain for ops triage")
+}
+
+func TestUpdatePool_AllowedFromErrorStateRetry(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
 	mockStorage := database.NewMockStorage(t)
@@ -827,85 +1041,34 @@ func TestUpdatePool_PoolInErrorState(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 			Name:           "p1",
 			State:          models.LifeCycleStateError,
+			SizeInBytes:    1024 * 1024 * 1024 * 1024,
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
 	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 	pool := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 		Name:           "p1",
+		SizeInBytes:    1024 * 1024 * 1024 * 1024,
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 	}
 	mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(pool, nil)
+
 	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
 	mockTemporal.EXPECT().
 		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
-		TotalThroughputMibps:   256,
+		AccountName:          "ocid1.tenancy..x",
+		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 256,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotEmpty(t, workflowID)
-}
-
-// TestUpdatePool_RegionalHAPoolRejected confirms multi-AD (regional HA) pools are not
-// updatable through this code path: validateUpdatePoolSingleAD short-circuits before any
-// node lookup or workflow start.
-func TestUpdatePool_RegionalHAPoolRejected(t *testing.T) {
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
-	mockStorage := database.NewMockStorage(t)
-	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
-	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
-	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-			Name:           "p1",
-			State:          models.LifeCycleStateREADY,
-			PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true},
-		},
-	}, nil)
-	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
-	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
-		TotalThroughputMibps:   256,
-	})
-	assert.Error(t, err)
-	assert.True(t, utilserrors.IsUserInputValidationErr(err))
-	assert.Contains(t, err.Error(), "single-AD")
-}
-
-// TestUpdatePool_ThroughputAboveCapRejected confirms the per-pool throughput cap kicks in
-// before any state-mutating call. Pool state is READY and not regional HA, so the cap is the
-// first failing check.
-func TestUpdatePool_ThroughputAboveCapRejected(t *testing.T) {
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
-	mockStorage := database.NewMockStorage(t)
-	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
-	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
-	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-			Name:           "p1",
-			State:          models.LifeCycleStateREADY,
-			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
-		},
-	}, nil)
-	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
-	capMibps := int64(float64(ociThroughputThresholdGBps) * 953.67431640625)
-	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
-		TotalThroughputMibps:   capMibps + 1,
-	})
-	assert.Error(t, err)
-	assert.True(t, utilserrors.IsBadRequestErr(err))
-	assert.Contains(t, err.Error(), "throughputGBps")
+	assert.Equal(t, "p1", result.Name)
 }
 
 func TestUpdatePool_HappyPathReturnsPoolAndWorkflowID(t *testing.T) {
@@ -923,6 +1086,7 @@ func TestUpdatePool_HappyPathReturnsPoolAndWorkflowID(t *testing.T) {
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
 	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 	pool := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 		Name:           "p1",
@@ -937,10 +1101,10 @@ func TestUpdatePool_HappyPathReturnsPoolAndWorkflowID(t *testing.T) {
 		Return(nil, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
-		SizeInBytes:            2 * 1024 * 1024 * 1024 * 1024,
-		TotalThroughputMibps:   256,
+		AccountName:          "ocid1.tenancy..x",
+		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 256,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -948,238 +1112,528 @@ func TestUpdatePool_HappyPathReturnsPoolAndWorkflowID(t *testing.T) {
 	assert.Equal(t, "p1", result.Name)
 }
 
-func TestValidateUpdatePoolState(t *testing.T) {
-	t.Run("READY is allowed", func(tt *testing.T) {
-		assert.NoError(tt, validateUpdatePoolState(models.LifeCycleStateREADY, "ocid1.pool..a"))
-	})
-	t.Run("ERROR is allowed (post-failure retry path)", func(tt *testing.T) {
-		assert.NoError(tt, validateUpdatePoolState(models.LifeCycleStateError, "ocid1.pool..a"))
-	})
-	t.Run("DELETED is a 400", func(tt *testing.T) {
-		err := validateUpdatePoolState(models.LifeCycleStateDeleted, "ocid1.pool..a")
-		assert.Error(tt, err)
-		assert.True(tt, utilserrors.IsBadRequestErr(err))
-	})
-	t.Run("in-progress states are 409", func(tt *testing.T) {
-		for _, s := range []string{
-			models.LifeCycleStateUpdating,
-			models.LifeCycleStateCreating,
-			models.LifeCycleStateDeleting,
-			models.LifeCycleStatePreparing,
-			models.LifeCycleStateMigrating,
-		} {
-			err := validateUpdatePoolState(s, "ocid1.pool..a")
-			assert.Error(tt, err, "state=%s", s)
-			assert.True(tt, utilserrors.IsConflictErr(err), "state=%s", s)
-		}
-	})
-	t.Run("unknown state falls back to 409", func(tt *testing.T) {
-		err := validateUpdatePoolState("SOMETHING_NEW", "ocid1.pool..a")
-		assert.Error(tt, err)
-		assert.True(tt, utilserrors.IsConflictErr(err))
-	})
-}
-
 func TestValidateUpdatePoolThroughput(t *testing.T) {
-	t.Run("rejects zero TotalThroughputMibps", func(tt *testing.T) {
+	// Cap derived from default OCI_THROUGHPUT_THRESHOLD_GBPS=5: int64(5 * 953.67431640625) = 4768 MiBps.
+	// We pick test values around that boundary.
+	t.Run("rejects zero throughput as non-zero", func(tt *testing.T) {
 		err := validateUpdatePoolThroughput(&commonparams.UpdatePoolParams{TotalThroughputMibps: 0})
 		assert.Error(tt, err)
 		assert.True(tt, utilserrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "non-zero")
 	})
-	t.Run("accepts a throughput just below the cap", func(tt *testing.T) {
-		params := &commonparams.UpdatePoolParams{TotalThroughputMibps: 100}
-		assert.NoError(tt, validateUpdatePoolThroughput(params))
+
+	t.Run("allows throughput strictly below the cap", func(tt *testing.T) {
+		err := validateUpdatePoolThroughput(&commonparams.UpdatePoolParams{TotalThroughputMibps: 1})
+		assert.NoError(tt, err)
+		err = validateUpdatePoolThroughput(&commonparams.UpdatePoolParams{TotalThroughputMibps: 4767})
+		assert.NoError(tt, err)
 	})
-	t.Run("rejects throughput at or above the cap", func(tt *testing.T) {
-		capMibps := int64(float64(ociThroughputThresholdGBps) * 953.67431640625)
-		params := &commonparams.UpdatePoolParams{TotalThroughputMibps: capMibps}
-		err := validateUpdatePoolThroughput(params)
+
+	t.Run("rejects throughput equal to the cap", func(tt *testing.T) {
+		capMibps := int64(float64(ociThroughputThresholdGBps) * workflowquery.MiBpsPerGBps)
+		err := validateUpdatePoolThroughput(&commonparams.UpdatePoolParams{TotalThroughputMibps: capMibps})
 		assert.Error(tt, err)
 		assert.True(tt, utilserrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "less than")
+		assert.Contains(tt, err.Error(), "GBps")
 	})
-}
 
-func TestValidateUpdatePoolSingleAD(t *testing.T) {
-	t.Run("nil pool is treated as single-AD", func(tt *testing.T) {
-		assert.NoError(tt, validateUpdatePoolSingleAD(nil))
-	})
-	t.Run("nil PoolAttributes is treated as single-AD", func(tt *testing.T) {
-		assert.NoError(tt, validateUpdatePoolSingleAD(&datamodel.Pool{}))
-	})
-	t.Run("single-AD pool is allowed", func(tt *testing.T) {
-		pool := &datamodel.Pool{PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}}
-		assert.NoError(tt, validateUpdatePoolSingleAD(pool))
-	})
-	t.Run("regional-HA pool is rejected", func(tt *testing.T) {
-		pool := &datamodel.Pool{PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}}
-		err := validateUpdatePoolSingleAD(pool)
+	t.Run("rejects throughput strictly above the cap", func(tt *testing.T) {
+		capMibps := int64(float64(ociThroughputThresholdGBps) * workflowquery.MiBpsPerGBps)
+		err := validateUpdatePoolThroughput(&commonparams.UpdatePoolParams{TotalThroughputMibps: capMibps + 1})
 		assert.Error(tt, err)
-		assert.True(tt, utilserrors.IsUserInputValidationErr(err))
+		assert.True(tt, utilserrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "less than")
 	})
 }
 
+// poolNodes builds the slice that GetNodesByPoolID returns for tests. The
+// trimmed validator only reads Node.UUID for membership/coverage; we don't
+// bother stamping Name or State.
+func poolNodes(uuids ...string) []*datamodel.Node {
+	out := make([]*datamodel.Node, 0, len(uuids))
+	for _, u := range uuids {
+		out = append(out, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: u}})
+	}
+	return out
+}
+
+// makeUpdatePool constructs the *datamodel.Pool fixture the validator reads.
+// SizeInBytes is the canonical persisted pool size that the shrink guard
+// compares against; PoolAttributes must be non-nil because the validator
+// dereferences it for the IsRegionalHA mirror-halving branch.
+func makeUpdatePool(id int64, ocid, poolUUID string, sizeBytes int64, isRegionalHA bool) *datamodel.Pool {
+	return &datamodel.Pool{
+		BaseModel:              datamodel.BaseModel{ID: id, UUID: poolUUID},
+		PoolExternalIdentifier: ocid,
+		SizeInBytes:            sizeBytes,
+		PoolAttributes:         &datamodel.PoolAttributes{IsRegionalHA: isRegionalHA},
+	}
+}
+
+// vcpErrorDetail returns the wrapped original error message for VCP internal errors.
+// Customer-facing CustomError.Error() hides operational detail; tests assert on OriginalErr.
+func vcpErrorDetail(err error) string {
+	if ce := vsaerrors.ExtractCustomError(err); ce != nil && ce.OriginalErr != nil {
+		return ce.OriginalErr.Error()
+	}
+	return err.Error()
+}
+
+// TestValidateUpdatePoolNodeCapacities covers the four behavioral rules of the
+// trimmed validator: per-node max-cap, pool membership via GetNodesByPoolID,
+// full-coverage (request must touch every node), and pool-level shrink guard.
+// The validator no longer consults VLM config or HA-pair topology — the DB
+// nodes table and pool.SizeInBytes are the only sources of truth.
 func TestValidateUpdatePoolNodeCapacities(t *testing.T) {
 	ctx := context.Background()
+	const (
+		poolID   = int64(99)
+		poolOCID = "ocid1.pool.oc1..nc"
+		poolUUID = "pool-uuid-nc"
+	)
 
-	t.Run("nil pool returns internal error", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, nil, &commonparams.UpdatePoolParams{
-			NodeCapacities: []commonparams.NodeCapacity{{NodeUUID: "n-1", SizeInGiB: 100}},
-		})
-		assert.Error(tt, err)
-		assert.False(tt, utilserrors.IsUserInputValidationErr(err))
-	})
-
-	t.Run("empty NodeCapacities is a no-op", func(tt *testing.T) {
+	t.Run("no nodeCapacities → no DB call, returns nil", func(tt *testing.T) {
+		// Strict mock with zero EXPECTs proves the empty-NC path short-circuits
+		// before any DB read.
 		mockStorage := database.NewMockStorage(tt)
 		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
-			&datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}},
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
 			&commonparams.UpdatePoolParams{})
 		assert.NoError(tt, err)
 	})
 
-	t.Run("oversized per-node sizeInGiB is rejected before DB lookup", func(tt *testing.T) {
+	t.Run("nil pool surfaces as internal error (caller invariant violation, not a 400)", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "p-1"}, PoolExternalIdentifier: "ocid1.pool..1"}
-		params := &commonparams.UpdatePoolParams{NodeCapacities: []commonparams.NodeCapacity{
-			{NodeUUID: "n-1", SizeInGiB: int64(ociNodeCapacityMaxTiB)*1024 + 1},
-		}}
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, pool, params)
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, nil, &commonparams.UpdatePoolParams{
+			NodeCapacities: []commonparams.NodeCapacity{{NodeUUID: "uuid-1", SizeInGiB: 100}},
+		})
+		assert.Error(tt, err)
+		assert.False(tt, utilserrors.IsUserInputValidationErr(err),
+			"nil pool is a caller-side invariant violation, not a 400 user-input error")
+		assert.Contains(tt, vcpErrorDetail(err), "pool is nil")
+	})
+
+	t.Run("rejects sizeInGiB above the configured per-node maximum (fail-fast, no DB call)", func(tt *testing.T) {
+		// Strict mock with no GetNodesByPoolID expectation: if the validator
+		// did its DB lookup before the cap check, GetNodesByPoolID would
+		// trip the mock. This therefore pins both the rejection AND the
+		// short-circuit ordering.
+		mockStorage := database.NewMockStorage(tt)
+		over := int64(ociNodeCapacityMaxTiB*1024) + 1
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: over},
+				},
+			})
 		assert.Error(tt, err)
 		assert.True(tt, utilserrors.IsUserInputValidationErr(err))
-		assert.Contains(tt, err.Error(), "exceeds the configured maximum")
-		mockStorage.AssertNotCalled(tt, "GetNodesByPoolID", mock.Anything, mock.Anything)
+		assert.Contains(tt, err.Error(), "exceeds the configured per-node maximum")
+		assert.Contains(tt, err.Error(), "uuid-1")
 	})
 
-	t.Run("undersized per-node sizeInGiB is rejected before DB lookup", func(tt *testing.T) {
-		// mockStorage has no .EXPECT() set; strict mocks fail on any unexpected call. If the
-		// validator did its DB lookup before the min-cap check, GetNodesByPoolID would trip
-		// this assertion. The test therefore proves both the rejection AND the fail-fast
-		// ordering.
+	t.Run("DB read failure surfaces as an internal database error (not a 400)", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "p-1"}, PoolExternalIdentifier: "ocid1.pool..1"}
-		under := int64(ociNodeCapacityMinTiB)*1024 - 1
-		params := &commonparams.UpdatePoolParams{NodeCapacities: []commonparams.NodeCapacity{
-			{NodeUUID: "n-1", SizeInGiB: under},
-		}}
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, pool, params)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(nil, errors.New("connection refused"))
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{{NodeUUID: "uuid-1", SizeInGiB: 100}},
+			})
+		assert.Error(tt, err)
+		assert.False(tt, utilserrors.IsUserInputValidationErr(err),
+			"DB read failure is an internal 5xx, not a user-input 400")
+		assert.Contains(tt, vcpErrorDetail(err), "list nodes for pool")
+		assert.Contains(tt, vcpErrorDetail(err), "connection refused")
+	})
+
+	t.Run("rejects request that references a node_uuid not in the pool", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 100},
+					{NodeUUID: "stranger", SizeInGiB: 100},
+				},
+			})
 		assert.Error(tt, err)
 		assert.True(tt, utilserrors.IsUserInputValidationErr(err))
-		assert.Contains(tt, err.Error(), "below the configured minimum")
-		mockStorage.AssertNotCalled(tt, "GetNodesByPoolID", mock.Anything, mock.Anything)
+		assert.Contains(tt, err.Error(), "references node_uuid(s) that are not part of pool")
+		assert.Contains(tt, err.Error(), `"stranger"`)
 	})
 
-	t.Run("unknown node_uuid is rejected", func(tt *testing.T) {
+	t.Run("collects multiple unknown node_uuids into one 400", func(tt *testing.T) {
+		// Single error covers the whole bad payload so the caller fixes
+		// everything in one round trip rather than retrying field-by-field.
 		mockStorage := database.NewMockStorage(tt)
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "p-1"}, PoolExternalIdentifier: "ocid1.pool..1"}
-		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(1)).Return([]*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{UUID: "n-known"}, Name: "host-a"},
-		}, nil)
-		params := &commonparams.UpdatePoolParams{NodeCapacities: []commonparams.NodeCapacity{
-			{NodeUUID: "n-unknown", SizeInGiB: 2048},
-		}}
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, pool, params)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 100},
+					{NodeUUID: "ghost-a", SizeInGiB: 100},
+					{NodeUUID: "ghost-b", SizeInGiB: 100},
+				},
+			})
 		assert.Error(tt, err)
 		assert.True(tt, utilserrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), `"ghost-a"`)
+		assert.Contains(tt, err.Error(), `"ghost-b"`)
 	})
 
-	t.Run("empty stored VLMConfig is an internal error", func(tt *testing.T) {
+	t.Run("rejects coverage mismatch when fewer entries than pool nodes", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "p-1"}, PoolExternalIdentifier: "ocid1.pool..1"}
-		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(1)).Return([]*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{UUID: "n-1"}, Name: "host-a"},
-		}, nil)
-		params := &commonparams.UpdatePoolParams{NodeCapacities: []commonparams.NodeCapacity{
-			{NodeUUID: "n-1", SizeInGiB: 2048},
-		}}
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, pool, params)
-		assert.Error(tt, err)
-		assert.False(tt, utilserrors.IsUserInputValidationErr(err))
-	})
-
-	t.Run("malformed VLMConfig is an internal error", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		pool := &datamodel.Pool{
-			BaseModel:              datamodel.BaseModel{ID: 1, UUID: "p-1"},
-			PoolExternalIdentifier: "ocid1.pool..1",
-			VLMConfig:              "{not json",
-		}
-		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(1)).Return([]*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{UUID: "n-1"}, Name: "host-a"},
-		}, nil)
-		params := &commonparams.UpdatePoolParams{NodeCapacities: []commonparams.NodeCapacity{
-			{NodeUUID: "n-1", SizeInGiB: 2048},
-		}}
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, pool, params)
-		assert.Error(tt, err)
-		assert.False(tt, utilserrors.IsUserInputValidationErr(err))
-	})
-
-	t.Run("shrink is rejected", func(tt *testing.T) {
-		// All sizes stay within the configured [min,max] bounds so the no-shrink path is
-		// exercised, not the bounds check. Persisted total = 1500+1500 = 3000 GiB on host-a.
-		mockStorage := database.NewMockStorage(tt)
-		cfg := `{"cloud":{"ha_pair":[{"vm1":{"host_name":"host-a","data_disks":[{"size":1500},{"size":1500}]},"vm2":{"host_name":"host-b","data_disks":[{"size":3000}]}}]}}`
-		pool := &datamodel.Pool{
-			BaseModel:              datamodel.BaseModel{ID: 1, UUID: "p-1"},
-			PoolExternalIdentifier: "ocid1.pool..1",
-			VLMConfig:              cfg,
-		}
-		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(1)).Return([]*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{UUID: "n-1"}, Name: "host-a"},
-			{BaseModel: datamodel.BaseModel{UUID: "n-2"}, Name: "host-b"},
-		}, nil)
-		params := &commonparams.UpdatePoolParams{NodeCapacities: []commonparams.NodeCapacity{
-			{NodeUUID: "n-1", SizeInGiB: 2500}, // current=3000, requested=2500 → shrink
-		}}
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, pool, params)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 100},
+				},
+			})
 		assert.Error(tt, err)
 		assert.True(tt, utilserrors.IsUserInputValidationErr(err))
-		assert.Contains(tt, err.Error(), "cannot be reduced")
+		assert.Contains(tt, err.Error(), "must cover every node in pool")
+		assert.Contains(tt, err.Error(), "pool has 2 nodes")
+		assert.Contains(tt, err.Error(), "request has 1 entries")
 	})
 
-	t.Run("accepts sizeInGiB exactly at the configured minimum (boundary inclusive)", func(tt *testing.T) {
-		// Build a pool whose persisted per-node size is well below the min cap so the
-		// no-shrink check passes. Request size is exactly ociNodeCapacityMinTiB×1024 GiB —
-		// at the floor, not below — so the new check must let it through.
-		atMin := int64(ociNodeCapacityMinTiB) * 1024
+	t.Run("rejects coverage mismatch when more entries than pool nodes", func(tt *testing.T) {
+		// All entries reference real nodes (uuid-1/uuid-2) so membership
+		// passes; the entry-count vs node-count check is the one that fires.
 		mockStorage := database.NewMockStorage(tt)
-		cfg := `{"cloud":{"ha_pair":[{"vm1":{"host_name":"host-a","data_disks":[{"size":100}]},"vm2":{"host_name":"host-b","data_disks":[{"size":100}]}}]}}`
-		pool := &datamodel.Pool{
-			BaseModel:              datamodel.BaseModel{ID: 1, UUID: "p-1"},
-			PoolExternalIdentifier: "ocid1.pool..1",
-			VLMConfig:              cfg,
-		}
-		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(1)).Return([]*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{UUID: "n-1"}, Name: "host-a"},
-			{BaseModel: datamodel.BaseModel{UUID: "n-2"}, Name: "host-b"},
-		}, nil)
-		params := &commonparams.UpdatePoolParams{NodeCapacities: []commonparams.NodeCapacity{
-			{NodeUUID: "n-1", SizeInGiB: atMin},
-		}}
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, pool, params)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 100},
+					{NodeUUID: "uuid-2", SizeInGiB: 100},
+					{NodeUUID: "uuid-1", SizeInGiB: 100},
+				},
+			})
+		assert.Error(tt, err)
+		assert.True(tt, utilserrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "must cover every node in pool")
+		assert.Contains(tt, err.Error(), "pool has 2 nodes")
+		assert.Contains(tt, err.Error(), "request has 3 entries")
+	})
+
+	t.Run("rejects pool shrink on non-HA pool: requested aggregate < current pool size", func(tt *testing.T) {
+		// Current 1000 GiB; request 2 × 400 = 800 GiB. Non-HA counts every
+		// per-node GiB toward the pool total, so 800 < 1000 is a shrink.
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		currentBytes := int64(1000) * 1024 * 1024 * 1024
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, currentBytes, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 400},
+					{NodeUUID: "uuid-2", SizeInGiB: 400},
+				},
+			})
+		assert.Error(tt, err)
+		assert.True(tt, utilserrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "cannot shrink pool")
+		assert.Contains(tt, err.Error(), "current size=1000 GiB")
+		assert.Contains(tt, err.Error(), "requested size=800 GiB")
+	})
+
+	t.Run("rejects pool shrink on regional-HA pool: half-sum < current pool size", func(tt *testing.T) {
+		// Regional HA mirrors across both zones, so only half of the
+		// per-node sum contributes to pool capacity. Current 800 GiB,
+		// per-node sum 1000, halved → requested 500 GiB < 800 → shrink.
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		currentBytes := int64(800) * 1024 * 1024 * 1024
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, currentBytes, true),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 500},
+					{NodeUUID: "uuid-2", SizeInGiB: 500},
+				},
+			})
+		assert.Error(tt, err)
+		assert.True(tt, utilserrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "cannot shrink pool")
+		assert.Contains(tt, err.Error(), "requested size=500 GiB")
+	})
+
+	t.Run("accepts grow on non-HA pool: requested aggregate > current pool size", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		currentBytes := int64(500) * 1024 * 1024 * 1024
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, currentBytes, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 600},
+					{NodeUUID: "uuid-2", SizeInGiB: 600},
+				},
+			})
 		assert.NoError(tt, err)
 	})
 
-	t.Run("equal or larger per-node sizeInGiB is accepted (HA-pair partner not required)", func(tt *testing.T) {
+	t.Run("accepts grow on regional-HA pool: half-sum > current pool size", func(tt *testing.T) {
+		// Current 500 GiB; per-node sum 2000 GiB halved → 1000 GiB > 500 → grow.
 		mockStorage := database.NewMockStorage(tt)
-		cfg := `{"cloud":{"ha_pair":[{"vm1":{"host_name":"host-a","data_disks":[{"size":2048}]},"vm2":{"host_name":"host-b","data_disks":[{"size":2048}]}}]}}`
-		pool := &datamodel.Pool{
-			BaseModel:              datamodel.BaseModel{ID: 1, UUID: "p-1"},
-			PoolExternalIdentifier: "ocid1.pool..1",
-			VLMConfig:              cfg,
-		}
-		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(1)).Return([]*datamodel.Node{
-			{BaseModel: datamodel.BaseModel{UUID: "n-1"}, Name: "host-a"},
-			{BaseModel: datamodel.BaseModel{UUID: "n-2"}, Name: "host-b"},
-		}, nil)
-		// Only one of the HA pair is in the request — accepted because pair check is skipped.
-		params := &commonparams.UpdatePoolParams{NodeCapacities: []commonparams.NodeCapacity{
-			{NodeUUID: "n-1", SizeInGiB: 3000},
-		}}
-		err := validateUpdatePoolNodeCapacities(ctx, mockStorage, pool, params)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		currentBytes := int64(500) * 1024 * 1024 * 1024
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, currentBytes, true),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 1000},
+					{NodeUUID: "uuid-2", SizeInGiB: 1000},
+				},
+			})
 		assert.NoError(tt, err)
 	})
+
+	t.Run("accepts equal-size update: requested aggregate == current pool size", func(tt *testing.T) {
+		// Shrink guard is strictly less-than; matching sizes pass so callers
+		// may resubmit the current capacity (e.g. throughput-only update).
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		currentBytes := int64(800) * 1024 * 1024 * 1024
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, currentBytes, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 400},
+					{NodeUUID: "uuid-2", SizeInGiB: 400},
+				},
+			})
+		assert.NoError(tt, err)
+	})
+
+	t.Run("zero current pool size is treated as unknown and never reads as shrink", func(tt *testing.T) {
+		// pool.SizeInBytes == 0 (legacy/uninitialized row); the guard must
+		// not falsely accuse the request of shrinking against zero.
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: "uuid-1", SizeInGiB: 100},
+					{NodeUUID: "uuid-2", SizeInGiB: 100},
+				},
+			})
+		assert.NoError(tt, err)
+	})
+
+	t.Run("tolerates leading and trailing whitespace on node_uuid", func(tt *testing.T) {
+		// The validator TrimSpace's nc.NodeUUID before the membership check
+		// so " uuid-1 " is treated as "uuid-1". Pinning this guards against
+		// a future refactor dropping the trim and starting to spuriously
+		// reject payloads with stray whitespace.
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, poolID).
+			Return(poolNodes("uuid-1", "uuid-2"), nil)
+		err := validateUpdatePoolNodeCapacities(ctx, mockStorage,
+			makeUpdatePool(poolID, poolOCID, poolUUID, 0, false),
+			&commonparams.UpdatePoolParams{
+				NodeCapacities: []commonparams.NodeCapacity{
+					{NodeUUID: " uuid-1 ", SizeInGiB: 100},
+					{NodeUUID: "uuid-2", SizeInGiB: 100},
+				},
+			})
+		assert.NoError(tt, err)
+	})
+}
+
+// TestUpdatePool_NodeCapacityCoverageMismatchRejected drives UpdatePool end-to-end
+// to prove the simplified validator's coverage rule reaches the wire: the pool has
+// two nodes but the request only mentions one, and the factory must reject the
+// request as a 400 before invoking any Temporal workflow.
+func TestUpdatePool_NodeCapacityCoverageMismatchRejected(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
+			Name:           "p1",
+			State:          models.LifeCycleStateREADY,
+			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
+		},
+	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, int64(42)).Return(
+		poolNodes("uuid-1", "uuid-2"), nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: workflowenginemock.NewMockTemporalTestClient(t)}
+	_, _, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   128,
+		NodeCapacities: []commonparams.NodeCapacity{
+			{Name: "vm-1", NodeUUID: "uuid-1", SizeInGiB: 200},
+		},
+	})
+	assert.Error(t, err)
+	assert.True(t, utilserrors.IsUserInputValidationErr(err))
+	assert.Contains(t, err.Error(), "must cover every node in pool")
+	assert.Contains(t, err.Error(), "pool has 2 nodes")
+	assert.Contains(t, err.Error(), "request has 1 entries")
+}
+
+// TestUpdatePool_NodeCapacitiesCollapseToPoolTotal pins the wire contract for the
+// nodeCapacities → SizeInBytes collapse the factory performs after validation.
+//
+// Why this matters: regional-HA mirrors data across both zones, so only half of
+// the per-node sum contributes to the pool-wide capacity. CREATE follows the same
+// convention. If UPDATE summed across NODES instead of halving on regional-HA,
+// the stored pool size would double-count the mirror and would not match what
+// CREATE produced for the same physical pool.
+//
+// This test drives UpdatePool end-to-end with two homogeneous nodeCapacities
+// entries (4096 GiB each) against a regional-HA pool and zero pool-level
+// SizeInBytes, then asserts post-call params.SizeInBytes is the halved sum
+// (4096 GiB), NOT the raw per-node sum (8192 GiB).
+func TestUpdatePool_NodeCapacitiesCollapseToPoolTotal(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
+			Name:           "p1",
+			State:          models.LifeCycleStateREADY,
+			SizeInBytes:    200 * 1024 * 1024 * 1024,
+			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128, IsRegionalHA: true},
+		},
+	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, int64(42)).Return(
+		poolNodes("uuid-1", "uuid-2"), nil)
+	mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(&datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:           "p1",
+		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 256, IsRegionalHA: true},
+	}, nil)
+
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+	params := &commonparams.UpdatePoolParams{
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   256,
+		SizeInBytes:            0,
+		NodeCapacities: []commonparams.NodeCapacity{
+			{Name: "vm-1", NodeUUID: "uuid-1", SizeInGiB: 4096},
+			{Name: "vm-2", NodeUUID: "uuid-2", SizeInGiB: 4096},
+		},
+	}
+
+	_, _, err := orch.UpdatePool(ctx, params)
+	require.NoError(t, err)
+
+	wantBytes := uint64(4096) * 1024 * 1024 * 1024
+	assert.Equal(t, wantBytes, params.SizeInBytes,
+		"collapse must halve the per-node sum on regional-HA (mirror); summing per-node sizes (8192) would double-count the mirror")
+}
+
+// TestUpdatePool_NodeCapacitiesCollapseOverwritesStaleSizeInBytes pins the API
+// invariant for the OCI UpdatePool flow: the wire deliberately omits a pool-level
+// sizeInGiB/sizeInBytes field — nodeCapacities[] is the ONLY sizing input that
+// crosses the network. params.SizeInBytes therefore arrives at the factory as zero
+// on every real call, and the per-pair-sum derivation from nodeCapacities is the
+// single source of truth.
+//
+// To keep that invariant tamper-proof against a future upstream refactor that
+// might accidentally pre-populate params.SizeInBytes (stale value, leftover from
+// create-path bridging, env-driven default, etc.), the collapse runs whenever
+// NodeCapacities is non-empty AND overwrites whatever value was there. This test
+// proves that contract: we feed a deliberately-wrong explicit SizeInBytes alongside
+// valid nodeCapacities, and assert the post-call value matches the per-pair-sum
+// derivation rather than the smuggled-in explicit value.
+func TestUpdatePool_NodeCapacitiesCollapseOverwritesStaleSizeInBytes(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
+
+	mockStorage := database.NewMockStorage(t)
+	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "ocid1.tenancy..x"}
+	mockStorage.EXPECT().GetAccount(mock.Anything, "ocid1.tenancy..x").Return(acc, nil)
+	mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 42, UUID: "pool-uuid"},
+			Name:           "p1",
+			State:          models.LifeCycleStateREADY,
+			SizeInBytes:    200 * 1024 * 1024 * 1024,
+			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128, IsRegionalHA: true},
+		},
+	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, int64(42)).Return(
+		poolNodes("uuid-1", "uuid-2"), nil)
+	mockStorage.EXPECT().UpdatingPool(mock.Anything, mock.Anything).Return(&datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:           "p1",
+		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 256, IsRegionalHA: true},
+	}, nil)
+
+	mockTemporal := workflowenginemock.NewMockTemporalTestClient(t)
+	mockTemporal.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil)
+
+	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+	// Deliberately wrong "stale" pool-total bytes that should NOT survive: simulates
+	// what would happen if a future upstream refactor accidentally smuggled a value
+	// into params.SizeInBytes (it normally arrives as zero from the OCI UpdatePool
+	// wire). 7777 GiB is intentionally not the collapsed value (8192 GiB / 2 = 4096).
+	const staleSmuggledBytes = uint64(7777) * 1024 * 1024 * 1024
+	params := &commonparams.UpdatePoolParams{
+		AccountName:            "ocid1.tenancy..x",
+		PoolExternalIdentifier: "ocid1.pool.oc1..y",
+		TotalThroughputMibps:   256,
+		SizeInBytes:            staleSmuggledBytes,
+		NodeCapacities: []commonparams.NodeCapacity{
+			{Name: "vm-1", NodeUUID: "uuid-1", SizeInGiB: 4096},
+			{Name: "vm-2", NodeUUID: "uuid-2", SizeInGiB: 4096},
+		},
+	}
+
+	_, _, err := orch.UpdatePool(ctx, params)
+	require.NoError(t, err)
+
+	const wantBytes = uint64(4096) * 1024 * 1024 * 1024
+	assert.Equal(t, wantBytes, params.SizeInBytes,
+		"collapse must OVERWRITE a smuggled SizeInBytes with the regional-HA half-sum derivation; the OCI UpdatePool wire does not carry a pool-total, so nodeCapacities is the sole source of truth")
+	assert.NotEqual(t, staleSmuggledBytes, params.SizeInBytes,
+		"smuggled SizeInBytes value must not survive the collapse")
 }
 
 func TestUpdatePool_QueriesByPoolExternalIdentifier(t *testing.T) {
@@ -1202,6 +1656,7 @@ func TestUpdatePool_QueriesByPoolExternalIdentifier(t *testing.T) {
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
 	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 	pool := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 		Name:           "target-pool",
@@ -1215,17 +1670,17 @@ func TestUpdatePool_QueriesByPoolExternalIdentifier(t *testing.T) {
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 
 	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..target",
-		SizeInBytes:            2 * 1024 * 1024 * 1024 * 1024,
-		TotalThroughputMibps:   256,
+		AccountName:          "ocid1.tenancy..x",
+		PoolExternalIdentifier:             "ocid1.pool.oc1..target",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotEmpty(t, workflowID)
 }
 
-func TestUpdatePool_HappyPathWithHAPairs(t *testing.T) {
+func TestUpdatePool_HappyPathWithThroughput(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
 	mockStorage := database.NewMockStorage(t)
@@ -1240,6 +1695,7 @@ func TestUpdatePool_HappyPathWithHAPairs(t *testing.T) {
 			PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128},
 		},
 	}, nil)
+	mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 	pool := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
 		Name:           "p1",
@@ -1252,17 +1708,16 @@ func TestUpdatePool_HappyPathWithHAPairs(t *testing.T) {
 	mockTemporal.EXPECT().
 		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything,
 			mock.MatchedBy(func(p *commonparams.UpdatePoolParams) bool {
-				return p != nil && p.HAPairs == 3
+				return p != nil && p.TotalThroughputMibps == 256
 			}),
 			mock.Anything).
 		Return(nil, nil)
 	orch := &OCIOrchestrator{storage: mockStorage, temporal: mockTemporal}
 
 	result, workflowID, err := orch.UpdatePool(ctx, &commonparams.UpdatePoolParams{
-		AccountName:            "ocid1.tenancy..x",
-		PoolExternalIdentifier: "ocid1.pool.oc1..y",
-		HAPairs:                3,
-		TotalThroughputMibps:   256,
+		AccountName:          "ocid1.tenancy..x",
+		PoolExternalIdentifier:             "ocid1.pool.oc1..y",
+		TotalThroughputMibps: 256,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

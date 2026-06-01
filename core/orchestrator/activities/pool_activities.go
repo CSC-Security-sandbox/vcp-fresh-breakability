@@ -537,7 +537,6 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 		return nil, err
 	}
 
-	// modifying only the required fields
 	pool.VLMConfig = string(marshalledVlmConfig)
 	pool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
 	pool.Description = updatePoolParams.Description
@@ -555,8 +554,7 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 		pool.AllowAutoTiering = true
 		pool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.HotTierSizeInBytes)
 		pool.AutoTieringConfig.EnableHotTierAutoResize = updatePoolParams.EnableHotTierAutoResize
-	} else {
-		// Keep HotTierSizeInBytes in sync with SizeInBytes when AutoTiering is disabled
+	} else  {
 		pool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.SizeInBytes)
 	}
 
@@ -568,6 +566,27 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 
 	activity.RecordHeartbeat(ctx, "Finished UpdatedPoolWithVLMConfig activity")
 	return updatedPool, nil
+}
+
+func (j *PoolActivity) UpdatePoolVLMConfigField(ctx context.Context, poolUUID string, vlmConfig vlm.VLMConfig) error {
+	activity.RecordHeartbeat(ctx, "Starting UpdatePoolVLMConfigField activity")
+	se := j.SE
+
+	marshalledVlmConfig, err := json.Marshal(vlmConfig)
+	if err != nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			fmt.Errorf("marshal VLM config for pool %s: %w", poolUUID, err))
+	}
+
+	activity.RecordHeartbeat(ctx, "Persisting per-batch VLM config to pool")
+	if err := se.UpdatePoolFields(ctx, poolUUID, map[string]interface{}{
+		"vlm_config": string(marshalledVlmConfig),
+	}); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	activity.RecordHeartbeat(ctx, "Finished UpdatePoolVLMConfigField activity")
+	return nil
 }
 
 func (j *PoolActivity) UpdateNodesInstanceTypeActivity(ctx context.Context, poolID int64, newInstanceType string) error {
@@ -3504,18 +3523,12 @@ func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input Ca
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("invalid parallel number of nodes for ITC: %d", parallelNumberOfNodesForITC))
 	}
 
-	// Calculate batch size based on the batching strategy:
-	// - For 1-3 HA pairs: batch size = 1
-	// - For 4+ HA pairs: batch size = floor(numHAPairs / 2)
-
-	// floor((numHAPairs * 2) / parallelNumberOfNodesForITC) for integer division
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Calculating batch size for %d HA pairs with %d parallel nodes", numHAPairs, parallelNumberOfNodesForITC))
 	batchSize := max(1, (numHAPairs*2)/parallelNumberOfNodesForITC)
 
-	// Calculate number of workflow calls needed: ceil(numHAPairs / batchSize)
+	// numWorkflowCalls = ceil(numHAPairs / batchSize)
 	numWorkflowCalls := (numHAPairs + batchSize - 1) / batchSize
 
-	// Generate batch indices for all batches
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating batch indices for %d workflow calls with batch size %d", numWorkflowCalls, batchSize))
 	batchIndices := make([][]int, 0, numWorkflowCalls)
 	for batchNum := 0; batchNum < numWorkflowCalls; batchNum++ {
@@ -3542,6 +3555,38 @@ func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input Ca
 		NumWorkflowCalls: numWorkflowCalls,
 		BatchIndices:     batchIndices,
 	}, nil
+}
+
+// RestorePoolPreUpdatePoolLevelFields reverts pool-level columns from a pre-update snapshot
+// without touching vlm_config. Used as OCI Update Pool DB compensation after per-batch
+// UpdatePoolVLMConfigField writes so the DB keeps the cluster-accurate VLM config while
+// pool-level size / throughput / tiering metadata roll back to the pre-update values.
+func (j *PoolActivity) RestorePoolPreUpdatePoolLevelFields(ctx context.Context, poolUUID string, snapshot *datamodel.Pool) error {
+	activity.RecordHeartbeat(ctx, "Starting RestorePoolPreUpdatePoolLevelFields activity")
+	if snapshot == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			fmt.Errorf("restore pool pre-update fields: snapshot is nil"))
+	}
+
+	updates := map[string]interface{}{
+		"size_in_bytes":      snapshot.SizeInBytes,
+		"description":        snapshot.Description,
+		"allow_auto_tiering": snapshot.AllowAutoTiering,
+	}
+	if snapshot.PoolAttributes != nil {
+		updates["pool_attributes"] = snapshot.PoolAttributes
+	}
+	if snapshot.AutoTieringConfig != nil {
+		updates["auto_tiering_config"] = snapshot.AutoTieringConfig
+	}
+
+	se := j.SE
+	activity.RecordHeartbeat(ctx, "Restoring pool-level fields from pre-update snapshot")
+	if err := se.UpdatePoolFields(ctx, poolUUID, updates); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	activity.RecordHeartbeat(ctx, "Finished RestorePoolPreUpdatePoolLevelFields activity")
+	return nil
 }
 
 // GetCreateJobByResourceUUID retrieves the create job for a resource by resource UUID and validates correlation ID

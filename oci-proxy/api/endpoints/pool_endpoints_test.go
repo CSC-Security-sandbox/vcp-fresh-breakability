@@ -1788,7 +1788,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, errMsgThroughputGBpsNotPositive, bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgInvalidUnitConversionInput, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when throughputGBps is negative", func(tt *testing.T) {
@@ -1805,7 +1805,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, errMsgThroughputGBpsNotPositive, bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgInvalidUnitConversionInput, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when throughputGBps is NaN", func(tt *testing.T) {
@@ -1822,7 +1822,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, errMsgThroughputGBpsNotFinite, bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgInvalidUnitConversionInput, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when throughputGBps is +Inf", func(tt *testing.T) {
@@ -1839,7 +1839,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, errMsgThroughputGBpsNotFinite, bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgInvalidUnitConversionInput, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when a nodeCapacity sizeInGiB is zero", func(tt *testing.T) {
@@ -1858,7 +1858,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacitySizeNotPositive, 1), bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgInvalidUnitConversionInput, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when a nodeCapacity sizeInGiB is negative", func(tt *testing.T) {
@@ -1876,7 +1876,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacitySizeNotPositive, 0), bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgInvalidUnitConversionInput, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when a nodeCapacity name is missing", func(tt *testing.T) {
@@ -1897,7 +1897,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNameRequired, 0), bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgMissingRequiredNodeCapacityField, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when a nodeCapacity name is blank", func(tt *testing.T) {
@@ -1919,7 +1919,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNameRequired, 0), bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgMissingRequiredNodeCapacityField, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when a nodeCapacity nodeUUID is missing", func(tt *testing.T) {
@@ -1940,7 +1940,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNodeUUIDRequired, 0), bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgMissingRequiredNodeCapacityField, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when a nodeCapacity nodeUUID is blank", func(tt *testing.T) {
@@ -1962,7 +1962,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNodeUUIDRequired, 0), bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgMissingRequiredNodeCapacityField, bad.Response.ErrorMessage)
 	})
 
 	t.Run("reports the offending nodeCapacity index when a later entry is missing nodeUUID", func(tt *testing.T) {
@@ -1988,7 +1988,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNodeUUIDRequired, 1), bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgMissingRequiredNodeCapacityField, bad.Response.ErrorMessage)
 	})
 
 	t.Run("returns 400 when nodeCapacities contains duplicate node_uuid (orchestrator not called)", func(tt *testing.T) {
@@ -2015,8 +2015,7 @@ func TestUpdatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		bad, ok := res.(*ociserver.UpdatePoolBadRequest)
 		assert.True(tt, ok)
-		assert.Equal(tt, fmt.Sprintf(errMsgNodeCapacityNodeUUIDDuplicate, 1, "uuid-dup"),
-			bad.Response.ErrorMessage)
+		assert.Equal(tt, errMsgDuplicateNodeUUID, bad.Response.ErrorMessage)
 		assert.Equal(tt, poolOCID, bad.Response.PoolOCID)
 	})
 }

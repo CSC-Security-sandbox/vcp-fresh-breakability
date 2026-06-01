@@ -6849,6 +6849,58 @@ func TestUpdatedPoolWithVLMConfig_AutoTieringWithIOPS(t *testing.T) {
 	mockSE.AssertExpectations(t)
 }
 
+func TestRestorePoolPreUpdatePoolLevelFields_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	env.RegisterActivity(activity.RestorePoolPreUpdatePoolLevelFields)
+
+	snapshot := &datamodel.Pool{
+		BaseModel:         datamodel.BaseModel{UUID: "pool-uuid-restore"},
+		SizeInBytes:       2048,
+		Description:       "before update",
+		AllowAutoTiering:  true,
+		PoolAttributes:    &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 1000},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{HotTierSizeInBytes: 512},
+	}
+
+	var capturedUpdates map[string]interface{}
+	mockSE.On("UpdatePoolFields", mock.Anything, snapshot.UUID, mock.Anything).
+		Run(func(args mock.Arguments) {
+			capturedUpdates = args.Get(2).(map[string]interface{})
+		}).
+		Return(nil)
+
+	_, err := env.ExecuteActivity(activity.RestorePoolPreUpdatePoolLevelFields, snapshot.UUID, snapshot)
+	require.NoError(t, err)
+
+	require.NotNil(t, capturedUpdates, "UpdatePoolFields must be called with the snapshot-derived map")
+	assert.Equal(t, snapshot.SizeInBytes, capturedUpdates["size_in_bytes"])
+	assert.Equal(t, snapshot.Description, capturedUpdates["description"])
+	assert.Equal(t, snapshot.AllowAutoTiering, capturedUpdates["allow_auto_tiering"])
+	assert.Equal(t, snapshot.PoolAttributes, capturedUpdates["pool_attributes"])
+	assert.Equal(t, snapshot.AutoTieringConfig, capturedUpdates["auto_tiering_config"])
+	assert.NotContains(t, capturedUpdates, "vlm_config",
+		"rollback must restore pool-level fields only and leave per-batch vlm_config writes intact")
+	assert.Len(t, capturedUpdates, 5, "unexpected extra columns in rollback update map")
+
+	mockSE.AssertExpectations(t)
+}
+
+func TestRestorePoolPreUpdatePoolLevelFields_NilSnapshot(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	activity := &activities.PoolActivity{SE: database.NewMockStorage(t)}
+	env.RegisterActivity(activity.RestorePoolPreUpdatePoolLevelFields)
+
+	_, err := env.ExecuteActivity(activity.RestorePoolPreUpdatePoolLevelFields, "pool-uuid", (*datamodel.Pool)(nil))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "snapshot is nil")
+}
+
 func TestUpdateNodesInstanceTypeActivity(t *testing.T) {
 	t.Run("Success", func(tt *testing.T) {
 		// Use Temporal test suite to provide proper activity context for heartbeat
@@ -13766,6 +13818,75 @@ func TestCalculateBatchPlan_Success_IndicesAreOneIndexed(t *testing.T) {
 		for _, idx := range batch {
 			assert.Greater(t, idx, 0, "HA pair indices should be 1-indexed")
 		}
+	}
+}
+
+// TestCalculateBatchPlan_SpecTable_4ParallelNodes pins the full N=1..12 reference table
+// used by the OCI pool-update design (with the production default
+// PARALLEL_NUMBER_OF_NODES_FOR_ITC=4). Each row is the exact (batchSize,
+// numWorkflowCalls, batchIndices) tuple expected from CalculateBatchPlanForUpdate, so
+// any future change to the batching formula that breaks this table will fail loudly
+// instead of silently shifting batch boundaries on real pool updates.
+func TestCalculateBatchPlan_SpecTable_4ParallelNodes(t *testing.T) {
+	const parallelNodes = 4
+
+	cases := []struct {
+		numHAPairs       int
+		wantBatchSize    int
+		wantWorkflowRuns int
+		wantBatchIndices [][]int
+	}{
+		{1, 1, 1, [][]int{{1}}},
+		{2, 1, 2, [][]int{{1}, {2}}},
+		{3, 1, 3, [][]int{{1}, {2}, {3}}},
+		{4, 2, 2, [][]int{{1, 2}, {3, 4}}},
+		{5, 2, 3, [][]int{{1, 2}, {3, 4}, {5}}},
+		{6, 3, 2, [][]int{{1, 2, 3}, {4, 5, 6}}},
+		{7, 3, 3, [][]int{{1, 2, 3}, {4, 5, 6}, {7}}},
+		{8, 4, 2, [][]int{{1, 2, 3, 4}, {5, 6, 7, 8}}},
+		{9, 4, 3, [][]int{{1, 2, 3, 4}, {5, 6, 7, 8}, {9}}},
+		{10, 5, 2, [][]int{{1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}}},
+		{11, 5, 3, [][]int{{1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11}}},
+		{12, 6, 2, [][]int{{1, 2, 3, 4, 5, 6}, {7, 8, 9, 10, 11, 12}}},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("N=%d", tc.numHAPairs), func(tt *testing.T) {
+			mockStorage := database.NewMockStorage(tt)
+			activity := activities.PoolActivity{SE: mockStorage}
+			testSuite := &testsuite.WorkflowTestSuite{}
+			env := testSuite.NewTestActivityEnvironment()
+			env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
+
+			encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, activities.CalculateBatchPlanActivityInput{
+				NumHAPairs:                  tc.numHAPairs,
+				ParallelNumberOfNodesForITC: parallelNodes,
+			})
+			assert.NoError(tt, err)
+
+			var result *activities.CalculateBatchPlanActivityOutput
+			err = encodedValue.Get(&result)
+			assert.NoError(tt, err)
+			assert.NotNil(tt, result)
+
+			assert.Equal(tt, tc.numHAPairs, result.NumHAPairs, "NumHAPairs echoed back unchanged")
+			assert.Equal(tt, tc.wantBatchSize, result.BatchSize, "batch size = max(1, (N*2)/P)")
+			assert.Equal(tt, tc.wantWorkflowRuns, result.NumWorkflowCalls, "num workflow calls = ceil(N/batchSize)")
+			assert.Equal(tt, tc.wantBatchIndices, result.BatchIndices, "1-based partition of [1..N] in batches of size %d", tc.wantBatchSize)
+
+			// Cross-check the partition: every pair index from 1..N appears in exactly one batch,
+			// in increasing order, with no gaps or duplicates.
+			var flattened []int
+			for _, b := range result.BatchIndices {
+				flattened = append(flattened, b...)
+			}
+			expected := make([]int, tc.numHAPairs)
+			for i := range expected {
+				expected[i] = i + 1
+			}
+			assert.Equal(tt, expected, flattened, "all HA pair indices 1..%d must appear exactly once in order", tc.numHAPairs)
+		})
 	}
 }
 

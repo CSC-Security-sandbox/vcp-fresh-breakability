@@ -84,3 +84,28 @@ func TestWorkflowDurationSeconds_HasCorrectLabels(t *testing.T) {
 	count := testutil.CollectAndCount(workflowDurationSeconds)
 	assert.GreaterOrEqual(t, count, 1)
 }
+
+func TestWorkflowStageTotal_UpdatePoolIncrements(t *testing.T) {
+	before := testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfUpdatePool, queueCustomer, stageVLMUpdate, resultSuccess))
+	workflowStageTotal.WithLabelValues(wfUpdatePool, queueCustomer, stageVLMUpdate, resultSuccess).Inc()
+	assert.Equal(t, before+1, testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfUpdatePool, queueCustomer, stageVLMUpdate, resultSuccess)))
+}
+
+func TestWorkflowStageTotal_UpdatePoolDBPersistLabels(t *testing.T) {
+	assert.NotPanics(t, func() {
+		workflowStageTotal.WithLabelValues(wfUpdatePool, queueCustomer, stageDBPersistPerBatch, resultFailure).Inc()
+		workflowStageTotal.WithLabelValues(wfUpdatePool, queueCustomer, stageDBPersistFinal, resultSuccess).Inc()
+	})
+	perBatchVal := testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfUpdatePool, queueCustomer, stageDBPersistPerBatch, resultFailure))
+	finalVal := testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfUpdatePool, queueCustomer, stageDBPersistFinal, resultSuccess))
+	assert.GreaterOrEqual(t, perBatchVal, float64(1))
+	assert.GreaterOrEqual(t, finalVal, float64(1))
+}
+
+func TestWorkflowDurationSeconds_UpdatePoolObserves(t *testing.T) {
+	assert.NotPanics(t, func() {
+		workflowDurationSeconds.WithLabelValues(wfUpdatePool, "us-ashburn-1", queueCustomer).Observe(180)
+	})
+	count := testutil.CollectAndCount(workflowDurationSeconds)
+	assert.GreaterOrEqual(t, count, 1)
+}

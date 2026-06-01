@@ -338,7 +338,31 @@ func (s *OCICreatePoolWorkflowMetadata) SetFake() {
 	}
 	{
 		{
+			s.SpPolicy.SetFake()
+		}
+	}
+	{
+		{
 			s.Credentials.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *OCICreatePoolWorkflowSPPolicy) SetFake() {
+	{
+		{
+			s.SizeInGiB.SetFake()
+		}
+	}
+	{
+		{
+			s.Iops.SetFake()
+		}
+	}
+	{
+		{
+			s.ThroughputGBps.SetFake()
 		}
 	}
 }
@@ -471,6 +495,15 @@ func (s *OptInt64) SetFake() {
 // SetFake set fake values.
 func (s *OptOCICreatePoolWorkflowMetadata) SetFake() {
 	var elem OCICreatePoolWorkflowMetadata
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptOCICreatePoolWorkflowSPPolicy) SetFake() {
+	var elem OCICreatePoolWorkflowSPPolicy
 	{
 		elem.SetFake()
 	}
@@ -741,11 +774,6 @@ func (s *UpdatePoolRequest) SetFake() {
 	{
 		{
 			s.ThroughputGBps.SetFake()
-		}
-	}
-	{
-		{
-			s.SizeInGiB.SetFake()
 		}
 	}
 	{

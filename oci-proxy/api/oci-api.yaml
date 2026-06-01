@@ -921,11 +921,6 @@ components:
           minimum: 0
           exclusiveMinimum: true
           description: Total target throughput for the pool in GBps. Must be > 0.
-        sizeInGiB:
-          type: integer
-          format: int64
-          minimum: 1
-          description: Total pool capacity in GiB. Must be >= 1. Typically a multiple of 1 TiB.
         dataEndpointCount:
           type: integer
           format: int64
@@ -938,7 +933,13 @@ components:
           type: array
           description: |
             Per-endpoint capacity configuration. Mutually exclusive with dataEndpointCount.
-            When provided, throughputGBps is applied to each endpoint and sizeInGiB is derived.
+            Each entry's `sizeInGiB` is the per-node capacity. The two nodes in an HA pair
+            must request the same `sizeInGiB` (intra-pair homogeneity is enforced — both
+            nodes share a single mirrored aggregate); different pairs may carry different
+            sizes (inter-pair heterogeneity is supported). The post-update pool capacity
+            equals the SUM of per-HA-pair sizes (one aggregate per pair, mirrored across
+            the pair's two VMs) — NOT the sum of per-node sizes, which would double-count
+            the mirror. There is no pool-level `sizeInGiB` on this request.
           items:
             $ref: '#/components/schemas/NodeCapacity'
         ociAdminPassword:
@@ -1502,8 +1503,44 @@ components:
           description: VM metadata for OCI pool nodes.
           items:
             $ref: '#/components/schemas/OCICreatePoolWorkflowVM'
+        spPolicy:
+          $ref: '#/components/schemas/OCICreatePoolWorkflowSPPolicy'
+          description: |
+            Pool-level Storage Pool (SP) policy values sourced from the VLM
+            config's `spconfig` block. Distinct from per-VM `vms[*]` aggregates:
+            these track SP-policy updates (capacity / IOPS / throughput) and
+            reflect the latest applied policy, while per-VM fields describe the
+            underlying physical data-disk hardware specs stamped at pool create
+            time. Omitted when the pool has no `spconfig` values populated.
         credentials:
           $ref: '#/components/schemas/OCICreatePoolWorkflowCredentials'
+
+    OCICreatePoolWorkflowSPPolicy:
+      type: object
+      description: |
+        Pool-level SP-policy (QoS / capacity) values applied to the pool, as
+        reported by VLM `spconfig`. Updated by SP-policy update workflows;
+        independent of per-VM `data_disks` hardware metadata.
+      properties:
+        sizeInGiB:
+          type: integer
+          format: int64
+          description: |
+            Pool-level capacity in GiB, parsed from `spconfig.size` (e.g.
+            `"400Gi"` -> 400). Bare digit strings are interpreted as GiB.
+        iops:
+          type: integer
+          format: int64
+          description: |
+            Pool-level IOPS from `spconfig.iops`. Always pool-level (also in
+            heterogeneous mode where only per-node size diverges).
+        throughputGBps:
+          type: number
+          format: double
+          description: |
+            Pool-level throughput in GBps, converted from the VLM
+            `spconfig.tput` value which is reported in MiBps
+            (`MiBps / 953.67431640625`).
 
     OCICreatePoolWorkflowCredentials:
       type: object

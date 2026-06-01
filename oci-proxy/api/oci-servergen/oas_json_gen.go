@@ -1837,16 +1837,23 @@ func (s *OCICreatePoolWorkflowMetadata) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		if s.SpPolicy.Set {
+			e.FieldStart("spPolicy")
+			s.SpPolicy.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("credentials")
 		s.Credentials.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfOCICreatePoolWorkflowMetadata = [4]string{
+var jsonFieldsNameOfOCICreatePoolWorkflowMetadata = [5]string{
 	0: "poolOCID",
 	1: "clusterIP",
 	2: "vms",
-	3: "credentials",
+	3: "spPolicy",
+	4: "credentials",
 }
 
 // Decode decodes OCICreatePoolWorkflowMetadata from json.
@@ -1898,8 +1905,18 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"vms\"")
 			}
+		case "spPolicy":
+			if err := func() error {
+				s.SpPolicy.Reset()
+				if err := s.SpPolicy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"spPolicy\"")
+			}
 		case "credentials":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Credentials.Decode(d); err != nil {
 					return err
@@ -1918,7 +1935,7 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001101,
+		0b00010101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1960,6 +1977,103 @@ func (s *OCICreatePoolWorkflowMetadata) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OCICreatePoolWorkflowMetadata) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *OCICreatePoolWorkflowSPPolicy) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *OCICreatePoolWorkflowSPPolicy) encodeFields(e *jx.Encoder) {
+	{
+		if s.SizeInGiB.Set {
+			e.FieldStart("sizeInGiB")
+			s.SizeInGiB.Encode(e)
+		}
+	}
+	{
+		if s.Iops.Set {
+			e.FieldStart("iops")
+			s.Iops.Encode(e)
+		}
+	}
+	{
+		if s.ThroughputGBps.Set {
+			e.FieldStart("throughputGBps")
+			s.ThroughputGBps.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfOCICreatePoolWorkflowSPPolicy = [3]string{
+	0: "sizeInGiB",
+	1: "iops",
+	2: "throughputGBps",
+}
+
+// Decode decodes OCICreatePoolWorkflowSPPolicy from json.
+func (s *OCICreatePoolWorkflowSPPolicy) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode OCICreatePoolWorkflowSPPolicy to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "sizeInGiB":
+			if err := func() error {
+				s.SizeInGiB.Reset()
+				if err := s.SizeInGiB.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sizeInGiB\"")
+			}
+		case "iops":
+			if err := func() error {
+				s.Iops.Reset()
+				if err := s.Iops.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"iops\"")
+			}
+		case "throughputGBps":
+			if err := func() error {
+				s.ThroughputGBps.Reset()
+				if err := s.ThroughputGBps.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"throughputGBps\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode OCICreatePoolWorkflowSPPolicy")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *OCICreatePoolWorkflowSPPolicy) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OCICreatePoolWorkflowSPPolicy) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -2585,6 +2699,39 @@ func (s OptOCICreatePoolWorkflowMetadata) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptOCICreatePoolWorkflowMetadata) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes OCICreatePoolWorkflowSPPolicy as json.
+func (o OptOCICreatePoolWorkflowSPPolicy) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes OCICreatePoolWorkflowSPPolicy from json.
+func (o *OptOCICreatePoolWorkflowSPPolicy) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptOCICreatePoolWorkflowSPPolicy to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptOCICreatePoolWorkflowSPPolicy) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptOCICreatePoolWorkflowSPPolicy) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -4033,12 +4180,6 @@ func (s *UpdatePoolRequest) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.SizeInGiB.Set {
-			e.FieldStart("sizeInGiB")
-			s.SizeInGiB.Encode(e)
-		}
-	}
-	{
 		if s.DataEndpointCount.Set {
 			e.FieldStart("dataEndpointCount")
 			s.DataEndpointCount.Encode(e)
@@ -4084,15 +4225,14 @@ func (s *UpdatePoolRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfUpdatePoolRequest = [8]string{
+var jsonFieldsNameOfUpdatePoolRequest = [7]string{
 	0: "throughputGBps",
-	1: "sizeInGiB",
-	2: "dataEndpointCount",
-	3: "nodeCapacities",
-	4: "ociAdminPassword",
-	5: "kmsKeyId",
-	6: "nsgIds",
-	7: "securityAttributes",
+	1: "dataEndpointCount",
+	2: "nodeCapacities",
+	3: "ociAdminPassword",
+	4: "kmsKeyId",
+	5: "nsgIds",
+	6: "securityAttributes",
 }
 
 // Decode decodes UpdatePoolRequest from json.
@@ -4112,16 +4252,6 @@ func (s *UpdatePoolRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"throughputGBps\"")
-			}
-		case "sizeInGiB":
-			if err := func() error {
-				s.SizeInGiB.Reset()
-				if err := s.SizeInGiB.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"sizeInGiB\"")
 			}
 		case "dataEndpointCount":
 			if err := func() error {

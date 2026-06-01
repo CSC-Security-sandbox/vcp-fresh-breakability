@@ -13,6 +13,7 @@ const (
 	// Workflow names.
 	wfCreatePool = "oci_create_pool"
 	wfDeletePool = "oci_delete_pool"
+	wfUpdatePool = "oci_update_pool"
 
 	// Stage names.
 	stageVLMDeploy       = "vlm_deploy"
@@ -20,6 +21,9 @@ const (
 	stageMarkReady       = "mark_ready"
 	stageVLMDelete       = "vlm_delete"
 	stageDBCleanup       = "db_cleanup"
+	stageVLMUpdate           = "vlm_update"
+	stageDBPersistPerBatch   = "db_persist_per_batch"
+	stageDBPersistFinal      = "db_persist_final"
 
 	// Result values.
 	resultSuccess = "success"

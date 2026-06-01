@@ -54,6 +54,11 @@ const (
 	errMsgEmptyTenancyOcid                = "tenancyOcid must not be empty"
 	errMsgEmptyPrimaryAD                  = "primaryAvailabilityDomain must not be empty"
 	errMsgEmptySerialNumberPrefix         = "serialNumberPrefix must not be empty"
+	errMsgInvalidUnitConversionInput      = "invalid unit-conversion input on UpdatePool"
+	errMsgMissingRequiredNodeCapacityField = "missing required nodeCapacity field on UpdatePool"
+	errMsgDuplicateNodeUUID 			  ="duplicate node_uuid in nodeCapacities on UpdatePool"
+
+
 	errMsgEmptyTieringSecretID            = "tieringConfig.secretId must not be empty"
 	errMsgInvalidTieringSecretID          = "tieringConfig.secretId must be a valid OCID"
 	errMsgEmptyTieringNamespace           = "tieringConfig.namespace must not be empty"
@@ -760,38 +765,23 @@ func validateUpdatePoolNodeCapacityRequiredFields(req *ociserver.UpdatePoolReque
 	return ""
 }
 
-// validateUpdatePoolRequest runs the request-level UpdatePool validators in order and returns
-// the first violation it finds. errMsg is the message to surface to the caller in the bad-request
-// response body; logMsg is a short server-side log line describing which validator tripped.
-// Both are empty when the request is valid. Centralizing these checks keeps the UpdatePool
-// handler free of repeated "log + return newUpdatePoolBadRequest(...)" branches.
-func validateUpdatePoolRequest(req *ociserver.UpdatePoolRequest, hasNodeCapacities, hasDataEndpointCount bool) (errMsg, logMsg string) {
+func validateUpdatePoolRequest(req *ociserver.UpdatePoolRequest, hasNodeCapacities, hasDataEndpointCount bool) (errMsg string) {
 	switch {
 	case hasNodeCapacities && hasDataEndpointCount:
-		return errMsgBothNodeCapacitiesAndDEC, "both nodeCapacities and dataEndpointCount provided on UpdatePool"
+		return errMsgBothNodeCapacitiesAndDEC
 	case !hasNodeCapacities && !hasDataEndpointCount:
-		return errMsgNeitherNodeCapacitiesNorDEC, "neither nodeCapacities nor dataEndpointCount provided on UpdatePool"
+		return errMsgNeitherNodeCapacitiesNorDEC
+	case validateUpdatePoolUnitConversionInputs(req) != "":
+		return errMsgInvalidUnitConversionInput
+	case validateUpdatePoolNodeCapacityRequiredFields(req) != "":
+		return errMsgMissingRequiredNodeCapacityField
+	case validateUpdatePoolNodeCapacityUniqueness(req) != "":
+		return errMsgDuplicateNodeUUID
+	default:
+		return ""
 	}
-	if msg := validateUpdatePoolUnitConversionInputs(req); msg != "" {
-		return msg, "invalid unit-conversion input on UpdatePool"
-	}
-	if msg := validateUpdatePoolNodeCapacityRequiredFields(req); msg != "" {
-		return msg, "missing required nodeCapacity field on UpdatePool"
-	}
-	if msg := validateUpdatePoolNodeCapacityUniqueness(req); msg != "" {
-		return msg, "duplicate node_uuid in nodeCapacities on UpdatePool"
-	}
-	return "", ""
 }
 
-// validateUpdatePoolNodeCapacityUniqueness rejects requests in which the same node_uuid appears
-// more than once in nodeCapacities. The caller's intent for a duplicate UUID is ambiguous
-// (two different sizes for the same node would silently override one another), so the safe
-// behavior is to reject the whole payload. Assumes node_uuid presence has already been verified
-// by validateUpdatePoolNodeCapacityRequiredFields; entries without a UUID are skipped here so
-// the missing-field error from the prior validator wins.
-// Returns an empty string when all UUIDs are unique, or an error message naming the first
-// duplicate index.
 func validateUpdatePoolNodeCapacityUniqueness(req *ociserver.UpdatePoolRequest) string {
 	if len(req.NodeCapacities) < 2 {
 		return ""
@@ -817,6 +807,10 @@ func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolReque
 	logger := util.GetLogger(ctx)
 	poolExternalIdentifier := params.PoolOCID
 
+	if poolExternalIdentifier == "" {
+		return newUpdatePoolBadRequest(uuid.NewString(), poolExternalIdentifier, errMsgEmptyPoolOCID), nil
+	}
+
 	opcRequestID, err := opcRequestIDFromContext(ctx)
 	if err != nil {
 		logger.Error("missing opc-request-id in context", "error", err)
@@ -826,8 +820,8 @@ func (h *Handler) UpdatePool(ctx context.Context, req *ociserver.UpdatePoolReque
 	hasNodeCapacities := len(req.NodeCapacities) > 0
 	hasDataEndpointCount := req.DataEndpointCount.Set
 
-	if errMsg, logMsg := validateUpdatePoolRequest(req, hasNodeCapacities, hasDataEndpointCount); errMsg != "" {
-		logger.Error(logMsg, "error", errMsg)
+	if errMsg := validateUpdatePoolRequest(req, hasNodeCapacities, hasDataEndpointCount); errMsg != "" {
+		logger.Error("error", errMsg)
 		return newUpdatePoolBadRequest(opcRequestID, poolExternalIdentifier, errMsg), nil
 	}
 

@@ -50,14 +50,16 @@ var (
 	dataDiskCount                 = env.GetIntNotNegative("OCI_VSA_DATA_DISK_COUNT", 2)
 	extIPForNodeMgmt              = env.GetBool("OCI_VSA_EXT_IP_FOR_NODE_MGMT", false)
 	allowNonDenseShapeForVSA      = env.GetBool("OCI_VSA_ALLOW_NON_DENSE_SHAPE_FOR_VSA", true)
+	useSecondaryIPsForLIFs        = env.GetBool("OCI_VSA_USE_SECONDARY_IPS_FOR_LIFS", false)
 	disableVsaCleanupOnVLMFailure = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
 	ociExpertModeRbacURL          = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_URL", "")
 	ociExpertModeRbacHash         = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_CHECKSUM", "")
 	ociExpertModeUsername         = env.GetString("OCI_EXPERT_MODE_USERNAME", "ociadmin")
 	ociExpertModePassword         = env.GetString("OCI_EXPERT_MODE_PASSWORD", "")
-	ociCellNumber                 = env.GetString("LOCAL_CELL", "00")
-	ociVSASerialAllocationEnabled = env.GetBool("OCI_VSA_SERIAL_NUMBER_ALLOCATION_ENABLED", false)
-	ociVMRSEnabled                = env.GetBool("OCI_VMRS_ENABLED", false)
+	parallelNumberOfNodesForITCOCI = env.GetIntNotNegative("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4)
+	ociCellNumber                  = env.GetString("LOCAL_CELL", "00")
+	ociVSASerialAllocationEnabled  = env.GetBool("OCI_VSA_SERIAL_NUMBER_ALLOCATION_ENABLED", false)
+	ociVMRSEnabled                 = env.GetBool("OCI_VMRS_ENABLED", false)
 )
 
 func buildOCISerialPrefix(regionCode, cellCode string) (string, error) {
@@ -410,7 +412,6 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 
 	// Save VSA node details to database.
-	// This persists the node information (VM1, VM2, mediator) from the VLM config response.
 	hostMap := make(map[string]string) // Empty hostMap for OCI (DNS handled differently than GCP)
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SaveVSANodeDetails, pool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, &hostMap).Get(dbHbCtx, nil)
 	if err != nil {
@@ -555,6 +556,7 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 		DevFlags: vlm.DevFlags{
 			ExtIPForNodeMgmt:         extIPForNodeMgmt,
 			AllowNonDenseShapeForVsa: allowNonDenseShapeForVSA,
+			UseSecondaryIPsForLIFs:   useSecondaryIPsForLIFs,
 		},
 		DeploymentConfigFlags: vlm.DeploymentConfigFlags{
 			EnableAAConfig: enableAAConfig,
@@ -627,6 +629,7 @@ func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool, dec
 		ociConfig.VSAFlexOcpus = float32(decision.OCPUs)
 		ociConfig.VSAFlexMemoryInGBs = float32(decision.MemoryGBs)
 		ociConfig.DataDiskVpus = int64(decision.VPU)
+		iops = decision.IOPS
 	}
 
 	deployment := ociDeploymentConfig(params, pool, sizeStr, throughputMibps, iops, ociConfig)
@@ -673,19 +676,94 @@ func computeOCIVMRSInput(params *common.CreatePoolParams) (perVMCapacityTB, perV
 	if err := validateOCIVMRSInput(params); err != nil {
 		return 0, 0, err
 	}
-
-	activeVMsPerPair := 2 // Active-Active: both VMs serve
-	if params.IsRegionalHA {
-		activeVMsPerPair = 1 // Active-Passive: only primary serves
-	}
-	totalActiveVMs := int(params.HAPairs) * activeVMsPerPair
-
-	totalCapacityTB := float64(params.SizeInBytes) / 1e12
-	totalThroughputGBs := float64(params.CustomPerformanceParams.ThroughputMibps) * 1.048576 / 1000.0
-
-	perVMThroughputGBs = totalThroughputGBs / float64(totalActiveVMs)
-	perVMCapacityTB = totalCapacityTB / float64(totalActiveVMs)
+	perVMCapacityTB, perVMThroughputGBs = computeOCIPerVMRSInput(
+		params.SizeInBytes,
+		params.CustomPerformanceParams.ThroughputMibps,
+		int(params.HAPairs),
+		!params.IsRegionalHA,
+	)
 	return perVMCapacityTB, perVMThroughputGBs, nil
+}
+
+func computeOCIVMRSInputForUpdate(
+	params *common.UpdatePoolParams,
+	pool *datamodel.Pool,
+	currentVlmConfig vlm.VLMConfig,
+) (perVMCapacityTB, perVMThroughputGBs float64, err error) {
+	sizeInBytes := params.SizeInBytes
+	if sizeInBytes == 0 {
+		sizeInBytes = uint64(pool.SizeInBytes)
+	}
+	throughputMibps := params.TotalThroughputMibps
+	if throughputMibps == 0 && pool.PoolAttributes != nil {
+		throughputMibps = pool.PoolAttributes.ThroughputMibps
+	}
+	numHAPairs := len(currentVlmConfig.Cloud.HAPairs)
+
+	if err := validateOCIVMRSInputForUpdate(numHAPairs, sizeInBytes, throughputMibps); err != nil {
+		return 0, 0, err
+	}
+	if pool.PoolAttributes == nil {
+		return 0, 0, utilserrors.NewUserInputValidationErr(
+			"pool.PoolAttributes is required to determine HA mode for OCI VMRS",
+		)
+	}
+	perVMCapacityTB, perVMThroughputGBs = computeOCIPerVMRSInput(
+		sizeInBytes,
+		throughputMibps,
+		numHAPairs,
+		!pool.PoolAttributes.IsRegionalHA,
+	)
+	return perVMCapacityTB, perVMThroughputGBs, nil
+}
+
+
+func computeOCIPerVMRSInput(
+	sizeInBytes uint64,
+	throughputMibps int64,
+	haPairs int,
+	isActiveActive bool,
+) (perVMCapacityTB, perVMThroughputGBs float64) {
+	activeVMsPerPair := 1
+	if isActiveActive {
+		activeVMsPerPair = 2
+	}
+	totalActiveVMs := haPairs * activeVMsPerPair
+
+	totalCapacityTB := float64(sizeInBytes) / 1e12
+	totalThroughputGBs := float64(throughputMibps) * 1.048576 / 1000.0
+
+	perVMCapacityTB = totalCapacityTB / float64(totalActiveVMs)
+	perVMThroughputGBs = totalThroughputGBs / float64(totalActiveVMs)
+	return perVMCapacityTB, perVMThroughputGBs
+}
+
+// validateOCIVMRSInputForUpdate is the update-side counterpart to
+// validateOCIVMRSInput. Same UserInputValidationErr surface (non-retryable,
+// 4xx-mapped) so a missing topology field fails the workflow fast instead
+// of retrying against a deterministic shape error.
+func validateOCIVMRSInputForUpdate(numHAPairs int, sizeInBytes uint64, throughputMibps int64) error {
+	if numHAPairs <= 0 {
+		return utilserrors.NewUserInputValidationErr(
+			"stored VLM config has 0 HA pairs; OCI VMRS requires at least one HA pair",
+		)
+	}
+	if dataDiskCount <= 0 {
+		return utilserrors.NewUserInputValidationErr(
+			"OCI_VSA_DATA_DISK_COUNT must be > 0 for OCI VMRS",
+		)
+	}
+	if sizeInBytes == 0 {
+		return utilserrors.NewUserInputValidationErr(
+			"size is required for OCI VMRS; neither UpdatePoolParams.SizeInBytes nor pool.SizeInBytes is set",
+		)
+	}
+	if throughputMibps <= 0 {
+		return utilserrors.NewUserInputValidationErr(
+			"throughput is required for OCI VMRS; neither UpdatePoolParams.TotalThroughputMibps nor pool.PoolAttributes.ThroughputMibps is set",
+		)
+	}
+	return nil
 }
 
 // validateOCIVMRSInput verifies that the pool params and worker
@@ -901,8 +979,639 @@ func (wf *ociDeletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	return nil, nil
 }
 
+type ociUpdatePoolWorkflow struct {
+	workflows.BaseWorkflow
+	SE *database.Storage
+}
+
+var _ workflows.WorkflowInterface = &ociUpdatePoolWorkflow{}
+
 // OCIUpdatePoolWorkflow processes pool update requests for OCI.
-// TODO(VSCP-5929): Full implementation in the workflow-layer PR.
 func OCIUpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, pool *datamodel.Pool) error {
-	return fmt.Errorf("OCIUpdatePoolWorkflow not yet implemented")
+	start := workflow.Now(ctx)
+	updatePoolWF := new(ociUpdatePoolWorkflow)
+	logger := util.GetLogger(ctx)
+	err := updatePoolWF.Setup(ctx, params)
+	if err != nil {
+		emitDuration(ctx, wfUpdatePool, queueCustomer, start)
+		return err
+	}
+
+	updatePoolWF.Status = workflows.WorkflowStatusRunning
+	_, errRun := updatePoolWF.Run(ctx, params, pool)
+	if errRun != nil {
+		logger.Error("ociUpdatePoolWorkflow failed", "error", errRun)
+		updatePoolWF.Status = workflows.WorkflowStatusFailed
+		emitDuration(ctx, wfUpdatePool, queueCustomer, start)
+		return errRun
+	}
+	updatePoolWF.Status = workflows.WorkflowStatusCompleted
+	emitDuration(ctx, wfUpdatePool, queueCustomer, start)
+	return nil
+}
+
+func (wf *ociUpdatePoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	updatePoolParams, ok := input.(*common.UpdatePoolParams)
+	if !ok {
+		return fmt.Errorf("invalid input type: expected *UpdatePoolParams, got %T", input)
+	}
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = updatePoolParams.AccountName
+	wf.Status = workflows.WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*workflows.WorkflowStatus, error) {
+		return &workflows.WorkflowStatus{
+			ID:         wf.ID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
+		}, nil
+	})
+}
+
+func (wf *ociUpdatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+	params, pool, argErr := extractOCIUpdatePoolArgs(args)
+	if argErr != nil {
+		return nil, workflows.ConvertToVSAError(argErr)
+	}
+
+	logger := util.GetLogger(ctx)
+	logger.Info("OCI Update Pool Workflow Run method called",
+		"pool", pool.Name,
+		"poolUUID", pool.UUID,
+		"deploymentName", pool.DeploymentName,
+		"account", params.AccountName,
+		"requestedSizeBytes", params.SizeInBytes,
+		"requestedThroughputMibps", params.TotalThroughputMibps,
+		"nodeCapacitiesCount", len(params.NodeCapacities),
+	)
+
+	ao, err := buildOCIUpdatePoolActivityOptions()
+	if err != nil {
+		logger.Error("Failed to populate retry policy params", "error", err)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	poolActivity := &activities.PoolActivity{}
+	rollbackManager := common.NewRollbackManager()
+	rollbackManager.AddActivity(poolActivity.ErroredPool, pool)
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackCtx := workflow.WithActivityOptions(disconnectedCtx, ao)
+			rollbackManager.ExecuteRollback(rollbackCtx, err)
+		}
+	}()
+
+	dbHbCtx := workflow.WithActivityOptions(ctx, ao)
+	dbHbCtx = workflow.WithHeartbeatTimeout(dbHbCtx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
+
+	preUpdateSnapshot, err := utils.DeepCopyPool(pool)
+	if err != nil {
+		logger.Error("Failed to snapshot pool for rollback compensation", "error", err)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	logger.Info("Snapshotted pre-update pool state for rollback compensation",
+		"pool", pool.Name,
+		"poolUUID", pool.UUID,
+	)
+
+	currentVlmConfig, err := parseStoredVLMConfig(dbHbCtx, poolActivity, pool)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	numHAPairs := len(currentVlmConfig.Cloud.HAPairs)
+
+	ociDecision, err := runOCIVMRSForUpdate(ctx, poolActivity, params, pool, currentVlmConfig)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	targetSPConfig, err := deriveUpdateTargetSPConfig(params, pool, currentVlmConfig)
+	if err != nil {
+		logger.Error("Failed to derive target SPConfig for OCI pool update", "error", err)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	logger.Info("Derived target SPConfig for OCI pool update",
+		"pool", pool.Name,
+		"targetSize", targetSPConfig.Size,
+		"targetThroughput", targetSPConfig.Throughput,
+		"targetIOps", targetSPConfig.IOps,
+		"targetNumHAPairs", numHAPairs,
+	)
+
+	if err = validateStoredVLMConfigForUpdate(pool, currentVlmConfig); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	credConfig, err := buildOCIOntapCredentials(pool)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	logger.Info("OCI pool update: updating all HA pairs with pool-level SPConfig",
+		"pool", pool.Name,
+		"totalPairsInCluster", numHAPairs,
+		"nodeCapacitiesCount", len(params.NodeCapacities),
+	)
+
+	batchPlan, err := calculateOCIUpdatePoolBatchPlan(dbHbCtx, poolActivity, pool, numHAPairs)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	rollbackManager.AddActivity(poolActivity.RestorePoolPreUpdatePoolLevelFields, pool.UUID, preUpdateSnapshot)
+	logger.Info("Registered DB compensation for pool pre-update pool-level fields",
+		"pool", pool.Name,
+		"poolUUID", pool.UUID,
+	)
+
+	vsaClientWorkflowManager := workflows.GetNewVSAClientWorkflowManager()
+	ontapVersion := utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(params.AccountName))
+	logger.Info("Starting batched VLM update for OCI pool",
+		"pool", pool.Name,
+		"ontapVersion", ontapVersion,
+		"numWorkflowCalls", batchPlan.NumWorkflowCalls,
+	)
+	updateResp, err := executeOCIUpdatePoolVLMInBatches(
+		ctx, dbHbCtx, pool, poolActivity, batchPlan,
+		currentVlmConfig, targetSPConfig, numHAPairs,
+		credConfig, ontapVersion, vsaClientWorkflowManager,
+		ociDecision,
+	)
+	if err != nil {
+		logger.Error("Batched OCI pool update failed", "error", err, "pool", pool.Name)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	emitStage(ctx, wfUpdatePool, queueCustomer, stageVLMUpdate, resultSuccess)
+	logger.Info("Batched VLM update completed for OCI pool",
+		"pool", pool.Name,
+		"numWorkflowCalls", batchPlan.NumWorkflowCalls,
+	)
+
+	if err = persistOCIPoolUpdate(dbHbCtx, poolActivity, pool, params, updateResp.VLMConfig); err != nil {
+		logger.Error("Failed to persist updated pool", "error", err, "pool", pool.Name)
+		emitStage(ctx, wfUpdatePool, queueCustomer, stageDBPersistFinal, resultFailure)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	emitStage(ctx, wfUpdatePool, queueCustomer, stageDBPersistFinal, resultSuccess)
+
+	logger.Info("OCI Update Pool Workflow completed successfully",
+		"pool", pool.Name,
+		"poolUUID", pool.UUID,
+		"deploymentName", pool.DeploymentName,
+	)
+	return nil, nil
+}
+
+func extractOCIUpdatePoolArgs(args []interface{}) (*common.UpdatePoolParams, *datamodel.Pool, error) {
+	if len(args) < 2 {
+		return nil, nil, fmt.Errorf("OCIUpdatePoolWorkflow.Run: expected 2 args, got %d", len(args))
+	}
+	params, ok := args[0].(*common.UpdatePoolParams)
+	if !ok {
+		return nil, nil, fmt.Errorf("OCIUpdatePoolWorkflow.Run: args[0] has unexpected type %T, want *common.UpdatePoolParams", args[0])
+	}
+	if params == nil {
+		return nil, nil, vsaerrors.NewVCPError(
+			vsaerrors.ErrResourceEmptyError,
+			fmt.Errorf("OCIUpdatePoolWorkflow.Run: args[0] (*common.UpdatePoolParams) must not be nil"),
+		)
+	}
+	pool, ok := args[1].(*datamodel.Pool)
+	if !ok {
+		return nil, nil, fmt.Errorf("OCIUpdatePoolWorkflow.Run: args[1] has unexpected type %T, want *datamodel.Pool", args[1])
+	}
+	if pool == nil {
+		return nil, nil, vsaerrors.NewVCPError(
+			vsaerrors.ErrResourceEmptyError,
+			fmt.Errorf("OCIUpdatePoolWorkflow.Run: args[1] (*datamodel.Pool) must not be nil"),
+		)
+	}
+	return params, pool, nil
+}
+
+func buildOCIUpdatePoolActivityOptions() (workflow.ActivityOptions, error) {
+	rp, err := workflows.PopulateRetryPolicyParams()
+	if err != nil {
+		return workflow.ActivityOptions{}, err
+	}
+	return workflow.ActivityOptions{
+		StartToCloseTimeout: rp.StartToCloseTimeout,
+		HeartbeatTimeout:    rp.HeartBeatTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        rp.InitialInterval,
+			BackoffCoefficient:     rp.BackoffCoefficient,
+			MaximumInterval:        rp.MaximumInterval,
+			MaximumAttempts:        int32(rp.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
+		},
+	}, nil
+}
+
+func parseStoredVLMConfig(ctx workflow.Context, poolActivity *activities.PoolActivity, pool *datamodel.Pool) (vlm.VLMConfig, error) {
+	logger := util.GetLogger(ctx)
+	var raw *vlm.VLMConfig
+	if err := workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &raw); err != nil {
+		logger.Error("Failed to parse stored VLM config", "error", err)
+		return vlm.VLMConfig{}, err
+	}
+	cfg := *raw
+	logger.Info("Parsed stored VLM config for OCI pool update",
+		"pool", pool.Name,
+		"numHAPairs", len(cfg.Cloud.HAPairs),
+		"currentInstanceType", cfg.Deployment.VSAInstanceType,
+		"currentPoolSize", cfg.Deployment.SPConfig.Size,
+		"currentThroughput", cfg.Deployment.SPConfig.Throughput,
+		"currentIOps", cfg.Deployment.SPConfig.IOps,
+	)
+	return cfg, nil
+}
+
+func runOCIVMRSForUpdate(
+	ctx workflow.Context,
+	poolActivity *activities.PoolActivity,
+	params *common.UpdatePoolParams,
+	pool *datamodel.Pool,
+	currentVlmConfig vlm.VLMConfig,
+) (*vmrs_oci.Decision, error) {
+	logger := util.GetLogger(ctx)
+	var enabled bool
+	if err := workflow.SideEffect(ctx, func(_ workflow.Context) interface{} {
+		return ociVMRSEnabled
+	}).Get(&enabled); err != nil {
+		logger.Error("Failed to read OCI VMRS toggle via SideEffect, check if OCI VMRS is enabled", "error", err)
+		return nil, err
+	}
+	if !enabled {
+		return nil, nil
+	}
+
+	perVMCapacityTB, perVMThroughputGBs, err := computeOCIVMRSInputForUpdate(params, pool, currentVlmConfig)
+	if err != nil {
+		logger.Error("Failed to compute OCI VMRS input for update", "error", err)
+		return nil, err
+	}
+
+	vmrsCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 1 * time.Minute,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts:        1,
+			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
+		},
+	})
+	req := activities.IdentifyOCIResourcesRequest{
+		PoolUUID:           pool.UUID,
+		PerVMCapacityTB:  perVMCapacityTB,
+		PerVMThroughputGBs: perVMThroughputGBs,
+	}
+	var decision *vmrs_oci.Decision
+	if err := workflow.ExecuteActivity(vmrsCtx, poolActivity.IdentifyOCIResources, req).Get(vmrsCtx, &decision); err != nil {
+		logger.Error("OCI VMRS selection failed for pool update", "poolUUID", pool.UUID, "error", err)
+		return nil, err
+	}
+	logger.Info("OCI VMRS decision for pool update",
+		"poolUUID", pool.UUID,
+		"shape", decision.VMShape,
+		"ocpus", decision.OCPUs,
+		"memoryGBs", decision.MemoryGBs,
+		"vpu", decision.VPU,
+		"iops", decision.IOPS,
+	)
+	return decision, nil
+}
+
+func validateStoredVLMConfigForUpdate(pool *datamodel.Pool, currentVlmConfig vlm.VLMConfig) error {
+	if len(currentVlmConfig.Cloud.HAPairs) == 0 {
+		return vsaerrors.NewVCPError(
+			vsaerrors.ErrIncorrectVSAClusterState,
+			fmt.Errorf(
+				"VLM update requires non-empty cloud.ha_pair in stored pool VLM config; pool %q has none "+
+					"(persist full post-create VLMConfig including ha_pair, or recreate the pool)",
+				pool.Name,
+			),
+		)
+	}
+	return nil
+}
+
+
+func buildOCIOntapCredentials(pool *datamodel.Pool) (vlm.OntapCredentials, error) {
+	if pool.PoolCredentials == nil {
+		return vlm.OntapCredentials{}, vsaerrors.NewVCPError(
+			vsaerrors.ErrResourceEmptyError,
+			fmt.Errorf("pool credentials are required for ONTAP authentication during pool update %q", pool.Name),
+		)
+	}
+	return vlm.OntapCredentials{
+		AdminPassword: pool.PoolCredentials.Password,
+		Certificate:   vlm.OntapCertificate{},
+	}, nil
+}
+
+func calculateOCIUpdatePoolBatchPlan(
+	ctx workflow.Context,
+	poolActivity *activities.PoolActivity,
+	pool *datamodel.Pool,
+	numHAPairs int,
+) (*activities.CalculateBatchPlanActivityOutput, error) {
+	logger := util.GetLogger(ctx)
+	in := &activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  numHAPairs,
+		ParallelNumberOfNodesForITC: parallelNumberOfNodesForITCOCI,
+	}
+	var out *activities.CalculateBatchPlanActivityOutput
+	if err := workflow.ExecuteActivity(ctx, poolActivity.CalculateBatchPlanForUpdate, in).Get(ctx, &out); err != nil {
+		logger.Error("Failed to calculate OCI pool update batch plan", "error", err)
+		return nil, err
+	}
+	logger.Info("Calculated OCI pool update batch plan",
+		"pool", pool.Name,
+		"numHAPairs", out.NumHAPairs,
+		"batchSize", out.BatchSize,
+		"numWorkflowCalls", out.NumWorkflowCalls,
+		"batchIndices", out.BatchIndices,
+		"parallelNumberOfNodesForITC", parallelNumberOfNodesForITCOCI,
+	)
+	return out, nil
+}
+
+
+func persistOCIPoolUpdate(
+	ctx workflow.Context,
+	poolActivity *activities.PoolActivity,
+	pool *datamodel.Pool,
+	params *common.UpdatePoolParams,
+	updatedVLMConfig vlm.VLMConfig,
+) error {
+	logger := util.GetLogger(ctx)
+	dbWriteSizeBytes := params.SizeInBytes
+	if dbWriteSizeBytes == 0 {
+		logger.Info("Backfilling SizeInBytes from existing pool for DB persist",
+			"pool", pool.Name,
+			"backfilledSizeBytes", pool.SizeInBytes,
+		)
+		dbWriteSizeBytes = uint64(pool.SizeInBytes)
+	}
+	dbWriteThroughputMibps := params.TotalThroughputMibps
+	if dbWriteThroughputMibps == 0 && pool.PoolAttributes != nil {
+		logger.Info("Backfilling TotalThroughputMibps from existing pool for DB persist",
+			"pool", pool.Name,
+			"backfilledThroughputMibps", pool.PoolAttributes.ThroughputMibps,
+		)
+		dbWriteThroughputMibps = pool.PoolAttributes.ThroughputMibps
+	}
+
+	dbPersistParams := *params
+	dbPersistParams.SizeInBytes = dbWriteSizeBytes
+	dbPersistParams.TotalThroughputMibps = dbWriteThroughputMibps
+
+	logger.Info("Persisting pool-level update with new VLM config",
+		"pool", pool.Name,
+		"poolUUID", pool.UUID,
+		"sizeBytes", dbWriteSizeBytes,
+		"throughputMibps", dbWriteThroughputMibps,
+		"nodeCapacitiesCount", len(params.NodeCapacities),
+	)
+	return workflow.ExecuteActivity(ctx, poolActivity.UpdatedPoolWithVLMConfig, pool, updatedVLMConfig, &dbPersistParams).Get(ctx, nil)
+}
+
+func prepareOCIUpdateVSAClusterDeploymentRequest(
+	req *vlm.UpdateVSAClusterDeploymentRequest,
+	currentVlmConfig vlm.VLMConfig,
+	targetSPConfig vlm.SPConfig,
+	targetNumHAPair int,
+	credentials vlm.OntapCredentials,
+	decision *vmrs_oci.Decision,
+) {
+	req.VLMConfig = currentVlmConfig
+	req.VLMConfig.Deployment.SPConfig.HAPairConfigs = nil
+	req.NumHAPair = targetNumHAPair
+	req.SPConfig = targetSPConfig
+	req.OntapCredentials = credentials
+	req.BucketName = ""
+	// Match GCP sentinel: skip auto-tier threshold update when no bucket/object store path applies.
+	req.AutoTierThreshold = -1
+
+	if decision != nil {
+		req.NewInstanceType = decision.VMShape
+		ocpus := float32(decision.OCPUs)
+		memGBs := float32(decision.MemoryGBs)
+		vpu := int64(decision.VPU)
+		req.VSAFlexOcpus = &ocpus
+		req.VSAFlexMemoryInGBs = &memGBs
+		req.DataDiskVpus = &vpu
+		req.SPConfig.IOps = decision.IOPS
+	}
+}
+
+func executeOCIUpdatePoolVLMInBatches(
+	ctx workflow.Context,
+	dbHbCtx workflow.Context,
+	pool *datamodel.Pool,
+	poolActivity *activities.PoolActivity,
+	batchPlan *activities.CalculateBatchPlanActivityOutput,
+	initialVlmConfig vlm.VLMConfig,
+	targetSPConfig vlm.SPConfig,
+	targetNumHAPair int,
+	credConfig vlm.OntapCredentials,
+	ontapVersion string,
+	vsaClientWorkflowManager vlm.VlmWorkflowClient,
+	decision *vmrs_oci.Decision,
+) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+	logger := util.GetLogger(ctx)
+	hyperscalerCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: utils.GetStartToCloseTimeoutHyperscaler(),
+		HeartbeatTimeout:    utils.GetHeartbeatTimeoutForHyperscaler(),
+		RetryPolicy:         utils.GetHyperscalerLRORetryPolicy(),
+	})
+
+	// current is the pristine VLM config we ship as req.VLMConfig: it starts as the
+	// DB-parsed config and rolls forward to each prior batch's resp.VLMConfig. VCP
+	// never mutates it; overrides ride exclusively on targetSPConfig / targetNumHAPair.
+	current := initialVlmConfig
+	var lastResp *vlm.UpdateVSAClusterDeploymentResponse
+
+	// Track completed batches for the mixed-version-state diagnostic on partial failure.
+	completedBatches := make([]int, 0, batchPlan.NumWorkflowCalls)
+
+	logger.Info("executeOCIUpdatePoolVLMInBatches starting batch loop",
+		"pool", pool.Name,
+		"poolUUID", pool.UUID,
+		"totalBatches", batchPlan.NumWorkflowCalls,
+		"totalHAPairs", batchPlan.NumHAPairs,
+		"batchSize", batchPlan.BatchSize,
+		"ontapVersion", ontapVersion,
+	)
+
+	for batchNum := 0; batchNum < batchPlan.NumWorkflowCalls; batchNum++ {
+		// VLM's OCI ha_pair_indices contract is 1-based, matching what
+		// CalculateBatchPlanForUpdate already emits — pass the indices straight
+		// through with no conversion.
+		batchIndices := batchPlan.BatchIndices[batchNum]
+		updateReq := &vlm.UpdateVSAClusterDeploymentRequest{}
+		prepareOCIUpdateVSAClusterDeploymentRequest(updateReq, current, targetSPConfig, targetNumHAPair, credConfig, decision)
+		updateReq.HAPairIndices = batchIndices
+
+		logger.Info("OCI update pool VLM batch",
+			"batchNumber", batchNum+1,
+			"totalBatches", batchPlan.NumWorkflowCalls,
+			"haPairIndices", batchIndices,
+			"totalHAPairs", batchPlan.NumHAPairs,
+			"batchSize", batchPlan.BatchSize,
+		)
+
+		resp, err := vsaClientWorkflowManager.UpdateVSAClusterDeployment(hyperscalerCtx, updateReq, ontapVersion)
+		if err != nil {
+			// Match GCP's mixed-version-state diagnostic: enumerate what landed and what didn't
+			// so the operator knows the cluster is partially upgraded.
+			remainingBatches := make([]int, 0, batchPlan.NumWorkflowCalls-batchNum-1)
+			for i := batchNum + 1; i < batchPlan.NumWorkflowCalls; i++ {
+				remainingBatches = append(remainingBatches, i+1)
+			}
+			logger.Error("OCI pool update VLM batch failed; cluster is in mixed-version state",
+				"pool", pool.Name,
+				"poolUUID", pool.UUID,
+				"batchNumber", batchNum+1,
+				"totalBatches", batchPlan.NumWorkflowCalls,
+				"failingBatchHAPairIndices", batchIndices,
+				"completedBatches", completedBatches,
+				"remainingBatches", remainingBatches,
+				"error", err,
+			)
+			emitStage(ctx, wfUpdatePool, queueCustomer, stageVLMUpdate, resultFailure)
+			return nil, err
+		}
+
+		if persistErr := workflow.ExecuteActivity(
+			dbHbCtx, poolActivity.UpdatePoolVLMConfigField, pool.UUID, resp.VLMConfig,
+		).Get(dbHbCtx, nil); persistErr != nil {
+			logger.Error("OCI pool update VLM batch succeeded but per-batch DB persist failed; DB will be restored to pre-update snapshot by rollback",
+				"pool", pool.Name,
+				"poolUUID", pool.UUID,
+				"batchNumber", batchNum+1,
+				"totalBatches", batchPlan.NumWorkflowCalls,
+				"haPairIndices", batchIndices,
+				"error", persistErr,
+			)
+			emitStage(ctx, wfUpdatePool, queueCustomer, stageDBPersistPerBatch, resultFailure)
+			return nil, persistErr
+		}
+
+		// VLM can return HTTP 200 with a non-empty UpdateStatus carrying sub-failure flags
+		// (DetachFail / SPUpdateFail / AttachFail / LifDownFail / AggrDownFail / AggrUpFail /
+		// LifUpFail). Treat any sub-failure as a partial cluster update: resp.VLMConfig has
+		// already been persisted above (so the DB reflects the partial cluster state for
+		// triage), but we must NOT advance to the next batch.
+		//
+		// Stamped stageVLMUpdate=failure: the failure originated in VLM (it reported partial
+		// success on its own sub-operations); the persist above succeeded.
+		if failedOps := updateStatusFailureFlags(resp.UpdateStatus); len(failedOps) > 0 {
+			remainingBatches := make([]int, 0, batchPlan.NumWorkflowCalls-batchNum-1)
+			for i := batchNum + 1; i < batchPlan.NumWorkflowCalls; i++ {
+				remainingBatches = append(remainingBatches, i+1)
+			}
+			logger.Error("OCI pool update VLM batch returned partial-failure UpdateStatus; cluster is in mixed-version state",
+				"pool", pool.Name,
+				"poolUUID", pool.UUID,
+				"batchNumber", batchNum+1,
+				"totalBatches", batchPlan.NumWorkflowCalls,
+				"failingBatchHAPairIndices", batchIndices,
+				"completedBatches", completedBatches,
+				"remainingBatches", remainingBatches,
+				"failedSubOperations", failedOps,
+				"updateStatus", resp.UpdateStatus,
+			)
+			emitStage(ctx, wfUpdatePool, queueCustomer, stageVLMUpdate, resultFailure)
+			return nil, vsaerrors.NewVCPError(
+				vsaerrors.ErrIncorrectVSAClusterState,
+				fmt.Errorf("VLM reported partial update failure for batch %d (haPairIndices=%v) on pool %q: failed sub-operations %v",
+					batchNum+1, batchIndices, pool.Name, failedOps),
+			)
+		}
+
+		current = resp.VLMConfig
+		lastResp = resp
+		completedBatches = append(completedBatches, batchNum+1)
+		logger.Info("OCI update pool VLM batch completed",
+			"pool", pool.Name,
+			"batchNumber", batchNum+1,
+			"totalBatches", batchPlan.NumWorkflowCalls,
+			"haPairIndices", batchIndices,
+		)
+	}
+
+	logger.Info("executeOCIUpdatePoolVLMInBatches completed all batches",
+		"pool", pool.Name,
+		"poolUUID", pool.UUID,
+		"completedBatches", completedBatches,
+		"totalBatches", batchPlan.NumWorkflowCalls,
+	)
+	return lastResp, nil
+}
+
+// updateStatusFailureFlags returns the names of any sub-operation failure flags set on a
+// VLM UpdateVSAClusterDeployment response. Returned slice is empty when status reports a
+// fully-successful batch; non-empty when any of the documented sub-failures
+// (DetachFail / SPUpdateFail / AttachFail / LifDownFail / AggrDownFail / AggrUpFail /
+// LifUpFail) is set. Kept in declaration order so logs are stable.
+func updateStatusFailureFlags(status vlm.DeploymentUpdateStatus) []string {
+	failed := make([]string, 0, 7)
+	if status.DetachFail {
+		failed = append(failed, "detach")
+	}
+	if status.SPUpdateFail {
+		failed = append(failed, "sp_update")
+	}
+	if status.AttachFail {
+		failed = append(failed, "attach")
+	}
+	if status.LifDownFail {
+		failed = append(failed, "lif_down")
+	}
+	if status.AggrDownFail {
+		failed = append(failed, "aggr_down")
+	}
+	if status.AggrUpFail {
+		failed = append(failed, "aggr_up")
+	}
+	if status.LifUpFail {
+		failed = append(failed, "lif_up")
+	}
+	return failed
+}
+func deriveUpdateTargetSPConfig(
+	params *common.UpdatePoolParams,
+	pool *datamodel.Pool,
+	_ vlm.VLMConfig,
+) (vlm.SPConfig, error) {
+	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
+	if sizeInGB == 0 {
+		sizeInGB = utils.BytesToGigabytes(uint64(pool.SizeInBytes))
+	}
+	sizeStr := fmt.Sprintf("%dGi", sizeInGB)
+
+	throughputMibps := params.TotalThroughputMibps
+	if throughputMibps == 0 && pool.PoolAttributes != nil {
+		throughputMibps = pool.PoolAttributes.ThroughputMibps
+	}
+
+	iops := int64(0)
+	if throughputMibps > 0 {
+		perf := &validators.CustomPerformance{ThroughputMibps: throughputMibps}
+		if err := validators.NewPoolValidator(false).ValidateIops(perf); err != nil {
+			return vlm.SPConfig{}, fmt.Errorf("derive iops from throughput: %w", err)
+		}
+		if perf.Iops != nil {
+			iops = *perf.Iops
+		}
+	}
+
+	return vlm.SPConfig{
+		Size:       sizeStr,
+		IOps:       iops,
+		Throughput: throughputMibps,
+	}, nil
 }
