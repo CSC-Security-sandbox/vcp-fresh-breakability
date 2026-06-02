@@ -3860,12 +3860,12 @@ def _resolve_declared_break_reachability(pr_data, deterministic, eco):
         proof = next((e for e in evidence if (not e["is_test"]) and e["path"] in (mr.get("reason") or "")), None)
         if not proof:
             proof = next((e for e in evidence if not e["is_test"]), None)
-        loc = (" — your code imports " + proof["path"] + " at " + proof["file"] + ":" + proof["line"]) if proof else ""
+        loc = (" (" + proof["path"] + ")") if proof else ""
         mr["tag"] = "Medium"
         mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change and your "
                         "code imports the affected package" + loc + ", but build, tests, and API-diff "
-                        "cannot confirm or rule out that your usage triggers it — this is NOT a confirmed "
-                        "break; verify your usage against the release notes before merging")
+                        "cannot confirm or rule out that your usage triggers it — not a confirmed break; "
+                        "verify against the release notes")
         mr["evidenceAxis"] = "declared behavioral change, import-reachable but unverified by build/test/api-diff"
     elif test_only:
         mr["tag"] = "Medium"

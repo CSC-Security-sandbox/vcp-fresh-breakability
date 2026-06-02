@@ -1247,7 +1247,7 @@ else:
       _REVIEW_WHY="Build and tests pass on the PR branch, but that does **not** clear this upgrade: ${MERGE_RISK_REASON}. Behavioral changes (changed defaults, error/ordering semantics) and breaks in sibling or transitive modules are invisible to compilation and to existing tests. Verify the affected behavior against the release notes before merging."
     else
       _REVIEW_TITLE="⚠️ REVIEW SUGGESTED"
-      _REVIEW_WHY="Build and tests pass on the PR branch — but the maintainer **declares a behavioral breaking change** and your code imports the affected package. ${MERGE_RISK_REASON}. Behavioral changes are invisible to compilation, tests, and API-diff, so this is a **review signal, not a confirmed break**. Check whether your usage relies on the changed behavior (defaults, error/ordering semantics) against the release notes; if it does not, this does not block the merge."
+      _REVIEW_WHY="Build and tests pass on the PR branch — but the maintainer **declares a behavioral breaking change** and your code imports the affected package. Behavioral changes (changed defaults, error/ordering semantics) are invisible to compilation, tests, and API-diff, so this is a **review signal, not a confirmed break**. Check whether your usage relies on the changed behavior against the release notes; if it does not, this does not block the merge. The exact import site is in the reachability block below."
     fi
     COMMENT="<!-- breakability-check -->
 ## ${_REVIEW_TITLE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
