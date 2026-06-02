@@ -363,7 +363,8 @@ else:
 # residual are ONE source of truth. Emits nothing when no persisted analysis exists, letting
 # the caller fall back to the live GitHub re-fetch for legacy records. Arg 1 = PR_FIELDS JSON.
 build_changelog_block_persisted() {
-  _BC_PRF="$1" python3 - <<'PYEOF' 2>/dev/null || true
+  local _bcp
+  _bcp=$(_BC_PRF="$1" python3 - <<'PYEOF' 2>/dev/null
 import json, os, re
 data = json.loads(os.environ.get('_BC_PRF', '') or '{}')
 det = data.get('deterministic') or {}
@@ -399,6 +400,9 @@ else:
     snippet = re.sub(r'\s+', ' ', text).strip()[:220]
     print(f"- {snippet}" if snippet else "- Changelog analyzed; see release notes for details.")
 PYEOF
+)
+  # Lead with a blank line so the block never fuses to preceding inline text (markdown heading).
+  [[ -n "$_bcp" ]] && printf '\n\n%s\n' "$_bcp"
 }
 
 for PR_NUM in $PR_NUMBERS; do
@@ -1342,6 +1346,15 @@ Fix these on \`main\` to unlock full L2+ verification.
     esac
   fi
 
+  # Avoid double-rendering the changelog: the gomod HOW_CHECKED enrichment (above) may already
+  # embed the "### Changelog signals" block inside the "How we checked" details. Templates that
+  # ALSO insert ${CHANGELOG_LINK} inline must use ${CHANGELOG_INLINE} so the inline copy is
+  # suppressed when HOW_CHECKED already carries it (non-gomod keeps the inline copy).
+  CHANGELOG_INLINE="$CHANGELOG_LINK"
+  case "$HOW_CHECKED" in
+    *"Changelog signals"*) CHANGELOG_INLINE="" ;;
+  esac
+
   # Prepend govulncheck header badge (if status is failure/vulns_found) so it sits
   # right above the HOW_CHECKED collapsible — visible without expanding details.
   if [[ -n "$_VULN_HEADER_BADGE" && -n "$HOW_CHECKED" ]]; then
@@ -1427,7 +1440,7 @@ Build: ${_GUARD_BUILD_BADGE} · Verification: **${VER_LABEL:-L2}** · Usage: $FI
 ${MERGE_RISK_LINE}
 
 ### Why a passing build is not enough here
-${_REVIEW_WHY}${CHANGELOG_LINK}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${_REVIEW_WHY}${CHANGELOG_INLINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
@@ -1518,7 +1531,7 @@ Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT f
 - Build passes on PR branch
 - New type errors: $NEW_ERR_COUNT
 
-**Recommendation:** Review changelog for $BUMP_DISPLAY bump breaking changes. Build passes — merge when ready.${CHANGELOG_LINK}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+**Recommendation:** Review changelog for $BUMP_DISPLAY bump breaking changes. Build passes — merge when ready.${CHANGELOG_INLINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
@@ -1560,7 +1573,7 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
 
 ### What to do
 1. Check the full build output in the Actions run for this PR
-2. Review the \`$PKG\` $FROM → $TO changelog for breaking changes${CHANGELOG_LINK}
+2. Review the \`$PKG\` $FROM → $TO changelog for breaking changes${CHANGELOG_INLINE}
 3. Fix type errors or update your code to match the new API
 4. Re-run the breakability analysis after your fix
 
