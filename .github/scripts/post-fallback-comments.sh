@@ -358,6 +358,49 @@ else:
 ' "$_signals"
 }
 
+# G6: render "### Changelog signals" from the PERSISTED deterministic changelog analysis
+# (deterministic.changelogSignal / changelogText) so the below-the-fold list and the verdict
+# residual are ONE source of truth. Emits nothing when no persisted analysis exists, letting
+# the caller fall back to the live GitHub re-fetch for legacy records. Arg 1 = PR_FIELDS JSON.
+build_changelog_block_persisted() {
+  _BC_PRF="$1" python3 - <<'PYEOF' 2>/dev/null || true
+import json, os, re
+data = json.loads(os.environ.get('_BC_PRF', '') or '{}')
+det = data.get('deterministic') or {}
+sig = det.get('changelogSignal') or {}
+status = sig.get('status')
+text = det.get('changelogText') or ''
+# No persisted analysis at all -> let the caller fall back to the live re-fetch.
+if not status and not text:
+    raise SystemExit(0)
+clean, seen = [], set()
+for b in (sig.get('bullets') or []):
+    if not isinstance(b, str):
+        continue
+    s = re.sub(r'\s+', ' ', b.replace('\r', ' ').replace('\n', ' ')).strip(' -*\t')
+    if not s or s.startswith('#'):  # drop pure markdown headers
+        continue
+    s = s[:220]
+    k = s.lower()
+    if k in seen:
+        continue
+    seen.add(k)
+    clean.append(s)
+    if len(clean) >= 10:
+        break
+print("### Changelog signals")
+print("Source: deterministic changelog analysis (same source as the verdict)")
+if clean:
+    for s in clean:
+        print(f"- {s}")
+elif status and status != 'breaking':
+    print("- No breaking-change markers found in the analyzed changelog.")
+else:
+    snippet = re.sub(r'\s+', ' ', text).strip()[:220]
+    print(f"- {snippet}" if snippet else "- Changelog analyzed; see release notes for details.")
+PYEOF
+}
+
 for PR_NUM in $PR_NUMBERS; do
   # Per-PR atomic comment management (A3-9):
   # 1. Check for existing AI agent comments (preserve those)
@@ -673,10 +716,15 @@ print(' · '.join(parts))
   fi
 
   # V9.9 iter9/G2: Changelog evidence for Go/npm packages
+  # G6: prefer the persisted deterministic changelog analysis (one source of truth with the
+  # verdict); fall back to the live GitHub re-fetch only for legacy records lacking it.
   CHANGELOG_LINK=""
   CHANGELOG_BLOCK=""
-  if [[ "$ECOSYSTEM" == "gomod" && -n "$PKG" && -n "$FROM" && -n "$TO" ]]; then
+  CHANGELOG_BLOCK=$(build_changelog_block_persisted "$PR_FIELDS")
+  if [[ -z "$CHANGELOG_BLOCK" && "$ECOSYSTEM" == "gomod" && -n "$PKG" && -n "$FROM" && -n "$TO" ]]; then
     CHANGELOG_BLOCK=$(build_go_changelog_block "$PKG" "$FROM" "$TO")
+  fi
+  if [[ -n "$CHANGELOG_BLOCK" ]]; then
     CHANGELOG_LINK="${CHANGELOG_BLOCK}"
   elif [[ "$ECOSYSTEM" == "npm" && -n "$PKG" && -n "$FROM" && -n "$TO" ]]; then
     # npm: try npmjs changelog
