@@ -680,6 +680,38 @@ PYEOF
       _USAGE_CONTEXT_BLOCK=$(printf '\n\n%s' "$_USAGE_CONTEXT_BLOCK")
     fi
   fi
+  # Declared-break reachability proof block: turns a declared-breaking verdict from a punt
+  # ("verify yourself") into evidence by naming the file that imports the affected package.
+  _DECLARED_BREAK_REACH_BLOCK=$(_BC_PRF="$PR_FIELDS" python3 - <<'PYEOF' 2>/dev/null || true
+import json, os
+d = json.loads(os.environ["_BC_PRF"])
+r = d.get('declared_break_reachability') or {}
+if not r.get('checked'):
+    raise SystemExit(0)
+paths = r.get('affected_paths') or []
+ev = r.get('evidence') or []
+lines = ['### Reachability of the declared break']
+if r.get('prod_reachable'):
+    prod = [e for e in ev if not e.get('is_test')]
+    reason = (d.get('merge_risk') or {}).get('reason') or ''
+    # One representative location per affected package; the package named in the verdict reason first.
+    by_path = {}
+    for e in prod:
+        by_path.setdefault(e['path'], e)
+    ordered = sorted(by_path.values(), key=lambda e: (e['path'] not in reason, e['path']))
+    lines.append('- ⚠️ The declared break IS reachable — your production code imports the affected package:')
+    for e in ordered[:3]:
+        lines.append(f"  - `{e['path']}` at `{e['file']}:{e['line']}`")
+    lines.append('- This is why the verdict is High: build/tests pass, but your code calls into the package whose behavior the maintainer changed.')
+elif r.get('test_only'):
+    lines.append('- ℹ️ The declared break is only reachable from **test/CI code**, not production — verdict down-weighted to Medium.')
+    for e in ev[:3]:
+        lines.append(f"  - `{e['path']}` at `{e['file']}:{e['line']}` (test)")
+else:
+    lines.append('- ✅ The declared break is in ' + ', '.join(f'`{p}`' for p in paths[:4]) + ' — **your code does not import** ' + ('it' if len(paths) == 1 else 'them') + '. Down-weighted to Medium (not reachable).')
+print('\n\n' + '\n'.join(lines))
+PYEOF
+)
   # Build transitive dep note — with threshold warning for high counts
   _TRANSITIVE_NOTE=""
   if [[ -n "$GOSUM_NEW_COUNT" && "$GOSUM_NEW_COUNT" -gt 0 ]]; then
@@ -936,7 +968,7 @@ ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ✅ Tests pass (exit=$TEST_EXIT_CODE)${_EV_TEST} — no regressions vs main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_USAGE_CONTEXT_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_TEST_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
+</details>${_USAGE_CONTEXT_BLOCK}${_DECLARED_BREAK_REACH_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_TEST_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
       ;;
     L3*)
       HOW_CHECKED="
@@ -946,7 +978,7 @@ ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_USAGE_CONTEXT_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
+</details>${_USAGE_CONTEXT_BLOCK}${_DECLARED_BREAK_REACH_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
       ;;
     L2*)
       # V9.3 FIX (P1-2): BUILD_FAILS PRs must NOT use the "builds clean" checklist.
@@ -988,7 +1020,7 @@ ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — pre-existing, same failure on main
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_USAGE_CONTEXT_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
+</details>${_USAGE_CONTEXT_BLOCK}${_DECLARED_BREAK_REACH_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
         else
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
@@ -997,7 +1029,7 @@ ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
 - ⬜ Tests not configured or not run
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
-</details>${_USAGE_CONTEXT_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
+</details>${_USAGE_CONTEXT_BLOCK}${_DECLARED_BREAK_REACH_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
         fi
       fi
       ;;
@@ -1125,7 +1157,7 @@ Fix these on \`main\` to unlock full L2+ verification.
     esac
     case "$HOW_CHECKED" in
       *"BREAK-reachability context"*) ;;
-      *) HOW_CHECKED="${HOW_CHECKED}${_USAGE_CONTEXT_BLOCK}" ;;
+      *) HOW_CHECKED="${HOW_CHECKED}${_USAGE_CONTEXT_BLOCK}${_DECLARED_BREAK_REACH_BLOCK}" ;;
     esac
   fi
 

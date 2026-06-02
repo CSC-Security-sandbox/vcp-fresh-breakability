@@ -3765,6 +3765,100 @@ if isinstance(pr_data.get("merge_risk"), dict):
     if isinstance(pr_data.get("deterministic"), dict) and isinstance(pr_data["deterministic"].get("merge_risk"), dict):
         pr_data["deterministic"]["merge_risk"] = pr_data["merge_risk"]
 
+# ── Declared-break reachability resolution ─────────────────────
+# A declared-breaking changelog verdict (High) is reachability-BLIND on its own: the break
+# may live in a sibling/sub-module the repo does not even import. Extract the affected import
+# paths from the breaking bullets, grep the working tree, and either PROVE reachability (name
+# the importing file) or DOWNGRADE when nothing imports the affected package.
+import re as _dbr_re
+import subprocess as _dbr_sub
+def _resolve_declared_break_reachability(pr_data, deterministic, eco):
+    mr = pr_data.get("merge_risk") or {}
+    evidence_axis = (mr.get("evidenceAxis") or "").lower()
+    sig = (deterministic or {}).get("changelogSignal") or {}
+    is_declared = mr.get("tag") == "High" and ("declared breaking change" in evidence_axis or sig.get("status") == "breaking")
+    if not is_declared:
+        return
+    bullets = sig.get("bullets") or []
+    # STRONG markers only: a genuine break, not a deprecation/additive note. This keeps us from
+    # extracting incidental package names (e.g. an EMPTY-type deprecation) as the affected path.
+    strong_re = _dbr_re.compile(r"breaking[\s-]?change|no longer|cardinalit|migration[\s-]?required|removed\s|signature|incompatible|default[s]?\s+(?:changed|now|of|to)", _dbr_re.I)
+    breaking_bullets = [b for b in bullets if strong_re.search(b or "")]
+    text = " \n ".join(breaking_bullets) if breaking_bullets else ((deterministic or {}).get("changelogText") or "")
+    # Extract module/import-style paths (domain + at least one path segment).
+    raw_paths = set(_dbr_re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.[A-Za-z]{2,}(?:/[A-Za-z0-9_.-]+)+", text))
+    # npm scoped packages and bare python modules are less reliably named in prose; focus on
+    # path-like identifiers, which covers Go module paths and npm scoped/url-style packages.
+    reason_text = (mr.get("reason") or "")
+    # Sort so paths named in the driving verdict reason are tried first.
+    paths = sorted((p for p in raw_paths if "/" in p), key=lambda p: (p not in reason_text, p))[:8]
+    repo_root = os.environ.get("REPO_ROOT") or "."
+    ext_by_eco = {"gomod": ["*.go"], "npm": ["*.ts", "*.tsx", "*.js", "*.jsx", "*.mjs"], "pip": ["*.py"]}
+    includes = ext_by_eco.get(eco, ["*.go", "*.ts", "*.js", "*.py"])
+    evidence = []
+    prod_reached = False
+    test_only = False
+    for p in paths:
+        cmd = ["grep", "-rnE", "--binary-files=without-match"]
+        for inc in includes:
+            cmd.append("--include=" + inc)
+        cmd += ["--exclude-dir=vendor", "--exclude-dir=node_modules", "--exclude-dir=.git",
+                "(\"|')" + _dbr_re.escape(p) + "(\"|')", repo_root]
+        try:
+            out = _dbr_sub.run(cmd, capture_output=True, text=True, timeout=45)
+        except Exception:
+            continue
+        for line in (out.stdout or "").splitlines():
+            parts = line.split(":", 2)
+            if len(parts) < 2:
+                continue
+            fpath = parts[0]
+            rel = os.path.relpath(fpath, repo_root)
+            is_test = bool(_dbr_re.search(r"(_test\.[a-z]+$|\.test\.[a-z]+$|/tests?/|/__tests__/|\.spec\.[a-z]+$)", rel))
+            if not is_test:
+                prod_reached = True
+            evidence.append({"path": p, "file": rel, "line": parts[1].strip(), "is_test": is_test})
+            if len(evidence) >= 12:
+                break
+        if len(evidence) >= 12:
+            break
+    if evidence and not prod_reached:
+        test_only = True
+    result = {
+        "checked": bool(paths),
+        "affected_paths": paths,
+        "prod_reachable": prod_reached,
+        "test_only": test_only,
+        "evidence": evidence[:12],
+    }
+    pr_data["declared_break_reachability"] = result
+    # Adjust the verdict using the resolved reachability.
+    if not paths:
+        return
+    reason = mr.get("reason") or ""
+    if prod_reached:
+        proof = next((e for e in evidence if (not e["is_test"]) and e["path"] in (mr.get("reason") or "")), None)
+        if not proof:
+            proof = next((e for e in evidence if not e["is_test"]), None)
+        if proof:
+            mr["reason"] = reason + " — reachable: your code imports " + proof["path"] + " at " + proof["file"] + ":" + proof["line"]
+            mr["evidenceAxis"] = "declared breaking change, reachable in production code"
+    elif test_only:
+        mr["tag"] = "Medium"
+        mr["reason"] = "declared breaking change is only reachable from test/CI code: " + ", ".join(paths)
+        mr["evidenceAxis"] = "declared breaking change, reachable only from non-production code"
+    else:
+        mr["tag"] = "Medium"
+        mr["reason"] = "declared breaking change is in " + ", ".join(paths) + ", which your code does not import (not reachable)"
+        mr["evidenceAxis"] = "declared breaking change, not reachable (package not imported)"
+    pr_data["merge_risk"] = mr
+    if isinstance(pr_data.get("deterministic"), dict) and isinstance(pr_data["deterministic"].get("merge_risk"), dict):
+        pr_data["deterministic"]["merge_risk"] = mr
+try:
+    _resolve_declared_break_reachability(pr_data, deterministic, eco)
+except Exception as _dbr_e:
+    print("  declared-break reachability resolution skipped:", str(_dbr_e)[:120])
+
 # ── Structured per-signal evidence ─────────────────────────────
 def _tail_text(value, limit=4000):
     value = value or ""
