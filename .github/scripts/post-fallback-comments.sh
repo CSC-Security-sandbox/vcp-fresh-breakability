@@ -588,9 +588,9 @@ ${_SHOWN_FILES}${_MORE_NOTE}
   _USAGE_CONTEXT_INLINE=""
   _USAGE_CONTEXT_BLOCK=""
   if [[ "$ECOSYSTEM" == "gomod" ]]; then
-    _USAGE_CONTEXT_BLOCK=$(echo "$PR_FIELDS" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
+    _USAGE_CONTEXT_BLOCK=$(_BC_PRF="$PR_FIELDS" python3 - <<'PYEOF' 2>/dev/null || true
+import json, os, sys
+d = json.loads(os.environ["_BC_PRF"])
 usages = ((d.get('deterministic') or {}).get('usages') or [])
 active = [u for u in usages if u.get('usageType') in ('DIRECT_CALL', 'PROPERTY_ACCESS')]
 if not active:
@@ -620,23 +620,33 @@ inline = fmt(overall)
 print('INLINE= · Context: ' + inline if inline else 'INLINE=')
 print('---BLOCK---')
 print('### BREAK-reachability context')
+# Only surface usages tied to an actually-changed symbol name; drop blanks/noise.
 symbols = []
 for u in active:
-    sym = u.get('symbol') or 'unknown'
-    if sym not in symbols:
+    sym = (u.get('symbol') or '').strip()
+    if sym and sym != 'unknown' and sym not in symbols:
         symbols.append(sym)
-for sym in symbols[:12]:
-    counts = files_by_context([u for u in active if (u.get('symbol') or 'unknown') == sym])
-    print(f'- changed symbol `{sym}` called/accessed in {fmt(counts)}')
-if len(symbols) > 12:
-    print(f'- ...and {len(symbols) - 12} more changed symbol(s)')
+if not symbols:
+    print('- No specific changed API symbol resolved to a call site; reachability is import-level only (see imports below).')
+else:
+    for sym in symbols[:8]:
+        counts = files_by_context([u for u in active if (u.get('symbol') or '').strip() == sym])
+        loc = fmt(counts)
+        if loc:
+            print(f'- changed symbol `{sym}` called/accessed in {loc}')
+    if len(symbols) > 8:
+        print(f'- …and {len(symbols) - 8} more changed symbol(s)')
 if not overall['production'] and any(overall[ctx] for ctx in ('test', 'cicd', 'generated')):
     print('- Non-production-only reachability (test/CI/generated) is down-weighted in the merge-risk score.')
-" 2>/dev/null || true)
+PYEOF
+)
   fi
   if [[ -n "$_USAGE_CONTEXT_BLOCK" ]]; then
     _USAGE_CONTEXT_INLINE=$(echo "$_USAGE_CONTEXT_BLOCK" | grep '^INLINE=' | head -1 | cut -d= -f2-)
     _USAGE_CONTEXT_BLOCK=$(echo "$_USAGE_CONTEXT_BLOCK" | sed -n '/^---BLOCK---$/,$p' | tail -n +2)
+    if [[ -n "$_USAGE_CONTEXT_BLOCK" ]]; then
+      _USAGE_CONTEXT_BLOCK=$(printf '\n\n%s' "$_USAGE_CONTEXT_BLOCK")
+    fi
   fi
   # Build transitive dep note — with threshold warning for high counts
   _TRANSITIVE_NOTE=""
@@ -774,9 +784,9 @@ ${_GO_RES_DIFF}
     fi
   fi
 
-  _NO_TEST_CONFIDENCE_BLOCK=$(echo "$PR_FIELDS" | python3 -c "
-import json, sys
-d=json.load(sys.stdin)
+  _NO_TEST_CONFIDENCE_BLOCK=$(_BC_PRF="$PR_FIELDS" python3 - <<'PYEOF' 2>/dev/null || true
+import json, os, sys
+d=json.loads(os.environ["_BC_PRF"])
 nt=d.get('no_test_confidence') or {}
 if not nt.get('applies'):
     sys.exit(0)
@@ -787,26 +797,28 @@ print(f'- API diff changes: `{b.get("api_changes", 0)}`')
 print(f'- BREAK-reachability signals (changed API symbols your code calls/accesses): `{b.get("usage_signals", 0)}`')
 print(f'- Semver bump: `{b.get("semver_bump", "?")}` · dep type: `{b.get("dep_type", "?")}`')
 print(f'- **Residual risk:** {nt.get("residual_risk","Runtime behavior is not covered by tests.")}')
-" 2>/dev/null || true)
+PYEOF
+)
 
-  _API_DIFF_TOOL_BLOCK=$(echo "$PR_FIELDS" | python3 -c "
-import json, sys
-d=json.load(sys.stdin)
+  _API_DIFF_TOOL_BLOCK=$(_BC_PRF="$PR_FIELDS" python3 - <<'PYEOF' 2>/dev/null || true
+import json, os, sys
+d=json.loads(os.environ["_BC_PRF"])
 tool=((d.get('deterministic') or {}).get('api_diff_tool') or {})
 if not tool:
     sys.exit(0)
 status=tool.get('status')
 print('### API diff signal')
 if status == 'semantic':
-    print(f'- ✅ Go apidiff ran in **{tool.get(\"mode\",\"module\")} mode** using `{tool.get(\"package\",\"golang.org/x/exp/cmd/apidiff\")}@{tool.get(\"version\",\"unknown\")}`')
+    print(f'- ✅ Go apidiff ran in **{tool.get("mode","module")} mode** using `{tool.get("package","golang.org/x/exp/cmd/apidiff")}@{tool.get("version","unknown")}`')
     if tool.get('command'):
-        print(f'- Command: `{tool.get(\"command\")}`')
+        print(f'- Command: `{tool.get("command")}`')
 elif status == 'structural_fallback':
     print(f'- ⚠️ Go apidiff was unavailable; structural fallback ran instead.')
     if tool.get('warning'):
-        print(f'- Reason: {tool.get(\"warning\")}')
+        print(f'- Reason: {tool.get("warning")}')
     print('- Coverage note: fallback is evidence, but may miss subpackage/type-compatibility breaks that module-mode apidiff would catch.')
-" 2>/dev/null || true)
+PYEOF
+)
 
   # Build build-stdout evidence block
   _BUILD_STDOUT_BLOCK=""
@@ -1395,9 +1407,9 @@ ${RUN_LINK}
     # This overrides SAFE because a PR that introduces vulnerabilities is never SAFE.
     _VULN_IDS_LIST="${VULN_NEW_LIST:-unknown}"
     # G4: Extract per-finding reachability info from govulncheck output.
-    _VULN_REACHABILITY=$(echo "$PR_FIELDS" | python3 -c "
-import json, sys, re
-d = json.load(sys.stdin)
+    _VULN_REACHABILITY=$(_BC_PRF="$PR_FIELDS" python3 - <<'PYEOF' 2>/dev/null || echo "❓ CVE reachability unknown (hint only) — run \`govulncheck ./...\` locally to check"
+import json, os, re
+d = json.loads(os.environ["_BC_PRF"])
 output = d.get('vuln_output', '') or ''
 new_ids = d.get('vuln_new_findings', []) or []
 details = d.get('cve_details', []) or []
@@ -1459,7 +1471,8 @@ for vid in new_ids:
 if not lines:
     lines.append('❓ CVE reachability unknown (hint only) — govulncheck produced no per-finding call-graph data; run `govulncheck ./...` locally to check')
 print('\n'.join(lines))
-" 2>/dev/null || echo "❓ CVE reachability unknown (hint only) — run \`govulncheck ./...\` locally to check")
+PYEOF
+)
     # EU-6: Get max severity for the new vulns
     _VULN_SEVERITY_NOTE=""
     if [[ -n "$CVE_MAX_SEVERITY" ]]; then

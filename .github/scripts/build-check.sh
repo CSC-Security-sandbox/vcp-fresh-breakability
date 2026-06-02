@@ -1718,8 +1718,12 @@ for i in $(seq 0 $(( PR_COUNT - 1 )) ); do
   printf '0' > "/tmp/_bc_vuln_preexisting_count_${PR_NUM}.txt"
   printf '' > "/tmp/_bc_vuln_output_${PR_NUM}.txt"
   printf '' > "$BC_SCRATCH_DIR/_bc_go_resolution_command_${PR_NUM}.txt"
+  printf 'null' > "$BC_SCRATCH_DIR/_bc_go_resolution_exit_${PR_NUM}.txt"
   printf '' > "$BC_SCRATCH_DIR/_bc_go_resolution_output_${PR_NUM}.txt"
   printf '' > "$BC_SCRATCH_DIR/_bc_go_modsum_diff_${PR_NUM}.txt"
+  printf '' > "$BC_SCRATCH_DIR/_bc_usage_raw_${PR_NUM}.txt"
+  printf '' > "$BC_SCRATCH_DIR/_bc_cli_output_${PR_NUM}.txt"
+  printf '' > "$BC_SCRATCH_DIR/_bc_smoke_output_${PR_NUM}.txt"
 
   # Respect breakability:skip label — opt-out for PRs that should bypass analysis
   PR_SKIP=$(echo "$PR_JSON" | jq -r ".[$i].labels[] | select(.name==\"breakability:skip\") | .name" 2>/dev/null | head -1)
@@ -1770,6 +1774,16 @@ data["prs"][pr_num] = {
     "verification_level": -1,
     "verification_label": "NA_not_applicable",
     "verification_steps": [],
+    "evidence": [{
+        "signal": "dependency_resolution",
+        "label": "Dependency resolution",
+        "status": "skipped",
+        "command": "",
+        "stdout": "",
+        "exit_code": None,
+        "summary": "PR skipped by breakability:skip label",
+        "na_reason": "breakability:skip label"
+    }],
     "skip_reason": "breakability:skip label"
 }
 _tmp = results_file + ".tmp"
@@ -1998,6 +2012,7 @@ except Exception:
       ;;
     pip)   USAGE_RAW=$(scan_usage_pip "$PKG") ;;
   esac
+  printf '%s' "$USAGE_RAW" > "$BC_SCRATCH_DIR/_bc_usage_raw_${PR_NUM}.txt"
   FILES_IMPORTING=$(format_usage_files "$USAGE_RAW")
   IMPORT_COUNT=$(echo "$FILES_IMPORTING" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
   echo "  imports found: $IMPORT_COUNT files"
@@ -2145,6 +2160,7 @@ print(json.dumps(result))
       echo "  pipeline-stderr: $(tail -3 "$CLI_ERR_FILE" 2>/dev/null | tr '\n' ' ')"
       DETERMINISTIC="{}"
     fi
+    cat "$CLI_OUTPUT_FILE" "$CLI_ERR_FILE" 2>/dev/null | tail -c 4000 > "$BC_SCRATCH_DIR/_bc_cli_output_${PR_NUM}.txt" || true
     rm -f "$CLI_OUTPUT_FILE" "$CLI_JSON_FILE" "$CLI_ERR_FILE"
   else
     echo "  pipeline: skipped ($ECOSYSTEM)"
@@ -2164,6 +2180,12 @@ print(json.dumps(result))
   PR_INSTALL_EXIT=0
   MAIN_GO_TEST_EXIT_PR=-1
   MAIN_NPM_TEST_EXIT_PR=-1
+  EVIDENCE_DEP_COMMAND=""
+  EVIDENCE_BUILD_COMMAND=""
+  EVIDENCE_TEST_COMMAND=""
+  EVIDENCE_SMOKE_COMMAND=""
+  EVIDENCE_SMOKE_OUTPUT=""
+  EVIDENCE_SMOKE_EXIT="null"
 
   # Re-check MERGEABLE_STATUS (conflict verdict was set at line 1526 but BUILD_VERDICT
   # was just reset to "skip" — so we must check the source of truth, not the overwritten var)
@@ -2191,6 +2213,7 @@ print(json.dumps(result))
           echo "  build: npm ci + tsc in ${BUILD_DIR#$PR_WORKTREE/}..."
           # Set up private registry auth if configured
           setup_private_registries "$BUILD_DIR"
+          EVIDENCE_DEP_COMMAND="npm ci --ignore-scripts"
           BUILD_OUTPUT=$(cd "$BUILD_DIR" && retry_cmd 3 5 timeout $TIMEOUT npm ci --ignore-scripts 2>&1)
           PR_INSTALL_EXIT=$?
           INSTALL_METHOD="ci"
@@ -2201,7 +2224,12 @@ print(json.dumps(result))
               echo "  trying npm install fallback..."
               rewrite_private_deps_to_local "$BUILD_DIR" "$PR_WORKTREE"
               FALLBACK_OUT=$(cd "$BUILD_DIR" && timeout $TIMEOUT npm install --ignore-scripts --legacy-peer-deps 2>&1)
-              if [[ $? -eq 0 ]]; then
+              _FALLBACK_RC=$?
+              BUILD_OUTPUT="$BUILD_OUTPUT
+--- npm install fallback ---
+$FALLBACK_OUT"
+              EVIDENCE_DEP_COMMAND="npm ci --ignore-scripts; npm install --ignore-scripts --legacy-peer-deps"
+              if [[ "$_FALLBACK_RC" -eq 0 ]]; then
                 echo "  npm install fallback: SUCCESS"
                 PR_INSTALL_EXIT=0
                 INSTALL_METHOD="install_fallback"
@@ -2214,7 +2242,12 @@ print(json.dumps(result))
               echo "  INFRA_ERROR: trying workspace-local fallback..."
               rewrite_private_deps_to_local "$BUILD_DIR" "$PR_WORKTREE"
               FALLBACK_OUT=$(cd "$BUILD_DIR" && timeout $TIMEOUT npm install --ignore-scripts --legacy-peer-deps 2>&1)
-              if [[ $? -eq 0 ]]; then
+              _FALLBACK_RC=$?
+              BUILD_OUTPUT="$BUILD_OUTPUT
+--- npm install fallback ---
+$FALLBACK_OUT"
+              EVIDENCE_DEP_COMMAND="npm ci --ignore-scripts; npm install --ignore-scripts --legacy-peer-deps"
+              if [[ "$_FALLBACK_RC" -eq 0 ]]; then
                 echo "  workspace-local fallback: SUCCESS"
                 PR_INSTALL_EXIT=0
                 INSTALL_METHOD="local_fallback"
@@ -2240,6 +2273,7 @@ print(json.dumps(result))
           fi
 
           if [[ "$PR_INSTALL_EXIT" -eq 0 && -f "$BUILD_DIR/tsconfig.json" ]]; then
+            EVIDENCE_BUILD_COMMAND="npx tsc --noEmit"
             TSC_OUT=$(cd "$BUILD_DIR" && timeout $TIMEOUT npx tsc --noEmit 2>&1)
             PR_TSC_EXIT=$?
             BUILD_EXIT=$PR_TSC_EXIT
@@ -2272,9 +2306,11 @@ $TSC_OUT"
             # Separate sync (dependency resolution) from build so INSTALL_OK tracks deps correctly.
             _GO_SYNC_OUT=""
             _GO_SYNC_EXIT=0
+            EVIDENCE_DEP_COMMAND="go work sync"
             _GO_SYNC_OUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 go work sync 2>&1) || _GO_SYNC_EXIT=$?
             if [[ "$_GO_SYNC_EXIT" -eq 0 ]]; then
               INSTALL_OK="true"
+              EVIDENCE_BUILD_COMMAND="go_targeted_build (timeout ${GO_TIMEOUT} go build -o /dev/null <affected packages>)"
               BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
                 _BUILD_RC=0
                 go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
@@ -2320,6 +2356,7 @@ $TSC_OUT"
             # will fail on checksum verification during go build.
             _GO_TIDY_EXIT=0
             _GO_TIDY_OUT=""
+            EVIDENCE_DEP_COMMAND="go mod tidy"
             if [[ "$_GO_MULTI_MODULE" == "true" ]]; then
               # Find all go.mod files and tidy each module that has importing files
               _TIDY_MODULES=$(_BC_IMPORT_JSON="$FILES_IMPORTING" _BC_PKG_DIR="$PKG_DIR" python3 -c "
@@ -2399,6 +2436,7 @@ ${_mod_tidy_out}"
             fi
             if [[ "$_GO_TIDY_EXIT" -eq 0 ]]; then
               INSTALL_OK="true"
+              EVIDENCE_BUILD_COMMAND="go_targeted_build (timeout ${GO_TIMEOUT} go build -o /dev/null <affected packages>)"
               BUILD_OUTPUT=$(cd "$PR_WORKTREE" && go_targeted_build "$FILES_IMPORTING" 2>&1)
               BUILD_EXIT=$?
               # Cache corruption retry: if build failed due to stale cache, clean and retry
@@ -2474,9 +2512,11 @@ $GO_VET_OUT"
                 printf 'go mod tidy for %s %s→%s' "$PKG" "$FROM_VER" "$TO_VER" > "$BC_SCRATCH_DIR/_bc_go_resolution_command_${PR_NUM}.txt"
               fi
               printf '%s' "$_GO_TIDY_OUT" > "$BC_SCRATCH_DIR/_bc_go_resolution_output_${PR_NUM}.txt"
+              printf '%s' "${_GO_TIDY_EXIT:-null}" > "$BC_SCRATCH_DIR/_bc_go_resolution_exit_${PR_NUM}.txt"
             elif [[ -n "${_GO_SYNC_OUT:-}" ]]; then
               printf 'go work sync for %s %s→%s' "$PKG" "$FROM_VER" "$TO_VER" > "$BC_SCRATCH_DIR/_bc_go_resolution_command_${PR_NUM}.txt"
               printf '%s' "$_GO_SYNC_OUT" > "$BC_SCRATCH_DIR/_bc_go_resolution_output_${PR_NUM}.txt"
+              printf '%s' "${_GO_SYNC_EXIT:-null}" > "$BC_SCRATCH_DIR/_bc_go_resolution_exit_${PR_NUM}.txt"
             fi
             _GO_MODSUM_FILES=$(cd "$PR_WORKTREE" && git --no-pager diff --name-only origin/main -- 2>/dev/null | grep -E '(^|/)go\.(mod|sum)$' || true)
             if [[ -n "$_GO_MODSUM_FILES" ]]; then
@@ -2513,11 +2553,14 @@ ${BUILD_OUTPUT}"
             _PY_PYTHON_PR="python3"
           fi
           if [[ -f "$PR_WORKTREE/requirements.txt" ]]; then
+            EVIDENCE_DEP_COMMAND="pip install -r requirements.txt --quiet"
             BUILD_OUTPUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_PR" install -r requirements.txt --quiet 2>&1)
           elif [[ -f "$PR_WORKTREE/pyproject.toml" ]]; then
+            EVIDENCE_DEP_COMMAND="pip install -e . --quiet"
             BUILD_OUTPUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_PR" install -e . --quiet 2>&1)
           elif [[ -f "$PR_WORKTREE/poetry.lock" ]]; then
             # Chain with && so poetry install only runs if pip install poetry succeeds (Finding-2.8)
+            EVIDENCE_DEP_COMMAND="pip install poetry --quiet && python -m poetry install --quiet"
             BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
               retry_cmd 3 5 "$_PY_PIP_PR" install poetry --quiet 2>&1 && \
               retry_cmd 3 5 "$_PY_PYTHON_PR" -m poetry install --quiet 2>&1
@@ -2529,6 +2572,7 @@ ${BUILD_OUTPUT}"
           [[ "$BUILD_EXIT" -eq 0 ]] && INSTALL_OK="true"
           if [[ "$BUILD_EXIT" -eq 0 && -n "$PKG" ]]; then
             IMPORT_NAME=$(map_import_name "$PKG")
+            EVIDENCE_BUILD_COMMAND="python -c 'import ${IMPORT_NAME}'"
             IMPORT_OUT=$(timeout 30 "$_PY_PYTHON_PR" -c "import $IMPORT_NAME" 2>&1)
             IMPORT_EXIT=$?
             if [[ "$IMPORT_EXIT" -ne 0 ]]; then
@@ -2842,9 +2886,11 @@ $IMPORT_OUT"
             if [[ "$PKG_DIR" != "/" && -f "$TEST_BUILD_DIR/package.json" ]]; then
               # Try scoped tests first (faster), fall back to full test
               echo "  test: npm test in ${TEST_BUILD_DIR#$PR_WORKTREE/}..."
+              EVIDENCE_TEST_COMMAND="npm test -- --passWithNoTests"
               TEST_OUTPUT=$(cd "$TEST_BUILD_DIR" && timeout 180 npm test -- --passWithNoTests 2>&1)
               TEST_EXIT=$?
             else
+              EVIDENCE_TEST_COMMAND="npm test"
               TEST_OUTPUT=$(cd "$TEST_BUILD_DIR" && timeout 180 npm test 2>&1)
               TEST_EXIT=$?
             fi
@@ -2870,20 +2916,26 @@ $IMPORT_OUT"
             fi
             if [[ -f "$TEST_BUILD_DIR/dist/main.js" ]]; then
               echo "  smoke: node require('./dist/main') ..."
+              EVIDENCE_SMOKE_COMMAND="node -e \"try { require('./dist/main'); process.exit(0); } catch(e) { console.error(e.message); process.exit(1); }\""
               SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
                 try { require('./dist/main'); process.exit(0); }
                 catch(e) { console.error(e.message); process.exit(1); }
               " 2>&1)
               SMOKE_EXIT=$?
+              EVIDENCE_SMOKE_OUTPUT="$SMOKE_OUT"
+              EVIDENCE_SMOKE_EXIT="$SMOKE_EXIT"
               SMOKE_RAN="true"
               echo "  smoke: exit=$SMOKE_EXIT"
             elif [[ -f "$TEST_BUILD_DIR/dist/index.js" ]]; then
               echo "  smoke: node require('./dist/index') ..."
+              EVIDENCE_SMOKE_COMMAND="node -e \"try { require('./dist/index'); process.exit(0); } catch(e) { console.error(e.message); process.exit(1); }\""
               SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
                 try { require('./dist/index'); process.exit(0); }
                 catch(e) { console.error(e.message); process.exit(1); }
               " 2>&1)
               SMOKE_EXIT=$?
+              EVIDENCE_SMOKE_OUTPUT="$SMOKE_OUT"
+              EVIDENCE_SMOKE_EXIT="$SMOKE_EXIT"
               SMOKE_RAN="true"
               echo "  smoke: exit=$SMOKE_EXIT"
             fi
@@ -2913,6 +2965,7 @@ $IMPORT_OUT"
           (cd "$PR_WORKTREE" && go mod tidy 2>/dev/null) || true
           echo "  go test: targeted (only affected packages)"
           TEST_OUTPUT=""
+          EVIDENCE_TEST_COMMAND="go_targeted_test (timeout ${GO_TIMEOUT} go test -timeout 5m -race <affected packages>)"
           TEST_OUTPUT=$(go_targeted_test "$PR_WORKTREE" "$FILES_IMPORTING" 2>&1)
           TEST_EXIT=$?
           TEST_RAN="true"
@@ -2948,6 +3001,7 @@ $IMPORT_OUT"
             fi
           fi
           if [[ "$TEST_INSTALL_OK" == "true" ]]; then
+            EVIDENCE_TEST_COMMAND="python -m pytest"
             TEST_OUTPUT=$(cd "$PR_WORKTREE" && timeout 180 "$_PY_PYTHON_TEST" -m pytest 2>&1)
             TEST_EXIT=$?
             TEST_RAN="true"
@@ -2996,6 +3050,13 @@ $IMPORT_OUT"
   # in PR titles or config patterns from crashing the heredoc (Finding-3.2).
   echo "$BUILD_OUTPUT" | tail -n 80 > "/tmp/_bc_build_out_${PR_NUM}.txt"
   echo "$TEST_OUTPUT" | tail -n 80 > "/tmp/_bc_test_out_${PR_NUM}.txt"
+  printf '%s' "$EVIDENCE_DEP_COMMAND" > "$BC_SCRATCH_DIR/_bc_evidence_dep_command_${PR_NUM}.txt"
+  printf '%s' "$EVIDENCE_BUILD_COMMAND" > "$BC_SCRATCH_DIR/_bc_evidence_build_command_${PR_NUM}.txt"
+  printf '%s' "$EVIDENCE_TEST_COMMAND" > "$BC_SCRATCH_DIR/_bc_evidence_test_command_${PR_NUM}.txt"
+  printf '%s' "$EVIDENCE_SMOKE_COMMAND" > "$BC_SCRATCH_DIR/_bc_evidence_smoke_command_${PR_NUM}.txt"
+  printf '%s' "$EVIDENCE_SMOKE_OUTPUT" > "$BC_SCRATCH_DIR/_bc_smoke_output_${PR_NUM}.txt"
+  printf '%s' "$EVIDENCE_SMOKE_EXIT" > "$BC_SCRATCH_DIR/_bc_smoke_exit_${PR_NUM}.txt"
+  printf '%s' "${AUDIT_JSON:-}" > "$BC_SCRATCH_DIR/_bc_npm_audit_output_${PR_NUM}.txt"
   echo "$NEW_ERRORS" > "/tmp/_bc_new_errors_${PR_NUM}.txt"
   printf '%s' "${GOSUM_NEW_COUNT:-0}" > "/tmp/_bc_gosum_new_${PR_NUM}.txt"
   printf '%s' "${GOSUM_NEW_NAMES:-}" > "/tmp/_bc_gosum_names_${PR_NUM}.txt"
@@ -3692,6 +3753,142 @@ if isinstance(pr_data.get("merge_risk"), dict):
     pr_data["merge_risk"]["confidenceAxis"] = f"L{level}" if level >= 0 else pr_data["verification_label"]
     if isinstance(pr_data.get("deterministic"), dict) and isinstance(pr_data["deterministic"].get("merge_risk"), dict):
         pr_data["deterministic"]["merge_risk"] = pr_data["merge_risk"]
+
+# ── Structured per-signal evidence ─────────────────────────────
+def _tail_text(value, limit=4000):
+    value = value or ""
+    return value[-limit:] if len(value) > limit else value
+
+def _read_scratch(name):
+    try:
+        with open(os.path.join("$BC_SCRATCH_DIR", name)) as f:
+            return f.read()
+    except (IOError, OSError):
+        return ""
+
+def _read_scratch_int(name):
+    raw = _read_scratch(name).strip()
+    try:
+        return int(raw) if raw not in ("", "null", "None") else None
+    except ValueError:
+        return None
+
+def _status_from_exit(exit_code):
+    if exit_code is None:
+        return "skipped"
+    return "ran_pass" if exit_code == 0 else "ran_fail"
+
+def _step_detail(step_names, default=""):
+    for st in steps:
+        if st.get("step") in step_names:
+            detail = st.get("detail") or st.get("status") or default
+            return str(detail)
+    return default
+
+def _ev(signal, label, status, command="", stdout="", exit_code=None, summary="", na_reason=""):
+    return {
+        "signal": signal,
+        "label": label,
+        "status": status,
+        "command": command or "",
+        "stdout": _tail_text(stdout),
+        "exit_code": exit_code,
+        "summary": summary or "",
+        "na_reason": na_reason if status in ("n/a", "skipped") else "",
+    }
+
+evidence = []
+dep_cmd = _read_scratch(f"_bc_evidence_dep_command_{pr_num}.txt").strip()
+build_cmd = _read_scratch(f"_bc_evidence_build_command_{pr_num}.txt").strip()
+test_cmd = _read_scratch(f"_bc_evidence_test_command_{pr_num}.txt").strip()
+smoke_cmd = _read_scratch(f"_bc_evidence_smoke_command_{pr_num}.txt").strip()
+usage_raw = _read_scratch(f"_bc_usage_raw_{pr_num}.txt")
+cli_stdout = _read_scratch(f"_bc_cli_output_{pr_num}.txt")
+npm_audit_stdout = _read_scratch(f"_bc_npm_audit_output_{pr_num}.txt")
+smoke_stdout = _read_scratch(f"_bc_smoke_output_{pr_num}.txt")
+smoke_exit_recorded = _read_scratch_int(f"_bc_smoke_exit_{pr_num}.txt")
+
+go_resolution = pr_data.get("go_resolution", {}) if isinstance(pr_data.get("go_resolution"), dict) else {}
+if eco == "gomod":
+    dep_cmd = go_resolution.get("command") or dep_cmd or "go mod tidy"
+    dep_out = go_resolution.get("output_tail") or ""
+    dep_exit = _read_scratch_int(f"_bc_go_resolution_exit_{pr_num}.txt")
+    if dep_cmd:
+        evidence.append(_ev("dependency_resolution", "Dependency resolution", _status_from_exit(dep_exit), dep_cmd, dep_out, dep_exit, _step_detail({"dependency_resolution"}, "dependency resolution")))
+    else:
+        evidence.append(_ev("dependency_resolution", "Dependency resolution", "n/a", "", "", None, "dependency resolution not applicable", "no Go dependency resolution command recorded"))
+elif eco == "npm":
+    dep_out = build_output.split("--- tsc ---", 1)[0]
+    dep_exit = int("$PR_INSTALL_EXIT") if "$PR_INSTALL_EXIT" not in ("", "-1") else None
+    evidence.append(_ev("dependency_resolution", "Dependency resolution", _status_from_exit(dep_exit), dep_cmd or "npm ci --ignore-scripts", dep_out, dep_exit, _step_detail({"dependency_resolution"}, "dependency resolution")))
+elif eco == "pip":
+    dep_out = build_output.split("--- import check ---", 1)[0]
+    dep_exit = 0 if install_ok else (pr_data.get("build", {}).get("pr_exit") if pr_data.get("build", {}).get("pr_exit") != -1 else None)
+    if dep_cmd:
+        evidence.append(_ev("dependency_resolution", "Dependency resolution", _status_from_exit(dep_exit), dep_cmd, dep_out, dep_exit, _step_detail({"dependency_resolution"}, "dependency resolution")))
+    else:
+        evidence.append(_ev("dependency_resolution", "Dependency resolution", "n/a", "", dep_out, None, "no Python dependency manifest found", "no requirements.txt, pyproject.toml, or poetry.lock found"))
+
+# Build/type-check/import-check signal
+build_exit = None
+if eco == "npm":
+    build_exit = int("$PR_TSC_EXIT") if "$PR_TSC_EXIT" not in ("", "-1") else None
+elif eco in ("gomod", "pip"):
+    build_exit = pr_data.get("build", {}).get("pr_exit")
+    build_exit = None if build_exit == -1 else build_exit
+if build_cmd:
+    evidence.append(_ev("build", "Build", _status_from_exit(build_exit), build_cmd, build_output, build_exit, _step_detail({"type_check"}, build_verdict)))
+else:
+    reason = "no tsconfig.json" if eco == "npm" else ("Go unavailable or build skipped" if eco == "gomod" else "Python import check not run")
+    evidence.append(_ev("build", "Build", "n/a", "", build_output, build_exit, _step_detail({"type_check"}, "build not run"), reason))
+
+# API diff and usage scan come from the deterministic pipeline and shell grep scan.
+if eco in ("gomod", "npm", "pip"):
+    if deterministic:
+        api_changes = len(deterministic.get("api_changes_detail", deterministic.get("apiChanges", [])) or [])
+        compatible = deterministic.get("verification", {}).get("compatible")
+        status = "ran_fail" if compatible is False else "ran_pass"
+        evidence.append(_ev("api_diff", "API diff", status, "node .github/actions/breakability-check/index.js --json", cli_stdout, 0, f"api_changes={api_changes}, compatible={compatible}"))
+    else:
+        evidence.append(_ev("api_diff", "API diff", "skipped", "node .github/actions/breakability-check/index.js --json", cli_stdout, None, "pipeline output unavailable", "pipeline skipped or produced no JSON"))
+    usage_cmd = {"npm": "scan_usage_npm", "gomod": "scan_usage_go", "pip": "scan_usage_pip"}.get(eco, "")
+    evidence.append(_ev("usage_scan", "Usage scan", "ran_pass", usage_cmd, usage_raw, 0, f"{len(files_importing)} importing file(s) found"))
+
+# Vulnerability scan evidence: npm audit for npm, govulncheck for Go, none for pip.
+if eco == "npm":
+    if npm_audit_stdout:
+        audit_status = "ran_fail" if ($AUDIT_CRITICAL > 0 or $AUDIT_HIGH > 0) else "ran_pass"
+        evidence.append(_ev("vuln_scan", "Vulnerability scan", audit_status, "npm audit --json --production", npm_audit_stdout, 0, f"critical={pr_data['npm_audit']['critical']}, high={pr_data['npm_audit']['high']}"))
+    else:
+        evidence.append(_ev("vuln_scan", "Vulnerability scan", "skipped", "npm audit --json --production", "", None, "npm audit not run", "dependency installation failed or npm audit skipped"))
+elif eco == "gomod":
+    if vuln_status in ("skipped_disabled",):
+        evidence.append(_ev("vuln_scan", "Vulnerability scan", "skipped", "govulncheck ./...", vuln_output, None, "govulncheck disabled", "govulncheck disabled by config"))
+    elif vuln_status in ("not_installed",):
+        evidence.append(_ev("vuln_scan", "Vulnerability scan", "n/a", "govulncheck ./...", vuln_output, None, "govulncheck unavailable", "govulncheck tool unavailable"))
+    else:
+        vuln_ev_status = "ran_pass" if vuln_status in ("ok", "ok_preexisting") else "ran_fail"
+        evidence.append(_ev("vuln_scan", "Vulnerability scan", vuln_ev_status, "govulncheck ./...", vuln_output, None, vuln_status))
+elif eco == "pip":
+    evidence.append(_ev("vuln_scan", "Vulnerability scan", "n/a", "", "", None, "Python vulnerability scan not configured", "no Python vulnerability scanner configured"))
+
+# Test and smoke evidence.
+if test_ran_val:
+    if eco == "gomod" and no_go_tests:
+        evidence.append(_ev("tests", "Tests", "n/a", test_cmd or "go test ./...", test_output, test_exit_val, _step_detail({"test_suite"}, "no Go test files present"), "no Go test files present"))
+    else:
+        evidence.append(_ev("tests", "Tests", _status_from_exit(test_exit_val), test_cmd, test_output, test_exit_val, _step_detail({"test_suite"}, "tests ran")))
+else:
+    evidence.append(_ev("tests", "Tests", "skipped", test_cmd, test_output, None, _step_detail({"test_suite"}, "tests not triggered"), "not triggered"))
+
+if eco == "npm":
+    if smoke_ran_val:
+        evidence.append(_ev("smoke", "Smoke probe", _status_from_exit(smoke_exit_recorded if smoke_exit_recorded is not None else smoke_exit_val), smoke_cmd, smoke_stdout, smoke_exit_recorded if smoke_exit_recorded is not None else smoke_exit_val, _step_detail({"smoke_probe"}, "smoke probe ran")))
+    else:
+        evidence.append(_ev("smoke", "Smoke probe", "skipped", smoke_cmd, smoke_stdout, None, _step_detail({"smoke_probe"}, "smoke probe not run"), "not triggered or no dist entrypoint"))
+
+pr_data["evidence"] = evidence
+
 pr_data["verification_steps"] = steps
 
 data["prs"][pr_num] = pr_data
