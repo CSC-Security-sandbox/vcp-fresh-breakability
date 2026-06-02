@@ -2132,11 +2132,14 @@ result = {
   'confidence': data.get('confidence', 'UNVERIFIED'),
   'adapter': data.get('adapterUsed', 'unknown'),
   'api_diff_tool': data.get('apiDiffTool', None),
-  'security': data.get('securityUpdate', None)
+  'security': data.get('securityUpdate', None),
+  'changelogText': data.get('changelogText', ''),
+  'changelogSignal': data.get('changelogSignal', None)
 }
 print(json.dumps(result))
 " 2>/dev/null || echo "{}")
       echo "  pipeline: classification=$(echo "$DETERMINISTIC" | python3 -c "import json,sys; print(json.load(sys.stdin).get('classification','?'))" 2>/dev/null || echo "?")"
+      echo "  pipeline: merge_risk=$(echo "$DETERMINISTIC" | python3 -c "import json,sys; d=json.load(sys.stdin); mr=d.get('merge_risk') or {}; cs=d.get('changelogSignal') or {}; print((mr.get('tag') or '?')+' changelog_status='+str((cs or {}).get('status'))+' bullets='+str(len((cs or {}).get('bullets',[]))))" 2>/dev/null || echo "?")"
     else
       echo "  pipeline: failed to parse CLI output"
       echo "  pipeline-stderr: $(tail -3 "$CLI_ERR_FILE" 2>/dev/null | tr '\n' ' ')"
