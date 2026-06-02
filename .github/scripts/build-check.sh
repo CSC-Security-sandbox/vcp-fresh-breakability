@@ -31,6 +31,90 @@ else
 fi
 CLI_PATH="${CLI_PATH:-.github/actions/breakability-check/index.js}"
 REPO_ROOT="$(pwd)"
+
+# ── Go changelog fetch (shared source for verdict + display, PRD G6) ──────────
+# Resolves the module's GitHub repo (incl. common vanity import paths the in-CLI
+# fetcher cannot), pulls release bodies for tags in (from,to] plus CHANGELOG.md, and
+# emits the breaking-change-relevant lines as plain text. The output is fed to the CLI
+# via --changelog-file so computeMergeRisk sees declared breaking changes, and persisted
+# so the renderer shows the SAME source.
+fetch_go_changelog_text() {
+  local _pkg="$1" _from="$2" _to="$3" _gh_path _releases _changelog _content
+  [[ -z "$_pkg" || -z "$_from" || -z "$_to" ]] && return 0
+  _gh_path=$(echo "$_pkg" | grep -oE '^github\.com/[^/]+/[^/]+' || echo "")
+  [[ -z "$_gh_path" ]] && _gh_path=$(echo "$_pkg" | sed -n 's|^golang.org/x/\([^/]*\)|github.com/golang/\1|p')
+  [[ -z "$_gh_path" ]] && _gh_path=$(echo "$_pkg" | sed -n 's|^go.opentelemetry.io/.*|github.com/open-telemetry/opentelemetry-go|p' | head -1)
+  [[ -z "$_gh_path" ]] && return 0
+  ( unset GH_TOKEN
+    _releases=$(gh api "repos/${_gh_path#github.com/}/releases?per_page=100" --jq '[.[] | {tag_name,name,body: ((.body // "")[0:4000])}]' 2>/dev/null || echo '[]')
+    _changelog=""
+    for _candidate in CHANGELOG.md CHANGES.md HISTORY.md RELEASES.md; do
+      _content=$(gh api "repos/${_gh_path#github.com/}/contents/${_candidate}" --jq '.content // ""' 2>/dev/null | python3 -c 'import base64,sys; data=sys.stdin.read().strip(); print(base64.b64decode(data).decode("utf-8","replace") if data else "")' 2>/dev/null | head -c 24000 || true)
+      [[ -n "$_content" ]] && { _changelog="$_content"; break; }
+    done
+    _BC_RELEASES="$_releases" _BC_CHANGELOG="$_changelog" _BC_FROM="$_from" _BC_TO="$_to" python3 -c '
+import json, os, re
+releases = json.loads(os.environ.get("_BC_RELEASES", "[]") or "[]")
+changelog = os.environ.get("_BC_CHANGELOG", "") or ""
+from_v = os.environ.get("_BC_FROM", ""); to_v = os.environ.get("_BC_TO", "")
+def norm(v):
+    v = (v or "").strip().lstrip("v")
+    m = re.search(r"(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", v)
+    return m.group(1) if m else v
+def tup(v):
+    m = re.match(r"(\d+)\.(\d+)\.(\d+)", norm(v))
+    return tuple(map(int, m.groups())) if m else None
+lo, hi = tup(from_v), tup(to_v)
+def versions_in(s):
+    return [tuple(map(int, m)) for m in re.findall(r"(\d+)\.(\d+)\.(\d+)", s or "")]
+def in_range(tag):
+    tv = tup(tag)
+    # Fail closed when range is unparsable: only the exact to-version counts.
+    if not lo or not hi:
+        return norm(tag) == norm(to_v)
+    if not tv:
+        return False
+    return lo < tv <= hi
+pat = re.compile(r"\b(BREAKING|breaking[\s-]?change|backward[\s-]?incompatible|migration[\s-]?required|removed?|incompatible|default(?:s| value)?\s+(?:change|changed|now)|deprecated|renamed|deleted|no longer|behavior change|API change)\b", re.I)
+lines = []
+for rel in releases:
+    tag = rel.get("tag_name") or rel.get("name") or ""
+    if not in_range(tag): continue
+    text = "\n".join([str(rel.get("name") or tag), str(rel.get("body") or "")])
+    for line in text.splitlines():
+        line = line.strip(" -*\t")
+        if line and pat.search(line):
+            lines.append(line[:300])
+# CHANGELOG.md: scope to the section between to and from headers to avoid stale matches.
+if changelog:
+    sect = []; capture = False
+    hdr = re.compile(r"^#+\s*\[?v?\d+\.\d+\.\d+")
+    for line in changelog.splitlines():
+        ls = line.strip()
+        if hdr.match(ls):
+            # Headers may list several modules, e.g. "## [1.42.0/0.64.0/0.18.0]".
+            # Capture if ANY listed version falls in (from, to]. Fail closed if
+            # the range is unparsable: only capture the exact to-version section.
+            vs = versions_in(ls)
+            if lo and hi:
+                capture = any(lo < v <= hi for v in vs)
+            else:
+                capture = any(v == tup(to_v) for v in vs)
+        if capture:
+            s = line.strip(" -*\t")
+            if s and pat.search(s):
+                sect.append(s[:300])
+        if len(sect) >= 40: break
+    lines.extend(sect)
+seen = []
+for l in lines:
+    if l not in seen: seen.append(l)
+print("\n".join(f"- {l}" for l in seen[:40]))
+' 2>/dev/null || true
+  )
+}
+
+
 export BC_SCRATCH_DIR="${BC_SCRATCH_DIR:-$REPO_ROOT/.breakability-scratch}"
 mkdir -p "$BC_SCRATCH_DIR"
 WORKTREE_BASE="/tmp/worktree"
@@ -2006,10 +2090,22 @@ except Exception as e:
     CLI_OUTPUT_FILE="/tmp/_bc_cli_${PR_NUM}.raw"
     CLI_JSON_FILE="/tmp/_bc_cli_${PR_NUM}.json"
     CLI_ERR_FILE="/tmp/_bc_cli_${PR_NUM}.err"
+    # For Go, pre-fetch the comprehensive changelog (vanity-path aware, releases-in-range +
+    # CHANGELOG.md) and feed it to the CLI so computeMergeRisk sees declared breaking changes.
+    CLI_CHANGELOG_ARGS=()
+    if [[ "$ECOSYSTEM" == "gomod" ]]; then
+      CLI_CHANGELOG_FILE="/tmp/_bc_changelog_${PR_NUM}.txt"
+      fetch_go_changelog_text "$PKG" "$FROM_VER" "$TO_VER" > "$CLI_CHANGELOG_FILE" 2>/dev/null || true
+      if [[ -s "$CLI_CHANGELOG_FILE" ]]; then
+        CLI_CHANGELOG_ARGS=(--changelog-file "$CLI_CHANGELOG_FILE")
+        echo "  changelog: fetched $(wc -l < "$CLI_CHANGELOG_FILE" | tr -d ' ') signal line(s) for CLI verdict"
+      fi
+    fi
     timeout 180 node "$CLI_PATH" \
       -p "$PKG" -f "$FROM_VER" -t "$TO_VER" \
       -r "$REPO_ROOT" -e "$CLI_ECO" -d "$DEP_TYPE" \
       --pr-body-file "$PR_BODY_FILE" \
+      ${CLI_CHANGELOG_ARGS[@]+"${CLI_CHANGELOG_ARGS[@]}"} \
       --json > "$CLI_OUTPUT_FILE" 2>"$CLI_ERR_FILE" || true
 
     # Extract JSON: find the first line starting with '{' and take everything from there
