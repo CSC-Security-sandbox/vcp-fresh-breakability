@@ -251,7 +251,7 @@ func (d *DataStoreRepository) UpdateBackupVaultBucketDetails(ctx context.Context
 	}
 
 	existingBv.UpdatedAt = time.Now()
-	existingBv.BucketDetails = existingBv.BucketDetails.UpdateBucketDetails(updatedBv.BucketDetails)
+	existingBv.UpdateBucketDetails(updatedBv.BucketDetails)
 
 	if err = tx.Save(&existingBv).Error; err != nil {
 		return err

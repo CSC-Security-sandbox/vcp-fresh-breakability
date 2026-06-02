@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJSONB_Scan(t *testing.T) {
@@ -273,6 +272,55 @@ func TestBucketDetailsArray_Value(t *testing.T) {
 	val, err := bda.Value()
 	assert.NoError(t, err)
 	assert.Equal(t, `[{"bucket_name":"test-bucket","service_account_name":"","vendor_subnet_id":"","tenant_project_number":"","satisfies_pzi":false,"satisfies_pzs":false}]`, string(val.([]byte)))
+}
+
+func TestBucketDetailsArray_Scan(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       interface{}
+		wantErr     bool
+		errContains string
+		wantResult  BucketDetailsArray
+	}{
+		{
+			name:  "success: valid JSON bytes",
+			input: []byte(`[{"bucket_name":"my-bucket","service_account_name":"sa@project.iam","vendor_subnet_id":"subnet-1","tenant_project_number":"123","satisfies_pzi":true,"satisfies_pzs":false}]`),
+			wantResult: BucketDetailsArray{{
+				BucketName:          "my-bucket",
+				ServiceAccountName:  "sa@project.iam",
+				VendorSubnetID:      "subnet-1",
+				TenantProjectNumber: "123",
+				SatisfiesPzi:        true,
+				SatisfiesPzs:        false,
+			}},
+		},
+		{
+			name:        "error: type assertion to []byte fails",
+			input:       "not-a-byte-slice",
+			wantErr:     true,
+			errContains: "type assertion to []byte failed",
+		},
+		{
+			name:        "error: invalid JSON bytes",
+			input:       []byte(`not-valid-json`),
+			wantErr:     true,
+			errContains: "invalid character",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bda BucketDetailsArray
+			err := bda.Scan(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantResult, bda)
+			}
+		})
+	}
 }
 
 func TestImmutableAttributes_Scan(t *testing.T) {
@@ -1474,104 +1522,157 @@ func TestJobAttributes_Value(t *testing.T) {
 	})
 }
 
-func TestMergeBucketDetails(t *testing.T) {
-	t.Run("empty incoming returns current unchanged", func(t *testing.T) {
-		current := BucketDetailsArray{
-			{BucketName: "b1", SatisfiesPzi: true},
-		}
-		got := current.UpdateBucketDetails(nil)
-		assert.Equal(t, current, got)
+func TestBackupVault_UpdateBucketDetails(t *testing.T) {
+	bucket := func(name string, pzi, pzs bool) *BucketDetails {
+		return &BucketDetails{BucketName: name, SatisfiesPzi: pzi, SatisfiesPzs: pzs}
+	}
+
+	t.Run("NilReceiver_NoOp", func(t *testing.T) {
+		var b *BackupVault
+		// Must not panic.
+		b.UpdateBucketDetails(BucketDetailsArray{bucket("b1", true, false)})
+		assert.Nil(t, b)
 	})
 
-	t.Run("append new bucket by name", func(t *testing.T) {
-		current := BucketDetailsArray{
-			{BucketName: "b1", VendorSubnetID: "s1"},
-		}
-		incoming := BucketDetailsArray{
-			{BucketName: "b2", VendorSubnetID: "s2"},
-		}
-		got := current.UpdateBucketDetails(incoming)
-		require.Len(t, got, 2)
-		assert.Equal(t, "b1", got[0].BucketName)
-		assert.Equal(t, "b2", got[1].BucketName)
+	t.Run("EmptyUpdate_NoOp", func(t *testing.T) {
+		b := &BackupVault{BucketDetails: BucketDetailsArray{bucket("b1", false, false)}}
+		b.UpdateBucketDetails(BucketDetailsArray{})
+		assert.Len(t, b.BucketDetails, 1)
+		assert.Equal(t, "b1", b.BucketDetails[0].BucketName)
 	})
 
-	t.Run("patch ZiZs on existing bucket retains others", func(t *testing.T) {
-		current := BucketDetailsArray{
-			{BucketName: "b1", SatisfiesPzi: false, SatisfiesPzs: false},
-			{BucketName: "b2", SatisfiesPzi: true, SatisfiesPzs: true},
-		}
-		incoming := BucketDetailsArray{
-			{BucketName: "b1", SatisfiesPzi: true, SatisfiesPzs: true},
-		}
-		got := current.UpdateBucketDetails(incoming)
-		require.Len(t, got, 2)
-		assert.True(t, got[0].SatisfiesPzi)
-		assert.True(t, got[0].SatisfiesPzs)
-		assert.Equal(t, "b2", got[1].BucketName)
-		assert.True(t, got[1].SatisfiesPzi)
+	// -----------------------------------------------------------------------
+	// CrossProject path
+	// -----------------------------------------------------------------------
+
+	t.Run("CrossProject_NilFirstEntry_NoOp", func(t *testing.T) {
+		existing := BucketDetailsArray{bucket("orig", false, false)}
+		b := &BackupVault{ServiceType: ServiceTypeCrossProject, BucketDetails: existing}
+		b.UpdateBucketDetails(BucketDetailsArray{nil})
+		assert.Equal(t, existing, b.BucketDetails)
 	})
 
-	t.Run("stale partial incoming preserves DB-only bucket", func(t *testing.T) {
-		current := BucketDetailsArray{
-			{BucketName: "b1"},
-			{BucketName: "b2"},
-			{BucketName: "b3"},
-		}
-		incoming := BucketDetailsArray{
-			{BucketName: "b1", SatisfiesPzi: true},
-			{BucketName: "b2", SatisfiesPzs: true},
-		}
-		got := current.UpdateBucketDetails(incoming)
-		require.Len(t, got, 3)
-		assert.Equal(t, "b3", got[2].BucketName)
+	t.Run("CrossProject_EmptyBucketName_NoOp", func(t *testing.T) {
+		existing := BucketDetailsArray{bucket("orig", false, false)}
+		b := &BackupVault{ServiceType: ServiceTypeCrossProject, BucketDetails: existing}
+		b.UpdateBucketDetails(BucketDetailsArray{{BucketName: ""}})
+		assert.Equal(t, existing, b.BucketDetails)
 	})
 
-	t.Run("empty string fields do not clear existing", func(t *testing.T) {
-		current := BucketDetailsArray{
-			{
-				BucketName:          "b1",
-				ServiceAccountName:  "sa-1",
-				TenantProjectNumber: "tp-1",
-				VendorSubnetID:      "s1",
-			},
+	t.Run("CrossProject_ValidFirstEntry_ReplacesAll", func(t *testing.T) {
+		b := &BackupVault{
+			ServiceType:   ServiceTypeCrossProject,
+			BucketDetails: BucketDetailsArray{bucket("old", false, false)},
 		}
-		incoming := BucketDetailsArray{
-			{BucketName: "b1", SatisfiesPzi: true},
-		}
-		got := current.UpdateBucketDetails(incoming)
-		require.Len(t, got, 1)
-		assert.Equal(t, "sa-1", got[0].ServiceAccountName)
-		assert.Equal(t, "tp-1", got[0].TenantProjectNumber)
-		assert.Equal(t, "s1", got[0].VendorSubnetID)
-		assert.True(t, got[0].SatisfiesPzi)
+		replacement := BucketDetailsArray{bucket("new", true, true), bucket("extra", false, false)}
+		b.UpdateBucketDetails(replacement)
+		assert.Equal(t, replacement, b.BucketDetails)
 	})
 
-	t.Run("skip nil and blank bucket name in incoming", func(t *testing.T) {
-		current := BucketDetailsArray{
-			{BucketName: "b1"},
+	// -----------------------------------------------------------------------
+	// Normal (non-CrossProject) merge path
+	// -----------------------------------------------------------------------
+
+	t.Run("EmptyExisting_NewBucketAppended", func(t *testing.T) {
+		b := &BackupVault{BucketDetails: BucketDetailsArray{}}
+		b.UpdateBucketDetails(BucketDetailsArray{bucket("b1", true, false)})
+		assert.Len(t, b.BucketDetails, 1)
+		assert.Equal(t, "b1", b.BucketDetails[0].BucketName)
+		assert.True(t, b.BucketDetails[0].SatisfiesPzi)
+	})
+
+	t.Run("MatchingBucket_UpdatesZiZsFieldsOnly", func(t *testing.T) {
+		orig := &BucketDetails{
+			BucketName:          "b1",
+			ServiceAccountName:  "sa@project.iam",
+			VendorSubnetID:      "subnet-abc",
+			TenantProjectNumber: "12345",
+			SatisfiesPzi:        false,
+			SatisfiesPzs:        false,
 		}
-		incoming := BucketDetailsArray{
+		b := &BackupVault{BucketDetails: BucketDetailsArray{orig}}
+		b.UpdateBucketDetails(BucketDetailsArray{bucket("b1", true, true)})
+
+		assert.Len(t, b.BucketDetails, 1)
+		got := b.BucketDetails[0]
+		assert.True(t, got.SatisfiesPzi)
+		assert.True(t, got.SatisfiesPzs)
+		// Non-ZiZs fields must be preserved.
+		assert.Equal(t, "sa@project.iam", got.ServiceAccountName)
+		assert.Equal(t, "subnet-abc", got.VendorSubnetID)
+		assert.Equal(t, "12345", got.TenantProjectNumber)
+	})
+
+	t.Run("NewBucket_Appended", func(t *testing.T) {
+		b := &BackupVault{BucketDetails: BucketDetailsArray{bucket("b1", false, false)}}
+		b.UpdateBucketDetails(BucketDetailsArray{bucket("b2", true, true)})
+		assert.Len(t, b.BucketDetails, 2)
+		assert.Equal(t, "b1", b.BucketDetails[0].BucketName)
+		assert.Equal(t, "b2", b.BucketDetails[1].BucketName)
+	})
+
+	t.Run("InsertionOrder_ExistingBeforeNew", func(t *testing.T) {
+		b := &BackupVault{BucketDetails: BucketDetailsArray{bucket("b1", false, false), bucket("b2", false, false)}}
+		b.UpdateBucketDetails(BucketDetailsArray{bucket("b3", true, false), bucket("b1", true, true)})
+		assert.Len(t, b.BucketDetails, 3)
+		assert.Equal(t, "b1", b.BucketDetails[0].BucketName)
+		assert.Equal(t, "b2", b.BucketDetails[1].BucketName)
+		assert.Equal(t, "b3", b.BucketDetails[2].BucketName)
+	})
+
+	t.Run("InvalidEntryInExisting_Skipped", func(t *testing.T) {
+		b := &BackupVault{BucketDetails: BucketDetailsArray{
 			nil,
 			{BucketName: ""},
-			{BucketName: "b2"},
-		}
-		got := current.UpdateBucketDetails(incoming)
-		require.Len(t, got, 2)
-		assert.Equal(t, "b2", got[1].BucketName)
+			bucket("b1", false, false),
+		}}
+		b.UpdateBucketDetails(BucketDetailsArray{bucket("b2", true, false)})
+		// nil and empty-name entries are dropped; only b1 and new b2 remain.
+		assert.Len(t, b.BucketDetails, 2)
+		assert.Equal(t, "b1", b.BucketDetails[0].BucketName)
+		assert.Equal(t, "b2", b.BucketDetails[1].BucketName)
 	})
 
-	t.Run("patch and append in one incoming", func(t *testing.T) {
-		current := BucketDetailsArray{
-			{BucketName: "b1", SatisfiesPzi: false},
-		}
-		incoming := BucketDetailsArray{
-			{BucketName: "b1", SatisfiesPzi: true},
-			{BucketName: "b2"},
-		}
-		got := current.UpdateBucketDetails(incoming)
-		require.Len(t, got, 2)
-		assert.True(t, got[0].SatisfiesPzi)
-		assert.Equal(t, "b2", got[1].BucketName)
+	t.Run("InvalidEntryInUpdate_Skipped", func(t *testing.T) {
+		b := &BackupVault{BucketDetails: BucketDetailsArray{bucket("b1", false, false)}}
+		b.UpdateBucketDetails(BucketDetailsArray{nil, {BucketName: ""}, bucket("b2", true, false)})
+		// nil and empty-name update entries are ignored; only b1 unchanged and new b2.
+		assert.Len(t, b.BucketDetails, 2)
+		assert.Equal(t, "b1", b.BucketDetails[0].BucketName)
+		assert.False(t, b.BucketDetails[0].SatisfiesPzi)
+		assert.Equal(t, "b2", b.BucketDetails[1].BucketName)
+	})
+
+	t.Run("DuplicateBucketInExisting_OnlyFirstKept", func(t *testing.T) {
+		b := &BackupVault{BucketDetails: BucketDetailsArray{
+			bucket("b1", false, false),
+			bucket("b1", true, true), // duplicate — should be dropped
+		}}
+		b.UpdateBucketDetails(BucketDetailsArray{bucket("b2", true, false)})
+		assert.Len(t, b.BucketDetails, 2)
+		assert.Equal(t, "b1", b.BucketDetails[0].BucketName)
+		assert.False(t, b.BucketDetails[0].SatisfiesPzi, "second duplicate must not overwrite first")
+		assert.Equal(t, "b2", b.BucketDetails[1].BucketName)
+	})
+
+	t.Run("MixedUpdate_SomeMatchSomeNew", func(t *testing.T) {
+		b := &BackupVault{BucketDetails: BucketDetailsArray{
+			bucket("b1", false, false),
+			bucket("b2", false, false),
+		}}
+		b.UpdateBucketDetails(BucketDetailsArray{
+			bucket("b2", true, true),  // existing — ZiZs updated
+			bucket("b3", true, false), // new — appended
+		})
+		assert.Len(t, b.BucketDetails, 3)
+		assert.Equal(t, "b1", b.BucketDetails[0].BucketName)
+		assert.False(t, b.BucketDetails[0].SatisfiesPzi)
+
+		assert.Equal(t, "b2", b.BucketDetails[1].BucketName)
+		assert.True(t, b.BucketDetails[1].SatisfiesPzi)
+		assert.True(t, b.BucketDetails[1].SatisfiesPzs)
+
+		assert.Equal(t, "b3", b.BucketDetails[2].BucketName)
+		assert.True(t, b.BucketDetails[2].SatisfiesPzi)
 	})
 }

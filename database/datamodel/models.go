@@ -425,26 +425,26 @@ type PendingResourceDeletions struct {
 }
 
 type VolumeAttributes struct {
-	CreationToken                      string           `json:"creation_token"`
-	Protocols                          []string         `json:"protocols"`
-	VendorSubnetID                     string           `json:"vendor_subnet_id"`
-	ExternalUUID                       string           `json:"external_uuid"`
-	BlockProperties                    *BlockProperties `json:"block_properties"`
-	BlockDevices                       *[]BlockDevice   `json:"block_devices"`
-	FileProperties                     *FileProperties  `json:"file_properties"`
-	IsDataProtection                   bool             `json:"is_data_protection"`
-	Mounted                            bool             `json:"mounted"`
-	SnapReserve                        int64            `json:"snap_reserve"`
-	SnapshotDirectory                  bool             `json:"snapshot_directory"`
-	KerberosEnabled                    bool             `json:"kerberos_enabled"`
-	LdapEnabled                        bool             `json:"ldap_enabled"`
-	Labels                             *JSONB           `json:"labels"`
-	RestoredBackupID                   string           `json:"restored_backup_id"`
-	RestoredBackupPath                 string           `json:"restored_backup_path"`
-	AccountName                        string           `json:"account_name"`
-	DeploymentName                     string           `json:"deployment_name"`
-	IsRegionalHA                       bool             `json:"is_regional_ha"`
-	CloneParentInfo                    *CloneParentInfo `json:"clone_parent_info"`
+	CreationToken      string           `json:"creation_token"`
+	Protocols          []string         `json:"protocols"`
+	VendorSubnetID     string           `json:"vendor_subnet_id"`
+	ExternalUUID       string           `json:"external_uuid"`
+	BlockProperties    *BlockProperties `json:"block_properties"`
+	BlockDevices       *[]BlockDevice   `json:"block_devices"`
+	FileProperties     *FileProperties  `json:"file_properties"`
+	IsDataProtection   bool             `json:"is_data_protection"`
+	Mounted            bool             `json:"mounted"`
+	SnapReserve        int64            `json:"snap_reserve"`
+	SnapshotDirectory  bool             `json:"snapshot_directory"`
+	KerberosEnabled    bool             `json:"kerberos_enabled"`
+	LdapEnabled        bool             `json:"ldap_enabled"`
+	Labels             *JSONB           `json:"labels"`
+	RestoredBackupID   string           `json:"restored_backup_id"`
+	RestoredBackupPath string           `json:"restored_backup_path"`
+	AccountName        string           `json:"account_name"`
+	DeploymentName     string           `json:"deployment_name"`
+	IsRegionalHA       bool             `json:"is_regional_ha"`
+	CloneParentInfo    *CloneParentInfo `json:"clone_parent_info"`
 	// OriginalSharedBytes captures the parent-snapshot logical size at clone
 	// creation time. It is the immutable baseline used by the synchronous
 	// splitStop API to derive a meaningful remaining-shared-bytes value after a
@@ -459,9 +459,9 @@ type VolumeAttributes struct {
 	//
 	// Pointer + omitempty so legacy rows (created before this field existed)
 	// can be detected and degrade gracefully in splitStop.
-	OriginalSharedBytes                *uint64          `json:"original_shared_bytes,omitempty"`
-	SplitRegularVolumeHydrationPending bool             `json:"split_regular_volume_hydration_pending,omitempty"`
-	SecurityStyle                      string           `json:"security_style"`
+	OriginalSharedBytes                *uint64 `json:"original_shared_bytes,omitempty"`
+	SplitRegularVolumeHydrationPending bool    `json:"split_regular_volume_hydration_pending,omitempty"`
+	SecurityStyle                      string  `json:"security_style"`
 	// SplitJobUUID holds the ONTAP job UUID returned by InitiateSplitVolume.
 	// It is written before starting the Temporal poll workflow so the orphan-job
 	// processor can reconstruct the workflow arguments if Temporal was unavailable
@@ -1029,6 +1029,46 @@ type BackupVault struct {
 	ServiceType                string               `json:"serviceType" gorm:"column:service_type;type:varchar(20);default:'GCNV'"`
 }
 
+func (b *BackupVault) UpdateBucketDetails(updatedBucketDetails BucketDetailsArray) {
+	if b == nil || len(updatedBucketDetails) == 0 {
+		return
+	}
+
+	if b.ServiceType == ServiceTypeCrossProject {
+		if updatedBucketDetails[0] != nil && updatedBucketDetails[0].BucketName != "" {
+			b.BucketDetails = updatedBucketDetails
+		}
+		return
+	}
+
+	merged := make(map[string]*BucketDetails)
+	order := make([]*BucketDetails, 0, len(b.BucketDetails)+len(updatedBucketDetails))
+	for _, bucketDetail := range b.BucketDetails {
+		if !bucketDetail.IsValid() {
+			continue
+		}
+		if _, exists := merged[bucketDetail.BucketName]; exists {
+			continue
+		}
+		merged[bucketDetail.BucketName] = bucketDetail
+		order = append(order, bucketDetail)
+	}
+
+	for _, bucketDetail := range updatedBucketDetails {
+		if !bucketDetail.IsValid() {
+			continue
+		}
+		if existing, ok := merged[bucketDetail.BucketName]; ok {
+			existing.SatisfiesPzi = bucketDetail.SatisfiesPzi
+			existing.SatisfiesPzs = bucketDetail.SatisfiesPzs
+			continue
+		}
+		merged[bucketDetail.BucketName] = bucketDetail
+		order = append(order, bucketDetail)
+	}
+	b.BucketDetails = BucketDetailsArray(order)
+}
+
 type BucketDetails struct {
 	BucketName          string `json:"bucket_name"`
 	ServiceAccountName  string `json:"service_account_name"`
@@ -1054,45 +1094,6 @@ func (b *BucketDetailsArray) Scan(value interface{}) error {
 
 func (b BucketDetailsArray) Value() (driver.Value, error) {
 	return json.Marshal(b)
-}
-
-func (b BucketDetailsArray) UpdateBucketDetails(updatedBucketDetails BucketDetailsArray) BucketDetailsArray {
-	if b == nil || len(updatedBucketDetails) == 0 {
-		return b
-	}
-
-	merged := make(map[string]*BucketDetails)
-	order := make([]string, 0, len(b)+len(updatedBucketDetails))
-
-	for _, bucketDetail := range b {
-		if !bucketDetail.IsValid() {
-			continue
-		}
-		if _, exists := merged[bucketDetail.BucketName]; exists {
-			continue
-		}
-		merged[bucketDetail.BucketName] = bucketDetail
-		order = append(order, bucketDetail.BucketName)
-	}
-
-	for _, bucketDetail := range updatedBucketDetails {
-		if !bucketDetail.IsValid() {
-			continue
-		}
-		if existing, ok := merged[bucketDetail.BucketName]; ok {
-			existing.SatisfiesPzi = bucketDetail.SatisfiesPzi
-			existing.SatisfiesPzs = bucketDetail.SatisfiesPzs
-			continue
-		}
-		merged[bucketDetail.BucketName] = bucketDetail
-		order = append(order, bucketDetail.BucketName)
-	}
-
-	out := make(BucketDetailsArray, 0, len(order))
-	for _, bucketName := range order {
-		out = append(out, merged[bucketName])
-	}
-	return out
 }
 
 type ImmutableAttributes struct {
