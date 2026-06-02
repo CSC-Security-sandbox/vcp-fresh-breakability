@@ -148,9 +148,9 @@ jobs:
           # Go-only repo doesn't pay for Node setup (and vice-versa). Detection
           # is repo-level: if both go.mod and package.json exist, both are set up.
           has_go=false; has_node=false; has_java=false
-          [[ -n "$(find . -maxdepth 4 -name go.mod -not -path '*/vendor/*' -print -quit 2>/dev/null)" ]] && has_go=true
-          [[ -n "$(find . -maxdepth 4 -name package.json -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ]] && has_node=true
-          [[ -n "$(find . -maxdepth 4 \( -name pom.xml -o -name build.gradle \) -print -quit 2>/dev/null)" ]] && has_java=true
+          [[ -n "$(find . -name go.mod -not -path '*/vendor/*' -not -path '*/.git/*' -print -quit 2>/dev/null)" ]] && has_go=true
+          [[ -n "$(find . -name package.json -not -path '*/node_modules/*' -not -path '*/.git/*' -print -quit 2>/dev/null)" ]] && has_node=true
+          [[ -n "$(find . \( -name pom.xml -o -name build.gradle \) -not -path '*/.git/*' -print -quit 2>/dev/null)" ]] && has_java=true
           echo "has_go=$has_go"   >> "$GITHUB_OUTPUT"
           echo "has_node=$has_node" >> "$GITHUB_OUTPUT"
           echo "has_java=$has_java" >> "$GITHUB_OUTPUT"

@@ -1142,7 +1142,29 @@ else:
     fi
   fi
 
-  if [[ "$ECOSYSTEM" == "actions" ]]; then
+  if [[ "$VERDICT" == "pre_existing" ]]; then
+    _GUARD_BUILD_BADGE="⚠️ pre-existing failures (not introduced by this PR)"
+  else
+    _GUARD_BUILD_BADGE="✅ passes"
+  fi
+  if [[ "$MERGE_RISK_TAG" == "High" && "$VERDICT" != "fail" && "$VERDICT" != "vulns_introduced" && "$VERDICT" != "security_review" && "$VERDICT" != "pre_existing_plus_new" ]]; then
+    # FALSE-SAFE GUARD (global): a High merge-risk signal (e.g. a maintainer-declared breaking
+    # change) is structurally unverifiable by build/test/apidiff. Pre-empt EVERY green
+    # headline below (actions/docker SAFE, pass, pre_existing) — a green build must NOT clear
+    # this PR. Hard-fail/security verdicts keep their own stronger BLOCKED messaging.
+    COMMENT="<!-- breakability-check -->
+## ⛔ REVIEW REQUIRED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
+
+Build: ${_GUARD_BUILD_BADGE} · Verification: **${VER_LABEL:-L2}** · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${MODULE_LINE}${CVE_LINE}${FIXES_CVE_LINE}
+
+${MERGE_RISK_LINE}
+
+### Why a passing build is not enough here
+Build and tests pass on the PR branch, but that does **not** clear this upgrade: ${MERGE_RISK_REASON}. Behavioral changes (changed defaults, error/ordering semantics) and breaks in sibling or transitive modules are invisible to compilation and to existing tests. Verify the affected behavior against the release notes before merging.${CHANGELOG_LINK}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${RUN_LINK}
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+
+  elif [[ "$ECOSYSTEM" == "actions" ]]; then
     # GitHub Actions — always safe, no app code affected.
     # No L0/fallback labels — CI-only changes need no build verification (end-user feedback 2.4).
     COMMENT="<!-- breakability-check -->
@@ -1682,6 +1704,12 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     elif eco in ("actions",) or ver == "CI_ONLY":
         # V8 FIX (H3): Separate CI-only PRs — don't inflate "verified" count
         ci_only.append(entry)
+    elif ((pr.get("merge_risk") or (pr.get("deterministic") or {}).get("merge_risk") or {}).get("tag") == "High") and v in ("pass", "pre_existing"):
+        # FALSE-SAFE GUARD (merge plan): a passing build with a High merge-risk signal
+        # (e.g. declared breaking change) must go to REVIEW, not the safe bucket — keeps the
+        # merge plan consistent with the per-PR "REVIEW REQUIRED" comment (PRD G6).
+        entry["high_merge_risk"] = True
+        review.append(entry)
     elif v in ("pass",):
         safe.append(entry)
     elif v in ("fail", "pre_existing_plus_new"):
