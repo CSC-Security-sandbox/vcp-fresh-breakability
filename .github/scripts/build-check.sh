@@ -2099,20 +2099,14 @@ except Exception as e:
       if [[ -s "$CLI_CHANGELOG_FILE" ]]; then
         CLI_CHANGELOG_ARGS=(--changelog-file "$CLI_CHANGELOG_FILE")
         echo "  changelog: fetched $(wc -l < "$CLI_CHANGELOG_FILE" | tr -d ' ') signal line(s) for CLI verdict"
-        echo "  [diag] changelog head: $(head -3 "$CLI_CHANGELOG_FILE" | tr '\n' '|' | cut -c1-300)"
-      else
-        echo "  [diag] changelog file empty or missing"
       fi
     fi
-    echo "  [diag] node=$(node --version 2>/dev/null) cli_path=$CLI_PATH exists=$([[ -f "$CLI_PATH" ]] && echo yes || echo no) eco=$CLI_ECO"
     timeout 180 node "$CLI_PATH" \
       -p "$PKG" -f "$FROM_VER" -t "$TO_VER" \
       -r "$REPO_ROOT" -e "$CLI_ECO" -d "$DEP_TYPE" \
       --pr-body-file "$PR_BODY_FILE" \
       ${CLI_CHANGELOG_ARGS[@]+"${CLI_CHANGELOG_ARGS[@]}"} \
-      --json > "$CLI_OUTPUT_FILE" 2>"$CLI_ERR_FILE" || echo "  [diag] node exit=$?"
-    echo "  [diag] CLI stdout lines=$(wc -l < "$CLI_OUTPUT_FILE" 2>/dev/null | tr -d ' '); stdout head: $(head -3 "$CLI_OUTPUT_FILE" 2>/dev/null | tr '\n' '|' | cut -c1-200)"
-    echo "  [diag] CLI stderr tail: $(tail -5 "$CLI_ERR_FILE" 2>/dev/null | tr '\n' '|' | cut -c1-400)"
+      --json > "$CLI_OUTPUT_FILE" 2>"$CLI_ERR_FILE" || true
 
     # Extract JSON: find the first line starting with '{' and take everything from there
     sed -n '/^{/,$p' "$CLI_OUTPUT_FILE" > "$CLI_JSON_FILE"
