@@ -140,19 +140,47 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect toolchains needed
+        id: detect
+        shell: bash
+        run: |
+          # Only set up the language toolchains this repo actually uses, so a
+          # Go-only repo doesn't pay for Node setup (and vice-versa). Detection
+          # is repo-level: if both go.mod and package.json exist, both are set up.
+          has_go=false; has_node=false; has_java=false
+          [[ -n "$(find . -maxdepth 4 -name go.mod -not -path '*/vendor/*' -print -quit 2>/dev/null)" ]] && has_go=true
+          [[ -n "$(find . -maxdepth 4 -name package.json -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ]] && has_node=true
+          [[ -n "$(find . -maxdepth 4 \( -name pom.xml -o -name build.gradle \) -print -quit 2>/dev/null)" ]] && has_java=true
+          echo "has_go=$has_go"   >> "$GITHUB_OUTPUT"
+          echo "has_node=$has_node" >> "$GITHUB_OUTPUT"
+          echo "has_java=$has_java" >> "$GITHUB_OUTPUT"
+          echo "detected toolchains: go=$has_go node=$has_node java=$has_java"
+
       - name: Setup Node.js
+        if: steps.detect.outputs.has_node == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          # Self-hosted: npm cache + tool-cache SDK already persist on disk
+          # between runs. The GHA cache just adds a slow, racy network round-trip.
+          cache: ''
 
       - name: Setup Go
+        if: steps.detect.outputs.has_go == 'true'
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          # Self-hosted: GOMODCACHE/GOCACHE (9.8G) already persist on disk between
+          # runs. Disable the GHA module cache to avoid the Zscaler-slow,
+          # "Unable to reserve cache" race that dominated run time.
+          cache: false
 
       - name: Install Go security tools
+        if: steps.detect.outputs.has_go == 'true' && env.BREAKABILITY_GOVULNCHECK == '1'
         run: |
-          # govulncheck: scans transitive deps for known CVEs
+          # govulncheck: scans transitive deps for known CVEs. Opt-in only
+          # (default off — Dependabot already supplies the CVE list), so we
+          # skip this network 'go install' on every run unless explicitly enabled.
           go install golang.org/x/vuln/cmd/govulncheck@latest 2>/dev/null || echo "govulncheck install failed — vuln scanning will be skipped"
 
       - name: Setup Python
@@ -174,9 +202,12 @@ jobs:
           PYTHON_VERSION_FULL: '3.12.13'
 
       - name: Setup Maven
+        if: steps.detect.outputs.has_java == 'true'
         run: |
+          # Self-hosted runners here are macOS (no apt-get). Use brew if Maven
+          # is missing; only runs for repos that actually have pom.xml/build.gradle.
           if ! command -v mvn &>/dev/null; then
-            sudo apt-get update -qq && sudo apt-get install -y -qq maven > /dev/null 2>&1 || echo "Maven install skipped"
+            brew install maven > /dev/null 2>&1 || echo "Maven install skipped (install manually on runner if Java repos are added)"
           fi
 
       - name: Run deterministic analysis (batch ${{ matrix.batch_id }})
