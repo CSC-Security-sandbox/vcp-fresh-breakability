@@ -3815,34 +3815,53 @@ def _resolve_declared_break_reachability(pr_data, deterministic, eco):
             fpath = parts[0]
             rel = os.path.relpath(fpath, repo_root)
             is_test = bool(_dbr_re.search(r"(_test\.[a-z]+$|\.test\.[a-z]+$|/tests?/|/__tests__/|\.spec\.[a-z]+$)", rel))
+            # Reachability decision must see ALL matches; only the DISPLAYED evidence list is capped,
+            # so a production import that appears after the 12th match still flips prod_reached.
             if not is_test:
                 prod_reached = True
-            evidence.append({"path": p, "file": rel, "line": parts[1].strip(), "is_test": is_test})
-            if len(evidence) >= 12:
-                break
-        if len(evidence) >= 12:
-            break
+            if len(evidence) < 12:
+                evidence.append({"path": p, "file": rel, "line": parts[1].strip(), "is_test": is_test})
     if evidence and not prod_reached:
         test_only = True
+    # NOTE on confidence: this resolver only runs for a changelog-DECLARED breaking change that the
+    # deterministic API-diff did NOT flag (a real removed/changed symbol would have been caught
+    # upstream as a reachable hard break — a different, higher-confidence path). So everything here
+    # is a BEHAVIORAL declaration (changed defaults, error/ordering semantics) that build, tests, and
+    # API-diff cannot see. We can prove the package is IMPORTED, but never that our code triggers the
+    # changed behavior. Therefore we never claim a confirmed break: import-reachable behavioral
+    # declarations are a manual-REVIEW signal (Medium), not High.
+    if prod_reached:
+        reachability_kind = "import"
+    elif test_only:
+        reachability_kind = "test_only"
+    elif paths:
+        reachability_kind = "not_imported"
+    else:
+        reachability_kind = "unresolved"
     result = {
         "checked": bool(paths),
         "affected_paths": paths,
         "prod_reachable": prod_reached,
         "test_only": test_only,
+        "reachability_kind": reachability_kind,
+        "behavior_confirmed": False,
         "evidence": evidence[:12],
     }
     pr_data["declared_break_reachability"] = result
     # Adjust the verdict using the resolved reachability.
     if not paths:
         return
-    reason = mr.get("reason") or ""
     if prod_reached:
         proof = next((e for e in evidence if (not e["is_test"]) and e["path"] in (mr.get("reason") or "")), None)
         if not proof:
             proof = next((e for e in evidence if not e["is_test"]), None)
-        if proof:
-            mr["reason"] = reason + " — reachable: your code imports " + proof["path"] + " at " + proof["file"] + ":" + proof["line"]
-            mr["evidenceAxis"] = "declared breaking change, reachable in production code"
+        loc = (" — your code imports " + proof["path"] + " at " + proof["file"] + ":" + proof["line"]) if proof else ""
+        mr["tag"] = "Medium"
+        mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change and your "
+                        "code imports the affected package" + loc + ", but build, tests, and API-diff "
+                        "cannot confirm or rule out that your usage triggers it — this is NOT a confirmed "
+                        "break; verify your usage against the release notes before merging")
+        mr["evidenceAxis"] = "declared behavioral change, import-reachable but unverified by build/test/api-diff"
     elif test_only:
         mr["tag"] = "Medium"
         mr["reason"] = "declared breaking change is only reachable from test/CI code: " + ", ".join(paths)

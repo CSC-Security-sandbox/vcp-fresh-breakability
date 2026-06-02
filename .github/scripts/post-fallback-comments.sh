@@ -695,15 +695,15 @@ lines = ['### Reachability of the declared break']
 if r.get('prod_reachable'):
     prod = [e for e in ev if not e.get('is_test')]
     reason = (d.get('merge_risk') or {}).get('reason') or ''
-    # One representative location per affected package; the package named in the verdict reason first.
     by_path = {}
     for e in prod:
         by_path.setdefault(e['path'], e)
     ordered = sorted(by_path.values(), key=lambda e: (e['path'] not in reason, e['path']))
-    lines.append('- ⚠️ The declared break IS reachable — your production code imports the affected package:')
+    lines.append('- ⚠️ **Import-reachable behavioral change — unconfirmed.** Your production code imports the affected package:')
     for e in ordered[:3]:
         lines.append(f"  - `{e['path']}` at `{e['file']}:{e['line']}`")
-    lines.append('- This is why the verdict is High: build/tests pass, but your code calls into the package whose behavior the maintainer changed.')
+    lines.append('- The maintainer declared a **behavioral** break (changed defaults / error or ordering semantics). Build, tests, and API-diff **cannot see** behavioral changes, so we cannot confirm — or rule out — that your usage triggers it. Importing the package is necessary but **not sufficient** to break.')
+    lines.append('- This is a **manual-review signal, not a confirmed break** — graded **Medium / Review**, not High. To settle it: check whether your usage relies on the changed behavior described in the release notes (e.g. default values, error handling). If it does not, this signal does not block the merge.')
 elif r.get('test_only'):
     lines.append('- ℹ️ The declared break is only reachable from **test/CI code**, not production — verdict down-weighted to Medium.')
     for e in ev[:3]:
@@ -713,6 +713,16 @@ else:
 print('\n\n' + '\n'.join(lines))
 PYEOF
 )
+  # Flag: declared BEHAVIORAL break that is import-reachable in production. merge-risk has graded
+  # this Medium (review, not High), but a plain "build passes" headline would bury it — so we route
+  # it through the REVIEW headline below with softer wording.
+  _DECL_BEHAVIORAL_REVIEW=$(_BC_PRF="$PR_FIELDS" python3 - <<'PYEOF' 2>/dev/null || echo 0
+import json, os
+r = (json.loads(os.environ["_BC_PRF"]).get('declared_break_reachability') or {})
+print('1' if (r.get('reachability_kind') == 'import' and r.get('prod_reachable')) else '0')
+PYEOF
+)
+  _DECL_BEHAVIORAL_REVIEW=${_DECL_BEHAVIORAL_REVIEW:-0}
   # Build transitive dep note — with threshold warning for high counts
   _TRANSITIVE_NOTE=""
   if [[ -n "$GOSUM_NEW_COUNT" && "$GOSUM_NEW_COUNT" -gt 0 ]]; then
@@ -1224,20 +1234,30 @@ else:
   else
     _GUARD_BUILD_BADGE="✅ passes"
   fi
-  if [[ "$MERGE_RISK_TAG" == "High" && "$VERDICT" != "fail" && "$VERDICT" != "vulns_introduced" && "$VERDICT" != "security_review" && "$VERDICT" != "pre_existing_plus_new" ]]; then
+  if [[ ( "$MERGE_RISK_TAG" == "High" || "$_DECL_BEHAVIORAL_REVIEW" == "1" ) && "$VERDICT" != "fail" && "$VERDICT" != "vulns_introduced" && "$VERDICT" != "security_review" && "$VERDICT" != "pre_existing_plus_new" ]]; then
     # FALSE-SAFE GUARD (global): a High merge-risk signal (e.g. a maintainer-declared breaking
     # change) is structurally unverifiable by build/test/apidiff. Pre-empt EVERY green
     # headline below (actions/docker SAFE, pass, pre_existing) — a green build must NOT clear
     # this PR. Hard-fail/security verdicts keep their own stronger BLOCKED messaging.
+    # Two grades share this headline: High → "⛔ REVIEW REQUIRED" (confirmed/unverifiable break);
+    # Medium import-reachable behavioral declaration → "⚠️ REVIEW SUGGESTED" (not a confirmed break,
+    # but a green build must not silently say "merge when ready").
+    if [[ "$MERGE_RISK_TAG" == "High" ]]; then
+      _REVIEW_TITLE="⛔ REVIEW REQUIRED"
+      _REVIEW_WHY="Build and tests pass on the PR branch, but that does **not** clear this upgrade: ${MERGE_RISK_REASON}. Behavioral changes (changed defaults, error/ordering semantics) and breaks in sibling or transitive modules are invisible to compilation and to existing tests. Verify the affected behavior against the release notes before merging."
+    else
+      _REVIEW_TITLE="⚠️ REVIEW SUGGESTED"
+      _REVIEW_WHY="Build and tests pass on the PR branch — but the maintainer **declares a behavioral breaking change** and your code imports the affected package. ${MERGE_RISK_REASON}. Behavioral changes are invisible to compilation, tests, and API-diff, so this is a **review signal, not a confirmed break**. Check whether your usage relies on the changed behavior (defaults, error/ordering semantics) against the release notes; if it does not, this does not block the merge."
+    fi
     COMMENT="<!-- breakability-check -->
-## ⛔ REVIEW REQUIRED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
+## ${_REVIEW_TITLE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ${_GUARD_BUILD_BADGE} · Verification: **${VER_LABEL:-L2}** · Usage: $FILES_COUNT file(s)${_USAGE_CONTEXT_INLINE}${MODULE_LINE}${CVE_LINE}${FIXES_CVE_LINE}
 
 ${MERGE_RISK_LINE}
 
 ### Why a passing build is not enough here
-Build and tests pass on the PR branch, but that does **not** clear this upgrade: ${MERGE_RISK_REASON}. Behavioral changes (changed defaults, error/ordering semantics) and breaks in sibling or transitive modules are invisible to compilation and to existing tests. Verify the affected behavior against the release notes before merging.${CHANGELOG_LINK}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+${_REVIEW_WHY}${CHANGELOG_LINK}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
@@ -1787,6 +1807,14 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
         # (e.g. declared breaking change) must go to REVIEW, not the safe bucket — keeps the
         # merge plan consistent with the per-PR "REVIEW REQUIRED" comment (PRD G6).
         entry["high_merge_risk"] = True
+        review.append(entry)
+    elif (((pr.get("declared_break_reachability") or {}).get("reachability_kind") == "import")
+          and (pr.get("declared_break_reachability") or {}).get("prod_reachable")
+          and v in ("pass", "pre_existing")):
+        # FALSE-SAFE GUARD (merge plan): a Medium import-reachable BEHAVIORAL declaration is
+        # unverifiable by build/test — route to REVIEW (not safe), matching the per-PR
+        # "REVIEW SUGGESTED" comment.
+        entry["declared_behavioral_review"] = True
         review.append(entry)
     elif v in ("pass",):
         safe.append(entry)

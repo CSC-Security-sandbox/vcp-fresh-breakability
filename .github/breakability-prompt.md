@@ -93,17 +93,20 @@ If build passes but `deterministic.api_changes` exist, read the consuming code a
 - Did peer dependency requirements change?
 
 **MANDATORY — declared-break reachability (do NOT default to "minor bump = safe"):**
-A passing build/test does **not** clear a maintainer-declared breaking change. The deterministic
-layer pre-computes `declared_break_reachability` in the JSON — you **MUST** honor it:
-- `prod_reachable == true`: the affected package IS imported by production code (see `evidence[].file`).
-  Keep the verdict **High/REVIEW** and cite the importing file. Do NOT downgrade to SAFE just because
-  the build passed.
-- `test_only == true`: reachable only from test/CI code → REVIEW/Medium, note it is non-production.
-- `checked == true` and `prod_reachable == false` and not `test_only`: the affected package is NOT
-  imported → you may down-weight to Medium and say so explicitly (the break is unreachable here).
+A passing build/test does **not** clear a maintainer-declared breaking change, but importing the
+affected package is **not** proof the change breaks you either. The deterministic layer pre-computes
+`declared_break_reachability` in the JSON — honor it and stay honest in both directions:
+- `prod_reachable == true`: the affected package IS imported by production code, but the declared
+  break is **behavioral** and unverified by build/test/api-diff. This is a **Medium / Review** signal
+  ("cannot certify safe"), **not** a confirmed break and **not** SAFE. Cite the importing file and tell
+  the developer exactly what behavior to check against the release notes. Do NOT escalate to a
+  confirmed High break, and do NOT downgrade to SAFE.
+- `test_only == true`: reachable only from test/CI code → Review/Medium, note it is non-production.
+- `checked == true` and `prod_reachable == false`: the affected package is NOT imported → you may
+  down-weight (the declared break is unreachable here) and say so explicitly.
 - `checked == false`: reachability could not be resolved → stay cautious; do not claim SAFE.
-If `merge_risk.tag == "High"` and `evidenceAxis` mentions a declared breaking change, your verdict
-must not be SAFE/Low unless `declared_break_reachability` proves the package is not imported.
+Never label a declared behavioral break as SAFE just because the build passed; never label it a
+confirmed break just because the package is imported.
 
 ### 2.3 Diff Analysis
 Read `/tmp/pr-{N}.diff` for every non-trivial PR. Focus on lock file changes indicating transitive shifts, and changes to config or type definition files.
