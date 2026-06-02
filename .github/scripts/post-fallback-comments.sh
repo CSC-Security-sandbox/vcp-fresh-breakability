@@ -591,10 +591,30 @@ ${_SHOWN_FILES}${_MORE_NOTE}
     _USAGE_CONTEXT_BLOCK=$(_BC_PRF="$PR_FIELDS" python3 - <<'PYEOF' 2>/dev/null || true
 import json, os, sys
 d = json.loads(os.environ["_BC_PRF"])
-usages = ((d.get('deterministic') or {}).get('usages') or [])
+det = (d.get('deterministic') or {})
+usages = (det.get('usages') or [])
 active = [u for u in usages if u.get('usageType') in ('DIRECT_CALL', 'PROPERTY_ACCESS')]
 if not active:
     sys.exit(0)
+# The authoritative set of symbols that ACTUALLY changed in this dependency comes from apidiff
+# (api_changes_detail), NOT from the broad usage scan (which also picks up stdlib/other-package
+# symbols in the same files). Reachability must be the intersection of the two.
+changed_detail = (det.get('api_changes_detail') or [])
+changed_syms = []
+sym_change_type = {}
+for c in changed_detail:
+    if isinstance(c, dict):
+        s = (c.get('symbol') or c.get('name') or '').strip()
+        if s and s not in changed_syms:
+            changed_syms.append(s)
+        if s:
+            sym_change_type[s] = (c.get('changeType') or '').lower()
+# Build matchable name components for each changed symbol (e.g. 'Float64Counter.Enabled'
+# matches a usage of 'Enabled' or 'Float64Counter' or the full dotted name).
+def components(sym):
+    parts = [p for p in sym.split('.') if p]
+    return set([sym] + parts)
+changed_lookup = {sym: components(sym) for sym in changed_syms}
 order = ['production', 'test', 'cicd', 'generated', 'iac']
 labels = {'production': 'prod', 'test': 'test', 'cicd': 'CI/CD', 'generated': 'generated', 'iac': 'IaC'}
 def files_by_context(items):
@@ -615,27 +635,39 @@ def fmt(counts):
             noun = 'file' if n == 1 else 'files'
             parts.append(f'{n} {labels[ctx]} {noun}')
     return ', '.join(parts)
+usage_names = set((u.get('symbol') or '').strip() for u in active if (u.get('symbol') or '').strip())
+# Which changed symbols are actually reached by our code?
+reached = {}
+for sym, comps in changed_lookup.items():
+    hit = [u for u in active if (u.get('symbol') or '').strip() in comps]
+    if hit:
+        reached[sym] = hit
 overall = files_by_context(active)
 inline = fmt(overall)
 print('INLINE= · Context: ' + inline if inline else 'INLINE=')
 print('---BLOCK---')
 print('### BREAK-reachability context')
-# Only surface usages tied to an actually-changed symbol name; drop blanks/noise.
-symbols = []
-for u in active:
-    sym = (u.get('symbol') or '').strip()
-    if sym and sym != 'unknown' and sym not in symbols:
-        symbols.append(sym)
-if not symbols:
-    print('- No specific changed API symbol resolved to a call site; reachability is import-level only (see imports below).')
+if changed_syms:
+    if not reached:
+        print(f'- ✅ None of the {len(changed_syms)} changed API symbol(s) from this upgrade are reached by your code — the changed surface is unused here (raises confidence).')
+        print(f'  - Changed symbols (apidiff): ' + ', '.join(f'`{s}`' for s in changed_syms[:8]) + (f' …(+{len(changed_syms)-8})' if len(changed_syms) > 8 else ''))
+        print('  - Note: import-level reachability still applies (see imported files below); behavioral/transitive breaks are not visible to apidiff.')
+    else:
+        breaking_reached = [s for s in reached if sym_change_type.get(s) in ('removed', 'changed')]
+        additive_reached = [s for s in reached if sym_change_type.get(s) not in ('removed', 'changed')]
+        for sym in breaking_reached[:8]:
+            loc = fmt(files_by_context(reached[sym]))
+            if loc:
+                print(f'- ⚠️ removed/changed API symbol `{sym}` reached in {loc} — a caller of this symbol can break')
+        for sym in additive_reached[:8]:
+            loc = fmt(files_by_context(reached[sym]))
+            if loc:
+                print(f'- ℹ️ changed API symbol `{sym}` reached in {loc} — additive (new method/symbol); only breaks code that *implements* the changed interface, not callers')
+        extra = len(reached) - len(breaking_reached[:8]) - len(additive_reached[:8])
+        if extra > 0:
+            print(f'- …and {extra} more reached changed symbol(s)')
 else:
-    for sym in symbols[:8]:
-        counts = files_by_context([u for u in active if (u.get('symbol') or '').strip() == sym])
-        loc = fmt(counts)
-        if loc:
-            print(f'- changed symbol `{sym}` called/accessed in {loc}')
-    if len(symbols) > 8:
-        print(f'- …and {len(symbols) - 8} more changed symbol(s)')
+    print('- No exported API symbols changed per apidiff; reachability is import-level only (see imported files below).')
 if not overall['production'] and any(overall[ctx] for ctx in ('test', 'cicd', 'generated')):
     print('- Non-production-only reachability (test/CI/generated) is down-weighted in the merge-risk score.')
 PYEOF
@@ -807,7 +839,7 @@ tool=((d.get('deterministic') or {}).get('api_diff_tool') or {})
 if not tool:
     sys.exit(0)
 status=tool.get('status')
-print('### API diff signal')
+print('\n\n### API diff signal')
 if status == 'semantic':
     print(f'- ✅ Go apidiff ran in **{tool.get("mode","module")} mode** using `{tool.get("package","golang.org/x/exp/cmd/apidiff")}@{tool.get("version","unknown")}`')
     if tool.get('command'):
