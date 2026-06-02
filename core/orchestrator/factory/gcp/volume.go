@@ -2506,6 +2506,10 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	params.PoolID = dbVolume.Pool.UUID // In update volume we don't get Pool UUID from request, Set pool ID for backwards compatibility
 
 	if params.DataProtection != nil {
+		if dbVolume.DataProtection == nil {
+			dbVolume.DataProtection = &datamodel.DataProtection{}
+		}
+
 		// If backup vault is already attached to the volume and the backup vault is changed or removed
 		if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" && params.DataProtection.BackupVaultID != nil && (*params.DataProtection.BackupVaultID == "" || *params.DataProtection.BackupVaultID != dbVolume.DataProtection.BackupVaultID) {
 			filters := [][]interface{}{{"volume_uuid = ?", dbVolume.UUID}}

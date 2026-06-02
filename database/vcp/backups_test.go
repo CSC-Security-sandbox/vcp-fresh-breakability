@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -2667,6 +2668,109 @@ func TestGetLatestBackupsPerVaultByVolumeUUID_ReturnsErrorWhenDBFails(t *testing
 	assert.Error(t, err)
 }
 
+func TestGetLatestBackupsPerEndpointByVolumeUUID(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	require.NoError(t, ClearInMemoryDB(store.db.GORM()))
+
+	vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault-1"}
+	require.NoError(t, store.db.Create(vault1).Error())
+
+	const epA = "endpoint-a"
+	const epB = "endpoint-b"
+
+	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
+	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
+	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epB}}
+	require.NoError(t, store.db.Create(b1).Error())
+	require.NoError(t, store.db.Create(b2).Error())
+	require.NoError(t, store.db.Create(b3).Error())
+
+	got, err := store.GetLatestBackupsPerEndpointByVolumeUUID(context.Background(), "vol-1")
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "b2", got[0].UUID)
+	assert.Equal(t, "b3", got[1].UUID)
+
+	got, err = store.GetLatestBackupsPerEndpointByVolumeUUID(context.Background(), "vol-none")
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
+func TestGetLatestBackupsPerEndpointByVolumeUUID_ExcludesNonAvailableAndBlankEndpoint(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	require.NoError(t, ClearInMemoryDB(store.db.GORM()))
+
+	vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault-1"}
+	require.NoError(t, store.db.Create(vault1).Error())
+
+	const epA = "endpoint-a"
+
+	bAvail := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-avail", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
+	bCreating := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-creating", ID: 10}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateCreating, Attributes: &datamodel.BackupAttributes{EndpointUUID: epA}}
+	bEmptyEp := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-empty-ep", ID: 20}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: ""}}
+	bNilAttr := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-nil-attr", ID: 30}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
+	require.NoError(t, store.db.Create(bAvail).Error())
+	require.NoError(t, store.db.Create(bCreating).Error())
+	require.NoError(t, store.db.Create(bEmptyEp).Error())
+	require.NoError(t, store.db.Create(bNilAttr).Error())
+
+	got, err := store.GetLatestBackupsPerEndpointByVolumeUUID(context.Background(), "vol-1")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "b-avail", got[0].UUID)
+}
+
+func TestGetLatestBackupsPerEndpointByVolumeUUID_GroupsByVaultAndEndpoint(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	require.NoError(t, ClearInMemoryDB(store.db.GORM()))
+
+	vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault-1"}
+	vault2 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"}, Name: "vault-2"}
+	require.NoError(t, store.db.Create(vault1).Error())
+	require.NoError(t, store.db.Create(vault2).Error())
+
+	const sharedEp = "endpoint-shared"
+
+	// Same endpoint on two vaults: two slots (ids 1 and 3 are latest per vault).
+	bV1Old := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v1-old", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 100}
+	bV1New := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v1-new", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 200}
+	bV2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b-v2", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable, Attributes: &datamodel.BackupAttributes{EndpointUUID: sharedEp}, LatestLogicalBackupSize: 300}
+	require.NoError(t, store.db.Create(bV1Old).Error())
+	require.NoError(t, store.db.Create(bV1New).Error())
+	require.NoError(t, store.db.Create(bV2).Error())
+
+	got, err := store.GetLatestBackupsPerEndpointByVolumeUUID(context.Background(), "vol-1")
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "b-v1-new", got[0].UUID)
+	assert.Equal(t, "b-v2", got[1].UUID)
+
+	sum, err := store.SumVolumeBackupChainBytes(context.Background(), "vol-1")
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), sum)
+}
+
+func TestGetLatestBackupsPerEndpointByVolumeUUID_ReturnsErrorWhenDBFails(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+	_, err = store.GetLatestBackupsPerEndpointByVolumeUUID(context.Background(), "vol-1")
+	assert.Error(t, err)
+}
+
 func TestGetDistinctBackupVaultIDsByVolumeUUID(t *testing.T) {
 	db, err := SetupTestDB()
 	assert.NoError(t, err)
@@ -4257,6 +4361,142 @@ func TestDataStoreRepository_GetLatestBackupsGroupedByVolumeUUID(t *testing.T) {
 				assert.Equal(t, "backup-normal-uuid", results[0].UUID)
 			},
 		},
+		{
+			name: "Success - Excludes volume when active vault has no backups after switch",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Backup, []*datamodel.Volume) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-bv-switch"},
+					Name:      "test-account-bv-switch",
+				}
+				if err := store.db.Create(account).Error(); err != nil {
+					panic(err)
+				}
+				pool := &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "test-pool-bv-switch"},
+					Name:      "test-pool-bv-switch",
+					AccountID: account.ID,
+				}
+				if err := store.db.Create(pool).Error(); err != nil {
+					panic(err)
+				}
+				bv1 := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "bv-uuid-1"},
+					Name:      "bv-1",
+				}
+				bv2 := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "bv-uuid-2"},
+					Name:      "bv-2",
+				}
+				if err := store.db.Create(bv1).Error(); err != nil {
+					panic(err)
+				}
+				if err := store.db.Create(bv2).Error(); err != nil {
+					panic(err)
+				}
+				volume := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-bv-switch"},
+					Name:      "volume-bv-switch",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: bv2.UUID,
+					},
+				}
+				if err := store.db.Create(volume).Error(); err != nil {
+					panic(err)
+				}
+				for i := 0; i < 3; i++ {
+					b := &datamodel.Backup{
+						BaseModel:     datamodel.BaseModel{UUID: fmt.Sprintf("backup-bv1-%d", i)},
+						Name:          fmt.Sprintf("backup-bv1-%d", i),
+						VolumeUUID:    volume.UUID,
+						BackupVaultID: bv1.ID,
+						State:         models.LifeCycleStateAvailable,
+					}
+					if err := store.db.Create(b).Error(); err != nil {
+						panic(err)
+					}
+				}
+				return nil, []*datamodel.Volume{volume}
+			},
+			expectedCount: 0,
+			expectedError: false,
+		},
+		{
+			name: "Success - Uses active vault latest not global newest from other vault",
+			setupData: func(store *DataStoreRepository) ([]*datamodel.Backup, []*datamodel.Volume) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-bv-prefer"},
+					Name:      "test-account-bv-prefer",
+				}
+				if err := store.db.Create(account).Error(); err != nil {
+					panic(err)
+				}
+				pool := &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "test-pool-bv-prefer"},
+					Name:      "test-pool-bv-prefer",
+					AccountID: account.ID,
+				}
+				if err := store.db.Create(pool).Error(); err != nil {
+					panic(err)
+				}
+				bv1 := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "bv-prefer-uuid-1"},
+					Name:      "bv-prefer-1",
+				}
+				bv2 := &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "bv-prefer-uuid-2"},
+					Name:      "bv-prefer-2",
+				}
+				if err := store.db.Create(bv1).Error(); err != nil {
+					panic(err)
+				}
+				if err := store.db.Create(bv2).Error(); err != nil {
+					panic(err)
+				}
+				volume := &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "volume-bv-prefer"},
+					Name:      "volume-bv-prefer",
+					PoolID:    pool.ID,
+					AccountID: account.ID,
+					State:     models.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: bv1.UUID,
+					},
+				}
+				if err := store.db.Create(volume).Error(); err != nil {
+					panic(err)
+				}
+				backupBV1 := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-active-vault"},
+					Name:          "backup-active-vault",
+					VolumeUUID:    volume.UUID,
+					BackupVaultID: bv1.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				if err := store.db.Create(backupBV1).Error(); err != nil {
+					panic(err)
+				}
+				backupBV2 := &datamodel.Backup{
+					BaseModel:     datamodel.BaseModel{UUID: "backup-other-vault-newer", CreatedAt: time.Now()},
+					Name:          "backup-other-vault-newer",
+					VolumeUUID:    volume.UUID,
+					BackupVaultID: bv2.ID,
+					State:         models.LifeCycleStateAvailable,
+				}
+				if err := store.db.Create(backupBV2).Error(); err != nil {
+					panic(err)
+				}
+				return []*datamodel.Backup{backupBV1}, []*datamodel.Volume{volume}
+			},
+			expectedCount: 1,
+			expectedError: false,
+			verifyResults: func(t *testing.T, results []datamodel.Backup, expectedBackups []*datamodel.Backup) {
+				assert.Len(t, results, 1)
+				assert.Equal(t, "backup-active-vault", results[0].UUID)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -4567,7 +4807,8 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 			},
 		},
 		{
-			name: "Success - Expert mode backup maps to expert mode volume",
+			// Expert mode backups use external_uuid as volume_uuid; GetVolumeLatestBackupMap maps them via ExpertModeVolumes (negative map key).
+			name: "Success - Expert mode backup returned via expert mode volume lookup",
 			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
 				account := &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "em-account-uuid"},
@@ -4636,24 +4877,22 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 			verifyResults: func(t *testing.T, results map[int64]*datamodel.VolumeLatestBackup, _ []*datamodel.Volume, backups []*datamodel.Backup) {
 				assert.Len(t, results, 1)
 
-				var entry *datamodel.VolumeLatestBackup
+				var expertEntry *datamodel.VolumeLatestBackup
 				for _, v := range results {
-					if v.LatestBackup.UUID == backups[0].UUID {
-						entry = v
+					if v.ExpertModeVolume != nil {
+						expertEntry = v
 						break
 					}
 				}
-				require.NotNil(t, entry, "expected result entry for expert mode backup not found")
-				assert.Nil(t, entry.Volume, "Volume should be nil for expert mode entry")
-				assert.NotNil(t, entry.ExpertModeVolume)
-				assert.Equal(t, "em-external-uuid", entry.ExpertModeVolume.ExternalUUID)
-				assert.NotNil(t, entry.ExpertModeVolume.Pool)
-				assert.Equal(t, "em-deployment", entry.ExpertModeVolume.Pool.DeploymentName)
-				assert.True(t, entry.LatestBackup.Attributes.IsExpertModeBackup)
+				require.NotNil(t, expertEntry, "expert mode volume entry not found in result map")
+				assert.Nil(t, expertEntry.Volume)
+				assert.Equal(t, "em-external-uuid", expertEntry.ExpertModeVolume.ExternalUUID)
+				assert.Equal(t, backups[0].UUID, expertEntry.LatestBackup.UUID)
+				assert.True(t, expertEntry.LatestBackup.Attributes.IsExpertModeBackup)
 			},
 		},
 		{
-			name: "Success - Mixed regular and expert mode volumes are both returned",
+			name: "Success - Mixed regular and expert mode volumes returned",
 			setupData: func(store *DataStoreRepository) ([]*datamodel.Volume, []*datamodel.Backup) {
 				account := &datamodel.Account{
 					BaseModel: datamodel.BaseModel{UUID: "mix-account-uuid"},
@@ -4691,6 +4930,9 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 					PoolID:    pool.ID,
 					AccountID: account.ID,
 					State:     datamodel.LifeCycleStateREADY,
+					DataProtection: &datamodel.DataProtection{
+						BackupVaultID: backupVault.UUID,
+					},
 				}
 				err = store.db.Create(vol).Error()
 				if err != nil {
@@ -4747,7 +4989,8 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 				for _, v := range results {
 					if v.Volume != nil {
 						regularEntry = v
-					} else if v.ExpertModeVolume != nil {
+					}
+					if v.ExpertModeVolume != nil {
 						expertEntry = v
 					}
 				}
@@ -4758,9 +5001,9 @@ func TestDataStoreRepository_GetVolumeLatestBackupMap(t *testing.T) {
 				assert.Nil(t, regularEntry.ExpertModeVolume)
 
 				require.NotNil(t, expertEntry, "expert mode volume entry not found in result map")
+				assert.Nil(t, expertEntry.Volume)
 				assert.Equal(t, "mix-em-external-uuid", expertEntry.ExpertModeVolume.ExternalUUID)
 				assert.Equal(t, backups[1].UUID, expertEntry.LatestBackup.UUID)
-				assert.Nil(t, expertEntry.Volume)
 				assert.True(t, expertEntry.LatestBackup.Attributes.IsExpertModeBackup)
 			},
 		},

@@ -441,7 +441,13 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 			volume.DataProtection = &datamodel.DataProtection{}
 		}
 		if params.DataProtection.BackupVaultID != nil {
-			volume.DataProtection.BackupVaultID = *params.DataProtection.BackupVaultID
+			currentBackupVaultID := volume.DataProtection.BackupVaultID
+			updatedBackupVaultID := *params.DataProtection.BackupVaultID
+			volume.DataProtection.BackupVaultID = updatedBackupVaultID
+
+			if currentBackupVaultID != updatedBackupVaultID {
+				util.GetLogger(ctx).Infof("Backup vault changed for volume %s (old_vault=%s new_vault=%s); backup_chain_bytes unchanged until next backup size recalc", volume.UUID, currentBackupVaultID, updatedBackupVaultID)
+			}
 		}
 		if params.DataProtection.BackupPolicyId != nil {
 			volume.DataProtection.BackupPolicyID = *params.DataProtection.BackupPolicyId

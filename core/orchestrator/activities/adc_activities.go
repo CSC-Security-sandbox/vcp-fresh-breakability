@@ -10,17 +10,14 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"github.com/xyproto/randomstring"
 	"go.temporal.io/sdk/activity"
@@ -676,6 +673,11 @@ func (a *ADCActivity) GetFileInodeNumbers(ctx context.Context, adcParams *common
 func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, volumeUUID string, endpointUUID string, adcParams *common.ADCParams, serviceURL string) error {
 	logger := util.GetLogger(ctx)
 
+	if adcParams == nil || adcParams.DestEndpointUUID == "" {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("endpoint UUID is required for logical size update on volume %s", volumeUUID))
+	}
+	endpointUUID = adcParams.DestEndpointUUID
+
 	// Fetch logical size from ADC
 	logicalSizeResult, err := a.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParams, serviceURL)
 	if err != nil {
@@ -683,206 +685,31 @@ func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, vol
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// Update the latest backup's logical size, scoping the history update to the endpoint when provided.
-	err = a.SE.UpdateLatestBackupLogicalSize(ctx, volumeUUID, endpointUUID, int64(logicalSizeResult.LogicalSize))
+	latestPerEndpoint, err := a.SE.GetLatestBackupsPerEndpointByVolumeUUID(ctx, volumeUUID)
 	if err != nil {
-		logger.Errorf("Failed to update latest backup logical size: %v", err)
+		logger.Errorf("Failed to get latest backups per endpoint for volume %s: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	var target *datamodel.Backup
+	for _, b := range latestPerEndpoint {
+		if b != nil && b.Attributes != nil && b.Attributes.EndpointUUID == endpointUUID {
+			target = b
+			break
+		}
+	}
+	if target == nil {
+		logger.Errorf("FetchLogicalSizeAndUpdateActivity: no AVAILABLE latest backup for endpoint %s on volume %s", endpointUUID, volumeUUID)
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("no latest backup for endpoint %s on volume %s", endpointUUID, volumeUUID))
+	}
+
+	err = a.SE.UpdateBackupFields(ctx, target.UUID, map[string]interface{}{
+		"latest_logical_backup_size": int64(logicalSizeResult.LogicalSize),
+	})
+	if err != nil {
+		logger.Errorf("Failed to update latest backup logical size for endpoint %s: %v", endpointUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	return nil
-}
-
-// getBucketDetailsForBucket returns the bucket details for the given bucket name from the backup vault.
-func getBucketDetailsForBucket(backupVault *datamodel.BackupVault, bucketName string) (*datamodel.BucketDetails, error) {
-	if backupVault == nil {
-		return nil, fmt.Errorf("backup vault is nil")
-	}
-	for _, bd := range backupVault.BucketDetails {
-		if bd != nil && bd.BucketName == bucketName {
-			return bd, nil
-		}
-	}
-	return nil, fmt.Errorf("no matching bucket details found for bucket %s in backup vault %s", bucketName, backupVault.Name)
-}
-
-// serviceAccountEmail returns the GCP service account email, building it if ServiceAccountName is not already an email.
-func serviceAccountEmail(serviceAccountName, tenantProjectNumber string) string {
-	if strings.Contains(serviceAccountName, "@") {
-		return serviceAccountName
-	}
-	if tenantProjectNumber == "" {
-		return serviceAccountName
-	}
-	return fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceAccountName, tenantProjectNumber)
-}
-
-// FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity fetches logical size from each vault's bucket via ADC (sequentially),
-// sums them, then updates only the latest backup row and backup_chain_history (no volume table update).
-// Used when backup vault switching is on and we are in the ADC (orphan) path after deleting a non-latest backup.
-func (a *ADCActivity) FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx context.Context, volumeUUID string, adcParamsForDeletedVault *common.ADCParams, serviceURL string, deletedBackupVaultID int64) error {
-	logger := util.GetLogger(ctx)
-
-	backupsPerVault, err := a.SE.GetLatestBackupsPerVaultByVolumeUUID(ctx, volumeUUID)
-	if err != nil {
-		logger.Errorf("Failed to get latest backups per vault for volume %s: %v", volumeUUID, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	var totalLogicalSize uint64
-	for _, b := range backupsPerVault {
-		if b == nil {
-			continue
-		}
-		var result *LogicalSizeResult
-		if b.BackupVaultID == deletedBackupVaultID {
-			result, err = a.CalculateLogicalBytesAndOptimizedBytes(ctx, adcParamsForDeletedVault, serviceURL)
-		} else {
-			result, err = a.fetchLogicalSizeForOtherVault(ctx, b, serviceURL, adcParamsForDeletedVault)
-		}
-		if err != nil {
-			logger.Warnf("Failed to get logical size for vault %d (backup %s), using 0: %v", b.BackupVaultID, b.UUID, err)
-			continue
-		}
-		totalLogicalSize += result.LogicalSize
-	}
-
-	latestBackup, err := a.SE.GetLatestBackupByVolumeUUID(ctx, volumeUUID)
-	if err != nil {
-		logger.Errorf("Failed to get latest backup for volume %s: %v", volumeUUID, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	err = a.SE.UpdateBackupFields(ctx, latestBackup.UUID, map[string]interface{}{
-		"latest_logical_backup_size": int64(totalLogicalSize),
-	})
-	if err != nil {
-		logger.Errorf("Failed to update latest backup logical size: %v", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	err = a.SE.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, latestBackup.UUID)
-	if err != nil {
-		logger.Errorf("Failed to zero other backups' logical size: %v", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	return nil
-}
-
-// fetchLogicalSizeForOtherVault builds ADC params for another vault's bucket and fetches logical size via ADC.
-func (a *ADCActivity) fetchLogicalSizeForOtherVault(ctx context.Context, backup *datamodel.Backup, serviceURL string, refParams *common.ADCParams) (*LogicalSizeResult, error) {
-	logger := util.GetLogger(ctx)
-
-	vault, err := a.SE.GetBackupVaultById(ctx, backup.BackupVaultID)
-	if err != nil {
-		return nil, fmt.Errorf("GetBackupVaultById: %w", err)
-	}
-	bd, err := getBucketDetailsForBucket(vault, backup.Attributes.BucketName)
-	if err != nil {
-		return nil, fmt.Errorf("getBucketDetailsForBucket: %w", err)
-	}
-	serviceAccount := serviceAccountEmail(bd.ServiceAccountName, bd.TenantProjectNumber)
-	if serviceAccount == "" {
-		return nil, fmt.Errorf("empty service account for bucket %s", bd.BucketName)
-	}
-	hmacKeys, err := a.CreateHmacKeys(ctx, &common.HmacKeyCreateParams{
-		ServiceAccount: serviceAccount,
-		ProjectNumber:  bd.TenantProjectNumber,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("CreateHmacKeys: %w", err)
-	}
-	params := &common.ADCParams{
-		DestEndpointUUID: backup.Attributes.EndpointUUID,
-		BucketName:       backup.Attributes.BucketName,
-		AccessKey:        hmacKeys.AccessKey,
-		SecretKey:        hmacKeys.SecretKey,
-		ProvideType:      refParams.ProvideType,
-		ServerURL:        refParams.ServerURL,
-		Port:             refParams.Port,
-	}
-	result, err := a.CalculateLogicalBytesAndOptimizedBytes(ctx, params, serviceURL)
-	if err != nil {
-		logger.Warnf("CalculateLogicalBytesAndOptimizedBytes for vault %d failed: %v", backup.BackupVaultID, err)
-		return nil, err
-	}
-	return result, nil
-}
-
-// GetSummedLogicalBackupSizeAllVaultsActivity computes the summed logical backup size for a volume across all vaults (attached and detached):
-// - Active vault (volume's current BackupVaultID): size from object store endpoint info (ONTAP).
-// - Detached vaults: size via ADC when serviceURL is non-empty; otherwise 0.
-// Used when backup vault switching is on and the volume exists (backup create, scheduled backup, sync, normal backup delete).
-// When serviceURL is empty, only the active vault contributes (detached vaults contribute 0).
-func (a *ADCActivity) GetSummedLogicalBackupSizeAllVaultsActivity(ctx context.Context, volumeUUID string, node *models.Node, serviceURL string) (int64, error) {
-	logger := util.GetLogger(ctx)
-
-	vol, err := a.SE.DescribeVolume(ctx, volumeUUID)
-	if err != nil {
-		return 0, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-	if vol == nil || vol.DataProtection == nil {
-		return 0, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("volume or data protection not found for %s", volumeUUID)))
-	}
-	var activeVaultID int64
-	if vol.DataProtection.BackupVaultID != "" {
-		activeVault, err := a.SE.GetBackupVaultByUUIDndOwnerID(ctx, vol.DataProtection.BackupVaultID, vol.AccountID)
-		if err == nil && activeVault != nil {
-			activeVaultID = activeVault.ID
-		}
-	}
-
-	latestPerVault, err := a.SE.GetLatestBackupsPerVaultByVolumeUUID(ctx, volumeUUID)
-	if err != nil {
-		logger.Errorf("Failed to get latest backups per vault for volume %s: %v", volumeUUID, err)
-		return 0, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	var refParams *common.ADCParams
-	if serviceURL != "" {
-		refParams = &common.ADCParams{
-			ProvideType: env.GetString("ADC_PROVIDE_TYPE", "GoogleCloud"),
-			ServerURL:   env.GetString("ADC_STORAGE_URL", "storage.googleapis.com"),
-			Port:        int64(env.GetInt("ADC_PORT", 443)),
-		}
-	}
-
-	var sum int64
-	for _, backup := range latestPerVault {
-		if backup == nil {
-			continue
-		}
-		if backup.Attributes == nil || backup.Attributes.BucketName == "" {
-			continue
-		}
-
-		if backup.BackupVaultID == activeVaultID {
-			// Active vault: use object store endpoint info (snapmirror/endpoint exists).
-			if node != nil && backup.Attributes.ObjectStoreUUID != "" && backup.Attributes.EndpointUUID != "" {
-				info, err := BackupActivity{}.GetObjectStoreEndpointInfo(ctx, node, backup.Attributes.ObjectStoreUUID, backup.Attributes.EndpointUUID)
-				if err != nil {
-					logger.Warnf("Failed to get endpoint info for active vault backup %s (vault %d): %v, using 0", backup.Name, backup.BackupVaultID, err)
-					continue
-				}
-				if info != nil && info.LogicalSize != nil {
-					sum += *info.LogicalSize
-				}
-			}
-			continue
-		}
-
-		// Detached vault: use ADC when service URL is available.
-		if serviceURL != "" && refParams != nil {
-			result, err := a.fetchLogicalSizeForOtherVault(ctx, backup, serviceURL, refParams)
-			if err != nil {
-				logger.Warnf("Failed to get logical size for detached vault %d (backup %s) via ADC: %v, using 0", backup.BackupVaultID, backup.Name, err)
-				continue
-			}
-			if result != nil {
-				sum += int64(result.LogicalSize)
-			}
-		}
-	}
-	return sum, nil
 }

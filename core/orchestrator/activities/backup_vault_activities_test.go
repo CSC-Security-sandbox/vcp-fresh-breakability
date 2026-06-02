@@ -2093,6 +2093,7 @@ func TestCleanupBackupVault(t *testing.T) {
 		}
 
 		scheduledEnabled := true
+		existingChainBytes := int64(4608000)
 		crossProjectVolume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
 			AccountID: 200,
@@ -2100,6 +2101,7 @@ func TestCleanupBackupVault(t *testing.T) {
 				BackupVaultID:          "vault-uuid-cp",
 				BackupPolicyID:         "policy-uuid-1",
 				ScheduledBackupEnabled: &scheduledEnabled,
+				BackupChainBytes:       &existingChainBytes,
 			},
 		}
 
@@ -2107,7 +2109,8 @@ func TestCleanupBackupVault(t *testing.T) {
 		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{crossProjectVolume}, nil)
 		mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-uuid-1", mock.MatchedBy(func(updates map[string]interface{}) bool {
 			dp, ok := updates["data_protection"].(*datamodel.DataProtection)
-			return ok && dp.BackupVaultID == "" && dp.BackupPolicyID == "" && *dp.ScheduledBackupEnabled == false
+			return ok && dp.BackupVaultID == "" && dp.BackupPolicyID == "" &&
+				*dp.ScheduledBackupEnabled == false && dp.BackupChainBytes != nil && *dp.BackupChainBytes == existingChainBytes
 		})).Return(nil)
 		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{}, nil)
 
@@ -2211,6 +2214,7 @@ func TestDetachCrossProjectVolumesFromVault(t *testing.T) {
 		}
 
 		scheduledEnabled := true
+		existingChainBytes := int64(4608000)
 		crossProjectVolume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-1"},
 			AccountID: 200,
@@ -2218,9 +2222,11 @@ func TestDetachCrossProjectVolumesFromVault(t *testing.T) {
 				BackupVaultID:          "vault-uuid-cp",
 				BackupPolicyID:         "policy-1",
 				ScheduledBackupEnabled: &scheduledEnabled,
+				BackupChainBytes:       &existingChainBytes,
 			},
 		}
 
+		existingEMVChainBytes := int64(397312)
 		crossProjectEMV := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "emv-1"},
 			AccountID: 300,
@@ -2228,18 +2234,22 @@ func TestDetachCrossProjectVolumesFromVault(t *testing.T) {
 				BackupVaultID:          "vault-uuid-cp",
 				BackupPolicyID:         "policy-2",
 				ScheduledBackupEnabled: &scheduledEnabled,
+				BackupChainBytes:       &existingEMVChainBytes,
 			},
 		}
 
 		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{crossProjectVolume}, nil)
 		mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1", mock.MatchedBy(func(updates map[string]interface{}) bool {
 			dp, ok := updates["data_protection"].(*datamodel.DataProtection)
-			return ok && dp.BackupVaultID == "" && dp.BackupPolicyID == "" && *dp.ScheduledBackupEnabled == false
+			return ok && dp.BackupVaultID == "" && dp.BackupPolicyID == "" &&
+				*dp.ScheduledBackupEnabled == false && dp.BackupChainBytes != nil && *dp.BackupChainBytes == existingChainBytes
 		})).Return(nil)
 
 		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{crossProjectEMV}, nil)
 		mockStorage.On("UpdateExpertModeVolumeDataProtection", mock.Anything, mock.MatchedBy(func(emv *datamodel.ExpertModeVolumes) bool {
-			return emv.UUID == "emv-1" && emv.BackupConfig.BackupVaultID == "" && emv.BackupConfig.BackupPolicyID == "" && *emv.BackupConfig.ScheduledBackupEnabled == false
+			return emv.UUID == "emv-1" && emv.BackupConfig.BackupVaultID == "" && emv.BackupConfig.BackupPolicyID == "" &&
+				*emv.BackupConfig.ScheduledBackupEnabled == false &&
+				emv.BackupConfig.BackupChainBytes != nil && *emv.BackupConfig.BackupChainBytes == existingEMVChainBytes
 		})).Return(nil)
 
 		activity := BackupVaultActivity{SE: mockStorage}

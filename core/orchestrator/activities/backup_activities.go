@@ -492,26 +492,24 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 		}
 	}
 
-	// Update the volume's LatestLogicalBackupSize field
-	updates := make(map[string]interface{})
-	backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection.BackupChainBytes = &backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize
-	updates["data_protection"] = backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection
-
 	if backupActivitiesContext.IsExpertMode {
-		// Update the expert mode volume's LatestLogicalBackupSize field
+		updates := make(map[string]interface{})
+		backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection.BackupChainBytes = &backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize
+		updates["data_protection"] = backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection
 		err = b.SE.UpdateExpertModeVolumeFields(ctx, volumeUUID, updates)
-
 		if err != nil {
 			logger.Errorf("Failed to update expert mode volume %s with latest logical backup size: %v", volumeUUID, err)
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	} else {
-		// Update the volume's LatestLogicalBackupSize field
-		err = b.SE.UpdateVolumeFields(ctx, volumeUUID, updates)
-
-		if err != nil {
-			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeUUID, err)
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		if err = b.RecalculateAndUpdateVolumeBackupChainBytesActivity(ctx, volumeUUID); err != nil {
+			return nil, err
+		}
+		if backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection != nil {
+			sum, sumErr := b.SE.SumVolumeBackupChainBytes(ctx, volumeUUID)
+			if sumErr == nil {
+				backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection.BackupChainBytes = &sum
+			}
 		}
 	}
 
@@ -519,34 +517,60 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 	return backupActivitiesContext, nil
 }
 
+// RecalculateAndUpdateVolumeBackupChainBytesActivity sets volumes.data_protection.backup_chain_bytes to the
+// sum of latest_logical_backup_size across latest AVAILABLE backups per (backup_vault_id, endpoint_uuid).
+// Regular volumes only; expert mode volumes are not updated by this activity.
+func (a *BackupActivity) RecalculateAndUpdateVolumeBackupChainBytesActivity(ctx context.Context, volumeUUID string) error {
+	logger := util.GetLogger(ctx)
+
+	vol, err := a.SE.GetVolume(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to get volume %s for backup chain bytes recalc: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	sum, err := a.SE.SumVolumeBackupChainBytes(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to sum backup chain bytes for volume %s: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if vol.DataProtection == nil {
+		vol.DataProtection = &datamodel.DataProtection{}
+	}
+	vol.DataProtection.BackupChainBytes = &sum
+	volumeUpdates := map[string]interface{}{
+		"data_protection": vol.DataProtection,
+	}
+	if err = a.SE.UpdateVolumeFields(ctx, volumeUUID, volumeUpdates); err != nil {
+		logger.Errorf("Failed to update volume %s backup chain bytes: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Recalculated backup_chain_bytes=%d for volume %s", sum, volumeUUID)
+	return nil
+}
+
 func (a *BackupActivity) UpdateVolumeLatestLogicalBackupSize(ctx context.Context, volume *datamodel.Volume, logicalSize int64) error {
 	logger := util.GetLogger(ctx)
-	// Update volume's latest logical backup size
-	volumeUpdates := make(map[string]interface{})
-	// LatestLogicalBackupSize(backup datamodel) is equivalent to BackupChainBytes(volume datamodel) and chainStorageBytes
-	volume.DataProtection.BackupChainBytes = &logicalSize
-	volumeUpdates["data_protection"] = volume.DataProtection
 	isExpertModeVolume, err := a.IsExpertModeVolume(ctx, volume.VolumeAttributes.ExternalUUID)
 	if err != nil {
 		return err
 	}
 	if isExpertModeVolume {
-		// Update the expert mode volume's LatestLogicalBackupSize field
+		volumeUpdates := make(map[string]interface{})
+		volume.DataProtection.BackupChainBytes = &logicalSize
+		volumeUpdates["data_protection"] = volume.DataProtection
 		err := a.SE.UpdateExpertModeVolumeFields(ctx, volume.VolumeAttributes.ExternalUUID, volumeUpdates)
 		if err != nil {
 			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volume.Name, err)
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		logger.Infof("Successfully updated logical size %d for volume %s", logicalSize, volume.Name)
+		return nil
 	} else {
-		err := a.SE.UpdateVolumeFields(ctx, volume.UUID, volumeUpdates)
-		if err != nil {
-			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volume.Name, err)
-			return vsaerrors.WrapAsTemporalApplicationError(err)
-		}
+		return a.RecalculateAndUpdateVolumeBackupChainBytesActivity(ctx, volume.UUID)
 	}
-	logger.Infof("Successfully updated logical size %d for volume %s",
-		logicalSize, volume.Name)
-	return nil
 }
 
 // SetGlobalLatestBackupLogicalSizeActivity sets the latest backup (across vaults) for the volume to the given size.
@@ -569,12 +593,7 @@ func (a *BackupActivity) SetGlobalLatestBackupLogicalSizeActivity(ctx context.Co
 		logger.Errorf("Failed to set latest backup chain bytes for volume %s: %v", volumeUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	// Zero all other backups for this volume so only the latest (across vaults) holds the sum.
-	if err := a.SE.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, latest.UUID); err != nil {
-		logger.Warnf("Failed to zero other backups' logical size for volume %s: %v", volumeUUID, err)
-		// Non-fatal; latest row is already set
-	}
-	return nil
+	return a.RecalculateAndUpdateVolumeBackupChainBytesActivity(ctx, volumeUUID)
 }
 
 // UpdateConstituentCountForBackup updates constituent count for large volume backups

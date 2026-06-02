@@ -346,6 +346,8 @@ type (
 		GetLatestBackupByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.Backup, error)
 		GetLatestBackupByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (*datamodel.Backup, error)
 		GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error)
+		GetLatestBackupsPerEndpointByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error)
+		SumVolumeBackupChainBytes(ctx context.Context, volumeUUID string) (int64, error)
 		UpdateBackupChainHistory(ctx context.Context, volumeUUID string, endpointUUID string, newSize int64) error
 		DeleteBackupChainHistoryOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
 		GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)

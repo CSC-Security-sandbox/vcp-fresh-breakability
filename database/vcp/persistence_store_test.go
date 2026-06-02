@@ -3297,6 +3297,11 @@ func TestPersistenceStore_BackupVaultAndBackupDelegateMethods(t *testing.T) {
 	assert.NoError(t, err)
 	// backups may be nil or empty slice when no data
 	_ = backups
+
+	// GetLatestBackupsPerEndpointByVolumeUUID
+	backupsEp, err := store.GetLatestBackupsPerEndpointByVolumeUUID(ctx, "volume-uuid")
+	assert.NoError(t, err)
+	_ = backupsEp
 }
 
 // TestPersistenceStore_GetResourcesCount tests the GetResourcesCount wrapper method

@@ -354,8 +354,7 @@ func (j *ScheduledBackupActivity) UpdateBackupState(ctx context.Context, backup 
 	return updated, nil
 }
 
-// UpdateBackupSize updates backup and volume size fields. When backup vault switching is on, chain bytes come from
-// backup.LatestLogicalBackupSize (set by the workflow from object store endpoint info before this activity).
+// UpdateBackupSize persists backup size via FinishBackup and updates volume backup_chain_bytes (regular volumes only).
 func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume, isExpertMode bool) error {
 	logger := util.GetLogger(ctx)
 	se := j.SE
@@ -373,44 +372,37 @@ func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	var chainBytes int64
 	if utils.EnableBackupVaultSwitching {
-		chainBytes = backup.LatestLogicalBackupSize
 		latestBackup, latestErr := se.GetLatestBackupByVolumeUUID(ctx, volUUID)
 		if latestErr == nil && latestBackup != nil {
-			if updateErr := se.UpdateBackupFields(ctx, latestBackup.UUID, map[string]interface{}{"latest_logical_backup_size": chainBytes}); updateErr != nil {
-				logger.Warnf("Failed to set latest backup chain bytes for volume %s: %v", volUUID, updateErr)
-			}
 			if err := se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volUUID, latestBackup.UUID); err != nil {
 				logger.Errorf("Failed to zero other backups for volume %s: %v", volUUID, err)
 				return vsaerrors.WrapAsTemporalApplicationError(err)
 			}
 		}
-	} else {
-		if backup.LatestLogicalBackupSize != 0 {
-			err = se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volUUID, backup.UUID)
-			if err != nil {
-				logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volUUID, err)
-				return vsaerrors.WrapAsTemporalApplicationError(err)
-			}
+	} else if backup.LatestLogicalBackupSize != 0 {
+		err = se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volUUID, backup.UUID)
+		if err != nil {
+			logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volUUID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
-		chainBytes = backup.LatestLogicalBackupSize
 	}
-	volume.DataProtection.BackupChainBytes = &chainBytes
-	updates := map[string]interface{}{
-		"data_protection": volume.DataProtection,
-	}
+
 	if isExpertMode {
+		chainBytes := backup.LatestLogicalBackupSize
+		volume.DataProtection.BackupChainBytes = &chainBytes
+		updates := map[string]interface{}{
+			"data_protection": volume.DataProtection,
+		}
 		err = se.UpdateExpertModeVolumeFields(ctx, volUUID, updates)
 		if err != nil {
 			logger.Errorf("Failed to update expert mode volume %s with latest logical backup size: %v", volUUID, err)
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	} else {
-		err = se.UpdateVolumeFields(ctx, volUUID, updates)
-		if err != nil {
-			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volUUID, err)
-			return vsaerrors.WrapAsTemporalApplicationError(err)
+		backupActivity := activities.BackupActivity{SE: se}
+		if err = backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity(ctx, volUUID); err != nil {
+			return err
 		}
 	}
 

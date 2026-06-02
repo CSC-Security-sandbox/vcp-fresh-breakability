@@ -1188,9 +1188,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 	s.env.AssertExpectations(s.T())
 }
 
-// TestCreateScheduledBackupWorkflow_VaultSwitching_ADCSizeWorkflowFails_WorkflowCompletes
+// TestCreateScheduledBackupWorkflow_VaultSwitching_ObjectStoreSizeUpdate_WorkflowCompletes
 // verifies workflow still completes with regular size-update path when vault switching is enabled.
-func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_VaultSwitching_ADCSizeWorkflowFails_WorkflowCompletes() {
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_VaultSwitching_ObjectStoreSizeUpdate_WorkflowCompletes() {
 	origFlag := utils.EnableBackupVaultSwitching
 	defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
 	utils.SetEnableBackupVaultSwitchingForTest(true)
@@ -1278,9 +1278,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_VaultSwitc
 	s.env.AssertExpectations(s.T())
 }
 
-// TestCreateScheduledBackupWorkflow_VaultSwitching_ADCSizeWorkflowSucceeds_UpdateBackupSizeRuns
+// TestCreateScheduledBackupWorkflow_VaultSwitching_UpdateBackupSizeRuns
 // verifies the scheduled backup workflow completes UpdateBackupSize after object-store size hydration.
-func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_VaultSwitching_ADCSizeWorkflowSucceeds_UpdateBackupSizeRuns() {
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_VaultSwitching_UpdateBackupSizeRuns() {
 	origFlag := utils.EnableBackupVaultSwitching
 	defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
 	utils.SetEnableBackupVaultSwitchingForTest(true)

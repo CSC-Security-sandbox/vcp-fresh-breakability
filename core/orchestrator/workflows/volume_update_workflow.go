@@ -150,9 +150,12 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// when flag is on and vault is changed or removed, delete snapmirror for the
 	// current vault, then set volume.DataProtection.BackupVaultID to the new value (or empty). The orchestrator
 	// leaves BackupVaultID unchanged so this workflow receives the volume with the old vault ID.
+	var backupVaultSwitched bool
 	if utils.EnableBackupVaultSwitching && params.DataProtection != nil && params.DataProtection.BackupVaultID != nil &&
 		volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" &&
 		(*params.DataProtection.BackupVaultID == "" || *params.DataProtection.BackupVaultID != volume.DataProtection.BackupVaultID) {
+		oldBackupVaultID := volume.DataProtection.BackupVaultID
+		newBackupVaultID := *params.DataProtection.BackupVaultID
 		var ontapAsyncResponse *vsa.OntapAsyncResponse
 		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapmirrorInONTAP, volume, &node).Get(ctx, &ontapAsyncResponse)
 		if err != nil {
@@ -222,7 +225,10 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 		}
 
-		volume.DataProtection.BackupVaultID = *params.DataProtection.BackupVaultID
+		volume.DataProtection.BackupVaultID = newBackupVaultID
+		backupVaultSwitched = true
+		log.Infof("Backup vault switched for volume %s (old_vault=%s new_vault=%s); backup_chain_bytes unchanged until DB recalc",
+			volume.UUID, oldBackupVaultID, newBackupVaultID)
 	}
 
 	// Update the snapshot policy if it is provided in the params
@@ -863,6 +869,14 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInDB, volume, params).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
+	}
+
+	if backupVaultSwitched {
+		backupActivity := &activities.BackupActivity{}
+
+		if recalcErr := workflow.ExecuteActivity(ctx, backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity, volume.UUID).Get(ctx, nil); recalcErr != nil {
+			return nil, ConvertToVSAError(recalcErr)
+		}
 	}
 
 	// Update BackupMetadata labels if an entry exists for this volume

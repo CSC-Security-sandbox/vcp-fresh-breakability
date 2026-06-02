@@ -494,6 +494,21 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestGetObjectStoreEndpointInfoAc
 }
 
 // Test UpdateBackupAndVolumeActivity
+func expectRecalcVolumeChainBytesForSync(mockStorage *database.MockStorage, ctx context.Context, volumeUUID string, sum int64, endpointUUID ...string) {
+	recalcVol := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeUUID}, DataProtection: &datamodel.DataProtection{}}
+	mockStorage.On("GetVolume", ctx, volumeUUID).Return(recalcVol, nil).Once()
+	mockStorage.On("SumVolumeBackupChainBytes", ctx, volumeUUID).Return(sum, nil).Once()
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+		dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+		return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == sum
+	})).Return(nil).Once()
+	if len(endpointUUID) > 0 && endpointUUID[0] != "" {
+		mockStorage.On("UpdateBackupChainHistory", ctx, volumeUUID, endpointUUID[0], sum).Return(nil).Once()
+	} else {
+		mockStorage.On("UpdateBackupChainHistory", ctx, volumeUUID, "", sum).Return(nil).Once()
+	}
+}
+
 func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivity() {
 	tests := []struct {
 		name          string
@@ -521,19 +536,10 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 			},
 			logicalSize: int64(1024 * 1024 * 1024), // 1GB
 			setupMock: func() {
-				// Mock backup update
 				s.mockStorage.On("UpdateBackupFields", s.ctx, "backup-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
 					return updates["latest_logical_backup_size"] == int64(1024*1024*1024)
 				})).Return(nil)
-
-				// Mock volume update
-				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
-					dataProtection, ok := updates["data_protection"].(*datamodel.DataProtection)
-					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(1024*1024*1024)
-				})).Return(nil)
-
-				// Mock backup chain history update (no vault → endpointUUID = "")
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(1024*1024*1024)).Return(nil)
+				expectRecalcVolumeChainBytesForSync(s.mockStorage, s.ctx, "volume-uuid", int64(1024*1024*1024))
 			},
 			expectedError: false,
 		},
@@ -588,11 +594,11 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 			},
 			logicalSize: int64(1024 * 1024 * 1024),
 			setupMock: func() {
-				// Backup update succeeds
 				s.mockStorage.On("UpdateBackupFields", s.ctx, "backup-uuid", mock.Anything).Return(nil)
-				// Volume update fails
-				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.Anything).Return(
-					gorm.ErrInvalidTransaction)
+				recalcVol := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}, DataProtection: &datamodel.DataProtection{}}
+				s.mockStorage.On("GetVolume", s.ctx, "volume-uuid").Return(recalcVol, nil)
+				s.mockStorage.On("SumVolumeBackupChainBytes", s.ctx, "volume-uuid").Return(int64(1024*1024*1024), nil)
+				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.Anything).Return(gorm.ErrInvalidTransaction)
 			},
 			expectedError: true,
 		},
@@ -617,14 +623,7 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 				s.mockStorage.On("UpdateBackupFields", s.ctx, "backup-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
 					return updates["latest_logical_backup_size"] == int64(0)
 				})).Return(nil)
-
-				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
-					dataProtection, ok := updates["data_protection"].(*datamodel.DataProtection)
-					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(0)
-				})).Return(nil)
-
-				// Mock backup chain history update (no vault → endpointUUID = "")
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(0)).Return(nil)
+				expectRecalcVolumeChainBytesForSync(s.mockStorage, s.ctx, "volume-uuid", int64(0))
 			},
 			expectedError: false,
 		},
@@ -649,14 +648,7 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 				s.mockStorage.On("UpdateBackupFields", s.ctx, "backup-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
 					return updates["latest_logical_backup_size"] == int64(2*1024*1024*1024*1024)
 				})).Return(nil)
-
-				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
-					dataProtection, ok := updates["data_protection"].(*datamodel.DataProtection)
-					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(2*1024*1024*1024*1024)
-				})).Return(nil)
-
-				// Mock backup chain history update (no vault → endpointUUID = "")
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(2*1024*1024*1024*1024)).Return(nil)
+				expectRecalcVolumeChainBytesForSync(s.mockStorage, s.ctx, "volume-uuid", int64(2*1024*1024*1024*1024))
 			},
 			expectedError: false,
 		},
@@ -709,10 +701,14 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 			},
 			logicalSize: int64(1024 * 1024 * 1024),
 			setupMock: func() {
+				logicalSize := int64(1024 * 1024 * 1024)
 				s.mockStorage.On("UpdateBackupFields", s.ctx, "backup-uuid", mock.Anything).Return(nil)
+				recalcVol := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}, DataProtection: &datamodel.DataProtection{}}
+				s.mockStorage.On("GetVolume", s.ctx, "volume-uuid").Return(recalcVol, nil)
+				s.mockStorage.On("SumVolumeBackupChainBytes", s.ctx, "volume-uuid").Return(logicalSize, nil)
 				s.mockStorage.On("UpdateVolumeFields", s.ctx, "volume-uuid", mock.Anything).Return(nil)
 				// Force ledger update to fail; the activity should still succeed because the error is swallowed.
-				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", int64(1024*1024*1024)).Return(
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", "", logicalSize).Return(
 					errors.New("simulated chain history update failure"))
 			},
 			expectedError: false,
@@ -847,8 +843,7 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 			s.SetupTest()
 
 			s.mockStorage.On("UpdateBackupFields", s.ctx, tt.volumeBackup.LatestBackup.UUID, mock.Anything).Return(nil)
-			s.mockStorage.On("UpdateVolumeFields", s.ctx, tt.volumeBackup.Volume.UUID, mock.Anything).Return(nil)
-			s.mockStorage.On("UpdateBackupChainHistory", s.ctx, tt.volumeBackup.Volume.UUID, tt.wantEndpointUUID, tt.logicalSize).Return(nil)
+			expectRecalcVolumeChainBytesForSync(s.mockStorage, s.ctx, tt.volumeBackup.Volume.UUID, tt.logicalSize, tt.wantEndpointUUID)
 
 			err := s.activity.UpdateBackupAndVolumeActivity(s.ctx, tt.volumeBackup, tt.logicalSize)
 

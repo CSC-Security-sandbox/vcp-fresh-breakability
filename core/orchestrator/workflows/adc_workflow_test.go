@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -91,6 +90,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -931,6 +931,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1023,6 +1024,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1312,6 +1314,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1402,6 +1405,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1493,6 +1497,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1585,6 +1590,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1665,6 +1671,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc.run.app", nil)
 		env.OnActivity("InitialDeleteRequestWithCloudRun", mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{StatusCode: http.StatusOK}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{OperationName: "operations/cleanup-123", Status: "RUNNING"}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-123").Return(true, nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1753,6 +1760,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1855,6 +1863,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, "https://adc-svc-20231201120000abcd-abc123.run.app/status/456").Return(&common.ADCResponse{
 			StatusCode: http.StatusOK,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1952,6 +1961,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("CheckDeleteStatusWithCloudRun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ADCResponse{
 			StatusCode: http.StatusNotFound,
 		}, nil)
+		env.OnActivity("RecalculateAndUpdateVolumeBackupChainBytesActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -2009,123 +2019,5 @@ func TestCalculateProgressiveSleepDuration(t *testing.T) {
 		assert.Equal(t, thirdPhaseSleepDuration, calculateProgressiveSleepDuration(15*time.Minute))
 		assert.Equal(t, thirdPhaseSleepDuration, calculateProgressiveSleepDuration(74*time.Minute+59*time.Second))
 		assert.Equal(t, fourthPhaseSleepDuration, calculateProgressiveSleepDuration(75*time.Minute))
-	})
-}
-
-func TestADCSizeWorkflow(t *testing.T) {
-	t.Run("ParamsNil_ReturnsError", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.RegisterWorkflow(ADCSizeWorkflow)
-		env.ExecuteWorkflow(ADCSizeWorkflow, nil)
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-	})
-
-	t.Run("Success_ReturnsSummedSize", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
-		env.RegisterWorkflow(ADCSizeWorkflow)
-		env.RegisterActivity(&activities.ADCActivity{})
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{OperationName: "op-123"}, nil)
-		env.OnActivity("CheckOperationStatus", mock.Anything, "op-123").Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-size.example.com", nil)
-		env.OnActivity("GetSummedLogicalBackupSizeAllVaultsActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(2048), nil)
-		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{OperationName: "cleanup-op"}, nil)
-		env.OnActivity("CheckOperationStatus", mock.Anything, "cleanup-op").Return(true, nil)
-
-		params := &ADCSizeWFParams{VolumeUUID: "vol-uuid", Node: &models.Node{EndpointAddress: "127.0.0.1"}}
-		env.ExecuteWorkflow(ADCSizeWorkflow, params)
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
-		var result int64
-		err := env.GetWorkflowResult(&result)
-		assert.NoError(t, err)
-		assert.Equal(t, int64(2048), result)
-	})
-
-	t.Run("DeployADCCloudRunServiceFails_ReturnsError", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
-		env.RegisterWorkflow(ADCSizeWorkflow)
-		env.RegisterActivity(&activities.ADCActivity{})
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return((*hyperscaler.CloudRunOperationResponse)(nil), errors.New("deploy failed"))
-
-		params := &ADCSizeWFParams{VolumeUUID: "vol-uuid", Node: &models.Node{EndpointAddress: "127.0.0.1"}}
-		env.ExecuteWorkflow(ADCSizeWorkflow, params)
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-	})
-
-	t.Run("GetADCServiceURLFails_ReturnsError", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
-		env.RegisterWorkflow(ADCSizeWorkflow)
-		env.RegisterActivity(&activities.ADCActivity{})
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{OperationName: "op-123"}, nil)
-		env.OnActivity("CheckOperationStatus", mock.Anything, "op-123").Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("get url failed"))
-
-		params := &ADCSizeWFParams{VolumeUUID: "vol-uuid", Node: &models.Node{EndpointAddress: "127.0.0.1"}}
-		env.ExecuteWorkflow(ADCSizeWorkflow, params)
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-	})
-
-	t.Run("GetSummedLogicalBackupSizeAllVaultsActivityFails_ReturnsError", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
-		env.RegisterWorkflow(ADCSizeWorkflow)
-		env.RegisterActivity(&activities.ADCActivity{})
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{OperationName: "op-123"}, nil)
-		env.OnActivity("CheckOperationStatus", mock.Anything, "op-123").Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc.example.com", nil)
-		env.OnActivity("GetSummedLogicalBackupSizeAllVaultsActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(0), errors.New("get summed size failed"))
-
-		params := &ADCSizeWFParams{VolumeUUID: "vol-uuid", Node: &models.Node{EndpointAddress: "127.0.0.1"}}
-		env.ExecuteWorkflow(ADCSizeWorkflow, params)
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-	})
-
-	t.Run("CleanupADCCloudRunServiceFails_ReturnsSummedSize", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
-		env.RegisterWorkflow(ADCSizeWorkflow)
-		env.RegisterActivity(&activities.ADCActivity{})
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{OperationName: "op-123"}, nil)
-		env.OnActivity("CheckOperationStatus", mock.Anything, "op-123").Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc.example.com", nil)
-		env.OnActivity("GetSummedLogicalBackupSizeAllVaultsActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(4096), nil)
-		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*hyperscaler.CloudRunOperationResponse)(nil), errors.New("cleanup failed"))
-
-		params := &ADCSizeWFParams{VolumeUUID: "vol-uuid", Node: &models.Node{EndpointAddress: "127.0.0.1"}}
-		env.ExecuteWorkflow(ADCSizeWorkflow, params)
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
-		var result int64
-		err := env.GetWorkflowResult(&result)
-		assert.NoError(t, err)
-		assert.Equal(t, int64(4096), result)
 	})
 }

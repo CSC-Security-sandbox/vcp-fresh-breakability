@@ -151,11 +151,15 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_D
 	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
 	s.env.RegisterActivity(backupActivity.GetBackupVault)
 	s.env.RegisterActivity(backupActivity.GetLatestBackupByVolumeAndVault)
+	s.env.RegisterActivity(backupActivity.IsExpertModeVolume)
+	s.env.RegisterActivity(backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity)
 
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, "old-vault-uuid").Return(&datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 99}}, nil)
 	s.env.OnActivity(backupActivity.GetLatestBackupByVolumeAndVault, mock.Anything, mock.Anything, int64(99)).Return((*datamodel.Backup)(nil), nil)
+	s.env.OnActivity(backupActivity.IsExpertModeVolume, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "job-uuid", mock.Anything).Return(&vsa.OntapJob{State: "success", UUID: "job-uuid"}, nil)
 	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid", Name: "vol"},
@@ -223,15 +227,17 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_D
 	s.env.RegisterActivity(backupActivity.DeleteSnapshotForBackup)
 	s.env.RegisterActivity(backupActivity.DeleteBackupSnapshotFromDB)
 	s.env.RegisterActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity)
+	s.env.RegisterActivity(backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity)
 
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Times(1)
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil).Times(1)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, "old-vault-uuid").Return(&datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 99}}, nil).Times(1)
 	s.env.OnActivity(backupActivity.GetLatestBackupByVolumeAndVault, mock.Anything, volumeUUID, int64(99)).Return(latestBackup, nil).Times(1)
-	s.env.OnActivity(backupActivity.IsExpertModeVolume, mock.Anything, volumeUUID).Return(false, nil).Times(1)
+	s.env.OnActivity(backupActivity.IsExpertModeVolume, mock.Anything, volumeUUID).Return(false, nil).Times(2)
 	s.env.OnActivity(backupActivity.DeleteSnapshotForBackup, mock.Anything, mock.Anything, snapshotExtID, volumeExtUUID, false).Return(nil).Times(1)
 	s.env.OnActivity(backupActivity.DeleteBackupSnapshotFromDB, mock.Anything, latestBackup).Return(nil).Times(1)
 	s.env.OnActivity(backupActivity.HydrateSnapshotDeletionToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
+	s.env.OnActivity(backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity, mock.Anything, volumeUUID).Return(nil).Times(1)
 	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "job-uuid", mock.Anything).Return(&vsa.OntapJob{State: "success", UUID: "job-uuid"}, nil).Times(1)
 	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid", Name: "vol"},
@@ -297,14 +303,16 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_D
 	s.env.RegisterActivity(backupActivity.GetLatestBackupByVolumeAndVault)
 	s.env.RegisterActivity(backupActivity.IsExpertModeVolume)
 	s.env.RegisterActivity(backupActivity.DeleteSnapshotForBackup)
+	s.env.RegisterActivity(backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity)
 	// Deliberately omit DeleteBackupSnapshotFromDB — expert mode must not invoke it.
 
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Times(1)
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil).Times(1)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, "old-vault-uuid").Return(&datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 99}}, nil).Times(1)
 	s.env.OnActivity(backupActivity.GetLatestBackupByVolumeAndVault, mock.Anything, volumeUUID, int64(99)).Return(latestBackup, nil).Times(1)
-	s.env.OnActivity(backupActivity.IsExpertModeVolume, mock.Anything, volumeUUID).Return(true, nil).Times(1)
+	s.env.OnActivity(backupActivity.IsExpertModeVolume, mock.Anything, volumeUUID).Return(true, nil).Times(2)
 	s.env.OnActivity(backupActivity.DeleteSnapshotForBackup, mock.Anything, mock.Anything, snapshotExtID, volumeExtUUID, false).Return(nil).Times(1)
+	s.env.OnActivity(backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity, mock.Anything, volumeUUID).Return(nil).Times(1)
 	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "job-uuid", mock.Anything).Return(&vsa.OntapJob{State: "success", UUID: "job-uuid"}, nil).Times(1)
 	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid", Name: "vol"},
@@ -326,6 +334,87 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_D
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes:   2000,
 		DataProtection: &models.UpdateDataProtection{BackupVaultID: &emptyVaultID},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_PreservesBackupChainBytesBeforeDBUpdate() {
+	origFlag := utils.EnableBackupVaultSwitching
+	defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+	utils.SetEnableBackupVaultSwitchingForTest(true)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	backupActivity := activities.BackupActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(backupActivity.GetBackupVault)
+	s.env.RegisterActivity(backupActivity.GetLatestBackupByVolumeAndVault)
+	s.env.RegisterActivity(backupActivity.IsExpertModeVolume)
+	s.env.RegisterActivity(backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, "old-vault-uuid").Return(&datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 99}}, nil)
+	s.env.OnActivity(backupActivity.GetLatestBackupByVolumeAndVault, mock.Anything, mock.Anything, int64(99)).Return((*datamodel.Backup)(nil), nil)
+	s.env.OnActivity(backupActivity.IsExpertModeVolume, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "job-uuid", mock.Anything).Return(&vsa.OntapJob{State: "success", UUID: "job-uuid"}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid", Name: "vol"},
+		AvailableSpace:   1000, Size: 1000, State: "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
+	backupChainBytes := int64(4096)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		var updatedVolume *datamodel.Volume
+		switch v := args.Get(1).(type) {
+		case *datamodel.Volume:
+			updatedVolume = v
+		case datamodel.Volume:
+			updatedVolume = &v
+		default:
+			assert.Failf(s.T(), "unexpected volume argument type", "got %T", args.Get(1))
+			return
+		}
+
+		if assert.NotNil(s.T(), updatedVolume.DataProtection) {
+			assert.Equal(s.T(), "", updatedVolume.DataProtection.BackupVaultID)
+			if assert.NotNil(s.T(), updatedVolume.DataProtection.BackupChainBytes) {
+				assert.EqualValues(s.T(), backupChainBytes, *updatedVolume.DataProtection.BackupChainBytes)
+			}
+		}
+	}).Return(nil)
+
+	newVaultID := ""
+	volume := &datamodel.Volume{
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
+		Account:          &datamodel.Account{Name: "test_account"},
+		SizeInBytes:      1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{IsDataProtection: false},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID:    "old-vault-uuid",
+			BackupChainBytes: &backupChainBytes,
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes:   2000,
+		DataProtection: &models.UpdateDataProtection{BackupVaultID: &newVaultID},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
 

@@ -1128,6 +1128,44 @@ func (d *DataStoreRepository) GetLatestBackupsPerVaultByVolumeUUID(ctx context.C
 	return out, nil
 }
 
+// GetLatestBackupsPerEndpointByVolumeUUID returns the latest AVAILABLE backup (by id) per distinct
+// (backup_vault_id, attributes.endpoint_uuid) for the volume. Rows with blank endpoint_uuid are omitted.
+func (d *DataStoreRepository) GetLatestBackupsPerEndpointByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	sub := db.Table("backups").
+		Select("MAX(id) AS id").
+		Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).
+		Where("COALESCE(attributes->>'endpoint_uuid', '') != ''").
+		Group("backup_vault_id, attributes->>'endpoint_uuid'")
+
+	var backups []*datamodel.Backup
+	err := db.Model(&datamodel.Backup{}).
+		Where("id IN (?)", sub).
+		Order("id ASC").
+		Find(&backups).Error
+	if err != nil {
+		return nil, err
+	}
+	return backups, nil
+}
+
+// SumVolumeBackupChainBytes returns the sum of latest_logical_backup_size across latest backups per
+// (backup_vault_id, endpoint_uuid) for the volume.
+func (d *DataStoreRepository) SumVolumeBackupChainBytes(ctx context.Context, volumeUUID string) (int64, error) {
+	backups, err := d.GetLatestBackupsPerEndpointByVolumeUUID(ctx, volumeUUID)
+	if err != nil {
+		return 0, err
+	}
+	var sum int64
+	for _, b := range backups {
+		if b != nil {
+			sum += b.LatestLogicalBackupSize
+		}
+	}
+	return sum, nil
+}
+
 // GetBackupMetrics retrieves backup logical size metrics grouped by volume UUID with pagination
 // Returns the latest backup entry for each volume with state 'available'
 func (d *DataStoreRepository) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
@@ -1471,7 +1509,7 @@ func (d *DataStoreRepository) GetLatestBackupsGroupedByVolumeUUID(ctx context.Co
 			  AND (v.uuid IS NULL OR v.data_protection->>'backup_vault_id' IS NULL OR bv.uuid = v.data_protection->>'backup_vault_id')
 		) ranked
 		WHERE rn = 1
-	`, datamodel.LifeCycleStateAvailable).Scan(&rows).Error
+	`, datamodel.LifeCycleStateAvailable, models.LifeCycleStateREADY).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}

@@ -13,11 +13,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -1462,8 +1460,16 @@ func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
 	}
 
 	// Create mock storage
+	matchingBackup := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "latest-backup-ep"},
+		Attributes: &datamodel.BackupAttributes{EndpointUUID: "endpoint-uuid"},
+	}
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, "", int64(expectedLogicalSize)).Return(nil)
+	mockStorage.On("GetLatestBackupsPerEndpointByVolumeUUID", ctx, volumeUUID).Return([]*datamodel.Backup{matchingBackup}, nil)
+	mockStorage.On("UpdateBackupFields", ctx, "latest-backup-ep", mock.MatchedBy(func(updates map[string]interface{}) bool {
+		v, ok := updates["latest_logical_backup_size"].(int64)
+		return ok && v == int64(expectedLogicalSize)
+	})).Return(nil)
 
 	// Create a test server that returns successful response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1493,6 +1499,7 @@ func TestFetchLogicalSizeAndUpdateActivity_Success(t *testing.T) {
 
 	// Assertions
 	assert.Nil(t, err)
+	mockStorage.AssertNotCalled(t, "UpdateLatestBackupLogicalSize")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1503,8 +1510,9 @@ func TestFetchLogicalSizeAndUpdateActivity_ADCError(t *testing.T) {
 
 	// Create test ADC params with invalid data to trigger ADC error
 	adcParams := &commonparams.ADCParams{
-		AccessKey: "invalid-base64",
-		SecretKey: "invalid-base64",
+		DestEndpointUUID: "endpoint-uuid",
+		AccessKey:        "invalid-base64",
+		SecretKey:        "invalid-base64",
 	}
 
 	// Create mock storage
@@ -1542,8 +1550,16 @@ func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
 	}
 
 	// Create mock storage
+	matchingBackup := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "latest-backup-ep"},
+		Attributes: &datamodel.BackupAttributes{EndpointUUID: "endpoint-uuid"},
+	}
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("UpdateLatestBackupLogicalSize", ctx, volumeUUID, "", int64(expectedLogicalSize)).Return(expectedError)
+	mockStorage.On("GetLatestBackupsPerEndpointByVolumeUUID", ctx, volumeUUID).Return([]*datamodel.Backup{matchingBackup}, nil)
+	mockStorage.On("UpdateBackupFields", ctx, "latest-backup-ep", mock.MatchedBy(func(updates map[string]interface{}) bool {
+		v, ok := updates["latest_logical_backup_size"].(int64)
+		return ok && v == int64(expectedLogicalSize)
+	})).Return(expectedError)
 
 	// Create a test server that returns successful response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1574,6 +1590,7 @@ func TestFetchLogicalSizeAndUpdateActivity_UpdateDatabaseError(t *testing.T) {
 	// Assertions
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "database update failed")
+	mockStorage.AssertNotCalled(t, "UpdateLatestBackupLogicalSize")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1619,59 +1636,31 @@ func TestFetchLogicalSizeAndUpdateActivity_HTTPError(t *testing.T) {
 	mockStorage.AssertNotCalled(t, "UpdateLatestBackupLogicalSize")
 }
 
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_Success(t *testing.T) {
+func TestFetchLogicalSizeAndUpdateActivity_NoLatestBackupForEndpoint_ReturnsError(t *testing.T) {
 	ctx := context.Background()
 	volumeUUID := "volume-uuid"
-	deletedBackupVaultID := int64(1)
 	expectedLogicalSize := uint64(1024000)
-	latestBackupUUID := "latest-backup-uuid"
 
 	adcParams := &commonparams.ADCParams{
+		ADCName:          "test-adc",
 		DestEndpointUUID: "endpoint-uuid",
+		SnapshotUUID:     "snapshot-uuid",
 		BucketName:       "test-bucket",
 		AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
 		SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
 		ProvideType:      "GoogleCloud",
 		ServerURL:        "storage.googleapis.com",
+		AccountName:      "test-account",
 		Port:             443,
 	}
 
-	// Single vault (deleted vault): per-vault latest is the same as deleted
-	backupsPerVault := []*datamodel.Backup{
-		{
-			BaseModel:     datamodel.BaseModel{UUID: "backup-1"},
-			VolumeUUID:    volumeUUID,
-			BackupVaultID: deletedBackupVaultID,
-			Attributes: &datamodel.BackupAttributes{
-				BucketName:   "test-bucket",
-				EndpointUUID: "endpoint-uuid",
-			},
-		},
-	}
-	latestBackup := &datamodel.Backup{
-		BaseModel:  datamodel.BaseModel{UUID: latestBackupUUID},
-		VolumeUUID: volumeUUID,
-	}
-
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
-	mockStorage.On("UpdateBackupFields", ctx, latestBackupUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
-		v, ok := updates["latest_logical_backup_size"].(int64)
-		return ok && v == int64(expectedLogicalSize)
-	})).Return(nil)
-	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
+	mockStorage.On("GetLatestBackupsPerEndpointByVolumeUUID", ctx, volumeUUID).Return([]*datamodel.Backup{}, nil)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := activities.LogicalBytesResp{
-			EndpointMetrics: activities.EndpointMetrics{
-				LogicalSize:                expectedLogicalSize,
-				CompressedBytesTransferred: 512000,
-			},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(activities.LogicalBytesResp{
+			EndpointMetrics: activities.EndpointMetrics{LogicalSize: expectedLogicalSize},
+		})
 	}))
 	defer server.Close()
 
@@ -1682,685 +1671,43 @@ func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_Success(t *t
 	defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
 
 	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL, deletedBackupVaultID)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, "endpoint-uuid", adcParams, server.URL)
 
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no latest backup for endpoint endpoint-uuid")
+	mockStorage.AssertNotCalled(t, "UpdateLatestBackupLogicalSize")
+	mockStorage.AssertNotCalled(t, "UpdateBackupFields")
 }
 
-// TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_GetBucketDetailsFails_Continues covers the path
-// where fetchLogicalSizeForOtherVault fails (e.g. getBucketDetailsForBucket returns error); activity continues and updates with 0.
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_GetBucketDetailsFails_Continues(t *testing.T) {
+func TestFetchLogicalSizeAndUpdateActivity_EmptyEndpointUUID_ReturnsError(t *testing.T) {
 	ctx := context.Background()
 	volumeUUID := "volume-uuid"
-	deletedBackupVaultID := int64(1)
-	latestBackupUUID := "latest-backup-uuid"
 
 	adcParams := &commonparams.ADCParams{
-		DestEndpointUUID: "ep-uuid",
-		BucketName:       "test-bucket",
-		AccessKey:        base64.StdEncoding.EncodeToString([]byte("key")),
-		SecretKey:        base64.StdEncoding.EncodeToString([]byte("secret")),
-		ProvideType:      "GoogleCloud",
-		ServerURL:        "storage.googleapis.com",
-		Port:             443,
+		ADCName:      "test-adc",
+		SnapshotUUID: "snapshot-uuid",
+		BucketName:   "test-bucket",
+		AccessKey:    base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+		SecretKey:    base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+		ProvideType:  "GoogleCloud",
+		ServerURL:    "storage.googleapis.com",
+		AccountName:  "test-account",
+		Port:         443,
 	}
-
-	// Other vault backup has bucket name that won't match vault's BucketDetails (vault has "other-bucket")
-	backupsPerVault := []*datamodel.Backup{
-		{
-			BaseModel:     datamodel.BaseModel{UUID: "backup-other"},
-			VolumeUUID:    volumeUUID,
-			BackupVaultID: 2,
-			Attributes:    &datamodel.BackupAttributes{BucketName: "wrong-bucket", EndpointUUID: "ep"},
-		},
-	}
-	vault2 := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 2},
-		Name:      "vault2",
-		BucketDetails: datamodel.BucketDetailsArray{
-			{BucketName: "other-bucket", ServiceAccountName: "sa@proj.iam.gserviceaccount.com"},
-		},
-	}
-	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: latestBackupUUID}, VolumeUUID: volumeUUID}
 
 	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetBackupVaultById", ctx, int64(2)).Return(vault2, nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
-	mockStorage.On("UpdateBackupFields", ctx, latestBackupUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
-		v, ok := updates["latest_logical_backup_size"].(int64)
-		return ok && v == int64(0)
-	})).Return(nil)
-	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
 
 	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, "http://localhost:9999", deletedBackupVaultID)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_GetLatestBackupByVolumeUUIDError(t *testing.T) {
-	ctx := context.Background()
-	volumeUUID := "vol-uuid"
-	adcParams := &commonparams.ADCParams{BucketName: "b", ServerURL: "http://x", Port: 443}
-	backupsPerVault := []*datamodel.Backup{}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(nil, errors.New("db error"))
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, "", 1)
+	err := activity.FetchLogicalSizeAndUpdateActivity(ctx, volumeUUID, "", adcParams, "http://unused")
 
 	assert.Error(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_UpdateBackupFieldsError(t *testing.T) {
-	ctx := context.Background()
-	volumeUUID := "vol-uuid"
-	latestUUID := "latest-uuid"
-	adcParams := &commonparams.ADCParams{BucketName: "b", ServerURL: "http://x", Port: 443}
-	backupsPerVault := []*datamodel.Backup{}
-	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: latestUUID}, VolumeUUID: volumeUUID}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
-	mockStorage.On("UpdateBackupFields", ctx, latestUUID, mock.Anything).Return(errors.New("update failed"))
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, "", 1)
-
-	assert.Error(t, err)
-	mockStorage.AssertExpectations(t)
+	assert.Contains(t, err.Error(), "endpoint UUID is required")
+	mockStorage.AssertNotCalled(t, "GetLatestBackupsPerEndpointByVolumeUUID")
+	mockStorage.AssertNotCalled(t, "UpdateLatestBackupLogicalSize")
+	mockStorage.AssertNotCalled(t, "UpdateBackupFields")
 }
 
 
-// TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_GetBackupVaultByIdReturnsNilVault_Continues
-// covers getBucketDetailsForBucket(backupVault==nil) when GetBackupVaultById returns (nil, nil) for another vault.
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_GetBackupVaultByIdReturnsNilVault_Continues(t *testing.T) {
-	ctx := context.Background()
-	volumeUUID := "vol-uuid"
-	deletedBackupVaultID := int64(1)
-	latestBackupUUID := "latest-uuid"
-
-	adcParams := &commonparams.ADCParams{BucketName: "b", ServerURL: "http://x", Port: 443}
-	backupsPerVault := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "other"}, VolumeUUID: volumeUUID, BackupVaultID: 2, Attributes: &datamodel.BackupAttributes{BucketName: "b2"}},
-	}
-	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: latestBackupUUID}, VolumeUUID: volumeUUID}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetBackupVaultById", ctx, int64(2)).Return((*datamodel.BackupVault)(nil), nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
-	mockStorage.On("UpdateBackupFields", ctx, latestBackupUUID, mock.Anything).Return(nil)
-	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, "", deletedBackupVaultID)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-// TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_NilBackupInList_Continues covers the loop continue when b == nil.
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_NilBackupInList_Continues(t *testing.T) {
-	ctx := context.Background()
-	volumeUUID := "vol-uuid"
-	deletedBackupVaultID := int64(1)
-	latestBackupUUID := "latest-uuid"
-
-	adcParams := &commonparams.ADCParams{BucketName: "b", ServerURL: "http://x", Port: 443}
-	backupsPerVault := []*datamodel.Backup{
-		nil,
-		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: volumeUUID, BackupVaultID: deletedBackupVaultID, Attributes: &datamodel.BackupAttributes{BucketName: "b", EndpointUUID: "ep"}},
-	}
-	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: latestBackupUUID}, VolumeUUID: volumeUUID}
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(activities.LogicalBytesResp{EndpointMetrics: activities.EndpointMetrics{LogicalSize: 1024}})
-	}))
-	defer server.Close()
-
-	origToken := activities.GetStandardAuthToken
-	activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) { return "token", nil }
-	defer func() { activities.GetStandardAuthToken = origToken }()
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
-	mockStorage.On("UpdateBackupFields", ctx, latestBackupUUID, mock.Anything).Return(nil)
-	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL, deletedBackupVaultID)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-// TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_CalculateLogicalBytesFails_Continues covers continue when deleted-vault size fetch fails.
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_CalculateLogicalBytesFails_Continues(t *testing.T) {
-	ctx := context.Background()
-	volumeUUID := "vol-uuid"
-	deletedBackupVaultID := int64(1)
-	latestBackupUUID := "latest-uuid"
-
-	adcParams := &commonparams.ADCParams{BucketName: "b", ServerURL: "http://x", Port: 443}
-	backupsPerVault := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: volumeUUID, BackupVaultID: deletedBackupVaultID, Attributes: &datamodel.BackupAttributes{BucketName: "b", EndpointUUID: "ep"}},
-	}
-	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: latestBackupUUID}, VolumeUUID: volumeUUID}
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-
-	origToken := activities.GetStandardAuthToken
-	activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) { return "token", nil }
-	defer func() { activities.GetStandardAuthToken = origToken }()
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
-	mockStorage.On("UpdateBackupFields", ctx, latestBackupUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
-		v, ok := updates["latest_logical_backup_size"].(int64)
-		return ok && v == 0
-	})).Return(nil)
-	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackupUUID).Return(nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, server.URL, deletedBackupVaultID)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-// TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_UpdateBackupLatestLogicalBackupSizeByVolumeError
-func TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_UpdateBackupLatestLogicalBackupSizeByVolumeError(t *testing.T) {
-	ctx := context.Background()
-	volumeUUID := "vol-uuid"
-	latestUUID := "latest-uuid"
-	adcParams := &commonparams.ADCParams{BucketName: "b", ServerURL: "http://x", Port: 443}
-	backupsPerVault := []*datamodel.Backup{}
-	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: latestUUID}, VolumeUUID: volumeUUID}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(backupsPerVault, nil)
-	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
-	mockStorage.On("UpdateBackupFields", ctx, latestUUID, mock.Anything).Return(nil)
-	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestUUID).Return(errors.New("update latest size failed"))
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	err := activity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity(ctx, volumeUUID, adcParams, "", 1)
-
-	assert.Error(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_ActiveVault_EndpointInfoError_Continues(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestActivityEnvironment()
-	volumeUUID := "vol-uuid"
-	vaultUUID := "v1"
-	vaultID := int64(1)
-	accountID := int64(10)
-
-	vol := &datamodel.Volume{
-		BaseModel:      datamodel.BaseModel{UUID: volumeUUID},
-		AccountID:      accountID,
-		DataProtection: &datamodel.DataProtection{BackupVaultID: vaultUUID},
-	}
-	vault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: vaultUUID, ID: vaultID}, Name: "v1"}
-	latestPerVault := []*datamodel.Backup{
-		{
-			BaseModel:     datamodel.BaseModel{UUID: "b1"},
-			BackupVaultID: vaultID,
-			Attributes: &datamodel.BackupAttributes{
-				BucketName:      "b1",
-				ObjectStoreUUID: "obj-uuid",
-				EndpointUUID:    "ep-uuid",
-			},
-		},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", mock.Anything, volumeUUID).Return(vol, nil)
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", mock.Anything, vaultUUID, accountID).Return(vault, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", mock.Anything, volumeUUID).Return(latestPerVault, nil)
-
-	mockProvider := new(vsa.MockProvider)
-	mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "ep-uuid").Return(nil, errors.New("endpoint unreachable"))
-	origGetProvider := vsa.GetProviderByNode
-	vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
-		return mockProvider, nil
-	}
-	defer func() { vsa.GetProviderByNode = origGetProvider }()
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	env.RegisterActivity(&activity)
-	encoded, err := env.ExecuteActivity(activity.GetSummedLogicalBackupSizeAllVaultsActivity, volumeUUID, node, "")
-	assert.NoError(t, err)
-	var sum int64
-	assert.NoError(t, encoded.Get(&sum))
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-	mockProvider.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_ADCError_Continues(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vaultID := int64(2)
-	vault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: vaultID},
-		BucketDetails: datamodel.BucketDetailsArray{
-			{BucketName: "bucket2", ServiceAccountName: "sa@proj.iam.gserviceaccount.com", TenantProjectNumber: "123"},
-		},
-	}
-	latestPerVault := []*datamodel.Backup{
-		{
-			BaseModel:     datamodel.BaseModel{UUID: "detached-b"},
-			BackupVaultID: vaultID,
-			Attributes:    &datamodel.BackupAttributes{BucketName: "bucket2", EndpointUUID: "ep"},
-		},
-	}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", mock.Anything, volumeUUID).Return(&datamodel.Volume{DataProtection: &datamodel.DataProtection{}}, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", mock.Anything, volumeUUID).Return(latestPerVault, nil)
-	mockStorage.On("GetBackupVaultById", mock.Anything, vaultID).Return(vault, nil)
-	origGetCloud := activities.GetCloudService
-	activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-		return nil, errors.New("no cloud service")
-	}
-	defer func() { activities.GetCloudService = origGetCloud }()
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "http://localhost:9999")
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-// TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_EmptyServiceAccount_Continues covers fetchLogicalSizeForOtherVault when serviceAccountEmail returns ""
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_EmptyServiceAccount_Continues(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vaultID := int64(2)
-	vault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: vaultID},
-		BucketDetails: datamodel.BucketDetailsArray{
-			{BucketName: "bucket2", ServiceAccountName: "", TenantProjectNumber: ""},
-		},
-	}
-	latestPerVault := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "detached-b"}, BackupVaultID: vaultID, Attributes: &datamodel.BackupAttributes{BucketName: "bucket2", EndpointUUID: "ep"}},
-	}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", mock.Anything, volumeUUID).Return(&datamodel.Volume{DataProtection: &datamodel.DataProtection{}}, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", mock.Anything, volumeUUID).Return(latestPerVault, nil)
-	mockStorage.On("GetBackupVaultById", mock.Anything, vaultID).Return(vault, nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "http://localhost:9999")
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-// TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_CreateHmacKeysError_Continues covers fetchLogicalSizeForOtherVault when CreateHmacKeys fails
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_CreateHmacKeysError_Continues(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vaultID := int64(2)
-	vault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: vaultID},
-		BucketDetails: datamodel.BucketDetailsArray{
-			{BucketName: "bucket2", ServiceAccountName: "mysa", TenantProjectNumber: "123"},
-		},
-	}
-	latestPerVault := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "detached-b"}, BackupVaultID: vaultID, Attributes: &datamodel.BackupAttributes{BucketName: "bucket2", EndpointUUID: "ep"}},
-	}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", mock.Anything, volumeUUID).Return(&datamodel.Volume{DataProtection: &datamodel.DataProtection{}}, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", mock.Anything, volumeUUID).Return(latestPerVault, nil)
-	mockStorage.On("GetBackupVaultById", mock.Anything, vaultID).Return(vault, nil)
-	mockGCPService := new(hyperscaler.MockGoogleServices)
-	mockGCPService.On("CreateHmacKey", "123", "mysa@123.iam.gserviceaccount.com").Return(nil, nil, errors.New("hmac key failed"))
-	origGetCloud := activities.GetCloudService
-	activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) { return mockGCPService, nil }
-	defer func() { activities.GetCloudService = origGetCloud }()
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "http://localhost:9999")
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-	mockGCPService.AssertExpectations(t)
-}
-
-// TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_CalculateLogicalBytesFails_Continues covers fetchLogicalSizeForOtherVault when CalculateLogicalBytesAndOptimizedBytes fails
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_CalculateLogicalBytesFails_Continues(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vaultID := int64(2)
-	vault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: vaultID},
-		BucketDetails: datamodel.BucketDetailsArray{
-			{BucketName: "bucket2", ServiceAccountName: "sa@proj.iam.gserviceaccount.com", TenantProjectNumber: "123"},
-		},
-	}
-	latestPerVault := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "detached-b"}, BackupVaultID: vaultID, Attributes: &datamodel.BackupAttributes{BucketName: "bucket2", EndpointUUID: "ep"}},
-	}
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", mock.Anything, volumeUUID).Return(&datamodel.Volume{DataProtection: &datamodel.DataProtection{}}, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", mock.Anything, volumeUUID).Return(latestPerVault, nil)
-	mockStorage.On("GetBackupVaultById", mock.Anything, vaultID).Return(vault, nil)
-	origToken := activities.GetStandardAuthToken
-	activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) { return "token", nil }
-	defer func() { activities.GetStandardAuthToken = origToken }()
-	accessKey, secretKey := "ak", "sk"
-	mockGCPService := new(hyperscaler.MockGoogleServices)
-	mockGCPService.On("CreateHmacKey", "123", "sa@proj.iam.gserviceaccount.com").Return(&accessKey, &secretKey, nil)
-	origGetCloud := activities.GetCloudService
-	activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) { return mockGCPService, nil }
-	defer func() { activities.GetCloudService = origGetCloud }()
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, server.URL)
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-	mockGCPService.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_DescribeVolumeError(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", ctx, volumeUUID).Return(nil, errors.New("describe failed"))
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "")
-
-	assert.Error(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_VolumeNil(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", ctx, volumeUUID).Return(nil, nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "")
-
-	assert.Error(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_DataProtectionNil(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vol := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeUUID}, DataProtection: nil}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", ctx, volumeUUID).Return(vol, nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "")
-
-	assert.Error(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_GetLatestBackupsPerVaultError(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vol := &datamodel.Volume{
-		BaseModel:      datamodel.BaseModel{UUID: volumeUUID},
-		DataProtection: &datamodel.DataProtection{BackupVaultID: ""},
-	}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", ctx, volumeUUID).Return(vol, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(nil, errors.New("per-vault failed"))
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "")
-
-	assert.Error(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_Success_EmptyBackups(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vol := &datamodel.Volume{
-		BaseModel:      datamodel.BaseModel{UUID: volumeUUID},
-		DataProtection: &datamodel.DataProtection{BackupVaultID: ""},
-	}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", ctx, volumeUUID).Return(vol, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return([]*datamodel.Backup{}, nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "")
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_SkipsNilBackup(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vol := &datamodel.Volume{
-		BaseModel:      datamodel.BaseModel{UUID: volumeUUID},
-		DataProtection: &datamodel.DataProtection{BackupVaultID: ""},
-	}
-	latestPerVault := []*datamodel.Backup{nil, {BaseModel: datamodel.BaseModel{UUID: "b"}, Attributes: nil}}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", ctx, volumeUUID).Return(vol, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(latestPerVault, nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "")
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_SkipsBackupWithEmptyBucketName(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	vol := &datamodel.Volume{
-		BaseModel:      datamodel.BaseModel{UUID: volumeUUID},
-		DataProtection: &datamodel.DataProtection{BackupVaultID: ""},
-	}
-	latestPerVault := []*datamodel.Backup{
-		{BaseModel: datamodel.BaseModel{UUID: "b1"}, BackupVaultID: 1, Attributes: &datamodel.BackupAttributes{BucketName: ""}},
-	}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", ctx, volumeUUID).Return(vol, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(latestPerVault, nil)
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, "")
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), sum)
-	mockStorage.AssertExpectations(t)
-}
-
-// TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_WithHTTPServer tests the detached-vault path
-// using a real HTTP mock server (httptest), matching other ADC tests (e.g. TestFetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity_Success).
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_DetachedVault_WithHTTPServer(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "vol-uuid"
-	detachedVaultID := int64(1)
-	expectedLogicalSize := uint64(2048)
-
-	vol := &datamodel.Volume{
-		BaseModel:      datamodel.BaseModel{UUID: volumeUUID},
-		DataProtection: &datamodel.DataProtection{BackupVaultID: ""}, // activeVaultID stays 0
-	}
-	latestPerVault := []*datamodel.Backup{
-		{
-			BaseModel:     datamodel.BaseModel{UUID: "detached-backup"},
-			Name:          "detached",
-			BackupVaultID: detachedVaultID,
-			Attributes: &datamodel.BackupAttributes{
-				BucketName:   "test-bucket",
-				EndpointUUID: "ep-uuid",
-			},
-		},
-	}
-	vault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: detachedVaultID},
-		BucketDetails: datamodel.BucketDetailsArray{
-			{
-				BucketName:          "test-bucket",
-				ServiceAccountName:  "adc-sa@test.iam.gserviceaccount.com",
-				TenantProjectNumber: "123456789",
-			},
-		},
-	}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", ctx, volumeUUID).Return(vol, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID).Return(latestPerVault, nil)
-	mockStorage.On("GetBackupVaultById", ctx, detachedVaultID).Return(vault, nil)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := activities.LogicalBytesResp{
-			EndpointMetrics: activities.EndpointMetrics{
-				LogicalSize:                expectedLogicalSize,
-				CompressedBytesTransferred: 1000,
-			},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(response)
-	}))
-	defer server.Close()
-
-	accessKey := "test-access-key"
-	secretKey := "test-secret-key"
-	mockGCPService := new(hyperscaler.MockGoogleServices)
-	mockGCPService.On("CreateHmacKey", "123456789", "adc-sa@test.iam.gserviceaccount.com").Return(&accessKey, &secretKey, nil)
-	origGetCloudService := activities.GetCloudService
-	activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-		return mockGCPService, nil
-	}
-	defer func() { activities.GetCloudService = origGetCloudService }()
-
-	origGetStandardAuthToken := activities.GetStandardAuthToken
-	activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
-		return "test-token", nil
-	}
-	defer func() { activities.GetStandardAuthToken = origGetStandardAuthToken }()
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	sum, err := activity.GetSummedLogicalBackupSizeAllVaultsActivity(ctx, volumeUUID, nil, server.URL)
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(expectedLogicalSize), sum)
-	mockStorage.AssertExpectations(t)
-	mockGCPService.AssertExpectations(t)
-}
-
-// TestGetSummedLogicalBackupSizeAllVaultsActivity_ActiveVault_EndpointInfo covers the active-vault path when node and
-// backup have ObjectStoreUUID/EndpointUUID; size is read via GetObjectStoreEndpointInfo. Runs in activity env so context is valid.
-func TestGetSummedLogicalBackupSizeAllVaultsActivity_ActiveVault_EndpointInfo(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestActivityEnvironment()
-
-	volumeUUID := "vol-uuid"
-	vaultUUID := "vault-uuid-1"
-	vaultID := int64(1)
-	accountID := int64(10)
-	expectedSize := int64(4096)
-
-	vol := &datamodel.Volume{
-		BaseModel:      datamodel.BaseModel{UUID: volumeUUID},
-		AccountID:      accountID,
-		DataProtection: &datamodel.DataProtection{BackupVaultID: vaultUUID},
-	}
-	vault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{UUID: vaultUUID, ID: vaultID},
-		Name:      "vault1",
-	}
-	latestPerVault := []*datamodel.Backup{
-		{
-			BaseModel:     datamodel.BaseModel{UUID: "b1"},
-			BackupVaultID: vaultID,
-			Attributes: &datamodel.BackupAttributes{
-				BucketName:      "bucket1",
-				ObjectStoreUUID: "obj-uuid",
-				EndpointUUID:    "ep-uuid",
-			},
-		},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-
-	mockStorage := database.NewMockStorage(t)
-	mockStorage.On("DescribeVolume", mock.Anything, volumeUUID).Return(vol, nil)
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", mock.Anything, vaultUUID, accountID).Return(vault, nil)
-	mockStorage.On("GetLatestBackupsPerVaultByVolumeUUID", mock.Anything, volumeUUID).Return(latestPerVault, nil)
-
-	mockProvider := new(vsa.MockProvider)
-	mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "ep-uuid").Return(&vsa.SmObjectStoreEndpointt{LogicalSize: &expectedSize}, nil)
-	origGetProvider := vsa.GetProviderByNode
-	vsa.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
-		return mockProvider, nil
-	}
-	defer func() { vsa.GetProviderByNode = origGetProvider }()
-
-	activity := activities.ADCActivity{SE: mockStorage}
-	env.RegisterActivity(&activity)
-
-	encoded, err := env.ExecuteActivity(activity.GetSummedLogicalBackupSizeAllVaultsActivity, volumeUUID, node, "")
-	assert.NoError(t, err)
-	var sum int64
-	assert.NoError(t, encoded.Get(&sum))
-	assert.Equal(t, expectedSize, sum)
-	mockStorage.AssertExpectations(t)
-	mockProvider.AssertExpectations(t)
-}
 
 func TestGetFileInodeNumbers(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {

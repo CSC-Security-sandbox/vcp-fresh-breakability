@@ -1188,7 +1188,7 @@ func (a *BackupVaultActivity) detachCrossProjectVolumesFromVault(ctx context.Con
 		}
 	}
 
-	// Detach expert mode volumes
+	// Detach expert mode volumes (same vault/policy/schedule clear as regular volumes; do not alter BackupChainBytes here).
 	expertModeVolumes, err := a.SE.GetExpertModeVolumesByBackupVaultID(ctx, vault.UUID)
 	if err != nil {
 		return fmt.Errorf("failed to get expert mode volumes for backup vault %s: %w", vault.UUID, err)
@@ -1205,12 +1205,13 @@ func (a *BackupVaultActivity) detachCrossProjectVolumesFromVault(ctx context.Con
 		logger.Infof("Detaching cross-project vault %s from expert mode volume %s (account %d)", vault.UUID, emv.UUID, emv.AccountID)
 
 		scheduledBackupDisabled := false
+		prev := emv.BackupConfig
 		emv.BackupConfig = &datamodel.DataProtection{
 			ScheduledBackupEnabled: &scheduledBackupDisabled,
 			BackupVaultID:          "",
 			BackupPolicyID:         "",
-			BackupChainBytes:       emv.BackupConfig.BackupChainBytes,
-			KmsGrant:               emv.BackupConfig.KmsGrant,
+			BackupChainBytes:       prev.BackupChainBytes,
+			KmsGrant:               prev.KmsGrant,
 		}
 		if err := a.SE.UpdateExpertModeVolumeDataProtection(ctx, emv); err != nil {
 			return fmt.Errorf("failed to detach vault from expert mode volume %s: %w", emv.UUID, err)

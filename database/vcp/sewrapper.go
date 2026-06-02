@@ -4347,6 +4347,38 @@ func (re *retryEngine) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context,
 	return var0, err
 }
 
+func (re *retryEngine) GetLatestBackupsPerEndpointByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetLatestBackupsPerEndpointByVolumeUUID(ctx, volumeUUID)
+		if err != nil {
+			re.logError("GetLatestBackupsPerEndpointByVolumeUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) SumVolumeBackupChainBytes(ctx context.Context, volumeUUID string) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.SumVolumeBackupChainBytes(ctx, volumeUUID)
+		if err != nil {
+			re.logError("SumVolumeBackupChainBytes", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, endpointUUID string, newSize int64) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

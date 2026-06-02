@@ -3,6 +3,7 @@ package backgroundactivities
 import (
 	"context"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
@@ -161,15 +162,10 @@ func (a *VolumeBackupSyncActivity) UpdateBackupAndVolumeActivity(ctx context.Con
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	case volumeBackup.Volume != nil:
-		if volumeBackup.Volume.DataProtection == nil {
-			volumeBackup.Volume.DataProtection = &datamodel.DataProtection{}
-		}
-		volumeBackup.Volume.DataProtection.BackupChainBytes = &logicalSize
-		volumeUpdates["data_protection"] = volumeBackup.Volume.DataProtection
-		err = a.SE.UpdateVolumeFields(ctx, volumeBackup.Volume.UUID, volumeUpdates)
-		if err != nil {
-			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeBackup.Volume.Name, err)
-			return vsaerrors.WrapAsTemporalApplicationError(err)
+		backupActivity := activities.BackupActivity{SE: a.SE}
+		if err = backupActivity.RecalculateAndUpdateVolumeBackupChainBytesActivity(ctx, volumeBackup.Volume.UUID); err != nil {
+			logger.Errorf("Failed to recalculate backup chain bytes for volume %s: %v", volumeBackup.Volume.Name, err)
+			return err
 		}
 	default:
 		return vsaerrors.WrapAsTemporalApplicationError(

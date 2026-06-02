@@ -14844,6 +14844,10 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Equal(tt, "vol", volume.DisplayName)
 	})
 	t.Run("WhenUpdateVolumeSuccessWithDetachBackupVault", func(tt *testing.T) {
+		origFlag := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+		utils.SetEnableBackupVaultSwitchingForTest(false)
+
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		backupVaultId := ""
@@ -14862,7 +14866,8 @@ func TestUpdateVolume(t *testing.T) {
 				IsDataProtection: false,
 			},
 			DataProtection: &datamodel.DataProtection{
-				BackupVaultID: "vault-1",
+				BackupVaultID:    "vault-1",
+				BackupChainBytes: nillable.GetInt64Ptr(2048),
 			},
 			State: "READY",
 		}
@@ -14881,6 +14886,11 @@ func TestUpdateVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
 		assert.Equal(tt, "vol", volume.DisplayName)
+		if assert.NotNil(tt, volume.DataProtection) {
+			if assert.NotNil(tt, volume.DataProtection.BackupChainBytes) {
+				assert.EqualValues(tt, 2048, *volume.DataProtection.BackupChainBytes)
+			}
+		}
 	})
 	t.Run("WhenDetachBackupVaultWithNoBackupsForVolume", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -15006,6 +15016,10 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Nil(tt, volume)
 	})
 	t.Run("WhenUpdateVolumeSuccessWithAttachBackupVault", func(tt *testing.T) {
+		origFlag := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+		utils.SetEnableBackupVaultSwitchingForTest(false)
+
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		backupVaultId := "backup-vault-1"
@@ -15027,7 +15041,10 @@ func TestUpdateVolume(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},
-			DataProtection: nil,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "",
+				BackupChainBytes: nillable.GetInt64Ptr(4096),
+			},
 			State:          "READY",
 		}
 
@@ -15049,6 +15066,11 @@ func TestUpdateVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
 		assert.Equal(tt, "vol", volume.DisplayName)
+		if assert.NotNil(tt, volume.DataProtection) {
+			if assert.NotNil(tt, volume.DataProtection.BackupChainBytes) {
+				assert.EqualValues(tt, 4096, *volume.DataProtection.BackupChainBytes)
+			}
+		}
 	})
 	t.Run("WhenUpdateVolumeFailsBackupPolicyIsSetWithoutBackupVault", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

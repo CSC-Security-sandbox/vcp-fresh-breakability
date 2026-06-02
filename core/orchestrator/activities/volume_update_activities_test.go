@@ -1172,7 +1172,11 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				}
 				defer func() { getHostGroup = _getHostGroup }()
 			}
-			fields, _ := getUpdatedFieldsFromParams(tt.ctx, tt.se, tt.volume, tt.params)
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+			}
+			fields, _ := getUpdatedFieldsFromParams(ctx, tt.se, tt.volume, tt.params)
 
 			tt.check(t, fields, tt.volume, mockStorage)
 		})
@@ -5459,6 +5463,82 @@ func TestGetUpdatedFieldsFromParams_WithKmsGrant(t *testing.T) {
 	assert.NotNil(t, dataProtection)
 	assert.Equal(t, kmsGrant, *dataProtection.KmsGrant)
 	assert.Equal(t, "vault-123", dataProtection.BackupVaultID)
+}
+
+func TestGetUpdatedFieldsFromParams_BackupChainBytesPreservedOnBackupVaultChange(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	oldChainBytes := int64(4608000)
+	changedVaultID := "vault-new"
+	sameVaultID := "vault-old"
+	emptyVaultID := ""
+	kmsGrant := "projects/test/locations/us/keyRings/kr/cryptoKeys/key/cryptoKeyVersions/1"
+
+	testCases := []struct {
+		name                 string
+		initialBackupVaultID string
+		paramBackupVaultID   *string
+	}{
+		{
+			name:                 "switch old to new vault preserves chain bytes",
+			initialBackupVaultID: "vault-old",
+			paramBackupVaultID:   &changedVaultID,
+		},
+		{
+			name:                 "switch back preserves chain bytes",
+			initialBackupVaultID: "vault-new",
+			paramBackupVaultID:   &sameVaultID,
+		},
+		{
+			name:                 "attach from empty preserves chain bytes",
+			initialBackupVaultID: "",
+			paramBackupVaultID:   &changedVaultID,
+		},
+		{
+			name:                 "detach to empty preserves chain bytes",
+			initialBackupVaultID: "vault-old",
+			paramBackupVaultID:   &emptyVaultID,
+		},
+		{
+			name:                 "unchanged vault keeps chain bytes",
+			initialBackupVaultID: "vault-old",
+			paramBackupVaultID:   &sameVaultID,
+		},
+		{
+			name:                 "no backup vault update keeps chain bytes",
+			initialBackupVaultID: "vault-old",
+			paramBackupVaultID:   nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			volume := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+				Name:      "test-volume",
+				DataProtection: &datamodel.DataProtection{
+					BackupVaultID:    tc.initialBackupVaultID,
+					BackupChainBytes: nillable.GetInt64Ptr(oldChainBytes),
+				},
+			}
+
+			params := &common.UpdateVolumeParams{
+				DataProtection: &models.UpdateDataProtection{
+					BackupVaultID: tc.paramBackupVaultID,
+					KmsGrant:      &kmsGrant,
+				},
+			}
+
+			updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+			assert.NoError(t, err)
+			dataProtection, ok := updatedFields["data_protection"].(*datamodel.DataProtection)
+			assert.True(t, ok)
+			assert.NotNil(t, dataProtection)
+			assert.NotNil(t, dataProtection.BackupChainBytes)
+			assert.Equal(t, oldChainBytes, *dataProtection.BackupChainBytes)
+		})
+	}
 }
 
 func TestGenerateResourceNamesForBackupVault_Success(t *testing.T) {

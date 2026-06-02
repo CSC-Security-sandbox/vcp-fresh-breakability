@@ -1445,6 +1445,14 @@ func (s *PersistenceStore) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Cont
 	return s.dataStore.GetLatestBackupsPerVaultByVolumeUUID(ctx, volumeUUID)
 }
 
+func (s *PersistenceStore) GetLatestBackupsPerEndpointByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetLatestBackupsPerEndpointByVolumeUUID(ctx, volumeUUID)
+}
+
+func (s *PersistenceStore) SumVolumeBackupChainBytes(ctx context.Context, volumeUUID string) (int64, error) {
+	return s.dataStore.SumVolumeBackupChainBytes(ctx, volumeUUID)
+}
+
 func (s *PersistenceStore) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, endpointUUID string, newLogicalSize int64) error {
 	return s.dataStore.UpdateLatestBackupLogicalSize(ctx, volumeUUID, endpointUUID, newLogicalSize)
 }
