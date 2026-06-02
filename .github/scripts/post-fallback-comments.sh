@@ -327,6 +327,7 @@ print(json.dumps({
     'no_test_confidence': pr.get('no_test_confidence', {}),
     'deterministic': pr.get('deterministic', {}),
     'merge_risk': pr.get('merge_risk', {}) or (pr.get('deterministic', {}) or {}).get('merge_risk', {}),
+    'declared_break_reachability': pr.get('declared_break_reachability', {}),
     'cve_details': pr.get('cve_details', []),
     'verification_steps': pr.get('verification_steps', []),
     'fixes_cves': pr.get('fixes_cves', []),
