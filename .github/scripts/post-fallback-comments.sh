@@ -21,6 +21,7 @@ export LC_ALL=en_US.UTF-8
 unset GH_TOKEN
 
 RESULTS_FILE="/tmp/build-results.json"
+CLI_PATH="${CLI_PATH:-.github/actions/breakability-check/index.js}"
 
 if [[ ! -f "$RESULTS_FILE" ]]; then
   echo "No build-results.json found — nothing to do"
@@ -142,6 +143,127 @@ if [[ -n "$CANCELLED_PRS" ]]; then
 else
   echo "  No cancelled PRs detected"
 fi
+
+node "$CLI_PATH" verdict-map "$RESULTS_FILE" >/dev/null 2>&1 || echo "[warn] verdict-map unavailable; rendering will fail-closed to REVIEW"
+
+get_verdict_v2() {
+  local _pr_number="${1:-}" _BC_V2_PR _BC_V2_RESULTS
+  _BC_V2_PR="$_pr_number"
+  _BC_V2_RESULTS="$RESULTS_FILE"
+  export _BC_V2_PR _BC_V2_RESULTS
+  python3 - <<'PYEOF'
+import json
+import os
+import re
+import shlex
+
+SIGNALS = ("resolve", "build", "test", "api_diff", "usage", "vuln", "changelog")
+SIGNAL_STATES = {"POSITIVE", "NEGATIVE", "NONE", "UNAVAILABLE", "N_A"}
+DEFAULTS = {
+    "V2_OK": "0",
+    "V2_VERDICT": "REVIEW",
+    "V2_CONF": "L0",
+    "V2_PRIO": "P2",
+    "V2_REASON": "verdict map unavailable — manual review",
+    "V2_RESIDUAL_SUMMARY": "",
+    "V2_RESIDUAL_CHECK": "",
+    "V2_RESIDUAL_CHANGELOG": "",
+    "V2_RESIDUAL_REACH": "",
+}
+
+def emit(values):
+    for key in (
+        "V2_OK",
+        "V2_VERDICT",
+        "V2_CONF",
+        "V2_PRIO",
+        "V2_REASON",
+        "V2_RESIDUAL_SUMMARY",
+        "V2_RESIDUAL_CHECK",
+        "V2_RESIDUAL_CHANGELOG",
+        "V2_RESIDUAL_REACH",
+    ):
+        value = "" if values.get(key) is None else str(values.get(key, ""))
+        value = value.replace("\r", "\n")
+        print(f"{key}={shlex.quote(value)}")
+    signal_values = values.get("_signals", {})
+    for signal in SIGNALS:
+        state = signal_values.get(signal, "UNAVAILABLE")
+        if state not in SIGNAL_STATES:
+            state = "UNAVAILABLE"
+        print(f"V2_SIG_{signal}={shlex.quote(state)}")
+
+def fail():
+    emit(DEFAULTS)
+
+def clean_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        value = json.dumps(value, sort_keys=True)
+    return str(value).replace("\r\n", "\n").replace("\r", "\n")
+
+try:
+    pr_number = os.environ.get("_BC_V2_PR", "")
+    results_path = os.environ.get("_BC_V2_RESULTS", "")
+    with open(results_path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    verdict_v2 = ((data.get("prs") or {}).get(pr_number) or {}).get("verdict_v2")
+    if not isinstance(verdict_v2, dict):
+        fail()
+        raise SystemExit(0)
+
+    verdict = verdict_v2.get("verdict")
+    confidence = verdict_v2.get("confidence")
+    priority = verdict_v2.get("priority")
+    if verdict not in {"SAFE", "REVIEW", "BLOCKED"}:
+        fail()
+        raise SystemExit(0)
+    if not isinstance(confidence, str) or not re.fullmatch(r"L[0-5]", confidence):
+        fail()
+        raise SystemExit(0)
+    if not isinstance(priority, str) or not re.fullmatch(r"P[0-3]", priority):
+        fail()
+        raise SystemExit(0)
+
+    residual = verdict_v2.get("residual") or {}
+    if not isinstance(residual, dict):
+        residual = {}
+    reachability = residual.get("reachability") or {}
+    if not isinstance(reachability, dict):
+        reachability = {}
+    evidence_state = verdict_v2.get("evidenceState") or {}
+    if not isinstance(evidence_state, dict):
+        evidence_state = {}
+
+    values = {
+        "V2_OK": "1",
+        "V2_VERDICT": verdict,
+        "V2_CONF": confidence,
+        "V2_PRIO": priority,
+        "V2_REASON": clean_text(verdict_v2.get("reason")),
+        "V2_RESIDUAL_SUMMARY": clean_text(residual.get("summary")),
+        "V2_RESIDUAL_CHECK": clean_text(residual.get("check")),
+        "V2_RESIDUAL_CHANGELOG": clean_text(residual.get("changelogLine")),
+        "V2_RESIDUAL_REACH": clean_text(reachability.get("path") or reachability.get("kind")),
+        "_signals": {signal: str(evidence_state.get(signal, "UNAVAILABLE")) for signal in SIGNALS},
+    }
+    emit(values)
+except Exception:
+    fail()
+PYEOF
+}
+
+v2_signal_label() {
+  case "${1:-UNAVAILABLE}" in
+    POSITIVE) printf '⚠️ concern' ;;
+    NEGATIVE) printf '✅ checked-clean' ;;
+    NONE) printf '· not observed' ;;
+    UNAVAILABLE) printf '⚪ not available' ;;
+    N_A) printf '– n/a' ;;
+    *) printf '⚪ not available' ;;
+  esac
+}
 
 # Get all PR numbers from build-results.json
 PR_NUMBERS=$(python3 -c "
@@ -1687,6 +1809,91 @@ if risk and "Merge Risk:" not in body:
             lines.insert(i + 2, risk)
             body = "\n".join(lines)
             break
+print(body)
+' 2>/dev/null || printf '%s' "$COMMENT")
+    eval "$(get_verdict_v2 "$PR_NUM")"
+    case "${V2_VERDICT:-REVIEW}" in
+      SAFE)
+        _V2_HEADLINE="✅ SAFE TO MERGE · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}"
+        _V2_RESIDUAL_BLOCK=""
+        ;;
+      BLOCKED)
+        _V2_HEADLINE="⛔ DO NOT MERGE · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}"
+        ;;
+      *)
+        V2_VERDICT="REVIEW"
+        _V2_HEADLINE="⚠️ REVIEW SUGGESTED · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}"
+        ;;
+    esac
+    if [[ "${V2_VERDICT:-REVIEW}" == "REVIEW" || "${V2_VERDICT:-REVIEW}" == "BLOCKED" ]]; then
+      _V2_RESIDUAL_SUMMARY_RAW="${V2_RESIDUAL_SUMMARY:-${V2_REASON:-manual review required}}"
+      _V2_RESIDUAL_CHECK_RAW="${V2_RESIDUAL_CHECK:-Review the deterministic evidence below before merging.}"
+      _V2_RESIDUAL_CHANGELOG_RAW="${V2_RESIDUAL_CHANGELOG:-}"
+      _V2_RESIDUAL_REACH_RAW="${V2_RESIDUAL_REACH:-}"
+      _V2_RESIDUAL_BLOCK=$(V2_RESIDUAL_SUMMARY="$_V2_RESIDUAL_SUMMARY_RAW" V2_RESIDUAL_CHECK="$_V2_RESIDUAL_CHECK_RAW" V2_RESIDUAL_CHANGELOG="$_V2_RESIDUAL_CHANGELOG_RAW" V2_RESIDUAL_REACH="$_V2_RESIDUAL_REACH_RAW" python3 -c '
+import os
+
+def one_line(name):
+    return " ".join(os.environ.get(name, "").replace("{sym}", "").replace("{loc}", "").replace("{path}", "").split())
+
+summary = one_line("V2_RESIDUAL_SUMMARY")
+check = one_line("V2_RESIDUAL_CHECK")
+lines = [
+    f"What to check: {summary}",
+    f"→ {check}",
+]
+changelog = one_line("V2_RESIDUAL_CHANGELOG")
+reach = one_line("V2_RESIDUAL_REACH")
+if changelog:
+    lines.append(f"Declared change: {changelog}")
+if reach:
+    lines.append(f"Reachable at: {reach}")
+print("\n".join(lines))
+' 2>/dev/null || printf 'What to check: %s\n→ %s' "$_V2_RESIDUAL_SUMMARY_RAW" "$_V2_RESIDUAL_CHECK_RAW")
+    fi
+    _V2_SIGNALS_TABLE="
+### Signals checked
+| Signal | Result |
+|---|---|
+| Resolve | $(v2_signal_label "${V2_SIG_resolve:-UNAVAILABLE}") |
+| Build | $(v2_signal_label "${V2_SIG_build:-UNAVAILABLE}") |
+| Test | $(v2_signal_label "${V2_SIG_test:-UNAVAILABLE}") |
+| API diff | $(v2_signal_label "${V2_SIG_api_diff:-UNAVAILABLE}") |
+| Usage | $(v2_signal_label "${V2_SIG_usage:-UNAVAILABLE}") |
+| Vulnerability | $(v2_signal_label "${V2_SIG_vuln:-UNAVAILABLE}") |
+| Changelog | $(v2_signal_label "${V2_SIG_changelog:-UNAVAILABLE}") |"
+    COMMENT=$(COMMENT_BODY="$COMMENT" V2_HEADLINE="$_V2_HEADLINE" V2_RESIDUAL_BLOCK="${_V2_RESIDUAL_BLOCK:-}" V2_SIGNALS_TABLE="$_V2_SIGNALS_TABLE" python3 -c '
+import os
+
+legacy = os.environ.get("COMMENT_BODY", "")
+headline = os.environ.get("V2_HEADLINE", "").strip()
+residual = os.environ.get("V2_RESIDUAL_BLOCK", "").strip()
+signals = os.environ.get("V2_SIGNALS_TABLE", "").strip()
+
+legacy = legacy.replace("{sym}", "").replace("{loc}", "").replace("{path}", "")
+if legacy.startswith("<!-- breakability-check -->\n"):
+    legacy = legacy.split("\n", 1)[1]
+legacy = legacy.strip()
+
+parts = [headline]
+if residual:
+    parts.append(residual)
+if signals:
+    parts.append(signals)
+parts.append("<!-- breakability-check -->")
+if legacy:
+    parts.append("<details><summary>Internal merge-risk detail</summary>\n\n" + legacy + "\n</details>")
+
+body = "\n".join(parts[:2]) + "\n\n" + "\n\n".join(parts[2:]) if residual else "\n\n".join(parts)
+for marker in ("</details>### ", "</details>\n### "):
+    while marker in body:
+        body = body.replace(marker, "</details>\n\n### ")
+normalized = []
+for line in body.splitlines():
+    if line.startswith("### ") and normalized and normalized[-1] != "":
+        normalized.append("")
+    normalized.append(line)
+body = "\n".join(normalized)
 print(body)
 ' 2>/dev/null || printf '%s' "$COMMENT")
     if gh pr comment "$PR_NUM" --body "$COMMENT" 2>/dev/null; then
