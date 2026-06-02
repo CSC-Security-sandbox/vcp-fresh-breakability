@@ -1234,7 +1234,7 @@ else:
   else
     _GUARD_BUILD_BADGE="✅ passes"
   fi
-  if [[ ( "$MERGE_RISK_TAG" == "High" || "$_DECL_BEHAVIORAL_REVIEW" == "1" ) && "$VERDICT" != "fail" && "$VERDICT" != "vulns_introduced" && "$VERDICT" != "security_review" && "$VERDICT" != "pre_existing_plus_new" ]]; then
+  if [[ ( "$MERGE_RISK_TAG" == "High" || ( "$_DECL_BEHAVIORAL_REVIEW" == "1" && ( "$VERDICT" == "pass" || "$VERDICT" == "pre_existing" ) ) ) && "$VERDICT" != "fail" && "$VERDICT" != "vulns_introduced" && "$VERDICT" != "security_review" && "$VERDICT" != "pre_existing_plus_new" ]]; then
     # FALSE-SAFE GUARD (global): a High merge-risk signal (e.g. a maintainer-declared breaking
     # change) is structurally unverifiable by build/test/apidiff. Pre-empt EVERY green
     # headline below (actions/docker SAFE, pass, pre_existing) — a green build must NOT clear

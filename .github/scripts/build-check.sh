@@ -3776,7 +3776,12 @@ def _resolve_declared_break_reachability(pr_data, deterministic, eco):
     mr = pr_data.get("merge_risk") or {}
     evidence_axis = (mr.get("evidenceAxis") or "").lower()
     sig = (deterministic or {}).get("changelogSignal") or {}
-    is_declared = mr.get("tag") == "High" and ("declared breaking change" in evidence_axis or sig.get("status") == "breaking")
+    # Only the changelog-DECLARED-break High path (merge-risk evidenceAxis
+    # "declared breaking change (changelog), behavior unverified") may be downgraded here. A High
+    # driven by an independently CONFIRMED signal — "break-reachable API change", "runtime support
+    # drop", "failed deterministic signal" — must NOT enter this resolver (it would wrongly become
+    # Medium). So gate strictly on the declared-breaking axis, NOT the broad changelog status.
+    is_declared = mr.get("tag") == "High" and "declared breaking change" in evidence_axis
     if not is_declared:
         return
     bullets = sig.get("bullets") or []
@@ -3814,7 +3819,7 @@ def _resolve_declared_break_reachability(pr_data, deterministic, eco):
                 continue
             fpath = parts[0]
             rel = os.path.relpath(fpath, repo_root)
-            is_test = bool(_dbr_re.search(r"(_test\.[a-z]+$|\.test\.[a-z]+$|/tests?/|/__tests__/|\.spec\.[a-z]+$)", rel))
+            is_test = bool(_dbr_re.search(r"(_test\.[a-z]+\Z|\.test\.[a-z]+\Z|/tests?/|/__tests__/|\.spec\.[a-z]+\Z)", rel))
             # Reachability decision must see ALL matches; only the DISPLAYED evidence list is capped,
             # so a production import that appears after the 12th match still flips prod_reached.
             if not is_test:
