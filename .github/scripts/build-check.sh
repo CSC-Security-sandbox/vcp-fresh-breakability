@@ -1186,6 +1186,8 @@ echo "════════════ BASELINE BUILDS (main) ════�
 
 MAIN_DIR="${WORKTREE_BASE}-main"
 rm -rf "$MAIN_DIR" 2>/dev/null || true
+git worktree remove "$MAIN_DIR" --force 2>/dev/null || true
+git worktree prune 2>/dev/null || true
 git worktree add "$MAIN_DIR" origin/main --quiet 2>/dev/null || \
   git worktree add "$MAIN_DIR" main --quiet 2>/dev/null || \
   cp -r "$REPO_ROOT" "$MAIN_DIR"
@@ -2003,11 +2005,12 @@ except Exception as e:
     # then extract only the JSON portion (from first '{' to end).
     CLI_OUTPUT_FILE="/tmp/_bc_cli_${PR_NUM}.raw"
     CLI_JSON_FILE="/tmp/_bc_cli_${PR_NUM}.json"
+    CLI_ERR_FILE="/tmp/_bc_cli_${PR_NUM}.err"
     timeout 180 node "$CLI_PATH" \
       -p "$PKG" -f "$FROM_VER" -t "$TO_VER" \
       -r "$REPO_ROOT" -e "$CLI_ECO" -d "$DEP_TYPE" \
       --pr-body-file "$PR_BODY_FILE" \
-      --json > "$CLI_OUTPUT_FILE" 2>/dev/null || true
+      --json > "$CLI_OUTPUT_FILE" 2>"$CLI_ERR_FILE" || true
 
     # Extract JSON: find the first line starting with '{' and take everything from there
     sed -n '/^{/,$p' "$CLI_OUTPUT_FILE" > "$CLI_JSON_FILE"
@@ -2040,9 +2043,10 @@ print(json.dumps(result))
       echo "  pipeline: classification=$(echo "$DETERMINISTIC" | python3 -c "import json,sys; print(json.load(sys.stdin).get('classification','?'))" 2>/dev/null || echo "?")"
     else
       echo "  pipeline: failed to parse CLI output"
+      echo "  pipeline-stderr: $(tail -3 "$CLI_ERR_FILE" 2>/dev/null | tr '\n' ' ')"
       DETERMINISTIC="{}"
     fi
-    rm -f "$CLI_OUTPUT_FILE" "$CLI_JSON_FILE"
+    rm -f "$CLI_OUTPUT_FILE" "$CLI_JSON_FILE" "$CLI_ERR_FILE"
   else
     echo "  pipeline: skipped ($ECOSYSTEM)"
   fi
@@ -2069,8 +2073,11 @@ print(json.dumps(result))
     echo "  Skipping build — PR has merge conflicts"
   elif [[ "$ECOSYSTEM" == "npm" || "$ECOSYSTEM" == "gomod" || "$ECOSYSTEM" == "pip" ]]; then
     rm -rf "$PR_WORKTREE" 2>/dev/null || true
-    git worktree add "$PR_WORKTREE" "origin/$PR_BRANCH" --quiet 2>/dev/null || {
+    git worktree remove "$PR_WORKTREE" --force 2>/dev/null || true
+    git worktree prune 2>/dev/null || true
+    git worktree add "$PR_WORKTREE" "origin/$PR_BRANCH" --quiet 2>"$BC_SCRATCH_DIR/_bc_wt_err_${PR_NUM}.txt" || {
       echo "  worktree: failed to create for $PR_BRANCH"
+      echo "  worktree-err: $(tail -2 "$BC_SCRATCH_DIR/_bc_wt_err_${PR_NUM}.txt" 2>/dev/null | tr '\n' ' ')"
       BUILD_VERDICT="error"
     }
 
