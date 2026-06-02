@@ -10,6 +10,8 @@ When editing or generating code in this repo, **apply the following rules** if t
 
 | Path / file pattern | Rule to follow |
 |----------------------|----------------|
+| User runs `/onboard` or asks about VCP onboarding, getting started, or team orientation | **onboard.mdc** – guided ramp via `.cursor/skills/vcp-onboarding/` and `.cursor/commands/onboard.md` |
+| User runs `/ontap` or asks about an ONTAP feature (FlexCache, SnapMirror, …) | **ontap-expert.mdc** – product deep-dive via `.cursor/skills/ontap-expert/` |
 | Any `**/*.go` (including `*_test.go`) | **go-project-rule.mdc** – context first, errors, logging, core boundary, CODING_GUIDELINES.md |
 | `**/api/**`, `**/endpoints/**`, API YAML/specs | **api-development.mdc** – error taxonomy, validation, no edits to generated code |
 | `**/database/**`, `**/migrations/**`, `**/models.go` | **database.mdc** – GORM, transactions, migrations, DB error range |

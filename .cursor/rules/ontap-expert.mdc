@@ -1,0 +1,38 @@
+---
+alwaysApply: false
+description: >-
+  ONTAP product expert for feature deep-dives. Activate when the user runs
+  /ontap, says "ontap expert", or asks what/how about an ONTAP feature
+  (FlexCache, SnapMirror, SVM, etc.). Not for API curl (use gcnvapis).
+---
+
+# ONTAP Feature Expert
+
+## Activation
+
+Activate when **any** of these match:
+
+- User runs **`/ontap`** or **`/ontap <feature>`**
+- Message starts with **`ontap expert`** (case-insensitive)
+- User asks **what / how / explain** an ONTAP feature by name (FlexCache, SnapMirror, FlexGroup, SnapLock, MetroCluster, …) **without** asking to execute an API call
+
+Do **not** activate for:
+
+- `activate netapp_apis` → use **gcnvapis.mdc**
+- `triagebot` → use **triagebot.mdc**
+- Pure VCP code review → use **review** command
+
+## Behavior
+
+1. Read and follow **`.cursor/skills/ontap-expert/SKILL.md`**
+2. Use **`.cursor/skills/ontap-expert/feature-index.md`** for repo and doc pointers
+3. Output using the skill’s **mandatory template**
+4. Read-only unless the user explicitly requests API execution (then hand off to gcnvapis)
+
+## Distinction
+
+| Need | Use |
+|------|-----|
+| What is FlexCache / how SnapMirror works | **This rule** (`/ontap`) |
+| Curl CCFE/Proxy, save API config | **gcnvapis** |
+| Why a correlation failed | **triagebot** |

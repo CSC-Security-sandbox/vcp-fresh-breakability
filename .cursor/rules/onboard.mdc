@@ -1,0 +1,46 @@
+---
+alwaysApply: false
+description: >-
+  VCP new-hire onboarding — architecture, local setup, workflow traces, technical deep dives,
+  root-cause analysis, and contributing fixes. Use when the user runs /onboard, asks about
+  onboarding, getting started, understanding workflows, debugging, or contributing to VCP.
+---
+
+# VCP Onboarding
+
+## Activation
+
+Activate when **any** of these match:
+
+- User runs **`/onboard`** or **`/onboard <topic>`**
+- User asks to **onboard**, **get started**, or **ramp up** on VSA Control Plane / VCP
+- User asks for the **big picture**, **architecture overview**, or **how workflows work** in VCP
+- User asks about **debugging**, **root cause**, **RCA**, **technical deep dive**, or **how a failure works**
+
+Do **not** activate for:
+
+- Active incident execution with correlation ID → run **`triagebot`** (use `/onboard deep-dive` first to learn the method)
+- `/ontap` or ONTAP product features → **ontap-expert.mdc**
+- `/review` or PR review → **review** command
+- Live API execution → **google-proxy-api** skill or **gcnvapis**
+
+## Behavior
+
+1. Read and follow **`.cursor/commands/onboard.md`**
+2. Read and follow **`.cursor/skills/vcp-onboarding/SKILL.md`**
+3. Load topic references from **`.cursor/skills/vcp-onboarding/`** as needed
+4. Output using the skill’s **mandatory template**
+5. Read-only unless the user explicitly requests code changes
+
+## Topics
+
+| `/onboard` suffix | Reference |
+|-------------------|-----------|
+| `setup` | local-dev-checklist.md |
+| `trace volume` | golden-paths.md |
+| `workflows` | workflow-index.md |
+| `architecture` | architecture-map.md |
+| `debug` | debugging-playbook.md |
+| `deep-dive`, `rca`, `root cause`, `trace failure` | deep-dive.md |
+| `contribute` | contribution-guide.md |
+| `docs` | doc-index.md |
