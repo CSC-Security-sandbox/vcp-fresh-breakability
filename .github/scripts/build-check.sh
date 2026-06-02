@@ -1669,7 +1669,12 @@ echo ""
 echo "════════════ DEPENDABOT ALERTS CACHE ════════════"
 _BC_ALERTS_CACHE="/tmp/_bc_dependabot_alerts.json"
 _BC_ALERTS_RAW="/tmp/_bc_dependabot_alerts_raw.json"
-if gh api "repos/$OWNER_REPO/dependabot/alerts?state=open&per_page=100" --paginate > "$_BC_ALERTS_RAW" 2>/dev/null; then
+_BC_ALERTS_ERR="/tmp/_bc_dependabot_alerts_err.txt"
+# Dependabot alerts require a token with Dependabot-alerts:read. The default GITHUB_TOKEN
+# usually cannot list them, so prefer BREAKABILITY_PAT when provided (same token the
+# security-posture scan uses). Without this the per-PR CVE cache is silently empty.
+_BC_ALERTS_TOKEN="${BREAKABILITY_PAT:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
+if GH_TOKEN="$_BC_ALERTS_TOKEN" GITHUB_TOKEN="$_BC_ALERTS_TOKEN" gh api "repos/$OWNER_REPO/dependabot/alerts?state=open&per_page=100" --paginate > "$_BC_ALERTS_RAW" 2>"$_BC_ALERTS_ERR"; then
   # gh --paginate outputs one JSON array per page; merge them into a single array
   python3 -c '
 import json, sys
@@ -1696,6 +1701,12 @@ print(len(alerts))
 else
   echo "[]" > "$_BC_ALERTS_CACHE"
   echo "  Could not fetch Dependabot alerts (permissions or no alerts)"
+  if [[ -s "$_BC_ALERTS_ERR" ]]; then
+    echo "  reason: $(head -c 200 "$_BC_ALERTS_ERR" | tr '\n' ' ')"
+  fi
+  if [[ -z "${BREAKABILITY_PAT:-}" ]]; then
+    echo "  hint: BREAKABILITY_PAT is not set; GITHUB_TOKEN usually cannot read Dependabot alerts. Set a fine-grained PAT with Dependabot alerts:read."
+  fi
 fi
 
 # ── Process each PR ──────────────────────────────────────────────────────────
