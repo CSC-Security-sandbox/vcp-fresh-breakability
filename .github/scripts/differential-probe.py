@@ -338,12 +338,15 @@ def run_agent(ctx, workdir, prompt_file=PROMPT_FILE, timeout=PROBE_TIMEOUT):
     full = (prompt + f"\n\n---\nDP_INPUT={in_path}\nDP_OUTPUT={out_path}\nDP_WORKDIR={workdir}\n"
             + "cd into DP_WORKDIR first. Read DP_INPUT, do the analysis there only, write the "
               "proof-contract JSON to DP_OUTPUT, then stop.")
-    # Auth parity with the (working) main agent step: the Cursor CLI authenticates via
-    # its real HOME (~/.cursor session) and the macOS login keychain/session, which a
-    # scrubbed HOME + minimal env breaks ("Keychain operation timed out"). So we INHERIT
-    # the real environment (incl. HOME) but SURGICALLY strip credentials so a
-    # prompt-injected agent still can't push/comment or exfiltrate tokens. Repo safety
-    # comes from cwd=workdir + the git-porcelain fail-closed guard, not from HOME.
+    # Auth via the CURSOR_API_KEY *secret*, passed explicitly with --api-key, so the
+    # probe is runner-independent: it does NOT depend on a stored `agent login` in the
+    # runner's HOME, and a valid key is consumed directly without ever touching the macOS
+    # Keychain (the source of the earlier 30s "Keychain operation timed out" hangs). Because
+    # auth no longer needs the real HOME, we keep a SCRATCH HOME for injection containment,
+    # and surgically strip credentials so a prompt-injected agent can't push/comment or
+    # exfiltrate tokens. Repo safety = cwd=workdir + the git-porcelain fail-closed guard.
+    home = os.path.join(workdir, "home")
+    os.makedirs(home, exist_ok=True)
     env = dict(os.environ)
     for k in list(env.keys()):
         ku = k.upper()
@@ -353,11 +356,18 @@ def run_agent(ctx, workdir, prompt_file=PROMPT_FILE, timeout=PROBE_TIMEOUT):
                 or "TOKEN" in ku or "SECRET" in ku or "PASSWORD" in ku or "PASSWD" in ku
                 or ku.endswith("_API_KEY") or ku.endswith("_APIKEY")):
             env.pop(k, None)
+    env["HOME"] = home
     env["GOWORK"] = "off"
     env["GOCACHE"] = os.path.join(workdir, "gocache")
+    # Pass the secret on the command line so the real Cursor CLI authenticates from it
+    # directly (not from a stored login / keychain). Skip for stub agents used in tests.
+    cmd = AGENT_CMD.split()
+    api_key = os.environ.get("CURSOR_API_KEY", "").strip()
+    if api_key and cmd and os.path.basename(cmd[0]) in ("agent", "cursor-agent") and "--api-key" not in cmd:
+        cmd = cmd + ["--api-key", api_key]
     before = repo_porcelain()
     try:
-        cp = subprocess.run(AGENT_CMD.split() + [full], env=env, cwd=workdir,
+        cp = subprocess.run(cmd + [full], env=env, cwd=workdir,
                             timeout=timeout, capture_output=True, text=True)
     except subprocess.TimeoutExpired:
         log(f"PR {ctx['pr']}: agent timed out after {timeout}s")
