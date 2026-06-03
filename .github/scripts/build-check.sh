@@ -3772,6 +3772,91 @@ if isinstance(pr_data.get("merge_risk"), dict):
 # the importing file) or DOWNGRADE when nothing imports the affected package.
 import re as _dbr_re
 import subprocess as _dbr_sub
+
+# ── Behavioral-exposure classifier (deterministic, Go-first) ───────────────────
+# Import-level reachability proves only that the affected PACKAGE is imported. For a
+# behavioral break that is the WHOLE residual: it tells the developer nothing about
+# whether their code touches the changed surface. This classifier refines import into
+# SURFACE exposure: does production code reference a changelog-NAMED changed symbol
+# (strongest), some exported symbol of the package (subsystem surface, the typical
+# shape of an internal-trigger behavioral change), or only import it (lowest)? It
+# NEVER asserts safety (internal behavior can change behind a stable API). Go-only
+# for now; other ecosystems return 'unknown' so the renderer keeps import-level wording.
+# NOTE: this code lives inside an UNQUOTED heredoc, so it must contain no literal
+# backtick or bare-dollar character (bash would expand them). We build the backtick
+# regex from chr(96) and avoid end-of-string anchors.
+_BT = chr(96)
+def _extract_named_symbols(text):
+    named = set()
+    for q, s in _dbr_re.findall(r"\b([a-z][A-Za-z0-9_]*)\.([A-Z][A-Za-z0-9_]{2,})", text or ""):
+        named.add(s)
+    for chunk in _dbr_re.findall(_BT + r"([^" + _BT + r"]+)" + _BT, text or ""):
+        for s in _dbr_re.findall(r"\b([A-Z][A-Za-z0-9_]{2,})\b", chunk):
+            named.add(s)
+    return named
+
+def _go_local_name(pkg, file_text):
+    m = _dbr_re.search(r'^\s*([A-Za-z_]\w*)\s+"' + _dbr_re.escape(pkg) + r'"', file_text or "", _dbr_re.M)
+    if m:
+        return m.group(1)
+    segs = [s for s in pkg.split("/") if s]
+    if segs and len(segs) >= 2 and segs[-1][:1] == "v" and segs[-1][1:].isdigit():
+        return segs[-2]
+    return segs[-1] if segs else pkg
+
+def _classify_behavioral_exposure(repo_root, paths, evidence, text, eco):
+    out = {"surface_kind": "unknown", "surface_symbols": [], "named_symbols": [],
+           "surface_evidence": [], "surface_by_path": {}}
+    if eco != "gomod":
+        return out
+    named = _extract_named_symbols(text)
+    out["named_symbols"] = sorted(named)[:12]
+    by_path = {}
+    for e in evidence:
+        if e.get("is_test"):
+            continue
+        by_path.setdefault(e["path"], []).append(e["file"])
+    rank = {"named": 3, "package": 2, "import_only": 1, "unknown": 0}
+    best = "unknown"; seen_syms = []; surf_ev = []
+    for p, files in by_path.items():
+        refs = set(); ref_locs = []; local = None
+        for rel in dict.fromkeys(files):
+            try:
+                with open(os.path.join(repo_root, rel), "r", errors="replace") as fh:
+                    src = fh.read()
+            except (IOError, OSError):
+                continue
+            ln = _go_local_name(p, src); local = local or ln
+            for m in _dbr_re.finditer(_dbr_re.escape(ln) + r"\.([A-Z][A-Za-z0-9_]*)", src):
+                sym = m.group(1); refs.add(sym)
+                ref_locs.append((sym, rel, src.count(chr(10), 0, m.start()) + 1))
+        if not refs:
+            kind = "import_only"
+        elif refs & named:
+            kind = "named"
+        else:
+            kind = "package"
+        out["surface_by_path"][p] = {"kind": kind, "local": local, "symbols": sorted(refs)[:12]}
+        if rank[kind] > rank[best]:
+            best = kind
+        for sym, rel, line_no in ref_locs:
+            is_named = sym in named
+            if kind == "named" and not is_named:
+                continue
+            surf_ev.append({"path": p, "symbol": sym, "file": rel, "line": str(line_no), "named": is_named})
+        seen_syms.extend(sorted(refs))
+    seen = set(); ded = []
+    for ev in surf_ev:
+        k = (ev["path"], ev["symbol"])
+        if k in seen:
+            continue
+        seen.add(k); ded.append(ev)
+    ded.sort(key=lambda e: (e["path"] not in (text or ""), not e["named"]))
+    out["surface_kind"] = best
+    out["surface_symbols"] = sorted(set(seen_syms))[:20]
+    out["surface_evidence"] = ded[:8]
+    return out
+
 def _resolve_declared_break_reachability(pr_data, deterministic, eco):
     mr = pr_data.get("merge_risk") or {}
     evidence_axis = (mr.get("evidenceAxis") or "").lower()
@@ -3792,6 +3877,10 @@ def _resolve_declared_break_reachability(pr_data, deterministic, eco):
     text = " \n ".join(breaking_bullets) if breaking_bullets else ((deterministic or {}).get("changelogText") or "")
     # Extract module/import-style paths (domain + at least one path segment).
     raw_paths = set(_dbr_re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.[A-Za-z]{2,}(?:/[A-Za-z0-9_.-]+)+", text))
+    # Trailing sentence punctuation can attach to a path captured from prose (e.g.
+    # "...exporters/prometheus. Previously" -> "...prometheus."), which then fails the
+    # import grep. Strip trailing non-path punctuation so reachability is not falsely lost.
+    raw_paths = {p.rstrip(".,;:)]'\"") for p in raw_paths}
     # npm scoped packages and bare python modules are less reliably named in prose; focus on
     # path-like identifiers, which covers Go module paths and npm scoped/url-style packages.
     reason_text = (mr.get("reason") or "")
@@ -3852,21 +3941,51 @@ def _resolve_declared_break_reachability(pr_data, deterministic, eco):
         "behavior_confirmed": False,
         "evidence": evidence[:12],
     }
+    # Refine import-level reachability into SURFACE-level exposure tiers (deterministic).
+    try:
+        result.update(_classify_behavioral_exposure(repo_root, paths, evidence, text, eco))
+    except Exception as _exp_e:
+        print("  behavioral-exposure classification skipped:", str(_exp_e)[:120])
     pr_data["declared_break_reachability"] = result
     # Adjust the verdict using the resolved reachability.
     if not paths:
         return
     if prod_reached:
+        sk = result.get("surface_kind", "unknown")
+        surf_ev = result.get("surface_evidence", [])
         proof = next((e for e in evidence if (not e["is_test"]) and e["path"] in (mr.get("reason") or "")), None)
         if not proof:
             proof = next((e for e in evidence if not e["is_test"]), None)
         loc = (" (" + proof["path"] + ")") if proof else ""
         mr["tag"] = "Medium"
-        mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change and your "
-                        "code imports the affected package" + loc + ", but build, tests, and API-diff "
-                        "cannot confirm or rule out that your usage triggers it — not a confirmed break; "
-                        "verify against the release notes")
-        mr["evidenceAxis"] = "declared behavioral change, import-reachable but unverified by build/test/api-diff"
+        if sk == "named":
+            sev = next((e for e in surf_ev if e.get("named")), None) or (surf_ev[0] if surf_ev else None)
+            symloc = (" — your code calls %s at %s:%s" % (sev["symbol"], sev["file"], sev["line"])) if sev else ""
+            mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change to a symbol your "
+                            "production code calls directly" + symloc + "; build, tests, and API-diff cannot confirm "
+                            "whether the changed behavior affects your usage — verify against the release notes")
+            mr["evidenceAxis"] = "declared behavioral change on a directly-called symbol, unverified by build/test/api-diff"
+        elif sk == "package":
+            sev = surf_ev[0] if surf_ev else None
+            local = (result.get("surface_by_path", {}).get(sev["path"], {}).get("local") or sev["path"].split("/")[-1]) if sev else ""
+            symloc = (" (e.g. %s.%s at %s:%s)" % (local, sev["symbol"], sev["file"], sev["line"])) if sev else ""
+            mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change inside a package your "
+                            "production code uses" + loc + symloc + "; the change is internal to the package, so whether it "
+                            "affects you depends on your runtime data/configuration — build, tests, and API-diff cannot "
+                            "confirm or rule it out; verify against the release notes")
+            mr["evidenceAxis"] = "declared behavioral change in a used package (internal trigger), unverified by build/test/api-diff"
+        elif sk == "import_only":
+            mr["reason"] = ("review required: your production code imports the affected package" + loc + " but does not "
+                            "appear to reference its exported surface (possibly a blank or transitive import); the changelog "
+                            "declares a BEHAVIORAL change whose impact we cannot confirm or rule out — lower-risk, but verify "
+                            "against the release notes")
+            mr["evidenceAxis"] = "declared behavioral change, package imported but exported surface not referenced in production"
+        else:
+            mr["reason"] = ("review required: the changelog declares a BEHAVIORAL breaking change and your "
+                            "code imports the affected package" + loc + ", but build, tests, and API-diff "
+                            "cannot confirm or rule out that your usage triggers it — not a confirmed break; "
+                            "verify against the release notes")
+            mr["evidenceAxis"] = "declared behavioral change, import-reachable but unverified by build/test/api-diff"
     elif test_only:
         mr["tag"] = "Medium"
         mr["reason"] = "declared breaking change is only reachable from test/CI code: " + ", ".join(paths)

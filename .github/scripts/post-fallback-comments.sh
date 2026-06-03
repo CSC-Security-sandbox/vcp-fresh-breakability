@@ -889,21 +889,44 @@ def _aba_bullet():
     return f"- {head} {body}"
 lines = ['### Reachability of the declared break']
 if r.get('prod_reachable'):
+    sk = r.get('surface_kind') or 'unknown'
+    surf = r.get('surface_evidence') or []
+    named_syms = r.get('named_symbols') or []
+    sbp = r.get('surface_by_path') or {}
     prod = [e for e in ev if not e.get('is_test')]
     reason = (d.get('merge_risk') or {}).get('reason') or ''
     by_path = {}
     for e in prod:
         by_path.setdefault(e['path'], e)
     ordered = sorted(by_path.values(), key=lambda e: (e['path'] not in reason, e['path']))
-    lines.append('- ⚠️ **Import-reachable behavioral change — unconfirmed.** Your production code imports the affected package:')
-    for e in ordered[:3]:
-        lines.append(f"  - `{e['path']}` at `{e['file']}:{e['line']}`")
-    lines.append('- The maintainer declared a **behavioral** break (changed defaults / error or ordering semantics). Build, tests, and API-diff **cannot see** behavioral changes, so we cannot confirm — or rule out — that your usage triggers it. Importing the package is necessary but **not sufficient** to break.')
+    def _local_for(path):
+        return (sbp.get(path) or {}).get('local') or path.split('/')[-1]
+    if sk == 'named':
+        lines.append('- ⚠️ **Directly on the changed surface.** Your production code calls a symbol the changelog flags as changed:')
+        for e in ([x for x in surf if x.get('named')] or surf)[:3]:
+            lines.append(f"  - `{_local_for(e['path'])}.{e['symbol']}` at `{e['file']}:{e['line']}`  ·  package `{e['path']}`")
+        lines.append('- This is the **strongest exposure signal** — your code touches the exact surface the maintainer changed. The change is *behavioral* (same type signature), so build, tests, and API-diff still cannot confirm it affects you. Graded **Medium / Review**, not a confirmed break.')
+    elif sk == 'package':
+        lines.append('- ⚠️ **Uses the affected package, but not the named symbol directly.** Your production code calls into the package surface:')
+        for e in surf[:3]:
+            lines.append(f"  - `{_local_for(e['path'])}.{e['symbol']}` at `{e['file']}:{e['line']}`  ·  package `{e['path']}`")
+        nm = (', '.join(f'`{s}`' for s in named_syms[:3])) if named_syms else 'the changed behavior'
+        lines.append(f"- The declared change centers on {nm}, which the library runs **internally** (e.g. during scrape / collect / serialize), not via a call you make directly. So whether it affects you depends on your **runtime data and configuration** — build, tests, and API-diff cannot see this.")
+    elif sk == 'import_only':
+        lines.append('- ℹ️ **Imported, but no exported surface referenced.** Your production code imports the affected package, but we found no call into its exported API (possibly a blank or transitive import):')
+        for e in ordered[:3]:
+            lines.append(f"  - `{e['path']}` at `{e['file']}:{e['line']}`")
+        lines.append('- **Lower exposure** — but still verify against the release notes, since behavior can change behind a blank or transitive import.')
+    else:
+        lines.append('- ⚠️ **Import-reachable behavioral change — unconfirmed.** Your production code imports the affected package:')
+        for e in ordered[:3]:
+            lines.append(f"  - `{e['path']}` at `{e['file']}:{e['line']}`")
+        lines.append('- The maintainer declared a **behavioral** break (changed defaults / error or ordering semantics). Build, tests, and API-diff **cannot see** behavioral changes, so we cannot confirm — or rule out — that your usage triggers it. Importing the package is necessary but **not sufficient** to break.')
     _ai_line = _aba_bullet() if aba_verdict in ('affected', 'not_affected') else None
     if _ai_line:
         lines.append(_ai_line)
     else:
-        lines.append('- This is a **manual-review signal, not a confirmed break** — graded **Medium / Review**, not High. To settle it: check whether your usage relies on the changed behavior described in the release notes (e.g. default values, error handling). If it does not, this signal does not block the merge.')
+        lines.append('- This is a **manual-review signal, not a confirmed break** — graded **Medium / Review**, not High. To settle it: check whether your usage relies on the changed behavior described in the release notes. If it does not, this signal does not block the merge.')
 elif r.get('test_only'):
     lines.append('- ℹ️ The declared break is only reachable from **test/CI code**, not production — verdict down-weighted to Medium.')
     for e in ev[:3]:
