@@ -340,6 +340,22 @@ def run_agent(ctx, workdir, prompt_file=PROMPT_FILE, timeout=PROBE_TIMEOUT):
               "proof-contract JSON to DP_OUTPUT, then stop.")
     home = os.path.join(workdir, "home")
     os.makedirs(home, exist_ok=True)
+    # Expose ONLY the agent CLI's own auth/config dirs into the scratch HOME so it can
+    # authenticate (its session token lives in ~/.cursor; without this it falls back to
+    # the macOS keychain, which times out in a headless runner). The rest of the real
+    # HOME (~/.ssh, ~/.netrc, ~/.config/gh, ...) stays hidden -> injection containment.
+    real_home = os.environ.get("HOME", "")
+    if real_home and real_home != home:
+        for sub in (".cursor", os.path.join(".config", "cursor"), ".cursor-server"):
+            src = os.path.join(real_home, sub)
+            if os.path.exists(src):
+                dst = os.path.join(home, sub)
+                try:
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    if not os.path.exists(dst):
+                        os.symlink(src, dst)
+                except Exception:
+                    pass
     # Scrubbed env: no GH/GitHub tokens, isolated HOME, no go workspace surprises.
     env = {
         "PATH": os.environ.get("PATH", ""),
