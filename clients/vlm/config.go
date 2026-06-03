@@ -315,6 +315,14 @@ func ParseSizeStringGiB(s string) int64 {
 
 type SPHAPairConfig struct {
 	InstanceType string       `json:"instance_type"` // VM instance type for both nodes in this HA pai
+	AggrConfigs []AggrConfig  `json:"aggr_configs"` // Aggr configurations for the HA pair
+}
+
+type AggrConfig struct {
+	Size       string `json:"size"`                // Aggregate size (e.g. "500Gi")
+	IOps       int64  `json:"iops"`                // Aggregate IOPS
+	Throughput int64  `json:"throughput"`          // Aggregate throughput
+	AggrName   string `json:"aggr_name,omitempty"` // Backing aggregate name, populated by VLM (e.g. "aggr1")
 }
 
 type OntapCertificate struct {

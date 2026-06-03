@@ -80,7 +80,7 @@ func upgradeCluster(ctx context.Context, se database.Storage, temporal client.Cl
 
 	workflowOptions := client.StartWorkflowOptions{
 		ID:        workflowID,
-		TaskQueue: workflowengine.BackgroundTaskQueue,
+		TaskQueue: workflowengine.CustomerTaskQueue,
 	}
 	_, err = temporal.ExecuteWorkflow(ctx, workflowOptions, ociworkflows.OCIClusterUpgradeWorkflow, workflowParams)
 	if err != nil {

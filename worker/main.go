@@ -264,6 +264,9 @@ func RegisterOCICustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon 
 	worker.RegisterWorkflow(ociworkflows.OCICreateSVMWorkflow)
 	worker.RegisterWorkflow(ociworkflows.OCIDeleteSVMWorkflow)
 
+	worker.RegisterWorkflow(ociworkflows.OCIClusterUpgradeWorkflow)
+	worker.RegisterWorkflow(ociworkflows.OCIRefreshRbacForPoolWorkflow)
+	worker.RegisterActivity(&activities.ClusterUpgradeActivity{SE: dbcon})
 	// Register activities used by OCI workflows
 	// CommonActivities is needed for UpdateJobStatus and EnsureJobState (used by BaseWorkflow)
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})

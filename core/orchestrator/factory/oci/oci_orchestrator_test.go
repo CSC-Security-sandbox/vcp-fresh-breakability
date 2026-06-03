@@ -14,6 +14,8 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
 
@@ -2930,7 +2932,9 @@ func TestUpgradeCluster(t *testing.T) {
 		mockStorage.EXPECT().GetPoolByName(mock.Anything, mock.Anything).Return(poolView, nil)
 		mockStorage.EXPECT().GetClusterUpgradeJobsByClusterID(mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 		mockStorage.EXPECT().CreateClusterUpgradeJob(mock.Anything, mock.Anything).Return(createdJob, nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+			return opts.TaskQueue == workflowengine.CustomerTaskQueue
+		}), mock.Anything, mock.Anything).Return(nil, nil).Once()
 
 		params := &commonparams.UpgradeClusterParams{
 			PoolOCID:           "ocid1.pool.oc1..abc",
