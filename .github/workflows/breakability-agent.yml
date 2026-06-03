@@ -19,6 +19,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      run_behavioral_probe:
+        description: 'Run targeted AI behavioral probe on declared-behavioral residuals'
+        required: false
+        default: 'true'
+        type: boolean
       batch_count:
         description: 'Number of parallel batches (1 = sequential, 4 = default)'
         required: false
@@ -340,6 +345,36 @@ jobs:
           " || echo "Failed to parse build-results.json"
 
       # ── Agent Analysis (Cursor Agent CLI) ──────────────────────
+      # Install the Cursor CLI early: it is needed by BOTH the targeted behavioral
+      # probe (below) and the full agent analysis. Install when either is enabled.
+      - name: Install Cursor Agent CLI
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_behavioral_probe || inputs.skip_agent != true }}
+        run: |
+          curl -fsS https://cursor.com/install | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify agent CLI
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_behavioral_probe || inputs.skip_agent != true }}
+        run: |
+          agent --version || echo "WARNING: agent CLI not on PATH"
+
+      # Targeted behavioral probe: fires ONE focused AI call per PR that hits the
+      # declared-behavioral residual (build/tests/api-diff clean, but the changelog
+      # declares a behavioral break and production code imports the affected package).
+      # It enriches /tmp/build-results.json with an advisory `ai_behavioral_assessment`
+      # that the renderer surfaces. Runs BEFORE the commit + full agent + comments so
+      # all consumers see the enrichment. Advisory only — never flips the verdict.
+      # Intentionally NOT given GH tokens: the probe must not mutate PRs or post anything.
+      - name: Behavioral probe (targeted AI)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_behavioral_probe }}
+        continue-on-error: true
+        run: |
+          python3 .github/scripts/behavioral-probe.py
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          BP_REPO_ROOT: ${{ github.workspace }}
+        timeout-minutes: 30
+
       - name: Commit build results to temp branch
         if: ${{ inputs.skip_agent != true }}
         id: commit_results
@@ -375,17 +410,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Cursor Agent CLI
-        if: ${{ inputs.skip_agent != true }}
-        run: |
-          curl -fsS https://cursor.com/install | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Verify agent CLI
-        if: ${{ inputs.skip_agent != true }}
-        run: |
-          agent --version || echo "WARNING: agent CLI not on PATH"
 
       - name: Run Cursor agent analysis
         if: ${{ inputs.skip_agent != true }}

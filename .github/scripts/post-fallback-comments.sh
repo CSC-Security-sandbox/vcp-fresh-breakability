@@ -497,6 +497,7 @@ print(json.dumps({
     'deterministic': pr.get('deterministic', {}),
     'merge_risk': pr.get('merge_risk', {}) or (pr.get('deterministic', {}) or {}).get('merge_risk', {}),
     'declared_break_reachability': pr.get('declared_break_reachability', {}),
+    'ai_behavioral_assessment': pr.get('ai_behavioral_assessment', {}),
     'cve_details': pr.get('cve_details', []),
     'verification_steps': pr.get('verification_steps', []),
     'fixes_cves': pr.get('fixes_cves', []),
@@ -865,6 +866,27 @@ if not r.get('checked'):
     raise SystemExit(0)
 paths = r.get('affected_paths') or []
 ev = r.get('evidence') or []
+# Optional AI behavioral probe result (advisory only — never flips the deterministic verdict).
+aba = d.get('ai_behavioral_assessment') or {}
+aba_verdict = (aba.get('verdict') or '').strip().lower() if isinstance(aba, dict) else ''
+def _aba_bullet():
+    # Render the AI probe outcome as an advisory bullet, clearly labelled as a non-proof judgment.
+    rationale = (aba.get('rationale') or '').strip()
+    site = (aba.get('call_site') or '').strip()
+    conf = (aba.get('confidence') or '').strip().lower()
+    behavior = (aba.get('checked_behavior') or '').strip()
+    conf_txt = f", {conf} confidence" if conf in ('low', 'medium', 'high') else ''
+    site_txt = f" (checked `{site}`)" if site else ''
+    head = '🤖 **AI behavioral probe** — reasoned judgment over the release note + your call site; **not executed, not type-checked, not proof**.'
+    if aba_verdict == 'affected':
+        body = f"**Likely affected{conf_txt}.** {rationale}{site_txt} This strengthens the review signal but is still **not** a confirmed break — please confirm against the release notes before relying on it."
+    elif aba_verdict == 'not_affected':
+        body = f"**Probe found no reliance{conf_txt}.** {rationale}{site_txt} This is advisory only — the deterministic grade stays **Medium / Review**; please confirm before merging."
+    else:
+        return None  # uncertain / unknown → fall through to the deterministic punt
+    if behavior:
+        body += f" Behavior checked: {behavior}."
+    return f"- {head} {body}"
 lines = ['### Reachability of the declared break']
 if r.get('prod_reachable'):
     prod = [e for e in ev if not e.get('is_test')]
@@ -877,7 +899,11 @@ if r.get('prod_reachable'):
     for e in ordered[:3]:
         lines.append(f"  - `{e['path']}` at `{e['file']}:{e['line']}`")
     lines.append('- The maintainer declared a **behavioral** break (changed defaults / error or ordering semantics). Build, tests, and API-diff **cannot see** behavioral changes, so we cannot confirm — or rule out — that your usage triggers it. Importing the package is necessary but **not sufficient** to break.')
-    lines.append('- This is a **manual-review signal, not a confirmed break** — graded **Medium / Review**, not High. To settle it: check whether your usage relies on the changed behavior described in the release notes (e.g. default values, error handling). If it does not, this signal does not block the merge.')
+    _ai_line = _aba_bullet() if aba_verdict in ('affected', 'not_affected') else None
+    if _ai_line:
+        lines.append(_ai_line)
+    else:
+        lines.append('- This is a **manual-review signal, not a confirmed break** — graded **Medium / Review**, not High. To settle it: check whether your usage relies on the changed behavior described in the release notes (e.g. default values, error handling). If it does not, this signal does not block the merge.')
 elif r.get('test_only'):
     lines.append('- ℹ️ The declared break is only reachable from **test/CI code**, not production — verdict down-weighted to Medium.')
     for e in ev[:3]:
