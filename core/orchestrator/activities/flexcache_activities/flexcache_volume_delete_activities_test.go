@@ -3,6 +3,7 @@ package flexcache_activities
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,8 +16,60 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
+	workflowpb "go.temporal.io/api/workflow/v1"
+	"go.temporal.io/api/workflowservice/v1"
 )
+
+func TestFlexCacheVolumeDeleteActivity_RefreshDBVolumeForDeleteActivity(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+
+		staleVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-refresh-uuid"},
+			State:     models.LifeCycleStatePreparing,
+		}
+		refreshedVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-refresh-uuid"},
+			State:     models.LifeCycleStateCreating,
+		}
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: staleVol}
+
+		mockStorage.EXPECT().DescribeVolume(ctx, staleVol.UUID).Return(refreshedVol, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().Debugf("refreshed volume %s from database for delete workflow", refreshedVol.UUID)
+
+		out, err := activity.RefreshDBVolumeForDeleteActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Same(tt, result, out)
+		assert.Equal(tt, refreshedVol, out.DBVolume)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DescribeVolumeFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+
+		vol := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-refresh-uuid"}}
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol}
+
+		mockStorage.EXPECT().DescribeVolume(ctx, vol.UUID).Return(nil, assert.AnError)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+
+		out, err := activity.RefreshDBVolumeForDeleteActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, out)
+		mockStorage.AssertExpectations(tt)
+	})
+}
 
 func TestFlexCacheVolumeDeleteActivity_UnmountVolumeInOntapActivity(t *testing.T) {
 	dbVolume := &datamodel.Volume{
@@ -475,6 +528,29 @@ func TestFlexCacheVolumeDeleteActivity_DeleteClusterPeerInOntapActivity(t *testi
 		resp, err := activity.DeleteClusterPeerInOntapActivity(ctx, result)
 		assert.Error(tt, err)
 		assert.Nil(tt, resp)
+	})
+
+	t.Run("WhenDeleteClusterPeerNotFound", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		ctx := context.Background()
+		vol := baseVolume()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode(),
+			ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: clusterPeerUUID}}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		notFoundErr := customerrors.NewNotFoundErr("cluster peer", nil)
+		mockProvider.EXPECT().DeleteClusterPeer(clusterPeerUUID).Return(notFoundErr)
+		logger.EXPECT().Debugf("Cluster peer not found for UUID %s, skipping delete", clusterPeerUUID)
+
+		resp, err := activity.DeleteClusterPeerInOntapActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("WhenNoClusterPeerUUID", func(tt *testing.T) {
@@ -1130,6 +1206,225 @@ func TestFlexCacheVolumeDeleteActivity_CancelFlexCacheCreateWorkflowIfPreparingA
 		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
 		err := act.CancelFlexCacheCreateWorkflowIfPreparingActivity(ctx, resultWith(vol))
 		assert.Error(tt, err)
+		temporal.AssertExpectations(tt)
+	})
+}
+
+func describeWorkflowExecutionWithStatus(st enumspb.WorkflowExecutionStatus) *workflowservice.DescribeWorkflowExecutionResponse {
+	return &workflowservice.DescribeWorkflowExecutionResponse{
+		WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
+			Status: st,
+		},
+	}
+}
+
+func TestFlexCacheVolumeDeleteActivity_WaitForFlexCacheCreateWorkflowTerminalActivity(t *testing.T) {
+	ctx := context.Background()
+	resultWith := func(vol *datamodel.Volume) *flexcache.DeleteFlexCacheResult {
+		return &flexcache.DeleteFlexCacheResult{DBVolume: vol}
+	}
+
+	t.Run("Skip_NoCreateJob", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vol := &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
+			Name:            "vol1",
+			State:           models.LifeCycleStatePreparing,
+			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
+		}
+		objectID := "job"
+		notFoundErr := customerrors.NewNotFoundErr("Job", &objectID)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, notFoundErr)
+
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().Debugf("skip wait for create workflow for volume %s: no create job", vol.Name)
+
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		err := act.WaitForFlexCacheCreateWorkflowTerminalActivity(ctx, resultWith(vol))
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_TerminalImmediately", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		vol := &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
+			Name:            "vol1",
+			State:           models.LifeCycleStatePreparing,
+			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
+		}
+		job := &datamodel.Job{WorkflowID: "wf-1"}
+
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
+		temporal.EXPECT().DescribeWorkflowExecution(ctx, job.WorkflowID, "").Return(
+			describeWorkflowExecutionWithStatus(enumspb.WORKFLOW_EXECUTION_STATUS_CANCELED), nil)
+		logger.EXPECT().Debugf("create workflow %s reached terminal status %s", job.WorkflowID, mock.Anything)
+
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		err := act.WaitForFlexCacheCreateWorkflowTerminalActivity(ctx, resultWith(vol))
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success_RunningThenCanceled", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		vol := &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
+			Name:            "vol1",
+			State:           models.LifeCycleStatePreparing,
+			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
+		}
+		job := &datamodel.Job{WorkflowID: "wf-1"}
+
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
+		temporal.EXPECT().DescribeWorkflowExecution(ctx, job.WorkflowID, "").Return(
+			describeWorkflowExecutionWithStatus(enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING), nil).Once()
+		temporal.EXPECT().DescribeWorkflowExecution(ctx, job.WorkflowID, "").Return(
+			describeWorkflowExecutionWithStatus(enumspb.WORKFLOW_EXECUTION_STATUS_CANCELED), nil).Once()
+		logger.EXPECT().Debugf("create workflow %s reached terminal status %s", job.WorkflowID, mock.Anything)
+
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		err := act.WaitForFlexCacheCreateWorkflowTerminalActivity(ctx, resultWith(vol))
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success_DescribeNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		vol := &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
+			Name:            "vol1",
+			State:           models.LifeCycleStatePreparing,
+			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
+		}
+		job := &datamodel.Job{WorkflowID: "wf-1"}
+
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
+		temporal.EXPECT().DescribeWorkflowExecution(ctx, job.WorkflowID, "").Return(nil, serviceerror.NewNotFound("missing"))
+		logger.EXPECT().Debugf("create workflow %s no longer present in Temporal; done waiting", job.WorkflowID)
+
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		err := act.WaitForFlexCacheCreateWorkflowTerminalActivity(ctx, resultWith(vol))
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Describe_NilWorkflowExecutionInfo", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "v-1"},
+			Name:      "vol1",
+		}
+		job := &datamodel.Job{WorkflowID: "wf-1"}
+
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
+		temporal.EXPECT().DescribeWorkflowExecution(ctx, job.WorkflowID, "").Return(
+			&workflowservice.DescribeWorkflowExecutionResponse{}, nil)
+
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		err := act.WaitForFlexCacheCreateWorkflowTerminalActivity(ctx, resultWith(vol))
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("GetJobError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vol := &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
+			Name:            "vol1",
+			State:           models.LifeCycleStatePreparing,
+			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
+		}
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, errors.New("db down"))
+
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().Errorf("error retrieving create job while waiting for create workflow: volume %s: %v", vol.Name, mock.Anything)
+
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		err := act.WaitForFlexCacheCreateWorkflowTerminalActivity(ctx, resultWith(vol))
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DescribeWorkflowError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		vol := &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
+			Name:            "vol1",
+			State:           models.LifeCycleStatePreparing,
+			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
+		}
+		job := &datamodel.Job{WorkflowID: "wf-1"}
+
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
+		temporal.EXPECT().DescribeWorkflowExecution(ctx, job.WorkflowID, "").Return(nil, errors.New("temporal unavailable"))
+
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		err := act.WaitForFlexCacheCreateWorkflowTerminalActivity(ctx, resultWith(vol))
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("ContextCancelledWhileWaiting", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		cancelCtx, cancel := context.WithCancel(context.Background())
+		vol := &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "v-1"},
+			Name:            "vol1",
+			State:           models.LifeCycleStatePreparing,
+			CacheParameters: &datamodel.CacheParameters{PeerClusterName: "p"},
+		}
+		job := &datamodel.Job{WorkflowID: "wf-1"}
+
+		mockStorage.EXPECT().GetJobByResourceUUID(cancelCtx, vol.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(cancelCtx).Return(logger)
+		mm.EXPECT().fetchTemporalClientForFlexCacheDelete(mock.Anything).Return(temporal)
+		temporal.EXPECT().DescribeWorkflowExecution(cancelCtx, job.WorkflowID, "").Return(
+			describeWorkflowExecutionWithStatus(enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING), nil).Once()
+		cancel()
+
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		err := act.WaitForFlexCacheCreateWorkflowTerminalActivity(cancelCtx, resultWith(vol))
+		assert.Error(tt, err)
+		assert.Equal(tt, context.Canceled, err)
+		mockStorage.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
 	})
 }

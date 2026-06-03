@@ -163,9 +163,12 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		CorrelationID: &correlationID,
 	}
 
-	job := &datamodel.Job{
+	// Create job is stored as DONE before Temporal handoff. The API returns this job's UUID
+	// so the create operation finishes immediately for clients: the control/sequence workflow
+	// may be queued, and a single in-flight op per resource must not block on establish work.
+	createJob := &datamodel.Job{
 		Type:          string(coremodels.JobTypeFlexCacheCreateVolume),
-		State:         string(coremodels.JobsStateNEW),
+		State:         string(coremodels.JobsStateDONE),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: correlationID,
@@ -177,11 +180,27 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 			},
 		},
 	}
-	createdJob, err := se.CreateJob(ctx, job)
+	createdJob, err := se.CreateJob(ctx, createJob)
 	if err != nil {
 		logger.Errorf("Failed to create job in database, error: %v", err)
 		return nil, "", err
 	}
+
+	establishJob := &datamodel.Job{
+		Type:          string(coremodels.JobTypeFlexCacheEstablishPeering),
+		State:         string(coremodels.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: correlationID,
+		RequestID:     requestURI,
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbVolume.UUID},
+	}
+	createdEstablishJob, err := se.CreateJobWithWorkflowID(ctx, establishJob, createdJob.WorkflowID)
+	if err != nil {
+		logger.Errorf("Failed to create establish peering job in database, error: %v", err)
+		return nil, "", err
+	}
+	event.EstablishPeeringJobUUID = createdEstablishJob.UUID
 
 	// controlWorkflowID defines the workflow ID for the control workflow
 	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, dbVolume.Account.ID, location, dbVolume.Pool.Name)
@@ -195,7 +214,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		flexcache_workflows.CreateFlexCacheWorkflow,
 		workflow.ChildWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
-			WorkflowID:            createdJob.WorkflowID,
+			WorkflowID:            createdEstablishJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		},
 		params,

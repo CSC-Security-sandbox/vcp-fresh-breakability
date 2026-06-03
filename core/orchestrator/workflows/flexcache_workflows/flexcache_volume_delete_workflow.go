@@ -162,6 +162,20 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		Node:     node,
 	}
 
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, &flexCacheResult).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.WaitForFlexCacheCreateWorkflowTerminalActivity, &flexCacheResult).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	// Reload volume from DB after create workflow has finished cancelling so we have the most up to date volume information
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.RefreshDBVolumeForDeleteActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	dbVolume = flexCacheResult.DBVolume
+
 	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.UnmountVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -227,10 +241,6 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
-	}
-
-	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.CancelFlexCacheCreateWorkflowIfPreparingActivity, &flexCacheResult).Get(ctx, nil); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	if err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteVolume, &dbVolume).Get(ctx, nil); err != nil {

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -81,6 +82,25 @@ func TestCreateJob(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, job.UUID, createdJob.UUID, "Expected job uuid %v, got %v", job.UUID, createdJob.UUID)
 	})
+	t.Run("WhenWorkflowIDProvidedOnJob_IsIgnored", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{ID: 1, UUID: "establish-job-uuid"},
+			WorkflowID: "should-not-persist-from-input",
+		}
+
+		createdJob, err := store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "establish-job-uuid", createdJob.UUID)
+		assert.Equal(tt, "establish-job-uuid", createdJob.WorkflowID)
+	})
 	t.Run("WhenJobAlreadyExists", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")
@@ -106,6 +126,28 @@ func TestCreateJob(t *testing.T) {
 
 		_, err1 := store.CreateJob(context.Background(), job)
 		assert.EqualError(tt, err1, "UNIQUE constraint failed: jobs.id")
+	})
+}
+
+func TestCreateJobWithWorkflowID(t *testing.T) {
+	t.Run("UsesProvidedWorkflowID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid-1"},
+			Type:      string(models.JobTypeFlexCacheEstablishPeering),
+		}
+
+		createdJob, err := store.CreateJobWithWorkflowID(context.Background(), job, "shared-wf-id")
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid-1", createdJob.UUID)
+		assert.Equal(tt, "shared-wf-id", createdJob.WorkflowID)
 	})
 }
 

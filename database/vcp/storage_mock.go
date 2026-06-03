@@ -1983,6 +1983,66 @@ func (_c *MockStorage_CreateJob_Call) RunAndReturn(run func(context.Context, *da
 	return _c
 }
 
+// CreateJobWithWorkflowID provides a mock function with given fields: ctx, job, workflowID
+func (_m *MockStorage) CreateJobWithWorkflowID(ctx context.Context, job *datamodel.Job, workflowID string) (*datamodel.Job, error) {
+	ret := _m.Called(ctx, job, workflowID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateJobWithWorkflowID")
+	}
+
+	var r0 *datamodel.Job
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Job, string) (*datamodel.Job, error)); ok {
+		return rf(ctx, job, workflowID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Job, string) *datamodel.Job); ok {
+		r0 = rf(ctx, job, workflowID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Job, string) error); ok {
+		r1 = rf(ctx, job, workflowID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateJobWithWorkflowID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateJobWithWorkflowID'
+type MockStorage_CreateJobWithWorkflowID_Call struct {
+	*mock.Call
+}
+
+// CreateJobWithWorkflowID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - job *datamodel.Job
+//   - workflowID string
+func (_e *MockStorage_Expecter) CreateJobWithWorkflowID(ctx interface{}, job interface{}, workflowID interface{}) *MockStorage_CreateJobWithWorkflowID_Call {
+	return &MockStorage_CreateJobWithWorkflowID_Call{Call: _e.mock.On("CreateJobWithWorkflowID", ctx, job, workflowID)}
+}
+
+func (_c *MockStorage_CreateJobWithWorkflowID_Call) Run(run func(ctx context.Context, job *datamodel.Job, workflowID string)) *MockStorage_CreateJobWithWorkflowID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Job), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateJobWithWorkflowID_Call) Return(_a0 *datamodel.Job, _a1 error) *MockStorage_CreateJobWithWorkflowID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateJobWithWorkflowID_Call) RunAndReturn(run func(context.Context, *datamodel.Job, string) (*datamodel.Job, error)) *MockStorage_CreateJobWithWorkflowID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateKmsConfig provides a mock function with given fields: ctx, kmsConfig
 func (_m *MockStorage) CreateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
 	ret := _m.Called(ctx, kmsConfig)

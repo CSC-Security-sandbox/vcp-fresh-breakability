@@ -49,14 +49,55 @@ func _shouldForceEncryption() bool {
 
 type flexCacheCreateWorkflow struct {
 	workflows.BaseWorkflow
+	establishPeeringJobUUID string
 }
 
 var _ workflows.WorkflowInterface = &flexCacheCreateWorkflow{}
+
+// UpdateJobStatus updates the establish-peering job (or the sole establish job when UUID is set on the event),
+// not the FlexCacheCreateVolume job whose UUID may match the workflow execution ID.
+func (wf *flexCacheCreateWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err error) error {
+	jobUUID := wf.establishPeeringJobUUID
+	if jobUUID == "" {
+		jobUUID = wf.ID
+	}
+	if jobUUID == "" {
+		return vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError,
+			errors.New("job uuid cannot be empty"))
+	}
+
+	updatedJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: jobUUID},
+		State:     status,
+	}
+	if err != nil {
+		var customError *vsaerrors.CustomError
+		if vsaerrors.As(err, &customError) {
+			updatedJob.TrackingID = customError.TrackingID
+			updatedJob.ErrorDetails = customError.OriginalErr.Error()
+		} else {
+			updatedJob.TrackingID = 0
+			updatedJob.ErrorDetails = err.Error()
+		}
+	}
+
+	commonActivity := activities.CommonActivities{}
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 60 * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	})
+	return workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
+}
 
 // CreateFlexCacheWorkflow Volume Workflow process volume related requests from a customer.
 func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, event *flexcache.CreateFlexCacheEvent) (retErr error) {
 	log := util.GetLogger(ctx)
 	flexCacheWf := new(flexCacheCreateWorkflow)
+	if event != nil {
+		flexCacheWf.establishPeeringJobUUID = event.EstablishPeeringJobUUID
+	}
 	// Guard to detect whether we entered Run.
 	enteredRun := false
 
@@ -80,7 +121,7 @@ func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumePa
 	flexCacheWf.Status = workflows.WorkflowStatusRunning
 	earlyAbortResult := &flexcache.CreateFlexCacheResult{DBVolume: volume}
 	if err := flexCacheWf.abortIfCancelled(ctx, earlyAbortResult); err != nil {
-		log.Errorf("CreateFlexCacheWorkflow aborted (job cancelled or error before processing): %v", err)
+		log.Errorf("CreateFlexCacheWorkflow aborted (job cancelled before processing): %v", err)
 		return err
 	}
 	if err := flexCacheWf.UpdateJobStatus(ctx, string(coremodels.JobsStatePROCESSING), nil); err != nil {
@@ -135,7 +176,7 @@ func (wf *flexCacheCreateWorkflow) abortIfCancelled(ctx workflow.Context, result
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	return workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.AbortIfCancelledActivity, result).Get(ctx, nil)
+	return workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.AbortIfEstablishPeeringCancelledActivity, result).Get(ctx, nil)
 }
 
 func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
@@ -160,16 +201,22 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	correlationID := ""
+	if event != nil && event.CorrelationID != nil {
+		correlationID = *event.CorrelationID
+	}
+
 	wfInfo := workflow.GetInfo(ctx)
 	flexcacheResult := flexcache.CreateFlexCacheResult{
 		Event:         event,
 		DBVolume:      dbVolume,
-		ActiveJobType: coremodels.JobTypeFlexCacheCreateVolume,
+		ActiveJobType: coremodels.JobTypeFlexCacheEstablishPeering,
 		JobInput: &flexcache.JobActivityInput{
-			ResourceName: dbVolume.Name,
-			ResourceUUID: dbVolume.UUID,
-			AccountID:    dbVolume.AccountID,
-			WorkflowID:   wfInfo.WorkflowExecution.ID,
+			ResourceName:  dbVolume.Name,
+			ResourceUUID:  dbVolume.UUID,
+			AccountID:     dbVolume.AccountID,
+			WorkflowID:    wfInfo.WorkflowExecution.ID,
+			CorrelationID: correlationID,
 			Metadata: map[string]interface{}{
 				"poolID": dbVolume.Pool.ID,
 			},
@@ -241,34 +288,6 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	if params != nil && params.CacheParameters != nil && dbVolume.CacheParameters != nil {
 		flexcacheResult = *copyInputCacheParameters(params, &flexcacheResult)
 	}
-
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
-
-	// CCFE compatibility: Handle create job
-	if err = workflow.ExecuteActivity(
-		ctx,
-		flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity,
-		&flexcacheResult,
-	).Get(ctx, nil); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-	clearActiveJob()
-
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
-
-	// CCFE compatibility: Establish Peering job
-	if err = workflow.ExecuteActivity(
-		ctx,
-		flexCacheVolumeCreateActivity.CreatePeeringJobActivity,
-		&flexcacheResult,
-	).Get(ctx, nil); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-	setActiveJob(coremodels.JobTypeFlexCacheEstablishPeering)
 
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
@@ -357,16 +376,6 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			return nil, cancelErr
 		}
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-
-		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-
-		// Update cluster peering row state to PENDING_CLUSTER_PEERING and update other details
-		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStatePendingInDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	}
@@ -458,10 +467,6 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.HydrateFlexCacheState, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -500,12 +505,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-
-	// Persisting ExternalUUID in the database to ensure it is available for any cleanup
-	dbVolume.VolumeAttributes.ExternalUUID = flexcacheResult.VolumeResponse.ExternalUUID
-	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeAttributesInDB, &flexcacheResult.DBVolume.UUID, &flexcacheResult.DBVolume.VolumeAttributes).Get(ctx, nil); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+	dbVolume = flexcacheResult.DBVolume
 
 	protocols := dbVolume.VolumeAttributes.Protocols
 	hasNFS := utils.IsNFSProtocols(protocols)

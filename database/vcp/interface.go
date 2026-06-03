@@ -162,6 +162,7 @@ type (
 		UpdateAccountTrialMetadata(ctx context.Context, account *datamodel.Account, trial *datamodel.AccountTrialMode) error
 
 		CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
+		CreateJobWithWorkflowID(ctx context.Context, job *datamodel.Job, workflowID string) (*datamodel.Job, error)
 		DeleteJob(ctx context.Context, id, errorDetails string) error
 		UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails string) error
 		GetJob(ctx context.Context, jobID string) (*datamodel.Job, error)

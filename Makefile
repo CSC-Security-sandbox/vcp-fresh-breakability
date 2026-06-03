@@ -336,6 +336,42 @@ oci-proxy-dev-image: build-oci-proxy base-image
 	@echo "Building oci-proxy development Docker image..."
 	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f oci-proxy/Dockerfile.dev -t $(DEV_REGISTRY)/oci-proxy:$(IMAGE_TAG) .
 
+# Same layout as *-dev-image (DEV_REGISTRY, IMAGE_TAG, GHVSA_PAT) but service Dockerfile (expects artifacts/ + distroless base).
+.PHONY: base-distroless-image
+base-distroless-image:
+	@echo "Building distroless base image (base:distroless)..."
+	docker build -f common/Dockerfile -t base:distroless .
+
+.PHONY: google-proxy-image
+google-proxy-image: build-google-proxy base-distroless-image
+	@echo "Building google-proxy image ($(DEV_REGISTRY)/google-proxy:$(IMAGE_TAG))..."
+	mkdir -p artifacts && cp app/google-proxy artifacts/google-proxy
+	docker build --build-arg BASE=base:distroless --build-arg GHVSA_PAT=$(GHVSA_PAT) -f google-proxy/Dockerfile -t $(DEV_REGISTRY)/google-proxy:$(IMAGE_TAG) .
+
+.PHONY: core-image
+core-image: build-core base-distroless-image
+	@echo "Building core image ($(DEV_REGISTRY)/core:$(IMAGE_TAG))..."
+	mkdir -p artifacts && cp app/core artifacts/core
+	docker build --build-arg BASE=base:distroless --build-arg GHVSA_PAT=$(GHVSA_PAT) -f core/Dockerfile -t $(DEV_REGISTRY)/core:$(IMAGE_TAG) .
+
+.PHONY: worker-image
+worker-image: build-worker base-distroless-image
+	@echo "Building vcp-worker image ($(DEV_REGISTRY)/vcp-worker:$(IMAGE_TAG))..."
+	mkdir -p artifacts && cp app/vcp-worker artifacts/vcp-worker
+	docker build --build-arg BASE=base:distroless --build-arg GHVSA_PAT=$(GHVSA_PAT) -f worker/Dockerfile -t $(DEV_REGISTRY)/vcp-worker:$(IMAGE_TAG) .
+
+.PHONY: oci-proxy-image
+oci-proxy-image: build-oci-proxy base-distroless-image
+	@echo "Building oci-proxy image ($(DEV_REGISTRY)/oci-proxy:$(IMAGE_TAG))..."
+	mkdir -p artifacts && cp app/oci-proxy artifacts/oci-proxy
+	docker build --build-arg BASE=base:distroless --build-arg GHVSA_PAT=$(GHVSA_PAT) -f oci-proxy/Dockerfile -t $(DEV_REGISTRY)/oci-proxy:$(IMAGE_TAG) .
+
+.PHONY: ontap-proxy-image
+ontap-proxy-image: build-ontap-proxy base-distroless-image
+	@echo "Building ontap-proxy image ($(DEV_REGISTRY)/ontap-proxy:$(IMAGE_TAG))..."
+	mkdir -p artifacts && cp app/ontap-proxy artifacts/ontap-proxy
+	docker build --build-arg BASE=base:distroless --build-arg GHVSA_PAT=$(GHVSA_PAT) -f ontap-proxy/Dockerfile -t $(DEV_REGISTRY)/ontap-proxy:$(IMAGE_TAG) .
+
 # Error Framework Validation
 .PHONY: validate-errors
 validate-errors:

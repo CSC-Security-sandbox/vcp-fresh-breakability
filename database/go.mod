@@ -11,7 +11,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/stretchr/testify v1.11.1
 	github.com/vcp-vsa-control-Plane/vsa-control-plane v0.0.0
-	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0 // indirect
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12

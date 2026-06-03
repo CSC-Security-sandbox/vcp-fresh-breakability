@@ -3,13 +3,16 @@ package flexcache_activities
 import (
 	"context"
 	stderrors "errors"
+	"fmt"
 	"strings"
+	"time"
 
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
@@ -17,12 +20,43 @@ import (
 
 var fetchTemporalClientForFlexCacheDelete = _fetchTemporalClientForFlexCacheDelete
 
+const (
+	flexCacheCreateWorkflowTerminalPollInterval = 2 * time.Second
+	flexCacheCreateWorkflowTerminalWaitTimeout  = 3 * time.Minute
+)
+
 func _fetchTemporalClientForFlexCacheDelete(ctx context.Context) client.Client {
 	return activity.GetClient(ctx)
 }
 
+func isFlexCacheCreateWorkflowExecutionTerminal(status enumspb.WorkflowExecutionStatus) bool {
+	switch status {
+	case enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED,
+		enumspb.WORKFLOW_EXECUTION_STATUS_FAILED,
+		enumspb.WORKFLOW_EXECUTION_STATUS_CANCELED,
+		enumspb.WORKFLOW_EXECUTION_STATUS_TERMINATED,
+		enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT:
+		return true
+	default:
+		return false
+	}
+}
+
 type FlexCacheVolumeDeleteActivity struct {
 	SE database.Storage
+}
+
+// RefreshDBVolumeForDeleteActivity reloads the volume from the database so later delete steps
+// see fields written by a concurrent establish-peering workflow (that is cancelled now)
+func (a FlexCacheVolumeDeleteActivity) RefreshDBVolumeForDeleteActivity(ctx context.Context, result *flexcache.DeleteFlexCacheResult) (*flexcache.DeleteFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	vol, err := a.SE.DescribeVolume(ctx, result.DBVolume.UUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	result.DBVolume = vol
+	logger.Debugf("refreshed volume %s from database for delete workflow", vol.UUID)
+	return result, nil
 }
 
 // UnmountVolumeInOntapActivity deletes a FlexCache volume in ONTAP
@@ -235,7 +269,6 @@ func (a FlexCacheVolumeDeleteActivity) CancelPrepopulateJobsForVolume(ctx contex
 
 // CancelFlexCacheCreateWorkflowIfPreparingActivity uses DBVolume from result; if it is a FlexCache volume in
 // PREPARING state, cancels the FlexCache create workflow and clears running jobs for the resource.
-// Called at the end of DeleteFlexCacheVolumeWorkflow (before DeleteVolume) so cluster peering teardown completes first.
 func (a FlexCacheVolumeDeleteActivity) CancelFlexCacheCreateWorkflowIfPreparingActivity(ctx context.Context, result *flexcache.DeleteFlexCacheResult) error {
 	logger := utilGetLogger(ctx)
 	dbVolume := result.DBVolume
@@ -260,6 +293,7 @@ func (a FlexCacheVolumeDeleteActivity) CancelFlexCacheCreateWorkflowIfPreparingA
 	}
 
 	temporalClient := fetchTemporalClientForFlexCacheDelete(ctx)
+	// The create job will be DONE at this point but all flexcache creation jobs use the same workflow ID (it is all the same workflow)
 	err = temporalClient.CancelWorkflow(ctx, createJob.WorkflowID, "")
 	workflowMissing := false
 	if err != nil {
@@ -287,4 +321,65 @@ func (a FlexCacheVolumeDeleteActivity) CancelFlexCacheCreateWorkflowIfPreparingA
 		logger.Infof("successfully cancelled create workflow %s for volume %s", createJob.WorkflowID, dbVolume.Name)
 	}
 	return nil
+}
+
+// WaitForFlexCacheCreateWorkflowTerminalActivity polls Temporal until the FlexCache create workflow for this
+// volume is no longer RUNNING (or no longer exists). It is a no-op when there is no create job for the
+// resource, or when the execution is already absent or terminal.
+func (a FlexCacheVolumeDeleteActivity) WaitForFlexCacheCreateWorkflowTerminalActivity(ctx context.Context, result *flexcache.DeleteFlexCacheResult) error {
+	logger := utilGetLogger(ctx)
+	dbVolume := result.DBVolume
+
+	createJob, err := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(coremodels.JobTypeFlexCacheCreateVolume))
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger.Debugf("skip wait for create workflow for volume %s: no create job", dbVolume.Name)
+			return nil
+		}
+		logger.Errorf("error retrieving create job while waiting for create workflow: volume %s: %v", dbVolume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	wfID := createJob.WorkflowID
+	temporalClient := fetchTemporalClientForFlexCacheDelete(ctx)
+	deadline := time.Now().Add(flexCacheCreateWorkflowTerminalWaitTimeout)
+
+	for {
+		if time.Now().After(deadline) {
+			return vsaerrors.WrapAsTemporalApplicationError(
+				fmt.Errorf("timed out after %s waiting for create workflow %s to reach a terminal state",
+					flexCacheCreateWorkflowTerminalWaitTimeout, wfID))
+		}
+
+		desc, derr := temporalClient.DescribeWorkflowExecution(ctx, wfID, "")
+		if derr != nil {
+			var notFoundErr *serviceerror.NotFound
+			if stderrors.As(derr, &notFoundErr) {
+				logger.Debugf("create workflow %s no longer present in Temporal; done waiting", wfID)
+				return nil
+			}
+			return vsaerrors.WrapAsTemporalApplicationError(derr)
+		}
+
+		info := desc.GetWorkflowExecutionInfo()
+		if info == nil {
+			return vsaerrors.WrapAsTemporalApplicationError(
+				fmt.Errorf("DescribeWorkflowExecution returned nil workflow_execution_info for workflow %s", wfID))
+		}
+
+		st := info.Status
+		if isFlexCacheCreateWorkflowExecutionTerminal(st) {
+			logger.Debugf("create workflow %s reached terminal status %s", wfID, st.String())
+			return nil
+		}
+
+		if activity.IsActivity(ctx) {
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("waiting for create workflow %s status=%s", wfID, st.String()))
+		}
+		select {
+		case <-time.After(flexCacheCreateWorkflowTerminalPollInterval):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }

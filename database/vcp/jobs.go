@@ -19,6 +19,15 @@ var (
 )
 
 func (d *DataStoreRepository) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
+	return d.createJobImpl(ctx, job, "")
+}
+
+// CreateJobWithWorkflowID persists a job with workflow_id set to workflowID (FlexCache child jobs).
+func (d *DataStoreRepository) CreateJobWithWorkflowID(ctx context.Context, job *datamodel.Job, workflowID string) (*datamodel.Job, error) {
+	return d.createJobImpl(ctx, job, workflowID)
+}
+
+func (d *DataStoreRepository) createJobImpl(ctx context.Context, job *datamodel.Job, workflowID string) (*datamodel.Job, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -32,7 +41,11 @@ func (d *DataStoreRepository) CreateJob(ctx context.Context, job *datamodel.Job)
 	}
 	job.CreatedAt = time.Now()
 	job.UpdatedAt = job.CreatedAt
-	job.WorkflowID = job.UUID
+	if workflowID != "" {
+		job.WorkflowID = workflowID
+	} else {
+		job.WorkflowID = job.UUID
+	}
 	if job.JobAttributes != nil {
 		job.ResourceUUID = job.JobAttributes.ResourceUUID
 	}

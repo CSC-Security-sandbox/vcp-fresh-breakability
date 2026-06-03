@@ -3,6 +3,19 @@ module github.com/vcp-vsa-control-Plane/vsa-control-plane/vcp-core
 go 1.24.13
 
 require (
+	github.com/vcp-vsa-control-Plane/vsa-control-plane v0.0.0
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/database v0.0.0
+	go.uber.org/automaxprocs v1.6.0
+)
+
+// Phase 2 — Step 1 bootstrap.
+// vcp-core consumes both core (peer module) and root-resident helpers
+// (utils, common, worker/metrics, workflow_engine). The require on root
+// disappears once Step 3 relocates those into lib/.
+require github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler v0.0.0 // indirect
+
+require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-faster/errors v0.7.1
 	github.com/go-faster/jx v1.1.0
@@ -11,14 +24,11 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/robfig/cron v1.2.0
 	github.com/stretchr/testify v1.11.1
-	github.com/vcp-vsa-control-Plane/vsa-control-plane v0.0.0
-	github.com/vcp-vsa-control-Plane/vsa-control-plane/core v0.0.0
-	github.com/vcp-vsa-control-Plane/vsa-control-plane/database v0.0.0
+	github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0
 	go.opentelemetry.io/otel v1.40.0
 	go.opentelemetry.io/otel/metric v1.40.0
 	go.opentelemetry.io/otel/trace v1.40.0
 	go.temporal.io/sdk v1.33.0
-	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/sync v0.19.0
 )
@@ -167,14 +177,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
-
-// Phase 2 — Step 1 bootstrap.
-// vcp-core consumes both core (peer module) and root-resident helpers
-// (utils, common, worker/metrics, workflow_engine). The require on root
-// disappears once Step 3 relocates those into lib/.
-require github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler v0.0.0 // indirect
-
-require github.com/vcp-vsa-control-Plane/vsa-control-plane/lib v0.0.0
 
 replace (
 	github.com/vcp-vsa-control-Plane/vsa-control-plane => ../

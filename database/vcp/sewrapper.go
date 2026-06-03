@@ -1641,6 +1641,22 @@ func (re *retryEngine) CreateJob(ctx context.Context, job *datamodel.Job) (*data
 	return var0, err
 }
 
+func (re *retryEngine) CreateJobWithWorkflowID(ctx context.Context, job *datamodel.Job, workflowID string) (*datamodel.Job, error) {
+	var var0 *datamodel.Job
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateJobWithWorkflowID(ctx, job, workflowID)
+		if err != nil {
+			re.logError("CreateJobWithWorkflowID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) DeleteJob(ctx context.Context, id, errorDetails string) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

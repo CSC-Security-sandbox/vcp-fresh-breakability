@@ -27,6 +27,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+const testFlexCacheVolumeExternalUUID = "external-uuid"
+
 func makeResult(vol *datamodel.Volume, workflowID string) *flexcache.CreateFlexCacheResult {
 	return &flexcache.CreateFlexCacheResult{
 		DBVolume: vol,
@@ -66,8 +68,9 @@ func allowAnyLogs(logger *log.MockLogger) {
 
 func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T) {
 	dbVolume := &datamodel.Volume{
-		Svm:     &datamodel.Svm{Name: "svm-name"},
-		Account: &datamodel.Account{Name: "account-name"},
+		BaseModel: datamodel.BaseModel{UUID: "flexcache-create-vol-uuid"},
+		Svm:       &datamodel.Svm{Name: "svm-name"},
+		Account:   &datamodel.Account{Name: "account-name"},
 		CacheParameters: &datamodel.CacheParameters{
 			PeerSvmName:     "peer-svm",
 			PeerVolumeName:  "peer-volume",
@@ -86,11 +89,16 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
+		mockSE.On("UpdateVolumeFields", mock.Anything, dbVolume.UUID, mock.MatchedBy(func(u map[string]interface{}) bool {
+			va, ok := u["volume_attributes"].(*datamodel.VolumeAttributes)
+			return ok && va != nil && va.ExternalUUID == testFlexCacheVolumeExternalUUID
+		})).Return(nil).Once()
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
 		ctx := context.Background()
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolume}
 
-		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: testFlexCacheVolumeExternalUUID}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -132,11 +140,33 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		assert.Error(tt, err)
 	})
 
+	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		mockSE := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
+		ctx := context.Background()
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolume}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: testFlexCacheVolumeExternalUUID}}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().CreateFlexCacheVolume(mock.Anything).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume created successfully")
+		mockSE.On("UpdateVolumeFields", mock.Anything, dbVolume.UUID, mock.Anything).Return(assert.AnError).Once()
+
+		_, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
 	t.Run("SuccessWithCacheConfig", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
 		ctx := context.Background()
 
 		writebackEnabled := true
@@ -145,8 +175,9 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		cifsChangeNotifyEnabled := false
 
 		dbVolumeWithCacheConfig := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-cache-config"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerSvmName:     "peer-svm",
 				PeerVolumeName:  "peer-volume",
@@ -168,7 +199,13 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		}
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithCacheConfig}
 
-		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+		mockSE.On("UpdateVolumeFields", mock.Anything, dbVolumeWithCacheConfig.UUID, mock.MatchedBy(func(u map[string]interface{}) bool {
+			va, ok := u["volume_attributes"].(*datamodel.VolumeAttributes)
+			return ok && va != nil && va.ExternalUUID == testFlexCacheVolumeExternalUUID
+		})).Return(nil).Once()
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: testFlexCacheVolumeExternalUUID}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -189,14 +226,15 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
 		ctx := context.Background()
 
 		writebackEnabled := true
 
 		dbVolumeWithPartialCacheConfig := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-partial-cache"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerSvmName:     "peer-svm",
 				PeerVolumeName:  "peer-volume",
@@ -216,7 +254,13 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		}
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithPartialCacheConfig}
 
-		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+		mockSE.On("UpdateVolumeFields", mock.Anything, dbVolumeWithPartialCacheConfig.UUID, mock.MatchedBy(func(u map[string]interface{}) bool {
+			va, ok := u["volume_attributes"].(*datamodel.VolumeAttributes)
+			return ok && va != nil && va.ExternalUUID == testFlexCacheVolumeExternalUUID
+		})).Return(nil).Once()
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: testFlexCacheVolumeExternalUUID}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -237,12 +281,13 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
 		ctx := context.Background()
 
 		dbVolumeWithNilCacheConfig := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-nil-cache"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerSvmName:     "peer-svm",
 				PeerVolumeName:  "peer-volume",
@@ -259,7 +304,13 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		}
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithNilCacheConfig}
 
-		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+		mockSE.On("UpdateVolumeFields", mock.Anything, dbVolumeWithNilCacheConfig.UUID, mock.MatchedBy(func(u map[string]interface{}) bool {
+			va, ok := u["volume_attributes"].(*datamodel.VolumeAttributes)
+			return ok && va != nil && va.ExternalUUID == testFlexCacheVolumeExternalUUID
+		})).Return(nil).Once()
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: testFlexCacheVolumeExternalUUID}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -281,14 +332,15 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
 		ctx := context.Background()
 
 		globalFileLock := true
 
 		dbVolumeWithGlobalFileLock := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-global-lock"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerSvmName:          "peer-svm",
 				PeerVolumeName:       "peer-volume",
@@ -305,7 +357,13 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		}
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithGlobalFileLock}
 
-		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+		mockSE.On("UpdateVolumeFields", mock.Anything, dbVolumeWithGlobalFileLock.UUID, mock.MatchedBy(func(u map[string]interface{}) bool {
+			va, ok := u["volume_attributes"].(*datamodel.VolumeAttributes)
+			return ok && va != nil && va.ExternalUUID == testFlexCacheVolumeExternalUUID
+		})).Return(nil).Once()
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: testFlexCacheVolumeExternalUUID}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -323,7 +381,7 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
 		ctx := context.Background()
 
 		writebackEnabled := true
@@ -333,8 +391,9 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		globalFileLock := true
 
 		dbVolumeWithAllConfig := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-all-config"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerSvmName:          "peer-svm",
 				PeerVolumeName:       "peer-volume",
@@ -358,7 +417,13 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		}
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithAllConfig}
 
-		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+		mockSE.On("UpdateVolumeFields", mock.Anything, dbVolumeWithAllConfig.UUID, mock.MatchedBy(func(u map[string]interface{}) bool {
+			va, ok := u["volume_attributes"].(*datamodel.VolumeAttributes)
+			return ok && va != nil && va.ExternalUUID == testFlexCacheVolumeExternalUUID
+		})).Return(nil).Once()
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: testFlexCacheVolumeExternalUUID}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -496,32 +561,45 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 	t.Run("Success", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
 		ctx := context.Background()
 		logger := log.NewMockLogger(tt)
 		expiry := time.Now().Add(time.Minute * 30)
+		pass := log.Secret("peer-pass")
+		expDT := strfmt.DateTime(expiry)
 		vol := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-cluster-peer"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerIpAddresses:   []string{"10.0.0.1", "10.0.0.2"},
 				PeerClusterName:   "peer-cluster",
+				PeerSvmName:       "peer-svm",
 				CommandExpiryTime: &expiry,
 			},
 		}
-		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
-		clusterPeer := &vsa.ClusterPeer{UUID: "cluster-peer-uuid", ExternalUUID: "ext-peer-uuid"}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: &datamodel.ClusterPeerings{BaseModel: datamodel.BaseModel{ID: 7}},
+		}
+		clusterPeer := &vsa.ClusterPeer{
+			UUID:            "cluster-peer-uuid",
+			ExternalUUID:    "ext-peer-uuid",
+			Passphrase:      &pass,
+			ExpiryTime:      &expDT,
+			PeerClusterName: "peer-cluster",
+		}
+		interclusterLifs := []*vsa.InterclusterLif{{Address: ontaprestmodel.IPAddress("10.1.0.1")}}
 
-		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2) // Once for activity, once for EnsureExternalPeerRole
-		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(4)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil).Times(2)
 
-		// Mock EnsureExternalPeerRole success (role creation succeeds)
 		mockProvider.EXPECT().CreateRole(mock.MatchedBy(func(params vsa.CreateRoleParams) bool {
 			return params.Name == activities.OnPremPeerRoleName
 		})).Return("role-location", nil)
 		logger.EXPECT().Infof("Successfully created role %s", activities.OnPremPeerRoleName)
 
-		// Mock CreateClusterPeer with LocalRole set
 		mockProvider.EXPECT().CreateClusterPeer(mock.MatchedBy(func(params vsa.CreateClusterPeerParams) bool {
 			return params.PeerName == "peer-cluster" &&
 				len(params.PeerAddresses) == 2 &&
@@ -534,6 +612,14 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 		})).Return(clusterPeer, nil)
 		logger.EXPECT().Infof("cluster peer created successfully with UUID: %s", clusterPeer.ExternalUUID)
 
+		mockProvider.EXPECT().GetInterclusterLIFs(vsa.InterclusterServicePolicyName).Return(interclusterLifs, nil)
+		mockSE.On("UpdateVolumeFields", ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			return updates["cache_parameters"] != nil
+		})).Return(nil).Once()
+		mockSE.On("UpdateClusterPeeringRow", ctx, mock.Anything).Return(nil).Once()
+		logger.EXPECT().Debug("cluster peer command updated successfully")
+		logger.EXPECT().Infof("Cluster peering row %s updated to state %s", mock.Anything, mock.Anything)
+
 		res, err := activity.CreateClusterPeerInOntapActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
 		assert.Equal(tt, clusterPeer, res.ClusterPeer)
@@ -542,32 +628,54 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 	t.Run("Success_RoleAlreadyExists", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
 		ctx := context.Background()
 		logger := log.NewMockLogger(tt)
+		pass := log.Secret("p2")
+		expiry := time.Now().Add(time.Hour)
+		expDT := strfmt.DateTime(expiry)
 		vol := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-cluster-peer-2"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerIpAddresses: []string{"10.0.0.1"},
 				PeerClusterName: "peer-cluster",
+				PeerSvmName:     "peer-svm",
 			},
 		}
-		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
-		clusterPeer := &vsa.ClusterPeer{UUID: "cluster-peer-uuid", ExternalUUID: "ext-peer-uuid"}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: &datamodel.ClusterPeerings{BaseModel: datamodel.BaseModel{ID: 8}},
+		}
+		clusterPeer := &vsa.ClusterPeer{
+			UUID:            "cluster-peer-uuid",
+			ExternalUUID:    "ext-peer-uuid",
+			Passphrase:      &pass,
+			ExpiryTime:      &expDT,
+			PeerClusterName: "peer-cluster",
+		}
+		interclusterLifs := []*vsa.InterclusterLif{{Address: ontaprestmodel.IPAddress("10.2.0.1")}}
 
-		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2)
-		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(4)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil).Times(2)
 
-		// Mock EnsureExternalPeerRole - role already exists (handled gracefully)
 		mockProvider.EXPECT().CreateRole(mock.Anything).Return("", errors.New("Role already exists"))
 		logger.EXPECT().Debugf("Role %s already exists, skipping creation", activities.OnPremPeerRoleName)
 
-		// Mock CreateClusterPeer
 		mockProvider.EXPECT().CreateClusterPeer(mock.MatchedBy(func(params vsa.CreateClusterPeerParams) bool {
 			return params.LocalRole != nil && *params.LocalRole == activities.OnPremPeerRoleName
 		})).Return(clusterPeer, nil)
 		logger.EXPECT().Infof("cluster peer created successfully with UUID: %s", clusterPeer.ExternalUUID)
+
+		mockProvider.EXPECT().GetInterclusterLIFs(vsa.InterclusterServicePolicyName).Return(interclusterLifs, nil)
+		mockSE.On("UpdateVolumeFields", ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			return updates["cache_parameters"] != nil
+		})).Return(nil).Once()
+		mockSE.On("UpdateClusterPeeringRow", ctx, mock.Anything).Return(nil).Once()
+		logger.EXPECT().Debug("cluster peer command updated successfully")
+		logger.EXPECT().Infof("Cluster peering row %s updated to state %s", mock.Anything, mock.Anything)
 
 		res, err := activity.CreateClusterPeerInOntapActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
@@ -856,12 +964,15 @@ func TestFlexCacheVolumeCreateActivity_CreateSVMPeeringInOntapActivity(t *testin
 	t.Run("Success", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
 		ctx := context.Background()
+		logger := log.NewMockLogger(tt)
 
 		vol := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-svm-peer"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerSvmName:     "peer-svm",
 				PeerClusterName: "peer-cluster",
@@ -870,8 +981,13 @@ func TestFlexCacheVolumeCreateActivity_CreateSVMPeeringInOntapActivity(t *testin
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
 		svmPeer := &vsa.SvmPeer{UUID: "svm-peer-uuid", State: "peered"}
 
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
 		mockProvider.EXPECT().CreateSVMPeer(mock.Anything).Return(svmPeer, nil)
+		mockSE.On("UpdateVolumeFields", ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			return updates["cache_parameters"] != nil
+		})).Return(nil).Once()
+		logger.EXPECT().Debug("svm peer command updated successfully")
 
 		res, err := activity.CreateSVMPeeringInOntapActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
@@ -926,12 +1042,15 @@ func TestFlexCacheVolumeCreateActivity_CreateSVMPeeringInOntapActivity(t *testin
 	t.Run("IncludesFlexcacheAndSnapmirrorApplications", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		mockProvider := vsa.NewMockProvider(tt)
-		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		mockSE := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: mockSE}
 		ctx := context.Background()
+		logger := log.NewMockLogger(tt)
 
 		vol := &datamodel.Volume{
-			Svm:     &datamodel.Svm{Name: "svm-name"},
-			Account: &datamodel.Account{Name: "account-name"},
+			BaseModel: datamodel.BaseModel{UUID: "vol-svm-peer-2"},
+			Svm:       &datamodel.Svm{Name: "svm-name"},
+			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
 				PeerSvmName:     "peer-svm",
 				PeerClusterName: "peer-cluster",
@@ -940,6 +1059,7 @@ func TestFlexCacheVolumeCreateActivity_CreateSVMPeeringInOntapActivity(t *testin
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
 		svmPeer := &vsa.SvmPeer{UUID: "svm-peer-uuid"}
 
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
 		mockProvider.EXPECT().CreateSVMPeer(mock.MatchedBy(func(params vsa.CreateSVMPeerParams) bool {
 			return params.LocalSVMName == "svm-name" &&
@@ -949,6 +1069,10 @@ func TestFlexCacheVolumeCreateActivity_CreateSVMPeeringInOntapActivity(t *testin
 				params.Applications[0] == ontaprestmodel.SvmPeerApplicationsFlexcache &&
 				params.Applications[1] == ontaprestmodel.SvmPeerApplicationsSnapmirror
 		})).Return(svmPeer, nil)
+		mockSE.On("UpdateVolumeFields", ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			return updates["cache_parameters"] != nil
+		})).Return(nil).Once()
+		logger.EXPECT().Debug("svm peer command updated successfully")
 
 		res, err := activity.CreateSVMPeeringInOntapActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
@@ -1277,92 +1401,26 @@ func TestFlexCacheVolumeCreateActivity_UpdateVolumeDetailsOnErrorActivity(t *tes
 	})
 }
 
-func TestCompleteFlexCacheCreateJobActivity(t *testing.T) {
-	ctx := context.Background()
-	act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(t)}
-
-	t.Run("GetJobError", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		act.SE = mockStorage
-		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).
-			Return(nil, assert.AnError)
-		job, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
-			DBVolume: &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "res-job"},
-				Name:      "res-job",
-				AccountID: 0,
-			},
-		})
-		assert.Nil(tt, job)
-		assert.Error(tt, err)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("JobNotFound when done/error", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		act.SE = mockStorage
-		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).
-			Return(nil, nil)
-		result, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
-			DBVolume: &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "res-job"},
-				Name:      "res-job",
-				AccountID: 0,
-			},
-		})
-		assert.NotNil(tt, result)
-		assert.Nil(tt, err)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("CompleteProcessing", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		act.SE = mockStorage
-		j := []*datamodel.Job{
-			{
-				BaseModel:    datamodel.BaseModel{UUID: "job-proc"},
-				State:        string(models.JobsStatePROCESSING),
-				WorkflowID:   "wf-proc",
-				TrackingID:   11,
-				ErrorDetails: "ed",
-			},
-		}
-		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return(j, nil)
-		mockStorage.On("UpdateJob", ctx, j[0].UUID, string(models.JobsStateDONE), j[0].TrackingID, j[0].ErrorDetails).Return(nil).Once()
-		result, err := act.CompleteFlexCacheCreateJobActivity(ctx, &flexcache.CreateFlexCacheResult{
-			DBVolume: &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "res-job"},
-				Name:      "res-job",
-				AccountID: 0,
-			},
-		})
-		assert.NoError(tt, err)
-		assert.Empty(tt, result.ErrorMessage)
-		assert.Equal(tt, 0, result.ErrorTrackingID)
-		mockStorage.AssertExpectations(tt)
-	})
-}
-
-func TestAbortIfCancelledActivity(t *testing.T) {
+func TestAbortIfEstablishPeeringCancelledActivity(t *testing.T) {
 	ctx := context.Background()
 	vol := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, Name: "v1"}
 
 	t.Run("jobNotFoundContinues", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheCreateVolume)).
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheEstablishPeering)).
 			Return(nil, customerrors.NewNotFoundErr("job", nil)).Once()
 		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
-		err := act.AbortIfCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
+		err := act.AbortIfEstablishPeeringCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("cancelledAborts", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheCreateVolume)).
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheEstablishPeering)).
 			Return(&datamodel.Job{State: string(models.JobsStateCANCELLED)}, nil).Once()
 		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
-		err := act.AbortIfCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
+		err := act.AbortIfEstablishPeeringCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "flexcache creation cancelled by delete request")
 		mockStorage.AssertExpectations(tt)
@@ -1370,62 +1428,32 @@ func TestAbortIfCancelledActivity(t *testing.T) {
 
 	t.Run("processingContinues", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheCreateVolume)).
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheEstablishPeering)).
 			Return(&datamodel.Job{State: string(models.JobsStatePROCESSING)}, nil).Once()
 		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
-		err := act.AbortIfCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
+		err := act.AbortIfEstablishPeeringCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
-}
 
-func TestCreatePeeringJobActivity(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-	act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
-	vol := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "res-peering"},
-		Name:      "res-peering",
-		AccountID: 0,
-	}
-	result := makeResult(vol, "wf-peering")
-
-	t.Run("ExistingProcessingReturns", func(tt *testing.T) {
-		existing := []*datamodel.Job{{
-			BaseModel: datamodel.BaseModel{UUID: "j1"},
-			State:     string(models.JobsStatePROCESSING),
-			Type:      string(models.JobTypeFlexCacheEstablishPeering),
-		}}
-		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).
-			Return(existing, nil).Once()
-		res, err := act.CreatePeeringJobActivity(ctx, result)
-		assert.NoError(tt, err)
-		assert.Empty(tt, res.ErrorMessage)
-		assert.Equal(tt, 0, res.ErrorTrackingID)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("CreateNewSuccess", func(tt *testing.T) {
-		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).
-			Return(nil, nil).Once()
-		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(j *datamodel.Job) bool {
-			return j.Type == string(models.JobTypeFlexCacheEstablishPeering) && j.State == string(models.JobsStatePROCESSING)
-		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "created"}, Type: string(models.JobTypeFlexCacheEstablishPeering), State: string(models.JobsStatePROCESSING)}, nil).Once()
-
-		res, err := act.CreatePeeringJobActivity(ctx, result)
-		assert.NoError(tt, err)
-		assert.Empty(tt, res.ErrorMessage)
-		assert.Equal(tt, 0, res.ErrorTrackingID)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("CreateFails", func(tt *testing.T) {
-		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).
-			Return(nil, nil).Once()
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, assert.AnError).Once()
-		job, err := act.CreatePeeringJobActivity(ctx, result)
-		assert.Nil(tt, job)
+	t.Run("getJobError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheEstablishPeering)).
+			Return(nil, errors.New("db down")).Once()
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		err := act.AbortIfEstablishPeeringCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
 		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("nilJobContinues", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheEstablishPeering)).
+			Return(nil, nil).Once()
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		err := act.AbortIfEstablishPeeringCancelledActivity(ctx, &flexcache.CreateFlexCacheResult{DBVolume: vol})
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 }
 
@@ -1471,6 +1499,59 @@ func TestCompletePeeringJobActivity(t *testing.T) {
 		assert.Equal(tt, string(coremodels.JobsStateDONE), job[0].State)
 		mockStorage.AssertExpectations(tt)
 	})
+
+	t.Run("SkipsWhenCreatingState", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume: &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "res-uuid"}},
+			ClusterPeeringRow: &datamodel.ClusterPeerings{
+				State: coremodels.CvpClusterPeeringStatusCREATING,
+			},
+		}
+
+		err := act.CompletePeeringJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		mockStorage.AssertNotCalled(tt, "GetJobsWithCondition", mock.Anything, mock.Anything)
+	})
+
+	t.Run("CompletesWhenPeeredState", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		clusterPeerRow := &datamodel.ClusterPeerings{
+			OntapPeerUUID: "cp-uuid",
+			State:         coremodels.CvpClusterPeeringStatusPEERED,
+		}
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "res-uuid"},
+			CacheParameters: &datamodel.CacheParameters{
+				CacheState: cvpModels.FlexCacheV1betaCacheStatePEERED,
+			},
+		}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: clusterPeerRow,
+		}
+
+		job := []*datamodel.Job{
+			{
+				BaseModel:    datamodel.BaseModel{UUID: "jp-peered"},
+				Type:         string(coremodels.JobTypeFlexCacheEstablishPeering),
+				State:        string(coremodels.JobsStatePROCESSING),
+				TrackingID:   0,
+				ErrorDetails: "",
+			},
+		}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return(job, nil).Once()
+		mockStorage.On("UpdateJob", ctx, job[0].UUID, string(coremodels.JobsStateDONE), job[0].TrackingID, job[0].ErrorDetails).Return(nil).Once()
+
+		err := act.CompletePeeringJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(coremodels.JobsStateDONE), job[0].State)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestStartInternalJobActivity(t *testing.T) {
@@ -1504,14 +1585,25 @@ func TestStartInternalJobActivity(t *testing.T) {
 
 	t.Run("CreateInternalSuccess", func(tt *testing.T) {
 		mockStorage.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, string(models.JobTypeFlexCacheInternalPeering)).Return(nil, errors.New("nf")).Once()
-		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(j *datamodel.Job) bool {
+		mockStorage.On("CreateJobWithWorkflowID", ctx, mock.MatchedBy(func(j *datamodel.Job) bool {
 			return j.Type == string(models.JobTypeFlexCacheInternalPeering) && j.IsAdminJob
-		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "int-created"}, Type: string(models.JobTypeFlexCacheInternalPeering), State: string(models.JobsStatePROCESSING)}, nil).Once()
+		}), "wf-peering").Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "int-created"}, Type: string(models.JobTypeFlexCacheInternalPeering), State: string(models.JobsStatePROCESSING)}, nil).Once()
 		res, err := act.StartInternalJobActivity(ctx, result)
 		assert.NoError(tt, err)
 		assert.Empty(tt, res.ErrorMessage)
 		assert.Equal(tt, 0, res.ErrorTrackingID)
 		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateInternalJobFails", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		innerAct := &FlexCacheVolumeCreateActivity{SE: ms}
+		ms.On("GetJobByResourceUUID", ctx, result.JobInput.ResourceUUID, string(models.JobTypeFlexCacheInternalPeering)).Return(nil, errors.New("nf")).Once()
+		ms.On("CreateJobWithWorkflowID", ctx, mock.Anything, "wf-peering").Return(nil, assert.AnError).Once()
+		res, err := innerAct.StartInternalJobActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, res)
+		ms.AssertExpectations(tt)
 	})
 }
 
@@ -1669,6 +1761,56 @@ func TestFailJobActivity(t *testing.T) {
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
+
+	t.Run("UpdateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		jobs := []*datamodel.Job{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "cj-fail-update"},
+				Type:      string(coremodels.JobTypeFlexCacheEstablishPeering),
+				State:     string(coremodels.JobsStatePROCESSING),
+			},
+		}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:        &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "res-fail-update"}},
+			ActiveJobType:   models.JobTypeFlexCacheEstablishPeering,
+			ErrorTrackingID: 123,
+			ErrorMessage:    "fail reason",
+		}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return(jobs, nil).Once()
+		mockStorage.On("UpdateJob", ctx, jobs[0].UUID, string(models.JobsStateERROR), 123, "fail reason").Return(assert.AnError).Once()
+
+		err := act.FailJobActivity(ctx, result)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UsesUnspecifiedErrorWhenEmptyDetails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		jobs := []*datamodel.Job{
+			{
+				BaseModel:    datamodel.BaseModel{UUID: "cj-unspecified"},
+				Type:         string(coremodels.JobTypeFlexCacheEstablishPeering),
+				State:        string(coremodels.JobsStatePROCESSING),
+				TrackingID:   0,
+				ErrorDetails: "",
+			},
+		}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "res-unspecified"}},
+			ActiveJobType: models.JobTypeFlexCacheEstablishPeering,
+		}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return(jobs, nil).Once()
+		mockStorage.On("UpdateJob", ctx, jobs[0].UUID, string(models.JobsStateERROR), jobs[0].TrackingID, "unspecified error").Return(nil).Once()
+
+		err := act.FailJobActivity(ctx, result)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestCompleteJobInternalPaths(t *testing.T) {
@@ -1764,6 +1906,76 @@ func TestCompleteJobInternalPaths(t *testing.T) {
 		assert.Nil(tt, res)
 		assert.Error(tt, err)
 	})
+
+	t.Run("GetActiveJobsError", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		innerAct := &FlexCacheVolumeCreateActivity{SE: ms}
+		ms.On("GetJobsWithCondition", ctx, mock.Anything).Return(nil, assert.AnError).Once()
+		res, err := innerAct.completeJob(ctx, completeJobOpts{
+			ResourceUUID:  "res-get-jobs-err",
+			JobType:       string(coremodels.JobTypeFlexCacheInternalPeering),
+			GetErrCode:    vsaerrors.ErrInternalPeeringJobFailed,
+			UpdateErrCode: vsaerrors.ErrInternalPeeringJobFailed,
+		})
+		assert.Nil(tt, res)
+		assert.Error(tt, err)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("JobNotFound", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		innerAct := &FlexCacheVolumeCreateActivity{SE: ms}
+		ms.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{}, nil).Once()
+		res, err := innerAct.completeJob(ctx, completeJobOpts{
+			ResourceUUID:  "res-no-job",
+			JobType:       string(coremodels.JobTypeFlexCacheInternalPeering),
+			GetErrCode:    vsaerrors.ErrInternalPeeringJobFailed,
+			UpdateErrCode: vsaerrors.ErrInternalPeeringJobFailed,
+		})
+		assert.Nil(tt, res)
+		assert.Error(tt, err)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("AlreadyDone", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		innerAct := &FlexCacheVolumeCreateActivity{SE: ms}
+		doneJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "job-done"},
+			Type:      string(coremodels.JobTypeFlexCacheInternalPeering),
+			State:     string(coremodels.JobsStateDONE),
+		}
+		ms.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{doneJob}, nil).Once()
+		res, err := innerAct.completeJob(ctx, completeJobOpts{
+			ResourceUUID:  "res-done",
+			JobType:       string(coremodels.JobTypeFlexCacheInternalPeering),
+			GetErrCode:    vsaerrors.ErrInternalPeeringJobFailed,
+			UpdateErrCode: vsaerrors.ErrInternalPeeringJobFailed,
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, doneJob, res)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("AlreadyError", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		innerAct := &FlexCacheVolumeCreateActivity{SE: ms}
+		errorJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "job-error"},
+			Type:      string(coremodels.JobTypeFlexCacheInternalPeering),
+			State:     string(coremodels.JobsStateERROR),
+		}
+		ms.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{errorJob}, nil).Once()
+		res, err := innerAct.completeJob(ctx, completeJobOpts{
+			ResourceUUID:  "res-error",
+			JobType:       string(coremodels.JobTypeFlexCacheInternalPeering),
+			GetErrCode:    vsaerrors.ErrInternalPeeringJobFailed,
+			UpdateErrCode: vsaerrors.ErrInternalPeeringJobFailed,
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, errorJob, res)
+		ms.AssertExpectations(tt)
+	})
 }
 
 func TestMapJobTypeToError(t *testing.T) {
@@ -1798,10 +2010,10 @@ func TestLoggingPatchedForJobActivities(t *testing.T) {
 	logger := log.NewMockLogger(t)
 	mm.EXPECT().utilGetLogger(ctx).Return(logger)
 	allowAnyLogs(logger)
-	jobs := []*datamodel.Job{minimalJob("u1", string(models.JobsStateDONE))}
-	// Allow one or more calls to GetJobsWithCondition; we don't assert exact count for this smoke test.
-	mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return(jobs, nil).Maybe()
-	_, _ = act.CompleteFlexCacheCreateJobActivity(ctx, result)
+	mockStorage.On("GetJobByResourceUUID", ctx, vol.UUID, string(coremodels.JobTypeFlexCacheEstablishPeering)).
+		Return(nil, customerrors.NewNotFoundErr("job", nil)).Once()
+	err := act.AbortIfEstablishPeeringCancelledActivity(ctx, result)
+	assert.NoError(t, err)
 }
 
 func TestFlexCacheVolumeCreateActivity_HydrateFlexCacheState(t *testing.T) {
@@ -2360,29 +2572,6 @@ func TestFlexCacheVolumeCreateActivity_GetClusterPeeringRowFromDBActivity(t *tes
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("ClusterPeeringWithErrorReturnsNilRow", func(tt *testing.T) {
-		vol := makeVolume()
-		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
-
-		existing := &datamodel.ClusterPeerings{
-			BaseModel:      datamodel.BaseModel{UUID: "peer-row-1"},
-			AccountID:      vol.Account.ID,
-			PoolID:         vol.Pool.ID,
-			OnprempCluster: vol.CacheParameters.PeerClusterName,
-			State:          coremodels.CvpClusterPeeringStatusERROR,
-		}
-
-		mockStorage.
-			On("GetClusterPeerByAccountIDExternalClusterAndPoolID", ctx,
-				vol.Account.ID, vol.CacheParameters.PeerClusterName, vol.Pool.ID).
-			Return(existing, nil).Once()
-
-		out, err := act.GetClusterPeeringRowFromDBActivity(ctx, result)
-		assert.Nil(tt, err)
-		assert.Equal(tt, existing, out.ClusterPeeringRow)
-		mockStorage.AssertExpectations(tt)
-	})
-
 	t.Run("GetError", func(tt *testing.T) {
 		vol := makeVolume()
 		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
@@ -2395,6 +2584,30 @@ func TestFlexCacheVolumeCreateActivity_GetClusterPeeringRowFromDBActivity(t *tes
 		out, err := act.GetClusterPeeringRowFromDBActivity(ctx, result)
 		assert.Error(tt, err)
 		assert.Nil(tt, out)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ErrorStateClearsRow", func(tt *testing.T) {
+		vol := makeVolume()
+		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		existing := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "peer-row-error"},
+			AccountID:      vol.Account.ID,
+			PoolID:         vol.Pool.ID,
+			OnprempCluster: vol.CacheParameters.PeerClusterName,
+			State:          coremodels.CvpClusterPeeringStatusERROR,
+		}
+
+		mockStorage.
+			On("GetClusterPeerByAccountIDExternalClusterAndPoolID", ctx,
+				vol.Account.ID, vol.CacheParameters.PeerClusterName, vol.Pool.ID).
+			Return(existing, nil).Once()
+
+		out, err := act.GetClusterPeeringRowFromDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, out)
+		assert.Nil(tt, out.ClusterPeeringRow)
 		mockStorage.AssertExpectations(tt)
 	})
 }

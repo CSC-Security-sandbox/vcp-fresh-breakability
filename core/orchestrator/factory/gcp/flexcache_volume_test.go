@@ -163,13 +163,6 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
-		event := &flexcache.CreateFlexCacheEvent{
-			LocationID:    location,
-			ProjectNumber: params.AccountName,
-			RequestUri:    requestURI,
-			CorrelationID: &correlationID,
-		}
-
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
@@ -182,7 +175,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			mock.AnythingOfType("StartWorkflowOptions"),
 			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume, *flexcache.CreateFlexCacheEvent) error"),
 			mock.AnythingOfType("ChildWorkflowOptions"),
-			params, mock.AnythingOfType("*datamodel.Volume"), event).Return(nil)
+			params, mock.AnythingOfType("*datamodel.Volume"), mock.AnythingOfType("*flexcache.CreateFlexCacheEvent")).Return(nil)
 
 		volume, _, err := _createFlexCacheVolume(ctx, store, temporal, params)
 		assert.NotNil(tt, volume, "Expected nil volume")
@@ -252,13 +245,6 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name:      "test_account",
 		}
 
-		event := &flexcache.CreateFlexCacheEvent{
-			LocationID:    location,
-			ProjectNumber: params.AccountName,
-			RequestUri:    requestURI,
-			CorrelationID: &correlationID,
-		}
-
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
@@ -285,7 +271,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 					return false
 				}
 				return true
-			}), event).Return(nil)
+			}), mock.AnythingOfType("*flexcache.CreateFlexCacheEvent")).Return(nil)
 
 		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
 		assert.NotNil(tt, volume)
@@ -324,13 +310,6 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name:      "test_account",
 		}
 
-		event := &flexcache.CreateFlexCacheEvent{
-			LocationID:    location,
-			ProjectNumber: params.AccountName,
-			RequestUri:    requestURI,
-			CorrelationID: &correlationID,
-		}
-
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
@@ -350,7 +329,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 				}
 				// CacheConfig should be nil for backwards compatibility
 				return vol.CacheParameters.CacheConfig == nil
-			}), event).Return(nil)
+			}), mock.AnythingOfType("*flexcache.CreateFlexCacheEvent")).Return(nil)
 
 		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
 		assert.NotNil(tt, volume)
@@ -702,7 +681,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Error(tt, err)
 	})
 
-	t.Run("CreateJob_SetsSupervisorGracePeriod", func(tt *testing.T) {
+	t.Run("CreateEstablishPeeringJob_Error", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewMockLogger(tt)
 		store := database.NewMockStorage(tt)
@@ -731,11 +710,71 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
-		event := &flexcache.CreateFlexCacheEvent{
-			LocationID:    location,
-			ProjectNumber: params.AccountName,
-			RequestUri:    requestURI,
-			CorrelationID: &correlationID,
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				APIAccessMode: common.DEFAULTMode,
+			},
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
+		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
+		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(poolView, nil)
+		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
+		mm.EXPECT().utilsGetRequestIDFromContext(ctx).Return(requestURI)
+		mm.EXPECT().utilsGetCorrelationIDFromContext(ctx).Return(correlationID)
+		store.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{}, nil)
+		store.EXPECT().CreateVolume(ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
+			Pool: &datamodel.Pool{
+				VendorID: vendorID,
+			},
+		}, nil)
+		store.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeFlexCacheCreateVolume)
+		})).Return(&datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}, nil)
+		store.EXPECT().CreateJobWithWorkflowID(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeFlexCacheEstablishPeering)
+		}), "test-workflow-id").Return(nil, assert.AnError)
+		mockLogger.EXPECT().Errorf("Failed to create establish peering job in database, error: %v", assert.AnError)
+
+		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume)
+		assert.Empty(tt, jobID)
+		assert.Error(tt, err)
+		assert.Equal(tt, assert.AnError, err)
+	})
+
+	t.Run("CreateJob_SetsSupervisorGracePeriod", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewMockLogger(tt)
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
+
+		params := &common.CreateVolumeParams{
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
 		}
 
 		poolView := &datamodel.PoolView{
@@ -786,12 +825,27 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
 			WorkflowID: "test-workflow-id",
 		}, nil)
+		store.EXPECT().CreateJobWithWorkflowID(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeFlexCacheEstablishPeering)
+		}), "test-workflow-id").Return(&datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "establish-job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}, nil)
 		mm.EXPECT().workflowsExecuteWorkflowSequentially(
 			temporal, ctx,
 			mock.AnythingOfType("StartWorkflowOptions"),
 			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume, *flexcache.CreateFlexCacheEvent) error"),
 			mock.AnythingOfType("ChildWorkflowOptions"),
-			params, mock.AnythingOfType("*datamodel.Volume"), event).Return(nil)
+			params, mock.AnythingOfType("*datamodel.Volume"),
+			mock.MatchedBy(func(ev *flexcache.CreateFlexCacheEvent) bool {
+				return ev != nil &&
+					ev.EstablishPeeringJobUUID == "establish-job-uuid" &&
+					ev.LocationID == location &&
+					ev.ProjectNumber == params.AccountName &&
+					ev.RequestUri == requestURI &&
+					ev.CorrelationID != nil && *ev.CorrelationID == correlationID
+			}),
+		).Return(nil)
 
 		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
 		assert.NotNil(tt, volume)
@@ -827,13 +881,6 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
-		event := &flexcache.CreateFlexCacheEvent{
-			LocationID:    location,
-			ProjectNumber: params.AccountName,
-			RequestUri:    requestURI,
-			CorrelationID: &correlationID,
-		}
-
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
@@ -846,7 +893,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			mock.AnythingOfType("StartWorkflowOptions"),
 			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume, *flexcache.CreateFlexCacheEvent) error"),
 			mock.AnythingOfType("ChildWorkflowOptions"),
-			params, mock.AnythingOfType("*datamodel.Volume"), event).Return(assert.AnError)
+			params, mock.AnythingOfType("*datamodel.Volume"), mock.AnythingOfType("*flexcache.CreateFlexCacheEvent")).Return(assert.AnError)
 		mockLogger.EXPECT().Errorf("Failed to start create FlexCache volume workflow, error: %v", assert.AnError)
 
 		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
@@ -899,13 +946,6 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
-		event := &flexcache.CreateFlexCacheEvent{
-			LocationID:    location,
-			ProjectNumber: params.AccountName,
-			RequestUri:    requestURI,
-			CorrelationID: &correlationID,
-		}
-
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
@@ -918,7 +958,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			mock.AnythingOfType("StartWorkflowOptions"),
 			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume, *flexcache.CreateFlexCacheEvent) error"),
 			mock.AnythingOfType("ChildWorkflowOptions"),
-			params, mock.AnythingOfType("*datamodel.Volume"), event).Return(nil)
+			params, mock.AnythingOfType("*datamodel.Volume"), mock.AnythingOfType("*flexcache.CreateFlexCacheEvent")).Return(nil)
 
 		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
 		assert.NotNil(tt, volume, "Expected non-nil volume")
@@ -967,13 +1007,6 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
-		event := &flexcache.CreateFlexCacheEvent{
-			LocationID:    location,
-			ProjectNumber: params.AccountName,
-			RequestUri:    requestURI,
-			CorrelationID: &correlationID,
-		}
-
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
@@ -986,7 +1019,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			mock.AnythingOfType("StartWorkflowOptions"),
 			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume, *flexcache.CreateFlexCacheEvent) error"),
 			mock.AnythingOfType("ChildWorkflowOptions"),
-			params, mock.AnythingOfType("*datamodel.Volume"), event).Return(nil)
+			params, mock.AnythingOfType("*datamodel.Volume"), mock.AnythingOfType("*flexcache.CreateFlexCacheEvent")).Return(nil)
 
 		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
 		assert.NotNil(tt, volume, "Expected non-nil volume")

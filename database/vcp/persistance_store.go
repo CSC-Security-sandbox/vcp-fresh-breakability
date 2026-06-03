@@ -737,6 +737,10 @@ func (s *PersistenceStore) CreateJob(ctx context.Context, job *datamodel.Job) (*
 	return s.dataStore.CreateJob(ctx, job)
 }
 
+func (s *PersistenceStore) CreateJobWithWorkflowID(ctx context.Context, job *datamodel.Job, workflowID string) (*datamodel.Job, error) {
+	return s.dataStore.CreateJobWithWorkflowID(ctx, job, workflowID)
+}
+
 func (s *PersistenceStore) UpdateJob(ctx context.Context, id string, status string, trackingID int, errorDetails string) error {
 	return s.dataStore.UpdateJob(ctx, id, status, trackingID, errorDetails)
 }
