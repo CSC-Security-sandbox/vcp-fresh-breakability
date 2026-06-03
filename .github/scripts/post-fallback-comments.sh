@@ -254,6 +254,43 @@ except Exception:
 PYEOF
 }
 
+get_behavioral_grade() {
+  local _pr_number="${1:-}"
+  _BC_BG_PR="$_pr_number" _BC_BG_RESULTS="$RESULTS_FILE" python3 - <<'PYEOF'
+import json, os, shlex
+
+KEYS = ("BG_OK", "BG_GRADE", "BG_SOURCE", "BG_RATIONALE", "BG_GUIDANCE",
+        "BG_EVIDENCE", "BG_CALLSITE", "BG_CHANGED")
+DEFAULTS = {k: "" for k in KEYS}
+DEFAULTS["BG_OK"] = "0"
+
+def emit(v):
+    for k in KEYS:
+        val = "" if v.get(k) is None else str(v.get(k, "")).replace("\r", " ")
+        print(f"{k}={shlex.quote(val)}")
+
+try:
+    pr = os.environ.get("_BC_BG_PR", "")
+    with open(os.environ.get("_BC_BG_RESULTS", ""), encoding="utf-8") as fh:
+        data = json.load(fh)
+    g = ((data.get("prs") or {}).get(pr) or {}).get("behavioral_grade")
+    if not isinstance(g, dict) or str(g.get("grade", "")).lower() not in ("none", "low", "medium", "high"):
+        emit(DEFAULTS); raise SystemExit(0)
+    emit({
+        "BG_OK": "1",
+        "BG_GRADE": str(g.get("grade", "")).lower(),
+        "BG_SOURCE": str(g.get("source", "")),
+        "BG_RATIONALE": str(g.get("rationale", "")),
+        "BG_GUIDANCE": str(g.get("guidance", "")),
+        "BG_EVIDENCE": str(g.get("evidence", "")),
+        "BG_CALLSITE": str(g.get("call_site", "")),
+        "BG_CHANGED": str(g.get("behavior_changed", "")),
+    })
+except Exception:
+    emit(DEFAULTS)
+PYEOF
+}
+
 v2_signal_label() {
   case "${1:-UNAVAILABLE}" in
     POSITIVE) printf '⚠️ concern' ;;
@@ -498,6 +535,7 @@ print(json.dumps({
     'merge_risk': pr.get('merge_risk', {}) or (pr.get('deterministic', {}) or {}).get('merge_risk', {}),
     'declared_break_reachability': pr.get('declared_break_reachability', {}),
     'ai_behavioral_assessment': pr.get('ai_behavioral_assessment', {}),
+    'behavioral_grade': pr.get('behavioral_grade', {}),
     'cve_details': pr.get('cve_details', []),
     'verification_steps': pr.get('verification_steps', []),
     'fixes_cves': pr.get('fixes_cves', []),
@@ -1922,20 +1960,47 @@ if risk and "Merge Risk:" not in body:
 print(body)
 ' 2>/dev/null || printf '%s' "$COMMENT")
     eval "$(get_verdict_v2 "$PR_NUM")"
+    eval "$(get_behavioral_grade "$PR_NUM")"
+    # Reset per-PR so a prior PR's residual evidence can never leak onto this one.
+    _V2_RESIDUAL_BLOCK=""
+    # BLOCKED -> High; SAFE -> None; REVIEW -> the committed behavioral grade (the
+    # differential probe / break-class router) if present, else Medium. This replaces
+    # the "review the release notes yourself" punt with a graded answer.
+    case "${V2_VERDICT:-REVIEW}" in
+      BLOCKED) _GRADE="high" ;;
+      SAFE)    _GRADE="${BG_GRADE:-none}"; [[ "${BG_OK:-0}" == "1" ]] || _GRADE="none" ;;
+      *)       _GRADE="${BG_GRADE:-medium}"; [[ "${BG_OK:-0}" == "1" ]] || _GRADE="medium" ;;
+    esac
+    case "$_GRADE" in
+      high)   _V2_HEADLINE="🔴 Breakability: High · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+      medium) _V2_HEADLINE="🟠 Breakability: Medium · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+      low)    _V2_HEADLINE="🟡 Breakability: Low · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+    esac
     case "${V2_VERDICT:-REVIEW}" in
       SAFE)
-        _V2_HEADLINE="✅ SAFE TO MERGE · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}"
-        _V2_RESIDUAL_BLOCK=""
+        # None/Low with positive evidence => no residual block needed.
+        [[ "$_GRADE" == "none" ]] && _V2_RESIDUAL_BLOCK=""
         ;;
       BLOCKED)
-        _V2_HEADLINE="⛔ DO NOT MERGE · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}"
         ;;
       *)
         V2_VERDICT="REVIEW"
-        _V2_HEADLINE="⚠️ REVIEW SUGGESTED · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}"
         ;;
     esac
-    if [[ "${V2_VERDICT:-REVIEW}" == "REVIEW" || "${V2_VERDICT:-REVIEW}" == "BLOCKED" ]]; then
+    # When the committed behavioral grade carries a reasoned rationale, surface THAT
+    # (concrete, committed) instead of the generic "what to check" residual.
+    if [[ "${BG_OK:-0}" == "1" && -n "${BG_RATIONALE:-}" ]]; then
+      _BG_BODY="Why: ${BG_RATIONALE}"
+      [[ -n "${BG_GUIDANCE:-}" ]] && _BG_BODY="${_BG_BODY}
+→ ${BG_GUIDANCE}"
+      [[ -n "${BG_EVIDENCE:-}" ]] && _BG_BODY="${_BG_BODY}
+Evidence: ${BG_EVIDENCE}"
+      [[ -n "${BG_CALLSITE:-}" ]] && _BG_BODY="${_BG_BODY}
+Reachable at: ${BG_CALLSITE}"
+      _V2_RESIDUAL_BLOCK="$_BG_BODY"
+    fi
+    if [[ "${BG_OK:-0}" != "1" && ( "${V2_VERDICT:-REVIEW}" == "REVIEW" || "${V2_VERDICT:-REVIEW}" == "BLOCKED" ) ]]; then
       _V2_RESIDUAL_SUMMARY_RAW="${V2_RESIDUAL_SUMMARY:-${V2_REASON:-manual review required}}"
       _V2_RESIDUAL_CHECK_RAW="${V2_RESIDUAL_CHECK:-Review the deterministic evidence below before merging.}"
       _V2_RESIDUAL_CHANGELOG_RAW="${V2_RESIDUAL_CHANGELOG:-}"

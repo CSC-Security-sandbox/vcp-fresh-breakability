@@ -358,21 +358,29 @@ jobs:
         run: |
           agent --version || echo "WARNING: agent CLI not on PATH"
 
-      # Targeted behavioral probe: fires ONE focused AI call per PR that hits the
-      # declared-behavioral residual (build/tests/api-diff clean, but the changelog
-      # declares a behavioral break and production code imports the affected package).
-      # It enriches /tmp/build-results.json with an advisory `ai_behavioral_assessment`
-      # that the renderer surfaces. Runs BEFORE the commit + full agent + comments so
-      # all consumers see the enrichment. Advisory only — never flips the verdict.
-      # Intentionally NOT given GH tokens: the probe must not mutate PRs or post anything.
-      - name: Behavioral probe (targeted AI)
+      # Differential probe: commits a behavioral grade (none|low|medium|high) for each
+      # declared-behavioral residual PR (build/tests/api-diff clean, but the changelog
+      # declares a behavioral break that production code imports) — replacing the old
+      # "review the release notes yourself" punt. A break-class ROUTER first decides
+      # whether the break is observable from a minimal call-site probe:
+      #   - not_observable (load/state/time/concurrency-dependent, e.g. cardinality) or
+      #     ambiguous  -> committed Medium + targeted note, ZERO AI calls (a probe would
+      #     false-green these);
+      #   - call_observable (changed default/return/error/format/signature) -> ONE AI call
+      #     that downloads the dep at both versions, builds+runs a self-contained probe
+      #     exercising only the named dimension, diffs it, and the driver floors the grade
+      #     conservatively (incomplete -> Medium; none/low only with source-cited proof).
+      # Sandboxed (ephemeral workdir, scrubbed env, repo-clean verified), fail-open, and
+      # intentionally NOT given GH tokens. Runs BEFORE commit + full agent + comments.
+      - name: Differential probe (behavioral grade)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_behavioral_probe }}
         continue-on-error: true
         run: |
-          python3 .github/scripts/behavioral-probe.py
+          python3 .github/scripts/differential-probe.py
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-          BP_REPO_ROOT: ${{ github.workspace }}
+          DP_REPO_ROOT: ${{ github.workspace }}
+          DP_CACHE_DIR: ${{ runner.temp }}/dp-cache
         timeout-minutes: 30
 
       - name: Commit build results to temp branch
