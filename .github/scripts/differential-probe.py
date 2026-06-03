@@ -338,15 +338,15 @@ def run_agent(ctx, workdir, prompt_file=PROMPT_FILE, timeout=PROBE_TIMEOUT):
     full = (prompt + f"\n\n---\nDP_INPUT={in_path}\nDP_OUTPUT={out_path}\nDP_WORKDIR={workdir}\n"
             + "cd into DP_WORKDIR first. Read DP_INPUT, do the analysis there only, write the "
               "proof-contract JSON to DP_OUTPUT, then stop.")
-    # Auth via the CURSOR_API_KEY *secret*, passed explicitly with --api-key, so the
-    # probe is runner-independent: it does NOT depend on a stored `agent login` in the
-    # runner's HOME, and a valid key is consumed directly without ever touching the macOS
-    # Keychain (the source of the earlier 30s "Keychain operation timed out" hangs). Because
-    # auth no longer needs the real HOME, we keep a SCRATCH HOME for injection containment,
-    # and surgically strip credentials so a prompt-injected agent can't push/comment or
-    # exfiltrate tokens. Repo safety = cwd=workdir + the git-porcelain fail-closed guard.
-    home = os.path.join(workdir, "home")
-    os.makedirs(home, exist_ok=True)
+    # cursor-agent on macOS shells out to the `security`/Keychain tool during a real model
+    # call. Under a SCRATCH HOME on the headless runner that call fails ("Keychain operation
+    # timed out" / "Security command failed: code 154") even when --api-key is supplied --
+    # the key does NOT keep it off the Keychain. The main agent step avoids this by running
+    # with the real HOME (its ~/.cursor cache short-circuits the security call), so we mirror
+    # that: inherit the real environment (incl. HOME) and ALSO pass --api-key so the repo
+    # secret is the operative credential. We still surgically strip credentials so a
+    # prompt-injected agent can't push/comment or exfiltrate tokens; repo-write safety =
+    # cwd=workdir + the git-porcelain fail-closed guard (NOT HOME).
     env = dict(os.environ)
     for k in list(env.keys()):
         ku = k.upper()
@@ -356,7 +356,6 @@ def run_agent(ctx, workdir, prompt_file=PROMPT_FILE, timeout=PROBE_TIMEOUT):
                 or "TOKEN" in ku or "SECRET" in ku or "PASSWORD" in ku or "PASSWD" in ku
                 or ku.endswith("_API_KEY") or ku.endswith("_APIKEY")):
             env.pop(k, None)
-    env["HOME"] = home
     env["GOWORK"] = "off"
     env["GOCACHE"] = os.path.join(workdir, "gocache")
     # Pass the secret on the command line so the real Cursor CLI authenticates from it
