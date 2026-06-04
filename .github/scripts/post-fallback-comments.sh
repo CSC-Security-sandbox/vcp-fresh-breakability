@@ -907,6 +907,14 @@ ev = r.get('evidence') or []
 # Optional AI behavioral probe result (advisory only — never flips the deterministic verdict).
 aba = d.get('ai_behavioral_assessment') or {}
 aba_verdict = (aba.get('verdict') or '').strip().lower() if isinstance(aba, dict) else ''
+# The two-oracle behavioral grade (differential probe / release-notes reasoning oracle).
+# When it committed a CITED, graded verdict we must not also tell the dev to "check it
+# yourself" — that is the exact unhelpful punt the grade replaces.
+_bg = d.get('behavioral_grade') or {}
+_bg_source = (_bg.get('source') or '').strip().lower() if isinstance(_bg, dict) else ''
+_bg_cited = _bg_source in ('reasoning', 'probe') and bool(
+    (_bg.get('rationale') or '').strip() or (_bg.get('guidance') or '').strip()
+    or (_bg.get('evidence') or '').strip())
 def _aba_bullet():
     # Render the AI probe outcome as an advisory bullet, clearly labelled as a non-proof judgment.
     rationale = (aba.get('rationale') or '').strip()
@@ -963,6 +971,14 @@ if r.get('prod_reachable'):
     _ai_line = _aba_bullet() if aba_verdict in ('affected', 'not_affected') else None
     if _ai_line:
         lines.append(_ai_line)
+    elif _bg_cited:
+        # The behavioral oracle already committed a graded, cited verdict (rendered in
+        # the headline above). Point to it instead of the generic "check it yourself".
+        _g = (_bg.get('grade') or 'medium').strip().lower()
+        _label = {'none': 'None', 'low': 'Low', 'medium': 'Medium', 'high': 'High'}.get(_g, 'Medium')
+        _guid = (_bg.get('guidance') or '').strip()
+        _tail = f' {_guid}' if _guid else ''
+        lines.append(f"- The behavioral oracle assessed this against the release notes and your call site and committed **Breakability: {_label}** with cited reasoning (see the verdict above) — this is a graded answer, not a \"verify it yourself\".{_tail}")
     else:
         lines.append('- This is a **manual-review signal, not a confirmed break** — graded **Medium / Review**, not High. To settle it: check whether your usage relies on the changed behavior described in the release notes. If it does not, this signal does not block the merge.')
 elif r.get('test_only'):
@@ -1517,7 +1533,7 @@ else:
       _REVIEW_WHY="Build and tests pass on the PR branch, but that does **not** clear this upgrade: ${MERGE_RISK_REASON}. Behavioral changes (changed defaults, error/ordering semantics) and breaks in sibling or transitive modules are invisible to compilation and to existing tests. Verify the affected behavior against the release notes before merging."
     else
       _REVIEW_TITLE="⚠️ REVIEW SUGGESTED"
-      _REVIEW_WHY="Build and tests pass on the PR branch — but the maintainer **declares a behavioral breaking change** and your code imports the affected package. Behavioral changes (changed defaults, error/ordering semantics) are invisible to compilation, tests, and API-diff, so this is a **review signal, not a confirmed break**. Check whether your usage relies on the changed behavior against the release notes; if it does not, this does not block the merge. The exact import site is in the reachability block below."
+      _REVIEW_WHY="Build and tests pass on the PR branch — but the maintainer **declares a behavioral breaking change** and your code imports the affected package. Behavioral changes (changed defaults, error/ordering semantics) are invisible to compilation, tests, and API-diff, so this is a **review signal, not a confirmed break**. The behavioral verdict below grades your actual exposure, and the exact import site is in the reachability block."
     fi
     COMMENT="<!-- breakability-check -->
 ## ${_REVIEW_TITLE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
