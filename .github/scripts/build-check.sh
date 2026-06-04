@@ -606,6 +606,24 @@ detect_dep_type_go() {
   local non_test_count
   non_test_count=$(grep -rn "\"$pkg" --include="*.go" "$search_dir" 2>/dev/null | grep -v "_test.go" | grep -v vendor/ | wc -l || echo "0")
   if [[ "$non_test_count" -eq 0 ]]; then
+    # A non-test grep of 0 does NOT prove dev. database/sql drivers and other runtime
+    # plugins are conventionally registered via a BLANK import (`_ "pkg"`) that may live
+    # in a single main/cmd file outside the scoped search_dir (PR#38: github.com/lib/pq
+    # is a production Postgres driver mislabeled dev). Two guards before concluding dev:
+    #   1) a blank import anywhere in the repo (incl. outside search_dir) ⇒ production runtime
+    #   2) a known runtime-driver allowlist ⇒ production
+    local blank_count
+    blank_count=$(grep -rEn "_[[:space:]]+\"$pkg\"" --include="*.go" "${REPO_ROOT:-.}" 2>/dev/null | grep -v "_test.go" | grep -v vendor/ | wc -l || echo "0")
+    if [[ "$blank_count" -gt 0 ]]; then
+      echo "production"
+      return
+    fi
+    case "$pkg" in
+      github.com/lib/pq|github.com/go-sql-driver/mysql|github.com/mattn/go-sqlite3|github.com/jackc/pgx/*|github.com/denisenkom/go-mssqldb|github.com/microsoft/go-mssqldb|github.com/godror/godror|github.com/ClickHouse/clickhouse-go/*|github.com/sijms/go-ora/*)
+        echo "production"
+        return
+        ;;
+    esac
     echo "dev"
   else
     echo "production"
@@ -747,7 +765,7 @@ for mod, dirs in sorted(module_dirs.items()):
   if [[ -z "$build_script" || "$build_script" == "FALLBACK" ]]; then
     echo "  full build: no import data available, building ./..."
     go_free_disk
-    timeout $GO_TIMEOUT go build -o /dev/null ./... "$@"
+    timeout -k 15 $GO_TIMEOUT go build -o /dev/null ./... "$@"
     return $?
   fi
 
@@ -763,7 +781,7 @@ for mod, dirs in sorted(module_dirs.items()):
     fi
     echo "    dirs: $dirs"
     go_free_disk
-    (cd "$mod_root" && timeout $GO_TIMEOUT go build -o /dev/null $dirs "$@") || _RC=$?
+    (cd "$mod_root" && timeout -k 15 $GO_TIMEOUT go build -o /dev/null $dirs "$@") || _RC=$?
   done <<< "$build_script"
   return $_RC
 }
@@ -971,7 +989,7 @@ for mod, dirs in sorted(module_dirs.items()):
     echo "  go test: no import data, running full ./..."
     local _RC=0
     for mod_root in .; do
-      (cd "$workdir" && timeout $GO_TIMEOUT go test ./... 2>&1) || _RC=$?
+      (cd "$workdir" && timeout -k 15 $GO_TIMEOUT go test ./... 2>&1) || _RC=$?
     done
     return $_RC
   fi
@@ -985,7 +1003,7 @@ for mod, dirs in sorted(module_dirs.items()):
     local dir_count
     dir_count=$(echo "$dirs" | wc -w | tr -d ' ')
     echo "    testing $mod_root module: $dir_count dirs — $dirs"
-    (cd "$abs_mod" && timeout $GO_TIMEOUT go test -timeout 5m -race $dirs 2>&1) || _RC=$?
+    (cd "$abs_mod" && timeout -k 15 $GO_TIMEOUT go test -timeout 5m -race $dirs 2>&1) || _RC=$?
   done <<< "$test_script"
   return $_RC
 }
@@ -1394,7 +1412,7 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
     _BUILD_RC=0
     go_free_disk
     retry_cmd 3 5 go work sync && {
-      GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+      GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
       if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
       exit $_BUILD_RC
     }
@@ -1408,7 +1426,7 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
       _BUILD_RC=0
       go_free_disk
       retry_cmd 3 5 go work sync && {
-        GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+        GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
         if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
         exit $_BUILD_RC
       }
@@ -1437,7 +1455,7 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
       _mod_output=$(cd "$_mod_dir" && {
         _BUILD_RC=0
         retry_cmd 3 5 go mod tidy && {
-          GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+          GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
           if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
           exit $_BUILD_RC
         }
@@ -1450,7 +1468,7 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
         _mod_output=$(cd "$_mod_dir" && {
           _BUILD_RC=0
           retry_cmd 3 5 go mod tidy && {
-            GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+            GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
             if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
             exit $_BUILD_RC
           }
@@ -1488,8 +1506,8 @@ $_mod_output"
       # _BUILD_RC captures go build exit so go vet warnings don't clobber it (Bug 3).
       _BUILD_RC=0
       go_free_disk
-      retry_cmd 3 5 timeout 120 go mod tidy && {
-        GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+      retry_cmd 3 5 timeout -k 15 120 go mod tidy && {
+        GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
         if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
         exit $_BUILD_RC
       }
@@ -1503,7 +1521,7 @@ $_mod_output"
         _BUILD_RC=0
         go_free_disk
         retry_cmd 3 5 go mod tidy && {
-          GOMEMLIMIT=1500MiB timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+          GOMEMLIMIT=1500MiB timeout -k 15 $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
           if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
           exit $_BUILD_RC
         }
@@ -2421,7 +2439,7 @@ for m in sorted(affected):
                     echo "  multi-module: go mod tidy in $_tidy_mod"
                     _mod_tidy_out=""
                     _mod_tidy_rc=0
-                    _mod_tidy_out=$(cd "$_tidy_dir" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _mod_tidy_rc=$?
+                    _mod_tidy_out=$(cd "$_tidy_dir" && retry_cmd 3 5 timeout -k 15 120 go mod tidy 2>&1) || _mod_tidy_rc=$?
                     if [[ "$_mod_tidy_rc" -ne 0 ]]; then
                       _GO_TIDY_EXIT=$_mod_tidy_rc
                       echo "  ⚠ go mod tidy failed in $_tidy_mod (exit=$_mod_tidy_rc)"
@@ -2439,11 +2457,11 @@ ${_mod_tidy_out}"
                   _GO_TIDY_DIR="$PR_WORKTREE/$PKG_DIR"
                   echo "  multi-module: running go mod tidy in $PKG_DIR (not root)"
                 fi
-                _GO_TIDY_OUT=$(cd "$_GO_TIDY_DIR" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
+                _GO_TIDY_OUT=$(cd "$_GO_TIDY_DIR" && retry_cmd 3 5 timeout -k 15 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
               fi
             else
               # Single-module: tidy in worktree root
-              _GO_TIDY_OUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
+              _GO_TIDY_OUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 timeout -k 15 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
             fi
             if [[ "$_GO_TIDY_EXIT" -eq 0 ]]; then
               INSTALL_OK="true"

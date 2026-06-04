@@ -1120,8 +1120,18 @@ PYEOF
 - ℹ️ govulncheck not installed — vuln scan skipped"
       ;;
     skipped_disabled)
-      _VULN_NOTE="
+      if [[ ( "${CVE_COUNT:-0}" =~ ^[0-9]+$ && "${CVE_COUNT:-0}" -gt 0 ) || -n "${_FIXES_CVE_DATA:-}" ]]; then
+        # This PR touches CVEs but govulncheck (call-graph reachability) did NOT run, so
+        # the reachability section below is import-level only — NOT a per-CVE call-chain.
+        # Be explicit so a dev doesn't read absence-of-call-chain as "not reachable".
+        _VULN_NOTE="
+- ⚠️ **CVE reachability NOT computed for this PR.** govulncheck (call-graph reachability on _our_ source) is disabled by config; the CVE list comes from **Dependabot**, which matches advisory version-ranges only — it does NOT prove the vulnerable symbol is reachable from our code, nor detect NEW CVEs the target version may regress in.
+  - To get a per-CVE call-chain proof, re-run with \`BREAKABILITY_GOVULNCHECK=1\`.
+  - <!-- TODO(AI-LAYER): rank which of these CVEs are actually reachable from our call-graph and whether merging this PR delivers the fix; this is decision-support govulncheck/Dependabot alone cannot synthesize. --> Until then, treat the CVE list as advisory (version-match), not reachability-confirmed."
+      else
+        _VULN_NOTE="
 - ℹ️ govulncheck: disabled by config — CVE list sourced from Dependabot alerts (govulncheck is hint-only; not a merge gate)"
+      fi
       ;;
     *)
       _VULN_NOTE="
