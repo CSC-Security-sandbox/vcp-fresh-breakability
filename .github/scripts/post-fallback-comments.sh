@@ -1975,6 +1975,26 @@ ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
   fi
 
+  # ── CVE version-gating for the SECURITY FIX body ─────────────────────────────
+  # The PR-body `cves` field (CVE_LIST/CVE_COUNT) is an UNVERIFIED claim: it does NOT
+  # prove the resulting (incl. transitive) version actually reaches the advisory's
+  # fixed-in version. Dependabot-matched fixes (fixes_cves -> _FIXES_CVE_DATA) ARE
+  # version-gated (build-check.sh bumped_modules + first_patched_version gate in
+  # merge-results.sh). Credit only the version-verified set as "resolved"; render the
+  # rest as "claimed (not version-verified)" so the per-PR body can never over-credit a
+  # CVE the bump does not actually deliver — keeping it consistent with the merge-plan
+  # orphan table (e.g. PR#23 CVE-2026-39883 fixed-in 1.43 while the PR reaches only 1.42;
+  # PR#10 CVE-2025-30204 with no Dependabot match).
+  if [[ -n "${_FIXES_CVE_DATA:-}" ]]; then
+    _CVE_VERIFIED=1
+    _CVE_HEADING="$CVE_COUNT CVE(s) resolved (version-verified): $_FIXES_CVE_DATA"
+    _CVE_RECOMMEND="**MERGE THIS PR IMMEDIATELY.** It resolves ${CVE_COUNT} version-verified known CVE(s) (the resulting version reaches each advisory's fixed-in version) and introduces zero new build errors."
+  else
+    _CVE_VERIFIED=0
+    _CVE_HEADING="$CVE_COUNT CVE(s) claimed by the PR body — ⚠️ NOT version-verified against the resulting (incl. transitive) go.mod/lockfile version: $CVE_LIST"
+    _CVE_RECOMMEND="**Merge to clear these advisories — but the fix is NOT version-verified.** Confirm the resulting (incl. transitive) version reaches each advisory's fixed-in version before relying on this as a security fix; merging is still the path to remediate. No new build errors were introduced."
+  fi
+
   # CVE override: when a PR fixes CVEs, escalate the presentation regardless of verdict.
   # CR5-8: Fire for ALL verdicts, not just pass/pre_existing. A HIGH CVE must be visually
   # distinct and recommend immediate merge even when the build has issues. The developer
@@ -1990,7 +2010,7 @@ ${RUN_LINK}
       COMMENT="<!-- breakability-check -->
 ## 🔴 SECURITY FIX${_SEV_BADGE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-### ⚠️ $CVE_COUNT CVE(s) resolved: $CVE_LIST
+### ⚠️ $_CVE_HEADING
 $(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** — This PR fixes a known security vulnerability."; fi)
 
 **Build Impact:** No new errors introduced by this upgrade.${MODULE_LINE}
@@ -2000,7 +2020,7 @@ $(if [[ "$VERDICT" == "pre_existing" ]]; then echo "Baseline build has pre-exist
 No reachable path found by a scanner is **not** safe-to-ignore evidence. Patch regardless: this PR resolves the advisory.
 
 ### Recommendation
-**MERGE THIS PR IMMEDIATELY.** It resolves $CVE_COUNT known CVE(s) and introduces zero new build errors.
+$_CVE_RECOMMEND
 Security fixes should be prioritized over routine dependency upgrades.
 $(if [[ "$VERDICT" == "pre_existing" && "$VER_LABEL" == L0* ]]; then echo "> If baseline build failures concern you, verify locally before merging. The security fix is independent of the baseline issue."; fi)
 
@@ -2012,7 +2032,7 @@ ${RUN_LINK}
       COMMENT="<!-- breakability-check -->
 ## 🔴 SECURITY FIX (BUILD ISSUES)${_SEV_BADGE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
-### ⚠️ $CVE_COUNT CVE(s) resolved: $CVE_LIST
+### ⚠️ $_CVE_HEADING
 $(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** — This PR fixes a known security vulnerability."; fi)
 
 **Build Impact:** ❌ $NEW_ERR_COUNT new error(s) introduced by this upgrade.${MODULE_LINE}
@@ -2021,7 +2041,7 @@ $(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** 
 No reachable path found by a scanner is **not** safe-to-ignore evidence. Patch regardless once the build break is fixed.
 
 ### Recommendation
-**This PR fixes a $CVE_MAX_SEVERITY CVE but also introduces build errors.** Fix the build errors, then merge immediately.
+$(if [[ "$_CVE_VERIFIED" == "1" ]]; then echo "**This PR fixes a version-verified $CVE_MAX_SEVERITY CVE but also introduces build errors.** Fix the build errors, then merge immediately."; else echo "**This PR claims to fix a $CVE_MAX_SEVERITY CVE (not version-verified) and also introduces build errors.** Fix the build errors and confirm the resulting version reaches the advisory's fixed-in version, then merge."; fi)
 Do not delay — the security fix is critical.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
