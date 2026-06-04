@@ -646,6 +646,33 @@ for k, v in fields.items():
   MERGE_RISK_REASON=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_REASON=' | cut -d= -f2-)
   MERGE_RISK_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_EVIDENCE=' | cut -d= -f2-)
   MERGE_RISK_CONFIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_CONFIDENCE=' | cut -d= -f2-)
+  # The deterministic merge-risk reason is built BEFORE the behavioral oracle runs, so it
+  # ends in a "verify against the release notes" punt. Once the oracle has committed a CITED
+  # grade, that punt is stale — the oracle already read the notes and graded the exposure.
+  # Replace the punt tail with a pointer to the graded verdict + the oracle's runtime check,
+  # and pick a non-punt tail for the High-branch REVIEW_WHY. Fail-open keeps the honest punt.
+  eval "$(get_behavioral_grade "$PR_NUM")"
+  _BG_SRC_LC=$(printf '%s' "${BG_SOURCE:-}" | tr '[:upper:]' '[:lower:]')
+  _BG_CITED=0
+  if [[ "${BG_OK:-0}" == "1" && ( "$_BG_SRC_LC" == "reasoning" || "$_BG_SRC_LC" == "probe" ) \
+        && ( -n "${BG_RATIONALE:-}" || -n "${BG_GUIDANCE:-}" || -n "${BG_EVIDENCE:-}" ) ]]; then
+    _BG_CITED=1
+  fi
+  _REVIEW_WHY_TAIL=" Verify the affected behavior against the release notes before merging."
+  if [[ "$_BG_CITED" == "1" ]]; then
+    _REVIEW_WHY_TAIL=" The behavioral verdict below grades your actual exposure."
+    if [[ "$MERGE_RISK_REASON" == *"verify against the release notes"* ]]; then
+      _BG_LABEL=$(printf '%s' "${BG_GRADE:-medium}" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+      _RS="$MERGE_RISK_REASON"
+      _RS="${_RS/ — verify against the release notes/}"
+      _RS="${_RS/; verify against the release notes/}"
+      _RS="${_RS/, but verify against the release notes/}"
+      _RS="${_RS/ verify against the release notes/}"
+      _BG_TAIL=" — the behavioral oracle graded your actual exposure **${_BG_LABEL}** (see the verdict above)"
+      [[ -n "${BG_GUIDANCE:-}" ]] && _BG_TAIL+=": ${BG_GUIDANCE}"
+      MERGE_RISK_REASON="${_RS}${_BG_TAIL}"
+    fi
+  fi
   VULN_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_EVIDENCE=' | cut -d= -f2-)
   TEST_SUMMARY=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_SUMMARY=' | cut -d= -f2-)
   FILES_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_LIST=' | cut -d= -f2-)
@@ -962,7 +989,10 @@ if r.get('prod_reachable'):
         lines.append('- ℹ️ **Imported, but no exported surface referenced.** Your production code imports the affected package, but we found no call into its exported API (possibly a blank or transitive import):')
         for e in ordered[:3]:
             lines.append(f"  - `{e['path']}` at `{e['file']}:{e['line']}`")
-        lines.append('- **Lower exposure** — but still verify against the release notes, since behavior can change behind a blank or transitive import.')
+        if _bg_cited:
+            lines.append('- **Lower exposure** — the behavioral oracle graded this against the release notes (see the verdict above); behavior can still change behind a blank or transitive import.')
+        else:
+            lines.append('- **Lower exposure** — but still verify against the release notes, since behavior can change behind a blank or transitive import.')
     else:
         lines.append('- ⚠️ **Import-reachable behavioral change — unconfirmed.** Your production code imports the affected package:')
         for e in ordered[:3]:
@@ -1530,7 +1560,7 @@ else:
     # but a green build must not silently say "merge when ready").
     if [[ "$MERGE_RISK_TAG" == "High" ]]; then
       _REVIEW_TITLE="⛔ REVIEW REQUIRED"
-      _REVIEW_WHY="Build and tests pass on the PR branch, but that does **not** clear this upgrade: ${MERGE_RISK_REASON}. Behavioral changes (changed defaults, error/ordering semantics) and breaks in sibling or transitive modules are invisible to compilation and to existing tests. Verify the affected behavior against the release notes before merging."
+      _REVIEW_WHY="Build and tests pass on the PR branch, but that does **not** clear this upgrade: ${MERGE_RISK_REASON}. Behavioral changes (changed defaults, error/ordering semantics) and breaks in sibling or transitive modules are invisible to compilation and to existing tests.${_REVIEW_WHY_TAIL}"
     else
       _REVIEW_TITLE="⚠️ REVIEW SUGGESTED"
       _REVIEW_WHY="Build and tests pass on the PR branch — but the maintainer **declares a behavioral breaking change** and your code imports the affected package. Behavioral changes (changed defaults, error/ordering semantics) are invisible to compilation, tests, and API-diff, so this is a **review signal, not a confirmed break**. The behavioral verdict below grades your actual exposure, and the exact import site is in the reachability block."
