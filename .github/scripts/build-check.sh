@@ -2768,7 +2768,7 @@ $IMPORT_OUT"
       echo "  build: exit=$BUILD_EXIT verdict=$BUILD_VERDICT"
 
       # Clean up worktree
-      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
+      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || { chmod -R u+w "$PR_WORKTREE" 2>/dev/null; rm -rf "$PR_WORKTREE" 2>/dev/null; } || true
     fi
   elif [[ "$ECOSYSTEM" == "maven" ]]; then
     rm -rf "$PR_WORKTREE" 2>/dev/null || true
@@ -2785,7 +2785,7 @@ $IMPORT_OUT"
       else
         echo "  build: maven not available"; BUILD_VERDICT="skip"
       fi
-      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
+      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || { chmod -R u+w "$PR_WORKTREE" 2>/dev/null; rm -rf "$PR_WORKTREE" 2>/dev/null; } || true
     fi
   elif [[ "$ECOSYSTEM" == "docker" ]]; then
     echo "  build: Docker — validating base image"
@@ -3049,7 +3049,7 @@ $IMPORT_OUT"
         echo "  go.sum: $GOSUM_NEW_COUNT new transitive entries ($GOSUM_NEW_NAMES)"
       fi
 
-      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
+      git worktree remove "$PR_WORKTREE" --force 2>/dev/null || { chmod -R u+w "$PR_WORKTREE" 2>/dev/null; rm -rf "$PR_WORKTREE" 2>/dev/null; } || true
     fi
   fi
 
@@ -4160,7 +4160,7 @@ PYEOF
 done
 
 # Clean up main worktree (kept alive for lazy baselines during PR processing)
-git worktree remove "$MAIN_DIR" --force 2>/dev/null || rm -rf "$MAIN_DIR"
+git worktree remove "$MAIN_DIR" --force 2>/dev/null || { chmod -R u+w "$MAIN_DIR" 2>/dev/null; rm -rf "$MAIN_DIR" 2>/dev/null; } || true
 
 # ── In batch mode, skip cross-PR / security / cleanup (merge script handles those) ──
 if [[ -n "$BATCH_ID" ]]; then

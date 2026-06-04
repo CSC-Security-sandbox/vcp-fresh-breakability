@@ -306,16 +306,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BREAKABILITY_PAT: ${{ secrets.BREAKABILITY_PAT }}
 
-      - name: Upload merged results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-results
-          path: |
-            /tmp/build-results.json
-            /tmp/pr-*.diff
-          retention-days: 30
-
       - name: Show build results summary
         if: always()
         run: |
@@ -382,6 +372,19 @@ jobs:
           DP_REPO_ROOT: ${{ github.workspace }}
           DP_CACHE_DIR: ${{ runner.temp }}/dp-cache
         timeout-minutes: 30
+
+      # Upload AFTER the probe so the artifact carries the committed behavioral grades
+      # (the probe annotates /tmp/build-results.json in place). always() + the probe's
+      # continue-on-error keep this robust even if the probe step fails.
+      - name: Upload merged results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-results
+          path: |
+            /tmp/build-results.json
+            /tmp/pr-*.diff
+          retention-days: 30
 
       - name: Commit build results to temp branch
         if: ${{ inputs.skip_agent != true }}
