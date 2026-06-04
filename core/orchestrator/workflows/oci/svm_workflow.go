@@ -48,9 +48,11 @@ var _ workflows.WorkflowInterface = &ociCreateSVMWorkflow{}
 
 // OCICreateSVMWorkflow creates an SVM in an existing OCI pool (cluster) via VLM CreateVSASVM child workflow.
 func OCICreateSVMWorkflow(ctx workflow.Context, params *common.CreateSvmParams, pool *datamodel.Pool, svm *datamodel.Svm) (*OCICreateSVMResult, error) {
+	start := workflow.Now(ctx)
 	wf := new(ociCreateSVMWorkflow)
 	log := util.GetLogger(ctx)
 	if err := wf.Setup(ctx, params); err != nil {
+		emitDuration(ctx, wfCreateSVM, queueCustomer, start)
 		return nil, err
 	}
 
@@ -59,9 +61,11 @@ func OCICreateSVMWorkflow(ctx workflow.Context, params *common.CreateSvmParams, 
 	if errRun != nil {
 		log.Errorf("error in ociCreateSVMWorkflow: %v", errRun)
 		wf.Status = workflows.WorkflowStatusFailed
+		emitDuration(ctx, wfCreateSVM, queueCustomer, start)
 		return nil, errRun
 	}
 	wf.Status = workflows.WorkflowStatusCompleted
+	emitDuration(ctx, wfCreateSVM, queueCustomer, start)
 	svmResult, ok := result.(*OCICreateSVMResult)
 	if !ok {
 		return nil, fmt.Errorf("unexpected result type %T from ociCreateSVMWorkflow.Run", result)
@@ -151,33 +155,42 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &vlmConfig)
 	if err != nil {
 		logger.Errorf("Failed to parse VLM config: %v", err)
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageParseVlmConfig, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if vlmConfig == nil {
 		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("ParseVlmConfig returned nil VLM config"))
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageParseVlmConfig, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfCreateSVM, queueCustomer, stageParseVlmConfig, resultSuccess)
 	credConfig := vlm.OntapCredentials{}
 
 	err = workflow.ExecuteActivity(ctx, svmActivity.GetSvmAdminOntapPasswordSecretForOCI, svm, pool).Get(ctx, &credConfig)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP admin credentials for OCI SVM create: %v", err)
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageGetOntapAdminCreds, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if credConfig.AdminPassword == "" {
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageGetOntapAdminCreds, resultFailure)
 		return nil, workflows.ConvertToVSAError(
 			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminOntapPasswordSecretForOCI returned empty password")))
 	}
+	emitStage(ctx, wfCreateSVM, queueCustomer, stageGetOntapAdminCreds, resultSuccess)
 
 	var svmAdminCreds *vlm.OntapCredentials
 	err = workflow.ExecuteActivity(ctx, svmActivity.GetSvmAdminPasswordSecretForOCI, svm, params.SvmAdminPassword).Get(ctx, &svmAdminCreds)
 	if err != nil {
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageGetSVMAdminCreds, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if svmAdminCreds == nil {
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageGetSVMAdminCreds, resultFailure)
 		return nil, workflows.ConvertToVSAError(
 			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminPasswordSecretForOCI returned nil credentials")))
 	}
+	emitStage(ctx, wfCreateSVM, queueCustomer, stageGetSVMAdminCreds, resultSuccess)
 
 	createSVMRequest := &vlm.CreateSVMRequest{
 		Name:             params.Name,
@@ -190,12 +203,15 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if vlmErr != nil {
 		err = vlmErr
 		logger.Errorf("Failed to create SVM via VLM child workflow: %v", vlmErr)
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageVLMCreateSVM, resultFailure)
 		return nil, workflows.ConvertToVSAError(vlmErr)
 	}
 	if createSVMResponse == nil {
 		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("CreateVSASVM returned nil response"))
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageVLMCreateSVM, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfCreateSVM, queueCustomer, stageVLMCreateSVM, resultSuccess)
 	logger.Infof("SVM created successfully via VLM: %s", params.Name)
 
 	// Register rollback: tear down the SVM we just created on the ONTAP cluster via
@@ -212,8 +228,10 @@ func (wf *ociCreateSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(dbHbCtx, svmActivity.SaveSVMAndLifDataWithOCID, pool, createSVMResponse.VLMConfig, params.Name, params.SvmExternalIdentifier).Get(dbHbCtx, svm)
 	if err != nil {
 		logger.Errorf("Failed to save SVM and LIF data: %v", err)
+		emitStage(ctx, wfCreateSVM, queueCustomer, stageSaveSVMLif, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfCreateSVM, queueCustomer, stageSaveSVMLif, resultSuccess)
 	logger.Infof("SVM and LIF data saved: svmName=%s, svmUUID=%s", svm.Name, svm.SvmDetails.ExternalUUID)
 
 	var nodeUUIDsByName map[string]string
@@ -283,9 +301,11 @@ var _ workflows.WorkflowInterface = &ociDeleteSVMWorkflow{}
 
 // OCIDeleteSVMWorkflow removes the SVM from the ONTAP cluster via vlm.DeleteVSASVM and then flips the DB row to DELETED.
 func OCIDeleteSVMWorkflow(ctx workflow.Context, params *common.DeleteSvmParams, svm *datamodel.Svm, pool *datamodel.Pool) error {
+	start := workflow.Now(ctx)
 	wf := new(ociDeleteSVMWorkflow)
 	log := util.GetLogger(ctx)
 	if err := wf.setupDelete(ctx, params); err != nil {
+		emitDuration(ctx, wfDeleteSVM, queueCustomer, start)
 		return err
 	}
 
@@ -294,9 +314,11 @@ func OCIDeleteSVMWorkflow(ctx workflow.Context, params *common.DeleteSvmParams, 
 	if errRun != nil {
 		log.Errorf("error in ociDeleteSVMWorkflow: %v", errRun)
 		wf.Status = workflows.WorkflowStatusFailed
+		emitDuration(ctx, wfDeleteSVM, queueCustomer, start)
 		return errRun
 	}
 	wf.Status = workflows.WorkflowStatusCompleted
+	emitDuration(ctx, wfDeleteSVM, queueCustomer, start)
 	return nil
 }
 
@@ -380,24 +402,30 @@ func (wf *ociDeleteSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &vlmConfig)
 	if err != nil {
 		logger.Errorf("Failed to parse VLM config: %v", err)
+		emitStage(ctx, wfDeleteSVM, queueCustomer, stageParseVlmConfig, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if vlmConfig == nil {
 		err = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("ParseVlmConfig returned nil VLM config"))
+		emitStage(ctx, wfDeleteSVM, queueCustomer, stageParseVlmConfig, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfDeleteSVM, queueCustomer, stageParseVlmConfig, resultSuccess)
 
 	// Step 2: remove the SVM from the ONTAP cluster via VLM.
 	credConfig := vlm.OntapCredentials{}
 	err = workflow.ExecuteActivity(ctx, svmActivity.GetSvmAdminOntapPasswordSecretForOCI, svm, pool).Get(ctx, &credConfig)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP admin credentials for OCI SVM delete: %v", err)
+		emitStage(ctx, wfDeleteSVM, queueCustomer, stageGetOntapAdminCreds, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	if credConfig.AdminPassword == "" {
+		emitStage(ctx, wfDeleteSVM, queueCustomer, stageGetOntapAdminCreds, resultFailure)
 		return nil, workflows.ConvertToVSAError(
 			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("GetSvmAdminOntapPasswordSecretForOCI returned empty password")))
 	}
+	emitStage(ctx, wfDeleteSVM, queueCustomer, stageGetOntapAdminCreds, resultSuccess)
 
 	deleteSVMRequest := &vlm.DeleteSVMRequest{
 		Name:             svm.Name,
@@ -408,16 +436,20 @@ func (wf *ociDeleteSVMWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if _, vlmErr := vsaClientWorkflowManager.DeleteVSASVM(ctx, deleteSVMRequest); vlmErr != nil {
 		err = vlmErr
 		logger.Errorf("Failed to delete SVM via VLM child workflow: %v", err)
+		emitStage(ctx, wfDeleteSVM, queueCustomer, stageVLMDeleteSVM, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfDeleteSVM, queueCustomer, stageVLMDeleteSVM, resultSuccess)
 	logger.Infof("SVM removed from cluster via VLM: %s", svm.Name)
 
 	// Step 3: soft-delete the DB row. On failure the deferred rollback above moves the SVM to ERROR.
 	err = workflow.ExecuteActivity(dbHbCtx, svmActivity.SoftDeleteSvm, svm).Get(dbHbCtx, nil)
 	if err != nil {
 		logger.Errorf("Failed to soft-delete SVM: %v", err)
+		emitStage(ctx, wfDeleteSVM, queueCustomer, stageSoftDeleteSVM, resultFailure)
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	emitStage(ctx, wfDeleteSVM, queueCustomer, stageSoftDeleteSVM, resultSuccess)
 
 	logger.Infof("SVM deleted successfully: svmOCID=%s", svm.SvmExternalIdentifier)
 	return nil, nil

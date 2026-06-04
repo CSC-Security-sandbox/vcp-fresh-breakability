@@ -60,6 +60,8 @@ var routePatterns = []struct {
 	template string
 }{
 	{regexp.MustCompile(`^/v1beta/pools/[^/]+$`), "/v1beta/pools/{poolOCID}"},
+	{regexp.MustCompile(`^/v1beta/pools/[^/]+/svms$`), "/v1beta/pools/{poolOCID}/svms"},
+	{regexp.MustCompile(`^/v1beta/pools/[^/]+/svms/[^/]+$`), "/v1beta/pools/{poolOCID}/svms/{svmOCID}"},
 	{regexp.MustCompile(`^/v1beta/workRequests/[^/]+$`), "/v1beta/workRequests/{workRequestId}"},
 }
 

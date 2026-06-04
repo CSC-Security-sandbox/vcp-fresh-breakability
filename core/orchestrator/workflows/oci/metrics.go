@@ -13,9 +13,11 @@ const (
 	// Workflow names.
 	wfCreatePool = "oci_create_pool"
 	wfDeletePool = "oci_delete_pool"
+	wfCreateSVM  = "oci_create_svm"
+	wfDeleteSVM  = "oci_delete_svm"
 	wfUpdatePool = "oci_update_pool"
 
-	// Stage names.
+	// Pool workflow stages.
 	stageVLMDeploy       = "vlm_deploy"
 	stageSaveNodeDetails = "save_node_details"
 	stageMarkReady       = "mark_ready"
@@ -24,6 +26,15 @@ const (
 	stageVLMUpdate           = "vlm_update"
 	stageDBPersistPerBatch   = "db_persist_per_batch"
 	stageDBPersistFinal      = "db_persist_final"
+
+	// SVM workflow stages (workflow label disambiguates shared stage names).
+	stageParseVlmConfig    = "parse_vlm_config"
+	stageGetOntapAdminCreds = "get_ontap_admin_creds"
+	stageGetSVMAdminCreds   = "get_svm_admin_creds"
+	stageVLMCreateSVM       = "vlm_create_svm"
+	stageSaveSVMLif         = "save_svm_lif"
+	stageVLMDeleteSVM       = "vlm_delete_svm"
+	stageSoftDeleteSVM      = "soft_delete_svm"
 
 	// Result values.
 	resultSuccess = "success"

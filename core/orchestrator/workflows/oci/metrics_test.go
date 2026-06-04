@@ -109,3 +109,22 @@ func TestWorkflowDurationSeconds_UpdatePoolObserves(t *testing.T) {
 	count := testutil.CollectAndCount(workflowDurationSeconds)
 	assert.GreaterOrEqual(t, count, 1)
 }
+
+func TestWorkflowStageTotal_IncrementsSVMCreate(t *testing.T) {
+	before := testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfCreateSVM, queueCustomer, stageVLMCreateSVM, resultSuccess))
+	workflowStageTotal.WithLabelValues(wfCreateSVM, queueCustomer, stageVLMCreateSVM, resultSuccess).Inc()
+	assert.Equal(t, before+1, testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfCreateSVM, queueCustomer, stageVLMCreateSVM, resultSuccess)))
+}
+
+func TestWorkflowStageTotal_IncrementsSVMDelete(t *testing.T) {
+	before := testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfDeleteSVM, queueCustomer, stageSoftDeleteSVM, resultSuccess))
+	workflowStageTotal.WithLabelValues(wfDeleteSVM, queueCustomer, stageSoftDeleteSVM, resultSuccess).Inc()
+	assert.Equal(t, before+1, testutil.ToFloat64(workflowStageTotal.WithLabelValues(wfDeleteSVM, queueCustomer, stageSoftDeleteSVM, resultSuccess)))
+}
+
+func TestWorkflowDurationSeconds_ObservesSVM(t *testing.T) {
+	assert.NotPanics(t, func() {
+		workflowDurationSeconds.WithLabelValues(wfCreateSVM, "us-ashburn-1", queueCustomer).Observe(45)
+		workflowDurationSeconds.WithLabelValues(wfDeleteSVM, "us-ashburn-1", queueCustomer).Observe(30)
+	})
+}

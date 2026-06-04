@@ -23,6 +23,14 @@ func TestNormalizeRoute_PoolOCID(t *testing.T) {
 	assert.Equal(t, "/v1beta/pools/{poolOCID}", NormalizeRoute("/v1beta/pools/ocid1.pool.oc1..abc123"))
 }
 
+func TestNormalizeRoute_CreateSvmByPool(t *testing.T) {
+	assert.Equal(t, "/v1beta/pools/{poolOCID}/svms", NormalizeRoute("/v1beta/pools/ocid1.pool.oc1..abc123/svms"))
+}
+
+func TestNormalizeRoute_DeleteSvm(t *testing.T) {
+	assert.Equal(t, "/v1beta/pools/{poolOCID}/svms/{svmOCID}", NormalizeRoute("/v1beta/pools/ocid1.pool.oc1..abc/svms/ocid1.svm.oc1..xyz"))
+}
+
 func TestNormalizeRoute_WorkRequest(t *testing.T) {
 	assert.Equal(t, "/v1beta/workRequests/{workRequestId}", NormalizeRoute("/v1beta/workRequests/wf-abc123"))
 }
