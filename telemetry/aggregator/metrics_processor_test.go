@@ -717,8 +717,8 @@ func TestFetchResourceData_WithFreeTrialBillingEnabled(t *testing.T) {
 
 	trialEnd := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	config := &common.TelemetryConfig{
-		EnableFreeTrialBilling:       true,
-		PoolVolumeLabelPageSize:      100,
+		EnableFreeTrialBilling:        true,
+		PoolVolumeLabelPageSize:       100,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, mockSink)
@@ -772,8 +772,8 @@ func TestFetchResourceData_FreeTrialFetchError(t *testing.T) {
 	mockSink := &MockUsageSink{}
 
 	config := &common.TelemetryConfig{
-		EnableFreeTrialBilling:       true,
-		PoolVolumeLabelPageSize:      100,
+		EnableFreeTrialBilling:        true,
+		PoolVolumeLabelPageSize:       100,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, mockSink)
@@ -798,10 +798,10 @@ func TestFetchBackupData_WithFreeTrialEndFromAccountMetadata(t *testing.T) {
 
 	trialEnd := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	config := &common.TelemetryConfig{
-		EnableFreeTrialBilling:    true,
-		EnableBackupBillingMetrics: true,
-		PageSize:                  1000,
-		PoolVolumeLabelPageSize:   100,
+		EnableFreeTrialBilling:        true,
+		EnableBackupBillingMetrics:    true,
+		PageSize:                      1000,
+		PoolVolumeLabelPageSize:       100,
 		GoogleBillingLabelsMaxEntries: 10,
 	}
 	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, mockSink)
@@ -1045,11 +1045,11 @@ func TestFetchVolumeReplicationData_WithFreeTrialEnd(t *testing.T) {
 
 	trialEnd := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	config := &common.TelemetryConfig{
-		EnableFreeTrialBilling:              true,
-		EnableReplicationBillingMetrics:     true,
+		EnableFreeTrialBilling:               true,
+		EnableReplicationBillingMetrics:      true,
 		EnableFilesReplicationBillingMetrics: true,
-		PoolVolumeLabelPageSize:             100,
-		GoogleBillingLabelsMaxEntries:       10,
+		PoolVolumeLabelPageSize:              100,
+		GoogleBillingLabelsMaxEntries:        10,
 	}
 	provider := NewBillingProvider(mockMetricsDB, mockVCPDB, config, mockSink)
 
@@ -1926,13 +1926,13 @@ func TestProcessMetricsWithJobDef_ReplicationPrePositiveRows(t *testing.T) {
 }
 
 func TestProcessMetricsWithJobDef_BillingModeFromFreeTrial(t *testing.T) {
-        ctx := context.Background()
-        logger := util.GetLogger(ctx)
-        startTime := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
-        endTime := startTime.Add(time.Hour)
-        processor := &BillingProvider{
-                config: &common.TelemetryConfig{EnableFreeTrialBilling: true},
-        }
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	startTime := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(time.Hour)
+	processor := &BillingProvider{
+		config: &common.TelemetryConfig{EnableFreeTrialBilling: true},
+	}
 
 	resourceKey := ResourceKey{
 		ResourceType:   metadata.Volume,
@@ -3736,13 +3736,13 @@ func TestProcessBillingMetrics_BackupHistoryFormatterBranch(t *testing.T) {
 	}
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
-	})).Return([]*datamodel.Backup{backup1}, nil)
+	}), mock.Anything).Return([]*datamodel.Backup{backup1}, nil)
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 1
-	})).Return([]*datamodel.Backup{backup2}, nil)
+	}), mock.Anything).Return([]*datamodel.Backup{backup2}, nil)
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset > 1
-	})).Return([]*datamodel.Backup{}, nil)
+	}), mock.Anything).Return([]*datamodel.Backup{}, nil)
 
 	history1 := &datamodel.BackupChainHistory{
 		BaseModel: datamodel.BaseModel{
@@ -4323,10 +4323,10 @@ func TestFetchBackupData_Success(t *testing.T) {
 	}
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
-	})).Return(backups, nil)
+	}), mock.Anything).Return(backups, nil)
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset > 0
-	})).Return([]*datamodel.Backup{}, nil)
+	}), mock.Anything).Return([]*datamodel.Backup{}, nil)
 
 	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err)
@@ -4377,7 +4377,7 @@ func TestFetchResourceData_BackupBillingDisabled(t *testing.T) {
 
 	// GetBackupMetadata and GetBackupMetrics should not be called when disabled
 	mockVCPDB.AssertNotCalled(t, "GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything)
-	mockVCPDB.AssertNotCalled(t, "GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.Anything)
+	mockVCPDB.AssertNotCalled(t, "GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 // TestFetchBackupData_GetBackupMetadataError tests error handling for GetBackupMetadata
@@ -4407,7 +4407,7 @@ func TestFetchBackupData_GetBackupMetadataError(t *testing.T) {
 	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metadata error"))
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
-	})).Return([]*datamodel.Backup{}, nil) // Still mock GetBackupMetrics to avoid panic
+	}), mock.Anything).Return([]*datamodel.Backup{}, nil) // Still mock GetBackupMetrics to avoid panic
 
 	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err) // Should not return error, just log warning and continue with empty labels
@@ -4441,7 +4441,7 @@ func TestFetchBackupData_GetBackupMetricsError(t *testing.T) {
 	}
 
 	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
-	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metrics error"))
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metrics error"))
 
 	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.Error(t, err)
@@ -4488,10 +4488,10 @@ func TestFetchBackupData_NilAttributes(t *testing.T) {
 	}
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
-	})).Return(backups, nil)
+	}), mock.Anything).Return(backups, nil)
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset > 0
-	})).Return([]*datamodel.Backup{}, nil)
+	}), mock.Anything).Return([]*datamodel.Backup{}, nil)
 
 	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err)
@@ -4538,10 +4538,10 @@ func TestFetchBackupData_NilBackupVault(t *testing.T) {
 	}
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
-	})).Return(backups, nil)
+	}), mock.Anything).Return(backups, nil)
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset > 0
-	})).Return([]*datamodel.Backup{}, nil)
+	}), mock.Anything).Return([]*datamodel.Backup{}, nil)
 
 	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err)
@@ -4853,7 +4853,7 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	}
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
-	})).Return(backups1, nil).Once()
+	}), mock.Anything).Return(backups1, nil).Once()
 
 	// Mock second batch of backup metrics
 	backups2 := []*datamodel.Backup{
@@ -4867,12 +4867,12 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	}
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 1
-	})).Return(backups2, nil).Once()
+	}), mock.Anything).Return(backups2, nil).Once()
 
 	// Mock empty third batch to end pagination
 	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 2
-	})).Return([]*datamodel.Backup{}, nil).Once()
+	}), mock.Anything).Return([]*datamodel.Backup{}, nil).Once()
 
 	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err)
@@ -6383,7 +6383,7 @@ func TestFetchBackupData_UsesOntapVolumeStyle(t *testing.T) {
 	// Mock backups - one with flexgroup (large capacity), one with flexvol (regular)
 	mockVcpDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
 		return pagination.Offset == 0
-	})).Return([]*datamodel.Backup{
+	}), mock.Anything).Return([]*datamodel.Backup{
 		{
 			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
 			VolumeUUID:              "deleted-volume-uuid", // Deleted volume UUID
@@ -6417,7 +6417,7 @@ func TestFetchBackupData_UsesOntapVolumeStyle(t *testing.T) {
 	}, nil).Once()
 	mockVcpDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
 		return pagination.Offset > 0
-	})).Return([]*datamodel.Backup{}, nil).Once()
+	}), mock.Anything).Return([]*datamodel.Backup{}, nil).Once()
 
 	resourceCollection := &ResourceCollection{
 		BackupData: make(map[ResourceKey]ResourceData),

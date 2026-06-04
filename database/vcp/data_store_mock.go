@@ -6,7 +6,6 @@ import (
 	context "context"
 
 	mock "github.com/stretchr/testify/mock"
-
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 
 	time "time"
@@ -1001,6 +1000,63 @@ func (_c *MockDataStore_CountActivePoolsByNetwork_Call) Return(_a0 int64, _a1 er
 }
 
 func (_c *MockDataStore_CountActivePoolsByNetwork_Call) RunAndReturn(run func(context.Context, string, string) (int64, error)) *MockDataStore_CountActivePoolsByNetwork_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountVolumePerformanceGroupsByPoolID provides a mock function with given fields: ctx, poolID
+func (_m *MockDataStore) CountVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountVolumePerformanceGroupsByPoolID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CountVolumePerformanceGroupsByPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountVolumePerformanceGroupsByPoolID'
+type MockDataStore_CountVolumePerformanceGroupsByPoolID_Call struct {
+	*mock.Call
+}
+
+// CountVolumePerformanceGroupsByPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockDataStore_Expecter) CountVolumePerformanceGroupsByPoolID(ctx interface{}, poolID interface{}) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
+	return &MockDataStore_CountVolumePerformanceGroupsByPoolID_Call{Call: _e.mock.On("CountVolumePerformanceGroupsByPoolID", ctx, poolID)}
+}
+
+func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) Return(_a0 int64, _a1 error) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -6948,9 +7004,9 @@ func (_c *MockDataStore_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) RunAndRetu
 	return _c
 }
 
-// GetBackupResourceDataForAggregation provides a mock function with given fields: ctx, conditions, pagination
-func (_m *MockDataStore) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination,freeTrialAccounts map[int64]*time.Time) ([]*datamodel.Backup, error) {
-	ret := _m.Called(ctx, conditions, pagination)
+// GetBackupResourceDataForAggregation provides a mock function with given fields: ctx, conditions, pagination, freeTrialAccounts
+func (_m *MockDataStore) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination, freeTrialAccounts map[int64]*time.Time) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, conditions, pagination, freeTrialAccounts)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetBackupResourceDataForAggregation")
@@ -6958,19 +7014,19 @@ func (_m *MockDataStore) GetBackupResourceDataForAggregation(ctx context.Context
 
 	var r0 []*datamodel.Backup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Backup, error)); ok {
-		return rf(ctx, conditions, pagination)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination, map[int64]*time.Time) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, conditions, pagination, freeTrialAccounts)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.Backup); ok {
-		r0 = rf(ctx, conditions, pagination)
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination, map[int64]*time.Time) []*datamodel.Backup); ok {
+		r0 = rf(ctx, conditions, pagination, freeTrialAccounts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*datamodel.Backup)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
-		r1 = rf(ctx, conditions, pagination)
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination, map[int64]*time.Time) error); ok {
+		r1 = rf(ctx, conditions, pagination, freeTrialAccounts)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -6987,13 +7043,14 @@ type MockDataStore_GetBackupResourceDataForAggregation_Call struct {
 //   - ctx context.Context
 //   - conditions [][]interface{}
 //   - pagination *utils.Pagination
-func (_e *MockDataStore_Expecter) GetBackupResourceDataForAggregation(ctx interface{}, conditions interface{}, pagination interface{}) *MockDataStore_GetBackupResourceDataForAggregation_Call {
-	return &MockDataStore_GetBackupResourceDataForAggregation_Call{Call: _e.mock.On("GetBackupResourceDataForAggregation", ctx, conditions, pagination)}
+//   - freeTrialAccounts map[int64]*time.Time
+func (_e *MockDataStore_Expecter) GetBackupResourceDataForAggregation(ctx interface{}, conditions interface{}, pagination interface{}, freeTrialAccounts interface{}) *MockDataStore_GetBackupResourceDataForAggregation_Call {
+	return &MockDataStore_GetBackupResourceDataForAggregation_Call{Call: _e.mock.On("GetBackupResourceDataForAggregation", ctx, conditions, pagination, freeTrialAccounts)}
 }
 
-func (_c *MockDataStore_GetBackupResourceDataForAggregation_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockDataStore_GetBackupResourceDataForAggregation_Call {
+func (_c *MockDataStore_GetBackupResourceDataForAggregation_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination, freeTrialAccounts map[int64]*time.Time)) *MockDataStore_GetBackupResourceDataForAggregation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination), args[3].(map[int64]*time.Time))
 	})
 	return _c
 }
@@ -7003,7 +7060,7 @@ func (_c *MockDataStore_GetBackupResourceDataForAggregation_Call) Return(_a0 []*
 	return _c
 }
 
-func (_c *MockDataStore_GetBackupResourceDataForAggregation_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Backup, error)) *MockDataStore_GetBackupResourceDataForAggregation_Call {
+func (_c *MockDataStore_GetBackupResourceDataForAggregation_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination, map[int64]*time.Time) ([]*datamodel.Backup, error)) *MockDataStore_GetBackupResourceDataForAggregation_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -9732,65 +9789,6 @@ func (_c *MockDataStore_GetLatestBackupsGroupedByVolumeUUID_Call) RunAndReturn(r
 	return _c
 }
 
-// GetLatestBackupsPerVaultByVolumeUUID provides a mock function with given fields: ctx, volumeUUID
-func (_m *MockDataStore) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
-	ret := _m.Called(ctx, volumeUUID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetLatestBackupsPerVaultByVolumeUUID")
-	}
-
-	var r0 []*datamodel.Backup
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Backup, error)); ok {
-		return rf(ctx, volumeUUID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Backup); ok {
-		r0 = rf(ctx, volumeUUID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*datamodel.Backup)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, volumeUUID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestBackupsPerVaultByVolumeUUID'
-type MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call struct {
-	*mock.Call
-}
-
-// GetLatestBackupsPerVaultByVolumeUUID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - volumeUUID string
-func (_e *MockDataStore_Expecter) GetLatestBackupsPerVaultByVolumeUUID(ctx interface{}, volumeUUID interface{}) *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call {
-	return &MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call{Call: _e.mock.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID)}
-}
-
-func (_c *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Backup, error)) *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetLatestBackupsPerEndpointByVolumeUUID provides a mock function with given fields: ctx, volumeUUID
 func (_m *MockDataStore) GetLatestBackupsPerEndpointByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	ret := _m.Called(ctx, volumeUUID)
@@ -9850,23 +9848,25 @@ func (_c *MockDataStore_GetLatestBackupsPerEndpointByVolumeUUID_Call) RunAndRetu
 	return _c
 }
 
-// SumVolumeBackupChainBytes provides a mock function with given fields: ctx, volumeUUID
-func (_m *MockDataStore) SumVolumeBackupChainBytes(ctx context.Context, volumeUUID string) (int64, error) {
+// GetLatestBackupsPerVaultByVolumeUUID provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockDataStore) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	ret := _m.Called(ctx, volumeUUID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for SumVolumeBackupChainBytes")
+		panic("no return value specified for GetLatestBackupsPerVaultByVolumeUUID")
 	}
 
-	var r0 int64
+	var r0 []*datamodel.Backup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Backup, error)); ok {
 		return rf(ctx, volumeUUID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Backup); ok {
 		r0 = rf(ctx, volumeUUID)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -9878,29 +9878,31 @@ func (_m *MockDataStore) SumVolumeBackupChainBytes(ctx context.Context, volumeUU
 	return r0, r1
 }
 
-// MockDataStore_SumVolumeBackupChainBytes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SumVolumeBackupChainBytes'
-type MockDataStore_SumVolumeBackupChainBytes_Call struct {
+// MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestBackupsPerVaultByVolumeUUID'
+type MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call struct {
 	*mock.Call
 }
 
-// SumVolumeBackupChainBytes is a helper method to define mock.On call
-func (_e *MockDataStore_Expecter) SumVolumeBackupChainBytes(ctx interface{}, volumeUUID interface{}) *MockDataStore_SumVolumeBackupChainBytes_Call {
-	return &MockDataStore_SumVolumeBackupChainBytes_Call{Call: _e.mock.On("SumVolumeBackupChainBytes", ctx, volumeUUID)}
+// GetLatestBackupsPerVaultByVolumeUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockDataStore_Expecter) GetLatestBackupsPerVaultByVolumeUUID(ctx interface{}, volumeUUID interface{}) *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call {
+	return &MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call{Call: _e.mock.On("GetLatestBackupsPerVaultByVolumeUUID", ctx, volumeUUID)}
 }
 
-func (_c *MockDataStore_SumVolumeBackupChainBytes_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_SumVolumeBackupChainBytes_Call {
+func (_c *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
 
-func (_c *MockDataStore_SumVolumeBackupChainBytes_Call) Return(_a0 int64, _a1 error) *MockDataStore_SumVolumeBackupChainBytes_Call {
+func (_c *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_SumVolumeBackupChainBytes_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *MockDataStore_SumVolumeBackupChainBytes_Call {
+func (_c *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Backup, error)) *MockDataStore_GetLatestBackupsPerVaultByVolumeUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -17557,63 +17559,6 @@ func (_c *MockDataStore_ListVolumePerformanceGroupsByPoolID_Call) RunAndReturn(r
 	return _c
 }
 
-// CountVolumePerformanceGroupsByPoolID provides a mock function with given fields: ctx, poolID
-func (_m *MockDataStore) CountVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) (int64, error) {
-	ret := _m.Called(ctx, poolID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CountVolumePerformanceGroupsByPoolID")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
-		return rf(ctx, poolID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
-		r0 = rf(ctx, poolID)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
-		r1 = rf(ctx, poolID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_CountVolumePerformanceGroupsByPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountVolumePerformanceGroupsByPoolID'
-type MockDataStore_CountVolumePerformanceGroupsByPoolID_Call struct {
-	*mock.Call
-}
-
-// CountVolumePerformanceGroupsByPoolID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - poolID int64
-func (_e *MockDataStore_Expecter) CountVolumePerformanceGroupsByPoolID(ctx interface{}, poolID interface{}) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
-	return &MockDataStore_CountVolumePerformanceGroupsByPoolID_Call{Call: _e.mock.On("CountVolumePerformanceGroupsByPoolID", ctx, poolID)}
-}
-
-func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) Return(_a0 int64, _a1 error) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_CountVolumePerformanceGroupsByPoolID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // ListVolumeReplications provides a mock function with given fields: ctx, filter, queryDepth
 func (_m *MockDataStore) ListVolumeReplications(ctx context.Context, filter utils.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error) {
 	ret := _m.Called(ctx, filter, queryDepth)
@@ -18497,6 +18442,63 @@ func (_c *MockDataStore_SetPrimaryKeyForServiceAccount_Call) Return(_a0 error) *
 }
 
 func (_c *MockDataStore_SetPrimaryKeyForServiceAccount_Call) RunAndReturn(run func(context.Context, string, string) error) *MockDataStore_SetPrimaryKeyForServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SumVolumeBackupChainBytes provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockDataStore) SumVolumeBackupChainBytes(ctx context.Context, volumeUUID string) (int64, error) {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SumVolumeBackupChainBytes")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (int64, error)); ok {
+		return rf(ctx, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_SumVolumeBackupChainBytes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SumVolumeBackupChainBytes'
+type MockDataStore_SumVolumeBackupChainBytes_Call struct {
+	*mock.Call
+}
+
+// SumVolumeBackupChainBytes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockDataStore_Expecter) SumVolumeBackupChainBytes(ctx interface{}, volumeUUID interface{}) *MockDataStore_SumVolumeBackupChainBytes_Call {
+	return &MockDataStore_SumVolumeBackupChainBytes_Call{Call: _e.mock.On("SumVolumeBackupChainBytes", ctx, volumeUUID)}
+}
+
+func (_c *MockDataStore_SumVolumeBackupChainBytes_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_SumVolumeBackupChainBytes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_SumVolumeBackupChainBytes_Call) Return(_a0 int64, _a1 error) *MockDataStore_SumVolumeBackupChainBytes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_SumVolumeBackupChainBytes_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *MockDataStore_SumVolumeBackupChainBytes_Call {
 	_c.Call.Return(run)
 	return _c
 }
