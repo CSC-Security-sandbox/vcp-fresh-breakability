@@ -32,6 +32,25 @@ fi
 CLI_PATH="${CLI_PATH:-.github/actions/breakability-check/index.js}"
 REPO_ROOT="$(pwd)"
 
+# ── Per-batch Go BUILD-cache isolation (race-safety) ──────────────────────────
+# All self-hosted batch runners share one $HOME on the same machine, so they
+# share the default GOCACHE (~/Library/Caches/go-build). This script calls
+# `go clean -cache` at several sites; one batch's clean deletes cache entries a
+# parallel batch is mid-build against -> "no such file or directory" /
+# "package ... is not in std" corruption -> degraded build output -> thin
+# comments. Isolate the BUILD cache per batch HERE (in-script) so the race is
+# closed even when the workflow does not (or cannot) set GOCACHE — e.g. the
+# job-level `env: GOCACHE: ${{ runner.temp }}/...` is an INVALID expression
+# (the `runner` context is unavailable at job-level env), which fails the whole
+# workflow at 0s. With this in-script guard the orchestrator can simply DELETE
+# that broken workflow line; cache isolation no longer depends on it.
+# GOMODCACHE stays shared/warm: `go clean -cache` never touches the module cache.
+if [[ -z "${GOCACHE:-}" || "${GOCACHE:-}" != *"go-build-cache-"* ]]; then
+  _bc_cache_root="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+  export GOCACHE="${_bc_cache_root%/}/go-build-cache-${BATCH_ID:-default}"
+  mkdir -p "$GOCACHE" 2>/dev/null || true
+fi
+
 # ── Go changelog fetch (shared source for verdict + display, PRD G6) ──────────
 # Resolves the module's GitHub repo (incl. common vanity import paths the in-CLI
 # fetcher cannot), pulls release bodies for tags in (from,to] plus CHANGELOG.md, and

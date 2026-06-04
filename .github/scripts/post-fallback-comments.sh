@@ -2067,6 +2067,16 @@ print(body)
     eval "$(get_behavioral_grade "$PR_NUM")"
     # Reset per-PR so a prior PR's residual evidence can never leak onto this one.
     _V2_RESIDUAL_BLOCK=""
+    # ── Behavioral-confidence axis (C0–C5), DISTINCT from the build-verification tier ──
+    # V2_CONF is the confidence in the BEHAVIORAL grade (from the differential probe /
+    # break-class verdict_v2). The body separately shows "Verification: Lx" — the BUILD
+    # pipeline tier (did it compile / type-check / run tests). Both previously rendered as
+    # "Lx", so a reader saw "headline L2 vs body L4" as a self-contradiction when the two
+    # axes simply measure different things. Render behavioral confidence on its own C0–C5
+    # namespace so the headline can never be misread as disagreeing with the build tier.
+    _V2_CONF_RAW="${V2_CONF:-L0}"
+    _V2_CONF_AXIS="C${_V2_CONF_RAW#L}"
+    [[ "$_V2_CONF_AXIS" =~ ^C[0-5]$ ]] || _V2_CONF_AXIS="C0"
     # BLOCKED -> High; SAFE -> None; REVIEW -> the committed behavioral grade (the
     # differential probe / break-class router) if present, else Medium. This replaces
     # the "review the release notes yourself" punt with a graded answer.
@@ -2098,10 +2108,10 @@ print(body)
                ;;
     esac
     case "$_GRADE" in
-      high)   _V2_HEADLINE="🔴 Breakability: High · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
-      medium) _V2_HEADLINE="🟠 Breakability: Medium · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
-      low)    _V2_HEADLINE="🟡 Breakability: Low · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
-      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+      high)   _V2_HEADLINE="🔴 Breakability: High · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
+      medium) _V2_HEADLINE="🟠 Breakability: Medium · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
+      low)    _V2_HEADLINE="🟡 Breakability: Low · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
+      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
     esac
     # ── CVE-aware headline floor ───────────────────────────────────────────────
     # A PR that fixes a known CVE must headline the SECURITY action, not a
@@ -2130,15 +2140,15 @@ print(body)
       # headline can't over-credit a CVE the resulting version doesn't actually reach.
       if [[ "$_GATED_CVE_FIX" == "1" ]]; then _SEC_VERB="resolves"; else _SEC_VERB="claims to fix (not version-verified)"; fi
       if [[ "${NEW_ERR_COUNT:-0}" =~ ^[0-9]+$ && "${NEW_ERR_COUNT:-0}" -gt 0 ]]; then
-        _V2_HEADLINE="🔴 Security fix · BLOCKED — ${_SEC_VERB} ${_SEC_CVE_DESC} but introduces build errors · Confidence: ${V2_CONF:-L0} · Priority: P0 (fix build, then merge)"
+        _V2_HEADLINE="🔴 Security fix · BLOCKED — ${_SEC_VERB} ${_SEC_CVE_DESC} but introduces build errors · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0 (fix build, then merge)"
       elif [[ "$_GATED_CVE_FIX" != "1" || "${V2_VERDICT:-REVIEW}" == "BLOCKED" || "${V2_VERDICT:-REVIEW}" == "REVIEW" || "$_GRADE" == "high" || "$_GRADE" == "medium" ]]; then
         # A CVE-fixing PR that the body routes to REVIEW (breaking change flagged, or a
         # committed behavioral grade of high/medium), OR an unverified PR-body claim, must NOT
         # headline "MERGE NOW" — that contradicts the body/plan. Say REVIEW THEN MERGE so the
         # security urgency is preserved without over-promising safety.
-        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}; verify the version/breaking-change note below, but merging is the path to clear the CVE · Confidence: ${V2_CONF:-L0} · Priority: P0"
+        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}; verify the version/breaking-change note below, but merging is the path to clear the CVE · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
       else
-        _V2_HEADLINE="🔴 Security fix · MERGE NOW — ${_SEC_VERB} ${_SEC_CVE_DESC}, no new build errors · Confidence: ${V2_CONF:-L0} · Priority: P0"
+        _V2_HEADLINE="🔴 Security fix · MERGE NOW — ${_SEC_VERB} ${_SEC_CVE_DESC}, no new build errors · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
       fi
     fi
     case "${V2_VERDICT:-REVIEW}" in
