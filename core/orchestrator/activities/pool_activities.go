@@ -79,8 +79,10 @@ var (
 	DeleteGCPBucket                          = _deleteGCPBucket
 	LoadVMRSConfig                           = vmrs_config.LoadConfig
 	CreateDecisionMaker                      = vmrs_decision.NewDecisionMaker
-	LoadOCIVMRSConfig                        = vmrs_oci.LoadConfig
-	DecideOCIVM                              = vmrs_oci.Decide
+	MergeFirewallSourceRangesIfNeeded        = _mergeFirewallSourceRangesIfNeeded
+
+	LoadOCIVMRSConfig = vmrs_oci.LoadConfig
+	DecideOCIVM       = vmrs_oci.Decide
 	// OCIVMRSConfigFilePath is the on-disk path of the OCI VMRS YAML
 	// catalogue (see config/vmrs_oci.yaml). It reuses the same env var
 	// the GCP workflow reads (VMRS_CONFIG_PATH); the OCI worker Helm
@@ -554,7 +556,7 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 		pool.AllowAutoTiering = true
 		pool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.HotTierSizeInBytes)
 		pool.AutoTieringConfig.EnableHotTierAutoResize = updatePoolParams.EnableHotTierAutoResize
-	} else  {
+	} else {
 		pool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.SizeInBytes)
 	}
 
@@ -2986,12 +2988,28 @@ func _insertFirewall(gService hyperscaler2.GoogleServices, projectName, firewall
 	return gService.InsertFirewall(firewallRequest)
 }
 
-// _checkAndUpdateFirewall check if firewall has been updated by checking if all SourceRanges in firewallReceived exist in firewallRequest.SourceRanges
-func _checkAndUpdateFirewall(gService hyperscaler2.GoogleServices, existingFirewall, firewallRequest *hyperscaler_models.Firewall) (string, error) {
-	needsUpdate := false
+// _mergeFirewallSourceRangesIfNeeded appends any requested source ranges missing from existing (append-only; never removes).
+// Returns nil when no new ranges are needed; otherwise returns existing ranges plus the new requested ranges.
+func _mergeFirewallSourceRangesIfNeeded(requestedSourceRanges, existingSourceRanges []string) []string {
+	newFirewallSourceRanges := append([]string(nil), existingSourceRanges...)
+	hasNewRange := false
+	for _, requestedRange := range requestedSourceRanges {
+		if !utils.ContainsString(newFirewallSourceRanges, requestedRange) {
+			newFirewallSourceRanges = append(newFirewallSourceRanges, requestedRange)
+			hasNewRange = true
+		}
+	}
+	if !hasNewRange {
+		return nil
+	}
+	return newFirewallSourceRanges
+}
 
-	needsUpdate = !utils.IsSliceEqual(firewallRequest.SourceRanges, existingFirewall.SourceRanges)
-	if needsUpdate {
+// _checkAndUpdateFirewall updates an existing firewall only when the request includes new SourceRanges not already present in the existing firewall (append-only; does not remove existing ranges).
+func _checkAndUpdateFirewall(gService hyperscaler2.GoogleServices, existingFirewall, firewallRequest *hyperscaler_models.Firewall) (string, error) {
+	newFirewallSourceRanges := MergeFirewallSourceRangesIfNeeded(firewallRequest.SourceRanges, existingFirewall.SourceRanges)
+	if newFirewallSourceRanges != nil {
+		firewallRequest.SourceRanges = newFirewallSourceRanges
 		gService.GetLogger().Infof("Updating firewall for project : %s and network name : %s, firewall name : %s ", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name)
 		op, err := gService.UpdateFirewall(firewallRequest)
 		if err != nil {

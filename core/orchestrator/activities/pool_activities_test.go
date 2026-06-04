@@ -2565,6 +2565,28 @@ func Test_InsertFirewall(t *testing.T) {
 		mgs.AssertExpectations(tt)
 	})
 
+	t.Run("WhenFirewallExistsWithNewPUPIRangesAppendsAndUpdates", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		existingFirewall := &hyperscaler_models.Firewall{
+			SourceRanges: []string{"10.0.0.0/8", "192.168.0.0/16"},
+		}
+		requestedSourceRanges := []string{"10.0.0.0/8", "192.168.0.0/16", "136.226.252.128/25"}
+		expectedMergedSourceRanges := []string{"10.0.0.0/8", "192.168.0.0/16", "136.226.252.128/25"}
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetFirewall", projectName, firewallName).Return(existingFirewall, nil)
+		mgs.On("UpdateFirewall", mock.MatchedBy(func(fw *hyperscaler_models.Firewall) bool {
+			return fw.ProjectName == projectName &&
+				fw.Name == firewallName &&
+				fw.VPCNetworkName == vpcName &&
+				utils.IsSliceEqual(fw.SourceRanges, expectedMergedSourceRanges)
+		})).Return("op-pupi-append", nil)
+
+		op, err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, requestedSourceRanges, firewallAllowedPortRules)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "op-pupi-append", op)
+		mgs.AssertExpectations(tt)
+	})
+
 	t.Run("WhenGetFirewallFailsWithNonNotFoundError", func(tt *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(tt)
 
@@ -5700,6 +5722,115 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole_Success(t *testing.T) 
 	assert.Equal(t, expectedServiceAccount.Email, result.Email)
 }
 
+func Test_mergeFirewallSourceRangesIfNeeded(t *testing.T) {
+	sourceRanges1 := []string{"10.0.0.0/24", "192.168.1.0/24"}
+	sourceRanges2 := []string{"10.0.0.0/24", "192.168.2.0/24"}
+	sourceRanges3 := []string{"10.0.0.0/24", "192.168.1.0/24", "172.16.0.0/12"}
+	sourceRanges4 := []string{"10.0.0.0/24"}
+	sourceRanges6 := []string{"192.168.1.0/24", "10.0.0.0/24"}
+	sourceRanges7 := []string{"10.0.0.0/24", "192.168.1.0/24", "172.16.0.0/12", "136.226.252.128/25", "167.103.24.128/25"}
+	sourceRanges8 := []string{"10.0.0.0/24", "192.168.1.0/24", "172.16.0.0/12"}
+
+	tests := []struct {
+		name                  string
+		requestedSourceRanges []string
+		existingSourceRanges  []string
+		wantNil               bool
+		wantMerged            []string
+	}{
+		{
+			name:                  "equal slices",
+			requestedSourceRanges: sourceRanges1,
+			existingSourceRanges:  sourceRanges1,
+			wantNil:               true,
+		},
+		{
+			name:                  "same elements different order",
+			requestedSourceRanges: sourceRanges6,
+			existingSourceRanges:  sourceRanges1,
+			wantNil:               true,
+		},
+		{
+			name:                  "requested is subset of existing",
+			requestedSourceRanges: sourceRanges4,
+			existingSourceRanges:  sourceRanges1,
+			wantNil:               true,
+		},
+		{
+			name:                  "requested adds new range",
+			requestedSourceRanges: sourceRanges3,
+			existingSourceRanges:  sourceRanges1,
+			wantNil:               false,
+			wantMerged:            sourceRanges3,
+		},
+		{
+			name:                  "requested replaces range appends without removing existing",
+			requestedSourceRanges: sourceRanges2,
+			existingSourceRanges:  sourceRanges1,
+			wantNil:               false,
+			wantMerged:            []string{"10.0.0.0/24", "192.168.1.0/24", "192.168.2.0/24"},
+		},
+		{
+			name:                  "empty requested",
+			requestedSourceRanges: []string{},
+			existingSourceRanges:  sourceRanges1,
+			wantNil:               true,
+		},
+		{
+			name:                  "empty existing",
+			requestedSourceRanges: sourceRanges4,
+			existingSourceRanges:  []string{},
+			wantNil:               false,
+			wantMerged:            sourceRanges4,
+		},
+		{
+			name:                  "both empty",
+			requestedSourceRanges: []string{},
+			existingSourceRanges:  []string{},
+			wantNil:               true,
+		},
+		{
+			name:                  "multiple new ranges",
+			requestedSourceRanges: []string{"10.0.0.0/24", "172.16.0.0/12", "198.51.100.0/24"},
+			existingSourceRanges:  sourceRanges4,
+			wantNil:               false,
+			wantMerged:            []string{"10.0.0.0/24", "172.16.0.0/12", "198.51.100.0/24"},
+		},
+		{
+			name:                  "duplicate ranges in request",
+			requestedSourceRanges: []string{"10.0.0.0/24", "10.0.0.0/24", "172.16.0.0/12"},
+			existingSourceRanges:  sourceRanges4,
+			wantNil:               false,
+			wantMerged:            []string{"10.0.0.0/24", "172.16.0.0/12"},
+		},
+		{
+			name:                  "nil requested and existing",
+			requestedSourceRanges: nil,
+			existingSourceRanges:  nil,
+			wantNil:               true,
+		},
+
+		{
+			name:                  "requested subset of existing retains additional ranges on firewall",
+			requestedSourceRanges: sourceRanges8,
+			existingSourceRanges:  sourceRanges7,
+			wantNil:               true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := activities.MergeFirewallSourceRangesIfNeeded(tt.requestedSourceRanges, tt.existingSourceRanges)
+			if tt.wantNil {
+				assert.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, tt.wantMerged, got)
+		})
+	}
+}
+
 func Test_checkAndUpdateFirewall(t *testing.T) {
 	sourceRanges1 := []string{"10.0.0.0/24", "192.168.1.0/24"}
 	sourceRanges2 := []string{"10.0.0.0/24", "192.168.2.0/24"}
@@ -5707,6 +5838,8 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	sourceRanges4 := []string{"10.0.0.0/24"}
 	sourceRanges5 := []string{"10.1.0.0/24", "192.168.1.0/24"}
 	sourceRanges6 := []string{"192.168.1.0/24", "10.0.0.0/24"}
+	sourceRangesWithPUPI := []string{"10.0.0.0/24", "192.168.1.0/24", "172.16.0.0/12", "136.226.252.128/25", "167.103.24.128/25"}
+	sourceRangesWithoutPUPI := []string{"10.0.0.0/24", "192.168.1.0/24", "172.16.0.0/12"}
 	t.Run("whenNoChangeInSourceRange", func(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
 		existingFirewall := &hyperscaler_models.Firewall{
@@ -5728,8 +5861,11 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges2,
 		}
+		expectedMergedSourceRanges := []string{"10.0.0.0/24", "192.168.1.0/24", "192.168.2.0/24"}
 		mgs.On("GetLogger").Return(log.NewLogger())
-		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
+		mgs.On("UpdateFirewall", mock.MatchedBy(func(fw *hyperscaler_models.Firewall) bool {
+			return utils.IsSliceEqual(fw.SourceRanges, expectedMergedSourceRanges)
+		})).Return("", nil)
 		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
@@ -5742,7 +5878,6 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges4,
 		}
-		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
 		mgs.On("GetLogger").Return(log.NewLogger())
 		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
@@ -5756,10 +5891,52 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges3,
 		}
-		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
+		mgs.On("GetLogger").Return(log.NewLogger())
+		mgs.On("UpdateFirewall", mock.MatchedBy(func(fw *hyperscaler_models.Firewall) bool {
+			return utils.IsSliceEqual(fw.SourceRanges, sourceRanges3)
+		})).Return("", nil)
+		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenNewRangeAddedUpdatesFirewallWithMergedRanges", func(t *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		existingFirewall := &hyperscaler_models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		firewallRequest := &hyperscaler_models.Firewall{
+			ProjectName:    "test-project",
+			VPCNetworkName: "test-vpc",
+			Name:           "test-firewall",
+			SourceRanges:   []string{"10.0.0.0/24", "192.168.1.0/24", "172.16.0.0/12"},
+		}
+		expectedMergedSourceRanges := []string{"10.0.0.0/24", "192.168.1.0/24", "172.16.0.0/12"}
+		mgs.On("GetLogger").Return(log.NewLogger())
+		mgs.On("UpdateFirewall", mock.MatchedBy(func(fw *hyperscaler_models.Firewall) bool {
+			return fw.ProjectName == "test-project" &&
+				fw.VPCNetworkName == "test-vpc" &&
+				fw.Name == "test-firewall" &&
+				utils.IsSliceEqual(fw.SourceRanges, expectedMergedSourceRanges)
+		})).Return("op-123", nil)
+		op, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err)
+		assert.Equal(t, "op-123", op)
+		assert.Equal(t, expectedMergedSourceRanges, firewallRequest.SourceRanges)
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenRequestedSubsetDoesNotMutateSourceRanges", func(t *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		existingFirewall := &hyperscaler_models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		requestedSourceRanges := []string{"10.0.0.0/24"}
+		firewallRequest := &hyperscaler_models.Firewall{
+			SourceRanges: requestedSourceRanges,
+		}
 		mgs.On("GetLogger").Return(log.NewLogger())
 		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
+		assert.Equal(t, requestedSourceRanges, firewallRequest.SourceRanges)
 		mgs.AssertExpectations(t)
 	})
 	t.Run("whenNewFirewallIsDifferentSuccess", func(t *testing.T) {
@@ -5770,7 +5947,6 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges4,
 		}
-		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
 		mgs.On("GetLogger").Return(log.NewLogger())
 		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
@@ -5784,10 +5960,31 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges5,
 		}
-		mgs.On("UpdateFirewall", firewallRequest).Return("", errors.New("update error"))
+		expectedMergedSourceRanges := []string{"10.0.0.0/24", "192.168.1.0/24", "10.1.0.0/24"}
+		mgs.On("UpdateFirewall", mock.MatchedBy(func(fw *hyperscaler_models.Firewall) bool {
+			return utils.IsSliceEqual(fw.SourceRanges, expectedMergedSourceRanges)
+		})).Return("", errors.New("update error"))
 		mgs.On("GetLogger").Return(log.NewLogger())
 		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
-		assert.Error(t, err, "update error")
+		assert.Error(t, err)
+		var customErr *vsaerrors.CustomError
+		require.True(t, vsaerrors.As(err, &customErr))
+		assert.ErrorContains(t, customErr.Unwrap(), "update error")
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenExistingFirewallHasAdditionalPUPIRangesSkipsUpdate", func(t *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(t)
+		existingFirewall := &hyperscaler_models.Firewall{
+			SourceRanges: sourceRangesWithPUPI,
+		}
+		firewallRequest := &hyperscaler_models.Firewall{
+			SourceRanges: sourceRangesWithoutPUPI,
+		}
+		mgs.On("GetLogger").Return(log.NewLogger())
+		operation, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err)
+		assert.Equal(t, "", operation)
+		assert.Equal(t, sourceRangesWithoutPUPI, firewallRequest.SourceRanges)
 		mgs.AssertExpectations(t)
 	})
 	t.Run("whenFirewallOrderChanged", func(t *testing.T) {
