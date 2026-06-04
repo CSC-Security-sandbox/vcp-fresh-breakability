@@ -108,6 +108,19 @@ def clean_bullets(raw_bullets):
 
 def first_prod_site(pr):
     r = pr.get("declared_break_reachability") or {}
+    # Prefer the ACTUAL usage site (surface_evidence: where our code references the
+    # changed symbol, named first), not the bare import line. The probe/oracle must
+    # reason about the real call, e.g. prometheus.New at metric.go:22, not the import.
+    surf = [e for e in (r.get("surface_evidence") or []) if isinstance(e, dict)]
+    for e in sorted(surf, key=lambda x: (not x.get("named"),)):
+        if not e.get("is_test") and e.get("file"):
+            return {
+                "import_path": e.get("path") or e.get("import_path") or "",
+                "symbol": e.get("symbol") or "",
+                "file": e.get("file"),
+                "line": safe_int(e.get("line")),
+                "snippet": read_snippet(e.get("file"), safe_int(e.get("line"))),
+            }
     for e in (r.get("evidence") or []):
         if isinstance(e, dict) and not e.get("is_test") and e.get("file"):
             return {
@@ -207,6 +220,21 @@ def _as_bool(v):
 
 
 def derive_grade(c):
+    grade, reason = _derive_grade_raw(c)
+    # PROOF FLOOR: the AI may only LOWER risk with cited proof. A probe-derived low/none
+    # must carry either a release-note/source quote (evidence) or concrete observed
+    # from->to values. Plausible prose without a citation is floored back to Medium.
+    if grade in ("low", "none"):
+        evidence = str(c.get("evidence", "")).strip()
+        ofrom = str(c.get("observed_from", "")).strip()
+        oto = str(c.get("observed_to", "")).strip()
+        if not (len(evidence) >= 20 or (ofrom and oto)):
+            return "medium", ("probe lowered risk but lacked cited proof (no source quote and no "
+                              "observed from->to values); floored to Medium (no false-green)")
+    return grade, reason
+
+
+def _derive_grade_raw(c):
     """Driver-owned conservative floors. Returns (grade, reason).
 
     Base for any declared-behavioral residual is MEDIUM. We only move OFF Medium with
@@ -271,6 +299,18 @@ def build_grade_from_contract(c):
 
 # ── not-observable reasoning oracle (release-notes + usage, no execution) ────
 def derive_reasoning_grade(c):
+    grade, reason = _derive_reasoning_grade_raw(c)
+    # PROOF FLOOR: lowering to LOW requires a cited release-note/source quote, not just
+    # plausible "structurally avoids" prose. No citation -> honest Medium.
+    if grade == "low":
+        evidence = str(c.get("evidence", "")).strip()
+        if len(evidence) < 20:
+            return "medium", ("release-notes reasoning suggested low exposure but cited no source "
+                              "quote; committed at Medium (only lower with cited proof)")
+    return grade, reason
+
+
+def _derive_reasoning_grade_raw(c):
     """Conservative floors for the release-notes reasoning oracle.
 
     This oracle reasons about a break a probe CANNOT reproduce (cardinality, memory,
@@ -594,6 +634,25 @@ def main():
     probe_budget = MAX_PRS
     reason_budget = MAX_REASON
     annotated = 0
+
+    def _persist():
+        # Atomic: write to a temp file in the same dir, then os.replace() over RESULTS so a
+        # mid-loop kill can never leave a truncated/corrupt artifact for downstream steps.
+        try:
+            d = os.path.dirname(os.path.abspath(RESULTS)) or "."
+            fd, tmp = tempfile.mkstemp(prefix=".dp-results-", dir=d)
+            try:
+                with os.fdopen(fd, "w") as f:
+                    json.dump(data, f)
+                os.replace(tmp, RESULTS)
+            finally:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
+            return True
+        except Exception as e:
+            log(f"failed to write {RESULTS}: {e}")
+            return False
+
     for num, pr in residual:
         try:
             g = grade_residual(num, pr, {"probe": probe_budget, "reason": reason_budget})
@@ -613,15 +672,13 @@ def main():
                 "confidence": "low", "generated_at": int(time.time()),
             }
             annotated += 1
-            continue
+        # Persist after EACH PR so a mid-loop timeout/kill (budgets can exceed the step
+        # timeout) does not discard grades already committed.
+        _persist()
 
     if annotated:
-        try:
-            with open(RESULTS, "w") as f:
-                json.dump(data, f)
+        if _persist():
             log(f"committed behavioral grades for {annotated} residual PR(s); wrote {RESULTS}")
-        except Exception as e:
-            log(f"failed to write {RESULTS}: {e}")
     return 0
 
 

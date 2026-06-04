@@ -2178,6 +2178,20 @@ def fmt_merge_risk(pr):
     reason = risk.get("reason") or "change evidence is limited; default caution"
     evidence = risk.get("evidenceAxis") or "limited evidence"
     confidence = risk.get("confidenceAxis") or pr.get("verification_label") or "unverified"
+    # The deterministic reason is built before the behavioral oracle runs, so it ends in a
+    # "verify against the release notes" punt. When the oracle later committed a CITED grade,
+    # that punt is stale here too (same fix as the per-PR comment) — strip it.
+    bg = pr.get("behavioral_grade") or {}
+    bg_src = str(bg.get("source", "")).strip().lower()
+    bg_cited = bg_src in ("reasoning", "probe") and bool(
+        str(bg.get("rationale", "")).strip() or str(bg.get("guidance", "")).strip()
+        or str(bg.get("evidence", "")).strip())
+    if bg_cited and "verify against the release notes" in reason:
+        for sep in (" — verify against the release notes", "; verify against the release notes",
+                    ", but verify against the release notes", " verify against the release notes"):
+            reason = reason.replace(sep, "")
+        glabel = str(bg.get("grade", "medium")).strip().capitalize() or "Medium"
+        reason = reason + f" — behavioral oracle graded exposure {glabel} (see PR comment)"
     return f"{tag} (Evidence: {evidence} × Confidence: {confidence}) — {reason}"
 
 # Categorize PRs
@@ -2204,7 +2218,7 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     error_class = pr.get("build", {}).get("error_class", "")
     new_errors = pr.get("build", {}).get("new_errors", [])
     main_exit = pr.get("build", {}).get("main_exit", -1)
-    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr)}
+    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr), "behavioral_grade": pr.get("behavioral_grade") or {}}
 
     # V9.8 iter6 (A): security verdict gate — a PR that INTRODUCES new CVEs must never be "safe"
     vuln_status = pr.get("vuln_status", "")
@@ -2735,8 +2749,25 @@ if needs_review:
     lines.append("## ⚠️ Manual Review Needed")
     lines.append("")
     for e in needs_review:
+        bg = e.get("behavioral_grade") or {}
+        bg_src = str(bg.get("source", "")).strip().lower()
+        bg_cited = bg_src in ("reasoning", "probe") and bool(
+            str(bg.get("rationale", "")).strip() or str(bg.get("guidance", "")).strip()
+            or str(bg.get("evidence", "")).strip())
         if e["verdict"] == "security_review":
             reason = "Build passes but npm audit found critical/high vulnerabilities"
+        elif e.get("declared_behavioral_review") or e.get("high_merge_risk"):
+            # Build PASSED — the review signal is a declared BEHAVIORAL break, not a build error.
+            if bg_cited:
+                glabel = str(bg.get("grade", "medium")).strip().capitalize() or "Medium"
+                guid = str(bg.get("guidance", "")).strip()
+                reason = (f"Declared behavioral breaking change in a used package — behavioral oracle "
+                          f"graded exposure **{glabel}** (build/test/api-diff cannot confirm runtime exposure)")
+                if guid:
+                    reason += f"; {guid}"
+            else:
+                reason = ("Declared behavioral breaking change in a used package — build/test/api-diff "
+                          "cannot confirm runtime exposure; see the PR comment for the graded verdict")
         else:
             reason = "Build error / infrastructure issue"
         lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — Merge Risk: {e.get('merge_risk', 'Medium — default caution')} — {reason}")
