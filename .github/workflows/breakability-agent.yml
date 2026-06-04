@@ -135,6 +135,16 @@ jobs:
     needs: discover
     runs-on: [self-hosted, breakability]
     timeout-minutes: 180
+    env:
+      # Per-runner isolated Go BUILD cache. All self-hosted batch runners share one
+      # $HOME (same mac), so a shared default GOCACHE means one batch's
+      # `go clean -cache` (build-check.sh calls it at several sites) deletes cache
+      # entries another parallel batch is mid-build against -> "no such file or
+      # directory" / "package ... is not in std" corruption -> degraded build output
+      # and thin comments. Isolating the build cache per batch removes that race.
+      # The module cache (GOMODCACHE, 9.8G) stays shared/warm: `go clean -cache`
+      # never touches it.
+      GOCACHE: ${{ runner.temp }}/go-build-cache-${{ matrix.batch_id }}
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
