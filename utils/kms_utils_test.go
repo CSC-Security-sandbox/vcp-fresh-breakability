@@ -19,11 +19,13 @@ import (
 
 func TestParseKeyFullPathResource(t *testing.T) {
 	tests := []struct {
+		name     string
 		input    string
 		expected ParsedKeyFullPathResource
 		hasError bool
 	}{
 		{
+			name:  "valid key full path without grant",
 			input: "projects/project-id/locations/location/keyRings/key-ring/cryptoKeys/crypto-key",
 			expected: ParsedKeyFullPathResource{
 				ProjectID: "project-id",
@@ -34,21 +36,47 @@ func TestParseKeyFullPathResource(t *testing.T) {
 			hasError: false,
 		},
 		{
+			name:  "valid key full path with grant",
+			input: "projects/project-id/locations/location/keyRings/key-ring/cryptoKeys/crypto-key/grants/grant-id",
+			expected: ParsedKeyFullPathResource{
+				ProjectID: "project-id",
+				Location:  "location",
+				KeyRing:   "key-ring",
+				CryptoKey: "crypto-key",
+				Grant:     "grant-id",
+			},
+			hasError: false,
+		},
+		{
+			name:     "invalid resource string",
 			input:    "invalid/resource/string",
+			expected: ParsedKeyFullPathResource{},
+			hasError: true,
+		},
+		{
+			name:     "invalid path with 9 parts",
+			input:    "projects/project-id/locations/location/keyRings/key-ring/cryptoKeys/crypto-key/extra",
 			expected: ParsedKeyFullPathResource{},
 			hasError: true,
 		},
 	}
 
 	for _, test := range tests {
-		result, err := ParseKeyFullPathResource(test.input)
-		if test.hasError {
-			assert.Nil(t, result)
-			assert.NotNil(t, err)
-		} else {
-			assert.NotNil(t, result)
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			result, err := ParseKeyFullPathResource(test.input)
+			if test.hasError {
+				assert.Nil(t, result)
+				assert.NotNil(t, err)
+			} else {
+				assert.NotNil(t, result)
+				assert.Nil(t, err)
+				assert.Equal(t, test.expected.ProjectID, result.ProjectID)
+				assert.Equal(t, test.expected.Location, result.Location)
+				assert.Equal(t, test.expected.KeyRing, result.KeyRing)
+				assert.Equal(t, test.expected.CryptoKey, result.CryptoKey)
+				assert.Equal(t, test.expected.Grant, result.Grant)
+			}
+		})
 	}
 }
 

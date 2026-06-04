@@ -23,6 +23,7 @@ const (
 	ErrInvalidServiceAccountEmail = "invalid service account email format"
 	ServiceAccountEmailPattern    = `^([a-zA-Z0-9-]+)-([a-zA-Z0-9-]+)@(\d+)\.iam\.gserviceaccount\.com$`
 	ExpectedResourceParts         = 8
+	ExpectedResourcePartsWithGrant = 10
 	ExpectedServiceAccountParts   = 4
 	enabledKeyState               = "ENABLED"
 	StoragePoolCreatingStateError = "Storage pool present which is in creating state"
@@ -94,26 +95,35 @@ type ParsedKeyFullPathResource struct {
 	Location  string
 	KeyRing   string
 	CryptoKey string
+	Grant     string
 }
 
 // ParseKeyFullPathResource parses the input string and returns a ParsedKeyFullPathResource struct.
 // example projects/123/locations/australia-southeast1/keyRings/name/cryptoKeys/name2
+// example projects/123/locations/australia-southeast1/keyRings/name/cryptoKeys/name2/grants/grant-id
 func ParseKeyFullPathResource(resource string) (*ParsedKeyFullPathResource, error) {
 	parts := strings.Split(resource, "/")
 
-	if len(parts) != ExpectedResourceParts {
+	if len(parts) != ExpectedResourceParts && len(parts) != ExpectedResourcePartsWithGrant {
 		return nil, errors.NewBadRequestErr(ErrInvalidResourceFormat)
 	}
 
-	return &ParsedKeyFullPathResource{
+	parsed := &ParsedKeyFullPathResource{
 		ProjectID: parts[1],
 		Location:  parts[3],
 		KeyRing:   parts[5],
 		CryptoKey: parts[7],
-	}, nil
+	}
+
+	if len(parts) == ExpectedResourcePartsWithGrant {
+		parsed.Grant = parts[9]
+	}
+
+	return parsed, nil
 }
 
 // String reconstructs the full path from the ParsedKeyFullPathResource struct.
+// Grant is intentionally excluded as it is not passed downstream or stored.
 func (p ParsedKeyFullPathResource) String() string {
 	return fmt.Sprintf("projects/%s/locations/%s/keyRings/%s/cryptoKeys/%s", p.ProjectID, p.Location, p.KeyRing, p.CryptoKey)
 }
