@@ -442,6 +442,34 @@ PYEOF
   [[ -n "$_bcp" ]] && printf '\n\n%s\n' "$_bcp"
 }
 
+# ── Pre-create the merge-plan issue so per-PR comments link the LIVE plan ─────
+# The plan BODY is generated after the per-PR loop, but the comments posted inside
+# that loop must link the plan THIS run produces — not the previous run's still-open
+# issue. So close stale plans and create a fresh placeholder NOW, capture its number,
+# and EDIT it with the real body at the end. (Fixes stale "Merge plan: #NNN" links.)
+_MP_LABEL="breakability-merge-plan"
+_MP_OLD=$(gh issue list --label "$_MP_LABEL" --state open --json number -q '.[].number' 2>/dev/null || echo "")
+_MP_OLD_LEGACY=$(gh issue list --label "dependencies" --state open --json number,title \
+  -q '.[] | select(.title | test("📋.*[Mm]erge [Pp]lan|[Dd]ependabot [Mm]erge [Pp]lan|[Bb]reakability [Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
+_MP_OLD_UNLABELED=$(gh issue list --state open --json number,title,labels \
+  -q '.[] | select((.labels | length) == 0) | select(.title | test("[Dd]ependabot [Mm]erge [Pp]lan|📋.*[Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
+for _OLD_NUM in $_MP_OLD $_MP_OLD_LEGACY $_MP_OLD_UNLABELED; do
+  [[ -z "$_OLD_NUM" ]] && continue
+  gh issue close "$_OLD_NUM" --comment "Superseded by new merge plan run at $(date -u '+%Y-%m-%d %H:%M UTC')." 2>/dev/null && \
+    echo "  Closed old merge plan issue #$_OLD_NUM" || true
+done
+_MP_PLACEHOLDER_URL=$(gh issue create \
+  --title "📋 Breakability Merge Plan $(date -u '+%Y-%m-%d %H:%M UTC') (generating…)" \
+  --body "⏳ Merge plan is being generated from the latest build results — this issue updates momentarily." \
+  --label "$_MP_LABEL" 2>/dev/null || echo "")
+MERGE_PLAN_NUM=$(echo "$_MP_PLACEHOLDER_URL" | grep -oE '[0-9]+$' || echo "")
+export MERGE_PLAN_NUM
+if [[ -n "$MERGE_PLAN_NUM" ]]; then
+  echo "  Reserved merge plan issue #$MERGE_PLAN_NUM"
+else
+  echo "  ⚠️  Could not pre-create merge plan issue — comments will omit the plan link"
+fi
+
 for PR_NUM in $PR_NUMBERS; do
   # Per-PR atomic comment management (A3-9):
   # 1. Check for existing AI agent comments (preserve those)
@@ -1507,10 +1535,10 @@ else:
     print(tail[:300] if tail else '')
 " 2>/dev/null || echo "")
 
-  # Find merge plan issue number
-  MERGE_PLAN_NUM=$(gh issue list --label "merge-plan" --state open --json number -q '.[0].number' 2>/dev/null || echo "")
+  # Use the plan issue reserved at the start of this run, so the link always points
+  # at THIS run's plan (never a stale previous-run number).
   PLAN_LINE=""
-  if [[ -n "$MERGE_PLAN_NUM" ]]; then
+  if [[ -n "${MERGE_PLAN_NUM:-}" ]]; then
     PLAN_LINE="
 📋 Merge plan: #$MERGE_PLAN_NUM"
   fi
@@ -2018,11 +2046,36 @@ print(body)
       *)       _GRADE="${BG_GRADE:-medium}"; [[ "${BG_OK:-0}" == "1" ]] || _GRADE="medium" ;;
     esac
     case "$_GRADE" in
-      high)   _V2_HEADLINE="🔴 Breakability: High · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
-      medium) _V2_HEADLINE="🟠 Breakability: Medium · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
-      low)    _V2_HEADLINE="🟡 Breakability: Low · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
-      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · Confidence: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+      high)   _V2_HEADLINE="🔴 Breakability: High · Verification: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+      medium) _V2_HEADLINE="🟠 Breakability: Medium · Verification: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+      low)    _V2_HEADLINE="🟡 Breakability: Low · Verification: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
+      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · Verification: ${V2_CONF:-L0} · Priority: ${V2_PRIO:-P2}" ;;
     esac
+    # ── CVE-aware headline floor ───────────────────────────────────────────────
+    # A PR that fixes a known CVE must headline the SECURITY action, not a
+    # breakability/changelog punt ("re-run", "skim the release notes"). Otherwise
+    # the body says "MERGE THIS PR IMMEDIATELY" while the headline buries it, and
+    # the merge plan says "SAFE — merge now" — a self-contradiction. Derive this
+    # from the SAME committed signals the body uses: PR-body CVEs (CVE_COUNT) OR a
+    # Dependabot/govulncheck-matched fix (_FIXES_CVE_DATA), plus NEW_ERR_COUNT and
+    # V2_VERDICT. Security fixes are P0.
+    _HAS_CVE_FIX=0
+    if [[ "${CVE_COUNT:-0}" =~ ^[0-9]+$ && "${CVE_COUNT:-0}" -gt 0 ]] || [[ -n "${_FIXES_CVE_DATA:-}" ]]; then
+      _HAS_CVE_FIX=1
+    fi
+    if [[ "$_HAS_CVE_FIX" == "1" ]]; then
+      _SEC_SEV="${CVE_MAX_SEVERITY:+${CVE_MAX_SEVERITY} }"
+      _SEC_CVE_N="${CVE_COUNT:-0}"
+      [[ "$_SEC_CVE_N" =~ ^[0-9]+$ ]] || _SEC_CVE_N=0
+      [[ "$_SEC_CVE_N" -gt 0 ]] && _SEC_CVE_DESC="${_SEC_CVE_N} ${_SEC_SEV}CVE(s)" || _SEC_CVE_DESC="known ${_SEC_SEV}vulnerabilit(ies)"
+      if [[ "${NEW_ERR_COUNT:-0}" =~ ^[0-9]+$ && "${NEW_ERR_COUNT:-0}" -gt 0 ]]; then
+        _V2_HEADLINE="🔴 Security fix · BLOCKED — resolves ${_SEC_CVE_DESC} but introduces build errors · Verification: ${V2_CONF:-L0} · Priority: P0 (fix build, then merge)"
+      elif [[ "${V2_VERDICT:-REVIEW}" == "BLOCKED" ]]; then
+        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — resolves ${_SEC_CVE_DESC}; a breaking change is flagged (see below), but merging still fixes the CVE · Verification: ${V2_CONF:-L0} · Priority: P0"
+      else
+        _V2_HEADLINE="🔴 Security fix · MERGE NOW — resolves ${_SEC_CVE_DESC}, no new build errors · Verification: ${V2_CONF:-L0} · Priority: P0"
+      fi
+    fi
     case "${V2_VERDICT:-REVIEW}" in
       SAFE)
         # None/Low with positive evidence => no residual block needed.
@@ -2429,7 +2482,15 @@ lines.append("")
 _all_entries = safe + blocked + review + skipped + ci_only + companion_blocked + not_analyzed + cancelled
 if _all_entries:
     from collections import Counter as _Counter
-    _risk_counts = _Counter((e.get("merge_risk", "Medium —").split(" — ", 1)[0] or "Medium") for e in _all_entries)
+    import re as _risk_re
+    def _risk_tag(_s):
+        # merge_risk strings look like "High (Evidence: … × Confidence: L2) — reason".
+        # Parse the LEADING High|Medium|Low tag with a regex; the old split(" — ")
+        # kept the whole "High (Evidence: …)" prefix so no key ever matched and the
+        # roll-up printed High:0 Medium:0 Low:0 while the tables below were populated.
+        _m = _risk_re.match(r"\s*(High|Medium|Low)\b", _s or "")
+        return _m.group(1) if _m else "Medium"
+    _risk_counts = _Counter(_risk_tag(e.get("merge_risk", "")) for e in _all_entries)
     lines.append("## Merge Risk Summary")
     lines.append("")
     lines.append(f"**High:** {_risk_counts.get('High', 0)} · **Medium:** {_risk_counts.get('Medium', 0)} · **Low:** {_risk_counts.get('Low', 0)}")
@@ -2552,24 +2613,46 @@ if len(review) > 0:
 # CVE highlight — union of PR-body CVEs and Dependabot alert-matched fixes
 all_cves = []
 _cve_fix_prs_set = set(str(f["pr"]) for f in security.get("cve_fixes", []))
-for cat in [safe, blocked, review, skipped, ci_only]:
+# Map PR -> the CVE ids it actually resolves (version-gated, incl. transitive go.mod
+# bumps), so Dependabot-only matches don't render blank CVE cells.
+_cve_ids_by_pr = {}
+for f in security.get("cve_fixes", []):
+    _cve_ids_by_pr.setdefault(str(f["pr"]), []).append(f.get("cve_id") or "")
+# Track the committed routing bucket for each PR so the verdict shown here can never
+# contradict the Manual-Review / Fix-required sections below (one committed verdict).
+_cve_bucket = {}
+for _catname, cat in [("safe", safe), ("blocked", blocked), ("review", review), ("skipped", skipped), ("ci_only", ci_only), ("companion_blocked", companion_blocked), ("not_analyzed", not_analyzed), ("cancelled", cancelled)]:
     for e in cat:
         if e.get("cves") or e["num"] in _cve_fix_prs_set:
             all_cves.append(e)
+            _cve_bucket.setdefault(e["num"], _catname)
 if all_cves:
     lines.append("## 🔴 Security — CVEs Fixed by These Upgrades")
     lines.append("")
     lines.append("> **ACTION REQUIRED:** Merge security fix PRs as soon as possible to resolve known vulnerabilities.")
     lines.append("")
     for e in all_cves:
-        cve_str = ", ".join(e["cves"])
-        verdict_note = ""
-        if e["verdict"] == "pass":
-            verdict_note = " ✅ **SAFE — merge now**"
-        elif e["verdict"] == "pre_existing":
-            verdict_note = " ⚙️ **Likely safe — no new errors**"
-        elif e["verdict"] == "fail":
+        _cve_list = [c for c in (e.get("cves") or _cve_ids_by_pr.get(str(e["num"]), [])) if c]
+        cve_str = ", ".join(_cve_list) if _cve_list else "see Dependabot alerts"
+        # Verdict note derived from the COMMITTED bucket (not the raw build verdict):
+        # a CVE-fixing PR routed to Manual Review or Fix-required must NOT also read
+        # "SAFE — merge now" (the PR#10/#23 self-contradiction).
+        _b = _cve_bucket.get(e["num"], "")
+        _is_l4 = e.get("ver", "").startswith("L4") or e.get("ver", "").startswith("L5")
+        if _b == "blocked":
             verdict_note = " ❌ Fix required before merge"
+        elif _b == "review":
+            verdict_note = " ⚠️ **Review required** — see Manual Review Needed below (not auto-safe)"
+        elif _b == "companion_blocked":
+            verdict_note = " 🔗 **Blocked by a companion PR** — see Blocked section below (fix companion first)"
+        elif _b == "skipped":
+            verdict_note = " ⏭️ Opted out (`breakability:skip`) — merge manually to resolve the CVE"
+        elif _b in ("not_analyzed", "cancelled"):
+            verdict_note = " ❓ Not analyzed this run — re-run the tool before merging"
+        elif _b in ("safe", "ci_only"):
+            verdict_note = " ✅ **SAFE — merge now** (tests pass, L4)" if _is_l4 else " ⚙️ **Build verified (L2/L3) — tests not run; merge after review**"
+        else:
+            verdict_note = ""
         lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {cve_str}{verdict_note}")
     lines.append("")
 
@@ -2873,10 +2956,6 @@ PYEOF
 )
 
 if [[ -n "$MERGE_PLAN_BODY" && "$MERGE_PLAN_BODY" != *"Traceback"* ]]; then
-  # P0 FIX (V8 review C1): Create a NEW issue for each complete run.
-  # Old approach updated issue in-place but didn't update the title, so the title
-  # showed stale dates (e.g., "2026-03-31" when body said "2026-04-16").
-  # New approach: close all old merge plan issues, then create a fresh one.
   _MP_LABEL="breakability-merge-plan"
 
   # Count analyzed PRs for the title
@@ -2888,30 +2967,25 @@ print(len(data.get('prs', {})))
 " 2>/dev/null || echo "?")
   _MP_TITLE="📋 Breakability Merge Plan $(date -u '+%Y-%m-%d %H:%M UTC') (${_MP_PR_COUNT} PRs)"
 
-  # Step 1: Close ALL existing merge plan issues (both labels)
-  _OLD_ISSUES=$(gh issue list --label "$_MP_LABEL" --state open --json number -q '.[].number' 2>/dev/null || echo "")
-  # Also check old "dependencies" label for legacy issues
-  # V9.8 iter6 (F12): match both 📋-prefixed and the AI agent's "Dependabot Merge Plan" titles.
-  _OLD_ISSUES_LEGACY=$(gh issue list --label "dependencies" --state open --json number,title \
-    -q '.[] | select(.title | test("📋.*[Mm]erge [Pp]lan|[Dd]ependabot [Mm]erge [Pp]lan|[Bb]reakability [Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
-  # Also scan issues with NO label (AI agent may create unlabeled ones)
-  _OLD_ISSUES_UNLABELED=$(gh issue list --state open --json number,title,labels \
-    -q '.[] | select((.labels | length) == 0) | select(.title | test("[Dd]ependabot [Mm]erge [Pp]lan|📋.*[Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
-  for _OLD_NUM in $_OLD_ISSUES $_OLD_ISSUES_LEGACY $_OLD_ISSUES_UNLABELED; do
-    [[ -z "$_OLD_NUM" ]] && continue
-    gh issue close "$_OLD_NUM" --comment "Superseded by new merge plan run at $(date -u '+%Y-%m-%d %H:%M UTC')." 2>/dev/null && \
-      echo "  Closed old merge plan issue #$_OLD_NUM" || true
-  done
-
-  # Step 2: Create fresh merge plan issue with accurate title
-  NEW_ISSUE=$(gh issue create \
-    --title "$_MP_TITLE" \
-    --body "$MERGE_PLAN_BODY" \
-    --label "$_MP_LABEL" 2>/dev/null || echo "")
-  if [[ -n "$NEW_ISSUE" ]]; then
-    echo "  Created merge plan issue: $NEW_ISSUE"
+  # The plan issue was reserved (and stale plans closed) BEFORE the per-PR loop so
+  # comments could link the live number. Update THAT issue in place with the final
+  # title + body. Only if reservation failed do we create one now (fallback).
+  if [[ -n "${MERGE_PLAN_NUM:-}" ]]; then
+    if gh issue edit "$MERGE_PLAN_NUM" --title "$_MP_TITLE" --body "$MERGE_PLAN_BODY" >/dev/null 2>&1; then
+      echo "  Updated merge plan issue #$MERGE_PLAN_NUM"
+    else
+      echo "  ⚠️  Failed to update reserved merge plan issue #$MERGE_PLAN_NUM"
+    fi
   else
-    echo "  ⚠️  Failed to create merge plan issue"
+    NEW_ISSUE=$(gh issue create \
+      --title "$_MP_TITLE" \
+      --body "$MERGE_PLAN_BODY" \
+      --label "$_MP_LABEL" 2>/dev/null || echo "")
+    if [[ -n "$NEW_ISSUE" ]]; then
+      echo "  Created merge plan issue: $NEW_ISSUE"
+    else
+      echo "  ⚠️  Failed to create merge plan issue"
+    fi
   fi
 else
   echo "  ⚠️  Merge plan generation failed — skipping issue update"

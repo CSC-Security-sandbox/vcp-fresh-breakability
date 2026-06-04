@@ -816,13 +816,13 @@ for mod, dirs in sorted(module_dirs.items()):
 " 2>/dev/null)
 
   if [[ -z "$build_script" || "$build_script" == "FALLBACK" ]]; then
-    timeout 60 go vet ./... 2>&1 || true
+    timeout -k 15 60 go vet ./... 2>&1 || true
     return
   fi
 
   while IFS='|' read -r mod_root dirs; do
     [[ -z "$mod_root" || -z "$dirs" ]] && continue
-    (cd "$mod_root" && timeout 60 go vet $dirs 2>&1) || true
+    (cd "$mod_root" && timeout -k 15 60 go vet $dirs 2>&1) || true
   done <<< "$build_script"
 }
 
@@ -866,7 +866,7 @@ go_check_vulnerabilities() {
     # GOMEMLIMIT caps heap — prevents OOM-killer (exit 137).
     # timeout 180s per module (was 120s for whole repo).
     local mod_out mod_exit
-    mod_out=$(cd "$workdir/$mod" && GOMEMLIMIT=1500MiB GOGC=50 timeout 180 govulncheck ./... 2>&1)
+    mod_out=$(cd "$workdir/$mod" && GOMEMLIMIT=1500MiB GOGC=50 timeout -k 15 180 govulncheck ./... 2>&1)
     mod_exit=$?
 
     combined_out="$combined_out
@@ -2127,7 +2127,7 @@ except Exception as e:
         echo "  changelog: fetched $(wc -l < "$CLI_CHANGELOG_FILE" | tr -d ' ') signal line(s) for CLI verdict"
       fi
     fi
-    timeout 180 node "$CLI_PATH" \
+    timeout -k 15 180 node "$CLI_PATH" \
       -p "$PKG" -f "$FROM_VER" -t "$TO_VER" \
       -r "$REPO_ROOT" -e "$CLI_ECO" -d "$DEP_TYPE" \
       --pr-body-file "$PR_BODY_FILE" \
@@ -2928,7 +2928,7 @@ $IMPORT_OUT"
             if [[ -f "$TEST_BUILD_DIR/dist/main.js" ]]; then
               echo "  smoke: node require('./dist/main') ..."
               EVIDENCE_SMOKE_COMMAND="node -e \"try { require('./dist/main'); process.exit(0); } catch(e) { console.error(e.message); process.exit(1); }\""
-              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
+              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout -k 5 10 node -e "
                 try { require('./dist/main'); process.exit(0); }
                 catch(e) { console.error(e.message); process.exit(1); }
               " 2>&1)
@@ -2940,7 +2940,7 @@ $IMPORT_OUT"
             elif [[ -f "$TEST_BUILD_DIR/dist/index.js" ]]; then
               echo "  smoke: node require('./dist/index') ..."
               EVIDENCE_SMOKE_COMMAND="node -e \"try { require('./dist/index'); process.exit(0); } catch(e) { console.error(e.message); process.exit(1); }\""
-              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
+              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout -k 5 10 node -e "
                 try { require('./dist/index'); process.exit(0); }
                 catch(e) { console.error(e.message); process.exit(1); }
               " 2>&1)
@@ -3045,6 +3045,39 @@ $IMPORT_OUT"
           GOSUM_NEW_NAMES=$(echo "$_GOSUM_NEW_LINES" | awk '{print $1}' | sort -u | head -5 | tr '\n' ',' | sed 's/,$//' || echo "")
           GOSUM_TOTAL_PR=$(wc -l < "$_GOSUM_PR" | tr -d ' ' || echo "0")
           GOSUM_TOTAL_MAIN=$(wc -l < "$_GOSUM_MAIN" | tr -d ' ' || echo "0")
+          # Capture the resulting version of every module this PR RAISED (direct or
+          # transitive). go.sum lines are "module version[/go.mod] hash"; the diff
+          # against main yields only modules this PR introduced/bumped. The CVE
+          # matcher uses this to credit a fix delivered via a TRANSITIVE go.mod bump
+          # (e.g. an otel/sdk PR that also raises go.opentelemetry.io/otel), not just
+          # the PR's primary package.
+          _BC_GOSUM_NEW_LINES="$_GOSUM_NEW_LINES" python3 -c '
+import os, json
+def parse(v):
+    s = v.lstrip("v").split("+", 1)[0].split("-", 1)[0]
+    p = s.split(".")
+    try:
+        return tuple(int(x) for x in p[:3]) + (0,) * (3 - min(3, len(p)))
+    except ValueError:
+        return None
+best = {}
+for line in os.environ.get("_BC_GOSUM_NEW_LINES", "").splitlines():
+    f = line.split()
+    if len(f) < 2:
+        continue
+    mod, ver = f[0], f[1]
+    # Only the content-hash line ("mod v1.2.3 h1:…") proves the module version was
+    # actually SELECTED/built. A "/go.mod"-only line is just an MVS candidate and is
+    # NOT proof of a resolved bump — skip it to avoid over-crediting CVE fixes.
+    if ver.endswith("/go.mod"):
+        continue
+    pv = parse(ver)
+    if pv is None:
+        continue
+    if mod not in best or pv > best[mod][0]:
+        best[mod] = (pv, ver)
+print(json.dumps({m: v for m, (pv, v) in best.items()}))
+' > "/tmp/_bc_bumped_mods_${PR_NUM}.json" 2>/dev/null || echo '{}' > "/tmp/_bc_bumped_mods_${PR_NUM}.json"
         fi
         echo "  go.sum: $GOSUM_NEW_COUNT new transitive entries ($GOSUM_NEW_NAMES)"
       fi
@@ -3210,6 +3243,13 @@ try:
         gosum_total_main = int(f.read().strip() or "0")
 except (IOError, OSError, ValueError):
     gosum_total_main = 0
+try:
+    with open(f"/tmp/_bc_bumped_mods_{pr_num}.json") as f:
+        bumped_modules = json.load(f)
+        if not isinstance(bumped_modules, dict):
+            bumped_modules = {}
+except (IOError, OSError, ValueError):
+    bumped_modules = {}
 
 # Read govulncheck status + first finding (if any)
 try:
@@ -3440,6 +3480,7 @@ pr_data = {
     "gosum_new_names": gosum_new_names,
     "gosum_total_pr": gosum_total_pr,
     "gosum_total_main": gosum_total_main,
+    "bumped_modules": bumped_modules,
     "vuln_status": vuln_status,
     "vuln_finding": vuln_finding,
     "vuln_new_findings": vuln_new_findings,
@@ -3759,6 +3800,12 @@ if eco == "actions":
 else:
     pr_data["verification_level"] = level
     pr_data["verification_label"] = LEVEL_LABELS.get(level, f"L{level}")
+    # A build that FAILED still reaches level 2 (type-check was attempted) but must
+    # NOT be labelled "L2_type_checked" — that reads as a clean pass. Use a distinct
+    # "L2_build_failed" label so the merge plan / signal table never imply the build
+    # passed (PR#38 false-positive).
+    if level == 2 and build_verdict in ("fail", "pre_existing_plus_new"):
+        pr_data["verification_label"] = "L2_build_failed"
 if isinstance(pr_data.get("merge_risk"), dict):
     pr_data["merge_risk"].setdefault("evidenceAxis", "limited evidence")
     pr_data["merge_risk"]["confidenceAxis"] = f"L{level}" if level >= 0 else pr_data["verification_label"]
@@ -4403,15 +4450,34 @@ for a in open_alerts:
     for num, pr in prs.items():
         pr_pkg = pr.get("package", "")
         pr_to = pr.get("to", "")
-        if pr_pkg == alert_pkg and fpv and _semver_gte(pr_to, fpv):
+        bumped = pr.get("bumped_modules") or {}
+        # Resulting version of the ALERT's package after this PR merges:
+        #   • primary bump  -> pr_to (the PR's own package == alert package)
+        #   • transitive    -> the version this PR raised the alert package to in
+        #                       go.sum (captured as bumped_modules). Only PRs that
+        #                       actually RAISED the module are credited, so we don't
+        #                       over-credit every PR that merely pins it at a safe ver.
+        if pr_pkg == alert_pkg:
+            resulting_ver = pr_to
+            via = "primary"
+        elif alert_pkg in bumped:
+            resulting_ver = bumped[alert_pkg]
+            via = "transitive"
+        else:
+            continue
+        # Gate on the ACTUAL fixed-in version vs the resulting version. A bump that
+        # lands BELOW first_patched_version (e.g. otel/sdk 1.42 vs a CVE fixed in
+        # 1.43) does NOT deliver the fix and must fall through to the orphan list.
+        if fpv and _semver_gte(resulting_ver, fpv):
             cve_fixes.append({
                 "pr": int(num) if str(num).isdigit() else num,
                 "package": alert_pkg,
                 "cve_id": cve,
                 "severity": sev,
                 "from_version": pr.get("from", ""),
-                "to_version": pr_to,
+                "to_version": resulting_ver,
                 "first_patched_version": fpv,
+                "via": via,
                 "summary": summary[:200],
             })
             matched_alert_ids.add(alert_num)

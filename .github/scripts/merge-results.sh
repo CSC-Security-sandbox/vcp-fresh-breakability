@@ -330,15 +330,30 @@ for a in open_alerts:
     summary = a.get("security_advisory", {}).get("summary", "")
     matched = False
     for num, pr in prs.items():
-        if pr.get("package", "") == alert_pkg and fpv and _semver_gte(pr.get("to", ""), fpv):
+        bumped = pr.get("bumped_modules") or {}
+        # Resulting version of the alert package after this PR: the PR's own bump if
+        # it targets the package directly, else the version this PR raised it to in
+        # go.sum (transitive go.mod bump). Gate on first_patched_version so a bump
+        # that lands below the fix (e.g. otel/sdk 1.42 vs a CVE fixed in 1.43) is NOT
+        # credited, and a delivered transitive bump (otel 1.38->1.42 fixing a CVE
+        # fixed in 1.41) IS credited.
+        if pr.get("package", "") == alert_pkg:
+            resulting_ver = pr.get("to", "")
+            via = "primary"
+        elif alert_pkg in bumped:
+            resulting_ver = bumped[alert_pkg]
+            via = "transitive"
+        else:
+            continue
+        if fpv and _semver_gte(resulting_ver, fpv):
             _fix_key = (alert_pkg, cve, num)
             if _fix_key not in _seen_fixes:
                 _seen_fixes.add(_fix_key)
                 cve_fixes.append({
                     "pr": int(num) if str(num).isdigit() else num,
                     "package": alert_pkg, "cve_id": cve, "severity": sev,
-                    "from_version": pr.get("from", ""), "to_version": pr.get("to", ""),
-                    "first_patched_version": fpv, "summary": summary[:200],
+                    "from_version": pr.get("from", ""), "to_version": resulting_ver,
+                    "first_patched_version": fpv, "via": via, "summary": summary[:200],
                 })
             matched = True
     if not matched:
