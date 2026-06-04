@@ -1,0 +1,46 @@
+name: probe-selftest
+
+# Hermetic ground-truth proof that the EXECUTING differential probe actually runs
+# live: builds a synthetic dependency at two real versions, RUNS code exercising the
+# declared call-observable change, diffs it, maps it to our usage, and commits a
+# graded proof contract. Manual-dispatch only; runs on the self-hosted runner that
+# holds CURSOR_API_KEY. See .github/scripts/probe-selftest.sh for what it asserts.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: probe-selftest
+  cancel-in-progress: false
+
+jobs:
+  probe-selftest:
+    runs-on: [self-hosted, breakability]
+    timeout-minutes: 25
+    env:
+      GO_VERSION: '1.24'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Install Cursor Agent CLI
+        run: |
+          curl -fsS https://cursor.com/install | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Cursor CLI
+        run: agent --version || (echo "agent CLI not on PATH" && exit 1)
+
+      - name: Run behavioral-probe self-test (live agent)
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: bash .github/scripts/probe-selftest.sh
