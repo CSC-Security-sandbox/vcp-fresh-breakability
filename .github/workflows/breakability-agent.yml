@@ -135,16 +135,6 @@ jobs:
     needs: discover
     runs-on: [self-hosted, breakability]
     timeout-minutes: 180
-    env:
-      # Per-runner isolated Go BUILD cache. All self-hosted batch runners share one
-      # $HOME (same mac), so a shared default GOCACHE means one batch's
-      # `go clean -cache` (build-check.sh calls it at several sites) deletes cache
-      # entries another parallel batch is mid-build against -> "no such file or
-      # directory" / "package ... is not in std" corruption -> degraded build output
-      # and thin comments. Isolating the build cache per batch removes that race.
-      # The module cache (GOMODCACHE, 9.8G) stays shared/warm: `go clean -cache`
-      # never touches it.
-      GOCACHE: ${{ runner.temp }}/go-build-cache-${{ matrix.batch_id }}
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
@@ -154,6 +144,23 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Isolate Go build cache per batch
+        shell: bash
+        run: |
+          # Per-batch isolated Go BUILD cache. All self-hosted batch runners share
+          # one $HOME (same mac), so a shared default GOCACHE means one batch's
+          # `go clean -cache` (build-check.sh calls it at several sites) deletes
+          # cache entries another parallel batch is mid-build against -> "no such
+          # file or directory" / "package ... is not in std" corruption -> degraded
+          # build output and thin comments. Isolating the build cache per batch
+          # removes that race. The module cache (GOMODCACHE, ~9.8G) stays
+          # shared/warm: `go clean -cache` never touches it.
+          # NOTE: the `runner` context is NOT available in job-level `env`, so we
+          # export GOCACHE here via $GITHUB_ENV (before any go command runs) where
+          # $RUNNER_TEMP and the matrix context are both available.
+          echo "GOCACHE=${RUNNER_TEMP}/go-build-cache-${{ matrix.batch_id }}" >> "$GITHUB_ENV"
+          echo "Isolated GOCACHE -> ${RUNNER_TEMP}/go-build-cache-${{ matrix.batch_id }}"
 
       - name: Detect toolchains needed
         id: detect
