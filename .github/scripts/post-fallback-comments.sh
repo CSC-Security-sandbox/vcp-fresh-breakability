@@ -2483,6 +2483,37 @@ def effective_risk_tag(pr):
     beh_tag = {"high": "High", "medium": "Medium", "low": "Low", "none": "Low"}[g]
     return beh_tag if _RANK[beh_tag] >= _RANK[det_tag] else det_tag
 
+def headline_severity(pr):
+    # Reproduce the per-PR comment headline grade EXACTLY (post-fallback get_verdict_v2 + the
+    # _GRADE block) so the merge-plan severity can never disagree with the PR comment:
+    #   - verdict_v2 missing OR verdict/confidence/priority invalid -> fail-closed "medium"
+    #     (NEVER read a stale `severity` off a record that failed validation).
+    #   - BLOCKED -> high (wins over a cited grade, matching the bash case order).
+    #   - cited behavioral-oracle grade -> that grade (SAFE/REVIEW only).
+    #   - else verdict_v2.severity if EXACTLY lowercase-valid, else derive
+    #     {SAFE:low, REVIEW:medium} (matches get_verdict_v2's fail-safe derivation).
+    v2 = pr.get("verdict_v2")
+    if not isinstance(v2, dict):
+        return "medium"
+    verdict = v2.get("verdict")
+    conf = v2.get("confidence")
+    prio = v2.get("priority")
+    if verdict not in ("SAFE", "REVIEW", "BLOCKED"):
+        return "medium"
+    if not isinstance(conf, str) or not _v2_re.fullmatch(r"L[0-5]", conf):
+        return "medium"
+    if not isinstance(prio, str) or not _v2_re.fullmatch(r"P[0-3]", prio):
+        return "medium"
+    if verdict == "BLOCKED":
+        return "high"
+    g = _bg_cited_grade(pr)
+    if g is not None:
+        return g
+    sev = v2.get("severity")
+    if sev in ("none", "low", "medium", "high"):
+        return sev
+    return {"SAFE": "low", "REVIEW": "medium"}.get(verdict, "medium")
+
 def fmt_merge_risk(pr):
     risk = pr.get("merge_risk") or (pr.get("deterministic") or {}).get("merge_risk") or {}
     tag = risk.get("tag") or "Medium"
@@ -2532,7 +2563,7 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     error_class = pr.get("build", {}).get("error_class", "")
     new_errors = pr.get("build", {}).get("new_errors", [])
     main_exit = pr.get("build", {}).get("main_exit", -1)
-    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr), "behavioral_grade": pr.get("behavioral_grade") or {}}
+    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr), "behavioral_grade": pr.get("behavioral_grade") or {}, "severity": headline_severity(pr)}
 
     # V9.8 iter6 (A): security verdict gate — a PR that INTRODUCES new CVEs must never be "safe"
     vuln_status = pr.get("vuln_status", "")
@@ -2752,7 +2783,27 @@ if unverified_count > 0:
     lines.append(f"| ⚠️ Unverified (deps failed — infra issue) | {unverified_count} |")
 lines.append(f"| ❌ Fix required | {len(blocked)} |")
 if needs_review_count > 0:
-    lines.append(f"| 🔍 Manual review | {needs_review_count} |")
+    # Tier the review wall by the SAME severity shown on each PR headline so a dev sees the
+    # true burden: high/medium = genuinely needs a look; low = optional glance. (Addresses
+    # "80% review-required defeats the purpose" — most of the wall is usually low/optional.)
+    _review_entries = [e for e in review
+                       if not (e.get("verdict") == "pre_existing"
+                               and e.get("new_error_count", 0) == 0)
+                       and not (e.get("verdict") == "pre_existing"
+                                and e.get("new_error_count", 0) > 0)]
+    _rev_high = sum(1 for e in _review_entries if e.get("severity") == "high")
+    _rev_med = sum(1 for e in _review_entries if e.get("severity") == "medium")
+    _rev_low = sum(1 for e in _review_entries if e.get("severity") in ("low", "none"))
+    if _rev_high:
+        lines.append(f"| 🔴 Review required (High) | {_rev_high} |")
+    if _rev_med:
+        lines.append(f"| 🟠 Review recommended (Medium) | {_rev_med} |")
+    if _rev_low:
+        lines.append(f"| 🟡 Optional glance (Low) | {_rev_low} |")
+    # Fallback: if severity tiering didn't account for every review entry, show the remainder.
+    _rev_other = needs_review_count - (_rev_high + _rev_med + _rev_low)
+    if _rev_other > 0:
+        lines.append(f"| 🔍 Manual review | {_rev_other} |")
 if skipped:
     lines.append(f"| ⏭️ Skipped (opted out) | {len(skipped)} |")
 if cancelled:
@@ -2761,22 +2812,25 @@ if not_analyzed:
     lines.append(f"| ❓ Not analyzed | {len(not_analyzed)} |")
 lines.append("")
 
-# Merge-risk taxonomy summary (same Low/Medium/High tag shown in PR comments).
+# Severity summary — the SAME none/low/medium/high grade shown on every PR comment headline
+# (single source of truth = headline_severity), so this roll-up and the per-PR headlines can
+# never disagree. Replaces the old roll-up that parsed the decoupled legacy merge_risk string.
 _all_entries = safe + blocked + review + skipped + ci_only + companion_blocked + not_analyzed + cancelled
 if _all_entries:
     from collections import Counter as _Counter
-    import re as _risk_re
-    def _risk_tag(_s):
-        # merge_risk strings look like "High (Evidence: … × Confidence: L2) — reason".
-        # Parse the LEADING High|Medium|Low tag with a regex; the old split(" — ")
-        # kept the whole "High (Evidence: …)" prefix so no key ever matched and the
-        # roll-up printed High:0 Medium:0 Low:0 while the tables below were populated.
-        _m = _risk_re.match(r"\s*(High|Medium|Low)\b", _s or "")
-        return _m.group(1) if _m else "Medium"
-    _risk_counts = _Counter(_risk_tag(e.get("merge_risk", "")) for e in _all_entries)
-    lines.append("## Merge Risk Summary")
+    _sev_counts = _Counter((e.get("severity") or "medium") for e in _all_entries)
+    lines.append("## Breakability Summary")
     lines.append("")
-    lines.append(f"**High:** {_risk_counts.get('High', 0)} · **Medium:** {_risk_counts.get('Medium', 0)} · **Low:** {_risk_counts.get('Low', 0)}")
+    lines.append(
+        f"🔴 **High:** {_sev_counts.get('high', 0)} · "
+        f"🟠 **Medium:** {_sev_counts.get('medium', 0)} · "
+        f"🟡 **Low:** {_sev_counts.get('low', 0)} · "
+        f"🟢 **None:** {_sev_counts.get('none', 0)}")
+    lines.append("")
+    lines.append(
+        "> High/Medium = worth a review · Low = optional glance · None = safe to merge. "
+        "Severity matches each PR's breakability headline (security-fix PRs show a "
+        "merge-priority headline instead).")
     lines.append("")
 
 # V8 FIX (M4): Developer Action Summary — prioritized numbered steps (regression from ref plan #39)
