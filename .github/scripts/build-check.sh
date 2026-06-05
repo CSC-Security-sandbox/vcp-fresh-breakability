@@ -475,22 +475,32 @@ retry_cmd() {
   local attempt=1
   local rc=0
   local has_timeout=0
-  local orig_timeout="" timeout_arg="" timeout_val=""
+  local timeout_val="" _dur_idx=-1
+  local _args=("$@")
+  local _i _ti=-1
 
-  for arg in "$@"; do
-    if [[ "$arg" == "timeout" ]]; then
+  for _i in "${!_args[@]}"; do
+    if [[ "${_args[$_i]}" == "timeout" ]]; then
       has_timeout=1
-      timeout_arg="timeout"
+      _ti=$_i
       break
     fi
   done
 
+  # Locate the DURATION positional: the first bare (non-option) token after the
+  # literal `timeout`. GNU options -k/--kill-after and -s/--signal consume a
+  # value, so they must be skipped — otherwise the kill-after value (e.g. the
+  # `15` in `timeout -k 15 120 …`) is mistaken for the duration, the command is
+  # rebuilt as `timeout 15 15 120 …`, and the runner tries to exec `15`
+  # ("15: command not found", exit 127), silently breaking go mod tidy/build.
   if [[ $has_timeout -eq 1 ]]; then
-    for arg in "$@"; do
-      if [[ "$arg" =~ ^[0-9]+$ ]]; then
-        timeout_val="$arg"
-        break
-      fi
+    local _j=$((_ti + 1))
+    while [[ $_j -lt ${#_args[@]} ]]; do
+      case "${_args[$_j]}" in
+        -k|--kill-after|-s|--signal) _j=$((_j + 2)) ;;
+        -*)                          _j=$((_j + 1)) ;;
+        *) _dur_idx=$_j; timeout_val="${_args[$_j]}"; break ;;
+      esac
     done
   fi
 
@@ -500,15 +510,15 @@ retry_cmd() {
       # Attempt 1: 1x, Attempt 2: 2x, Attempt 3+: 2x (capped).
       local _scale=$((attempt < 3 ? attempt : 2))
       local scaled_timeout=$((timeout_val * _scale))
+      # Rebuild the command, replacing ONLY the duration positional with the
+      # scaled value — preserving any -k/-s options and their arguments.
       local cmd=()
-      local skip_next=0
-      for arg in "$@"; do
-        if [[ $skip_next -eq 1 ]]; then skip_next=0; continue; fi
-        if [[ "$arg" == "timeout" ]]; then
-          cmd+=("timeout" "$scaled_timeout")
-          skip_next=1  # skip the original timeout value that follows
+      local _k
+      for _k in "${!_args[@]}"; do
+        if [[ $_k -eq $_dur_idx ]]; then
+          cmd+=("$scaled_timeout")
         else
-          cmd+=("$arg")
+          cmd+=("${_args[$_k]}")
         fi
       done
       # CR5-4: Capture exit code correctly. `if cmd; then` loses the actual
