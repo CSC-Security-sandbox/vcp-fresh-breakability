@@ -647,6 +647,19 @@ for k, v in fields.items():
   DEP_TYPE=$(echo "$_FIELDS_EXTRACTED" | grep '^DEP_TYPE=' | cut -d= -f2-)
   DEP_REL=$(echo "$_FIELDS_EXTRACTED" | grep '^DEP_REL=' | cut -d= -f2-)
   ECOSYSTEM=$(echo "$_FIELDS_EXTRACTED" | grep '^ECOSYSTEM=' | cut -d= -f2-)
+  # ── CI review tier ───────────────────────────────────────────────────────────
+  # "CI-only" is NOT automatically "safe". Classify CI (actions/docker) deps into:
+  #   secsens — handles tokens/creds/registry/cloud auth, code signing, OR deploy/publish.
+  #             A breaking/compromised release here is a supply-chain risk -> security review.
+  #   major   — non-sensitive MAJOR action bump. Can change inputs/defaults/outputs and
+  #             break the workflow -> light changelog glance (breakability, not security).
+  #   ""      — non-sensitive minor/patch -> genuinely auto-safe.
+  _CI_TIER=""
+  if printf '%s' "$PKG" | grep -qiE 'token|credential|secret|password|login|oauth|oidc|/auth|-auth|ssh-agent|import-gpg|gpg|cosign|sigstore|vault|kms|aws-actions|azure/login|google-github-actions/auth|configure-aws-credentials|registry|ghcr|ecr|gcr|deploy|release|publish|pages'; then
+    _CI_TIER="secsens"
+  elif [[ "$BUMP" == "major" ]]; then
+    _CI_TIER="major"
+  fi
   VERDICT=$(echo "$_FIELDS_EXTRACTED" | grep '^VERDICT=' | cut -d= -f2-)
   INSTALL_METHOD=$(echo "$_FIELDS_EXTRACTED" | grep '^INSTALL_METHOD=' | cut -d= -f2-)
   INSTALL_OK=$(echo "$_FIELDS_EXTRACTED" | grep '^INSTALL_OK=' | cut -d= -f2-)
@@ -1659,6 +1672,32 @@ ${_REVIEW_WHY}${CHANGELOG_INLINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 ${RUN_LINK}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
+  elif [[ ( "$ECOSYSTEM" == "actions" || "$ECOSYSTEM" == "docker" ) && -n "$_CI_TIER" ]]; then
+    # CI dependency that is NOT auto-safe: security-sensitive (secsens) or a non-sensitive major.
+    if [[ "$_CI_TIER" == "secsens" ]]; then
+      _CI_REVIEW_TITLE="🔐 REVIEW — supply-chain sensitive"
+      _CI_REVIEW_WHY="This CI dependency handles **tokens, credentials, registry/cloud auth, code signing, or deployment/publishing**. A breaking change or a compromised release here is a **supply-chain risk** — the class of dependency an attacker most wants merged unread. \"CI-only\" does **not** mean \"safe\" here."
+      _CI_REVIEW_CHECK="- **Pin to a full commit SHA** (not a moving tag) so a re-tagged release can't silently change what runs.
+- Review the **release notes / changelog** for changed **permissions**, token scopes, or inputs.
+- Confirm the publisher and that the new version is the official release."
+      _CI_FOOT="CI dependency flagged supply-chain sensitive; not auto-cleared"
+    else
+      _CI_REVIEW_TITLE="🟡 REVIEW — major CI action bump"
+      _CI_REVIEW_WHY="This is a **major** version bump of a CI action. Major bumps routinely change inputs, runtime defaults, or output names and can **break your workflow** — even though no application code is affected. This is a **breakability glance, not a security flag**."
+      _CI_REVIEW_CHECK="- Skim the **release notes / changelog** for breaking input/output or runtime changes.
+- Optionally pin to a full commit SHA."
+      _CI_FOOT="major CI action bump; quick changelog review suggested"
+    fi
+    COMMENT="<!-- breakability-check -->
+## ${_CI_REVIEW_TITLE} — \`$PKG\` $FROM → $TO · dev (CI) · $BUMP_DISPLAY
+
+${_CI_REVIEW_WHY}
+
+### What to check before merging
+${_CI_REVIEW_CHECK}${CVE_LINE}${FIXES_CVE_LINE}${PLAN_LINE}${ADVISORY_FOOTER}
+${RUN_LINK}
+> 🔬 *Deterministic analysis — ${_CI_FOOT}*"
+
   elif [[ "$ECOSYSTEM" == "actions" ]]; then
     # GitHub Actions — always safe, no app code affected.
     # No L0/fallback labels — CI-only changes need no build verification (end-user feedback 2.4).
@@ -2179,6 +2218,13 @@ print(body)
                case "$_GRADE" in high|medium|low|none) ;; *) _GRADE="medium" ;; esac
                ;;
     esac
+    # CI review-tier floor: a security-sensitive CI action (auth/token/registry/deploy) must not
+    # headline "Low · optional glance" while its body asks for a supply-chain review. Floor it to
+    # Medium so headline and body agree. Non-sensitive majors stay Low (= "optional glance",
+    # matching the changelog-glance body). A cited behavioral grade, if any, still wins.
+    if [[ ( "$ECOSYSTEM" == "actions" || "$ECOSYSTEM" == "docker" ) && "$_CI_TIER" == "secsens" && "$_BG_CITED" != "1" ]]; then
+      case "$_GRADE" in high|medium) ;; *) _GRADE="medium" ;; esac
+    fi
     case "$_GRADE" in
       high)   _V2_HEADLINE="🔴 Breakability: High · review required · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
       medium) _V2_HEADLINE="🟠 Breakability: Medium · review recommended · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
@@ -2336,6 +2382,17 @@ if changelog_sig == "UNAVAILABLE":
 
 print("\n".join(lines))
 ' 2>/dev/null || printf 'What to check: %s\n→ %s' "$_V2_RESIDUAL_SUMMARY_RAW" "$_V2_RESIDUAL_CHECK_RAW")
+    fi
+    # CI review-tier residual — surface the "why not auto-safe" in the VISIBLE per-PR comment
+    # (the detailed body is collapsed into <details>). Only when no cited behavioral grade exists.
+    if [[ ( "$ECOSYSTEM" == "actions" || "$ECOSYSTEM" == "docker" ) && -n "$_CI_TIER" && "$_BG_CITED" != "1" ]]; then
+      if [[ "$_CI_TIER" == "secsens" ]]; then
+        _V2_RESIDUAL_BLOCK="What to check: this CI dependency handles tokens, credentials, registry/cloud auth, signing, or deployment — \"CI-only\" does not make it auto-safe.
+→ Pin to a full commit SHA, and review the changelog for changed permissions / token scopes / inputs before merging."
+      else
+        _V2_RESIDUAL_BLOCK="What to check: major version bump of a CI action — inputs, runtime defaults, or outputs may have changed and could break your workflow (no application code is affected).
+→ Skim the release notes for breaking changes before merging."
+      fi
     fi
     _COMPANION_BANNER=$(PR_NUM="$PR_NUM" RESULTS_FILE="$RESULTS_FILE" python3 -c '
 import json, os
@@ -2563,8 +2620,30 @@ def headline_severity(pr):
         return g
     sev = v2.get("severity")
     if sev in ("none", "low", "medium", "high"):
-        return sev
-    return {"SAFE": "low", "REVIEW": "medium"}.get(verdict, "medium")
+        base_sev = sev
+    else:
+        base_sev = {"SAFE": "low", "REVIEW": "medium"}.get(verdict, "medium")
+    # CI review-tier floor — mirror the bash _GRADE CI floor exactly: a security-sensitive CI
+    # action (auth/token/registry/deploy) must read at least Medium (its body asks for a
+    # supply-chain review), never Low/None. Reached only when there is no cited grade (the
+    # cited grade returned above), matching the bash `_BG_CITED != 1` guard.
+    if pr.get("ecosystem", "") in ("actions", "docker") and ci_review_tier(pr.get("package", ""), pr.get("bump", "")) == "secsens":
+        if base_sev in ("none", "low"):
+            base_sev = "medium"
+    return base_sev
+
+_ci_secsens_re = _v2_re.compile(r'token|credential|secret|password|login|oauth|oidc|/auth|-auth|ssh-agent|import-gpg|gpg|cosign|sigstore|vault|kms|aws-actions|azure/login|google-github-actions/auth|configure-aws-credentials|registry|ghcr|ecr|gcr|deploy|release|publish|pages', _v2_re.IGNORECASE)
+
+def ci_review_tier(pkg, bump):
+    # MUST stay in sync with the bash _CI_TIER classifier.
+    #   "secsens" -> auth/token/registry/cloud-cred/signing/deploy CI dep -> security review
+    #   "major"   -> non-sensitive MAJOR action bump -> light changelog glance
+    #   ""        -> non-sensitive minor/patch -> genuinely auto-safe
+    if _ci_secsens_re.search(str(pkg or "")):
+        return "secsens"
+    if str(bump or "").lower() == "major":
+        return "major"
+    return ""
 
 def fmt_merge_risk(pr):
     risk = pr.get("merge_risk") or (pr.get("deterministic") or {}).get("merge_risk") or {}
@@ -2615,7 +2694,7 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     error_class = pr.get("build", {}).get("error_class", "")
     new_errors = pr.get("build", {}).get("new_errors", [])
     main_exit = pr.get("build", {}).get("main_exit", -1)
-    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr), "behavioral_grade": pr.get("behavioral_grade") or {}, "severity": headline_severity(pr)}
+    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr), "behavioral_grade": pr.get("behavioral_grade") or {}, "severity": headline_severity(pr), "ci_tier": (ci_review_tier(pkg, bump) if eco in ("actions", "docker") else "")}
 
     # V9.8 iter6 (A): security verdict gate — a PR that INTRODUCES new CVEs must never be "safe"
     vuln_status = pr.get("vuln_status", "")
@@ -2828,7 +2907,15 @@ lines.append(f"| ✅ Build passes — review recommended (L2/L3) | {sum(1 for e 
 if companion_blocked:
     lines.append(f"| 🔗 Blocked (safe but companion PR needs fix) | {len(companion_blocked)} |")
 if ci_only:
-    lines.append(f"| 🔧 CI-only (Actions/Docker — no app impact) | {len(ci_only)} |")
+    _ci_sec = [e for e in ci_only if e.get("ci_tier") == "secsens"]
+    _ci_maj = [e for e in ci_only if e.get("ci_tier") == "major"]
+    _ci_auto = [e for e in ci_only if not e.get("ci_tier")]
+    if _ci_auto:
+        lines.append(f"| 🔧 CI-only (Actions/Docker — no app impact) | {len(_ci_auto)} |")
+    if _ci_maj:
+        lines.append(f"| 🟡 CI major action bump — changelog glance | {len(_ci_maj)} |")
+    if _ci_sec:
+        lines.append(f"| 🔐 CI supply-chain (auth/token/registry/deploy) — security review | {len(_ci_sec)} |")
 if likely_safe_count > 0:
     lines.append(f"| ⚙️ Likely safe (deps resolved, no new errors) | {likely_safe_count} |")
 if unverified_count > 0:
@@ -2891,8 +2978,8 @@ lines.append("")
 _step = 1
 # Security fixes first — use BOTH pr-body CVEs AND Dependabot alert matches (cve_fixes)
 _cve_fix_prs = set(str(f["pr"]) for f in security.get("cve_fixes", []))
-_sec_safe_l4 = [e for e in safe + ci_only if (e.get("cves") or e["num"] in _cve_fix_prs) and (e.get("ver", "").startswith("L4") or e.get("ver", "").startswith("L5"))]
-_sec_safe_l2 = [e for e in safe + ci_only if (e.get("cves") or e["num"] in _cve_fix_prs) and not (e.get("ver", "").startswith("L4") or e.get("ver", "").startswith("L5"))]
+_sec_safe_l4 = [e for e in safe + ci_only if (e.get("cves") or e["num"] in _cve_fix_prs) and (e.get("ver", "").startswith("L4") or e.get("ver", "").startswith("L5")) and not e.get("ci_tier")]
+_sec_safe_l2 = [e for e in safe + ci_only if (e.get("cves") or e["num"] in _cve_fix_prs) and (not (e.get("ver", "").startswith("L4") or e.get("ver", "").startswith("L5")) or e.get("ci_tier"))]
 _sec_safe = _sec_safe_l4 + _sec_safe_l2  # combined for later reference
 _sec_blocked = [e for e in blocked if e.get("cves") or e["num"] in _cve_fix_prs]
 if _sec_safe_l4:
@@ -2924,8 +3011,20 @@ if companion_blocked:
     _step += 1
 # CI-only PRs
 if ci_only:
-    lines.append(f"{_step}. **Merge CI/Actions PRs — {len(ci_only)} PRs** (no app code impact)")
-    _step += 1
+    _ci_sec = [e for e in ci_only if e.get("ci_tier") == "secsens"]
+    _ci_maj = [e for e in ci_only if e.get("ci_tier") == "major"]
+    _ci_auto = [e for e in ci_only if not e.get("ci_tier")]
+    if _ci_auto:
+        lines.append(f"{_step}. **Merge CI/Actions PRs — {len(_ci_auto)} PRs** (no app code impact)")
+        _step += 1
+    if _ci_maj:
+        _ci_maj_nums = ", ".join(f"#{e['num']}" for e in _ci_maj)
+        lines.append(f"{_step}. **Glance then merge — major CI action bumps — {len(_ci_maj)} PRs:** {_ci_maj_nums} (skim the changelog for breaking inputs/runtime changes; no app code impact)")
+        _step += 1
+    if _ci_sec:
+        _ci_sec_nums = ", ".join(f"#{e['num']}" for e in _ci_sec)
+        lines.append(f"{_step}. **Review CI supply-chain PRs — {len(_ci_sec)} PRs:** {_ci_sec_nums} (auth/token/registry/deploy actions — pin to a full commit SHA and review permissions/changelog before merging; **not auto-safe**)")
+        _step += 1
 # Likely safe
 if likely_safe_count > 0:
     lines.append(f"{_step}. **Investigate — {likely_safe_count} 'Likely Safe' PRs** (no new errors but baseline unclear)")
@@ -3049,6 +3148,10 @@ if all_cves:
             verdict_note = " ⏭️ Opted out (`breakability:skip`) — merge manually to resolve the CVE"
         elif _b in ("not_analyzed", "cancelled"):
             verdict_note = " ❓ Not analyzed this run — re-run the tool before merging"
+        elif _b == "ci_only" and e.get("ci_tier") == "secsens":
+            verdict_note = " 🔐 **Review — supply-chain sensitive** (pin SHA, review permissions); merge to resolve the CVE after review"
+        elif _b == "ci_only" and e.get("ci_tier") == "major":
+            verdict_note = " 🟡 **Major CI action bump** — glance at the changelog, then merge to resolve the CVE"
         elif _b in ("safe", "ci_only"):
             verdict_note = " ✅ **SAFE — merge now** (tests pass, L4)" if _is_l4 else " ⚙️ **Build verified (L2/L3) — tests not verified clean; review then merge**"
         else:
@@ -3272,16 +3375,42 @@ if needs_review:
 
 # V8 FIX (H3/L3): CI-only PRs in their own section, not mixed with verified Go/npm PRs
 if ci_only:
-    lines.append("## 🔧 CI-Only (Actions / Docker — no application impact)")
-    lines.append("")
-    lines.append("These PRs only affect CI/CD workflows. No build verification needed — zero app code impact.")
-    lines.append("")
-    lines.append("| PR | Package | Version | Bump | Merge Risk | Verification |")
-    lines.append("|----|---------|---------|----|------------|-------------|")
-    for e in ci_only:
-        cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | CI_ONLY — auto-safe{cve_badge} |")
-    lines.append("")
+    _ci_sec = [e for e in ci_only if e.get("ci_tier") == "secsens"]
+    _ci_maj = [e for e in ci_only if e.get("ci_tier") == "major"]
+    _ci_auto = [e for e in ci_only if not e.get("ci_tier")]
+    if _ci_auto:
+        lines.append("## 🔧 CI-Only (Actions / Docker — no application impact)")
+        lines.append("")
+        lines.append("These PRs only affect CI/CD workflows. No build verification needed — zero app code impact.")
+        lines.append("")
+        lines.append("| PR | Package | Version | Bump | Merge Risk | Verification |")
+        lines.append("|----|---------|---------|----|------------|-------------|")
+        for e in _ci_auto:
+            cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
+            lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | CI_ONLY — auto-safe{cve_badge} |")
+        lines.append("")
+    if _ci_maj:
+        lines.append("## 🟡 Major CI Action Bumps — Changelog Glance")
+        lines.append("")
+        lines.append("Major version bumps of CI actions. No application code is affected, but a major bump can change inputs, runtime defaults, or output names and **break the workflow**. Skim the changelog for breaking changes before merging.")
+        lines.append("")
+        lines.append("| PR | Package | Version | Bump | Merge Risk | Verification |")
+        lines.append("|----|---------|---------|----|------------|-------------|")
+        for e in _ci_maj:
+            cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
+            lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | 🟡 major bump — glance changelog{cve_badge} |")
+        lines.append("")
+    if _ci_sec:
+        lines.append("## 🔐 CI Supply-Chain — Review Required (not auto-safe)")
+        lines.append("")
+        lines.append("These CI actions handle tokens, credentials, registry/cloud auth, code signing, or deployment/publishing. A breaking or compromised release here is a supply-chain risk, so they are **not** auto-cleared. Before merging: **pin to a full commit SHA**, and review the changelog for changed **permissions / token scopes / inputs**.")
+        lines.append("")
+        lines.append("| PR | Package | Version | Bump | Merge Risk | Verification |")
+        lines.append("|----|---------|---------|----|------------|-------------|")
+        for e in _ci_sec:
+            cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
+            lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | ⚠️ REVIEW — supply-chain sensitive{cve_badge} |")
+        lines.append("")
 
 # Skipped (breakability:skip label)
 if skipped:
