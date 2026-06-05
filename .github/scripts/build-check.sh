@@ -419,8 +419,22 @@ if ! command -v timeout &>/dev/null; then
   if command -v gtimeout &>/dev/null; then
     timeout() { gtimeout "$@"; }
   else
-    # Simple fallback: just run the command without timeout
-    timeout() { shift; "$@"; }
+    # Simple fallback: run the command WITHOUT enforcing a timeout. Callers use
+    # GNU-style invocations like `timeout -k 15 180 cmd ...`, so we must strip any
+    # leading options (and their arguments) AND the DURATION before exec'ing the
+    # command — otherwise the option value (e.g. `15`) gets run as a command
+    # ("15: command not found") and every wrapped go build/test/vet/govulncheck
+    # fails, truncating per-PR analysis.
+    timeout() {
+      while [[ "$1" == -* ]]; do
+        case "$1" in
+          -k|--kill-after|-s|--signal) shift 2 ;;  # option takes an argument
+          *) shift ;;                              # flag or attached-arg form
+        esac
+      done
+      shift   # drop the DURATION positional
+      "$@"
+    }
   fi
 fi
 
