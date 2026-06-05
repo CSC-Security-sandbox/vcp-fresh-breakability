@@ -162,6 +162,7 @@ SIGNAL_STATES = {"POSITIVE", "NEGATIVE", "NONE", "UNAVAILABLE", "N_A"}
 DEFAULTS = {
     "V2_OK": "0",
     "V2_VERDICT": "REVIEW",
+    "V2_SEVERITY": "medium",
     "V2_CONF": "L0",
     "V2_PRIO": "P2",
     "V2_REASON": "verdict map unavailable — manual review",
@@ -175,6 +176,7 @@ def emit(values):
     for key in (
         "V2_OK",
         "V2_VERDICT",
+        "V2_SEVERITY",
         "V2_CONF",
         "V2_PRIO",
         "V2_REASON",
@@ -236,9 +238,15 @@ try:
     if not isinstance(evidence_state, dict):
         evidence_state = {}
 
+    severity = verdict_v2.get("severity")
+    if severity not in {"none", "low", "medium", "high"}:
+        # Fail-safe derivation if the bundle predates the severity field.
+        severity = {"BLOCKED": "high", "SAFE": "low", "REVIEW": "medium"}.get(verdict, "medium")
+
     values = {
         "V2_OK": "1",
         "V2_VERDICT": verdict,
+        "V2_SEVERITY": severity,
         "V2_CONF": confidence,
         "V2_PRIO": priority,
         "V2_REASON": clean_text(verdict_v2.get("reason")),
@@ -2111,26 +2119,31 @@ print(body)
         _BG_CITED=1
       fi
     fi
+    # Normalise the mapper's deterministic severity (none/low/medium/high) as the fallback grade
+    # when no CITED behavioral oracle grade exists — this is the SAME severity the merge-plan tiers
+    # use, so the per-PR headline and the merge-plan bucket can never diverge. A cited probe/
+    # reasoning grade still wins (it did real work and may legitimately raise/lower the tier).
+    _V2_SEV="$(printf '%s' "${V2_SEVERITY:-medium}" | tr '[:upper:]' '[:lower:]')"
+    case "$_V2_SEV" in high|medium|low|none) ;; *) _V2_SEV="medium" ;; esac
     case "${V2_VERDICT:-REVIEW}" in
       BLOCKED) _GRADE="high" ;;
-      SAFE)    _GRADE="${BG_GRADE:-none}"; [[ "$_BG_CITED" == "1" ]] || _GRADE="none" ;;
-      *)       # REVIEW: prefer the CITED behavioral grade; otherwise fall back to the SAME
-               # merge-risk tag the merge plan shows (effective_risk_tag also falls back to it
-               # when uncited), so the headline and the merge-plan row can never disagree
-               # (PR#17 Low / PR#38 High / PR#23 review).
+      SAFE)    if [[ "$_BG_CITED" == "1" ]]; then _GRADE="${BG_GRADE:-$_V2_SEV}"; else _GRADE="$_V2_SEV"; fi ;;
+      *)       # REVIEW: prefer the CITED behavioral grade (the probe/reasoning oracle did real
+               # work and may lower/raise the tier); otherwise fall back to the mapper severity so
+               # stable major/0.x bumps read as Low (optional glance), not a blanket Medium.
                if [[ "$_BG_CITED" == "1" ]]; then
                  _GRADE="${BG_GRADE:-medium}"
                else
-                 _GRADE="$(printf '%s' "${MERGE_RISK_TAG:-Medium}" | tr '[:upper:]' '[:lower:]')"
+                 _GRADE="$_V2_SEV"
                fi
                case "$_GRADE" in high|medium|low|none) ;; *) _GRADE="medium" ;; esac
                ;;
     esac
     case "$_GRADE" in
-      high)   _V2_HEADLINE="🔴 Breakability: High · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
-      medium) _V2_HEADLINE="🟠 Breakability: Medium · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
-      low)    _V2_HEADLINE="🟡 Breakability: Low · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
-      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
+      high)   _V2_HEADLINE="🔴 Breakability: High · review required · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
+      medium) _V2_HEADLINE="🟠 Breakability: Medium · review recommended · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
+      low)    _V2_HEADLINE="🟡 Breakability: Low · optional glance · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
+      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · safe to merge · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
     esac
     # ── CVE-aware headline floor ───────────────────────────────────────────────
     # A PR that fixes a known CVE must headline the SECURITY action, not a
