@@ -619,6 +619,7 @@ fields = {
     'MAIN_BUILD_EXIT': str(d.get('main_exit', -1)),
     'TEST_EXIT_CODE': str(d.get('test_exit', -1)),
     'TEST_RAN': str(d.get('test_ran', False)),
+    'MAIN_TEST_EXIT': str(d.get('main_test_exit', -1)),
     'BUILD_EVIDENCE': (lambda t: next((l.strip() for l in t.splitlines() if 'targeted build' in l or 'full build' in l or 'npm run build' in l), ''))(d.get('output_tail', '')),
     'BUILD_DIRS': (lambda t: next((l.strip() for l in t.splitlines() if 'dirs:' in l), ''))(d.get('output_tail', '')),
     'MERGE_RISK_TAG': (d.get('merge_risk') or {}).get('tag', ''),
@@ -678,6 +679,39 @@ for k, v in fields.items():
   fi
   TEST_EXIT_CODE=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_EXIT_CODE=' | cut -d= -f2-)
   TEST_RAN=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_RAN=' | cut -d= -f2-)
+  MAIN_TEST_EXIT=$(echo "$_FIELDS_EXTRACTED" | grep '^MAIN_TEST_EXIT=' | cut -d= -f2-)
+  # ── Single-source, HONEST test-result framing (one derivation feeds BOTH the signals
+  # table and the "how we checked" block, so the same fact can never read alarming in one
+  # place and exculpatory in another — PR#16). We only call a failure "pre-existing" when
+  # we can PROVE main also fails (upstream classified it via TEST_FAIL_DETAIL, or
+  # MAIN_TEST_EXIT>0). When main never tested (its build broke -> main_test_exit=-1) we say
+  # "could not confirm" — we do NOT fabricate "same failure on main". Safe direction:
+  # underclaim pre-existing.
+  _TESTS_CLEAN=0
+  _TEST_FAILED=0
+  if [[ "${TEST_RAN:-False}" == "True" && "${TEST_EXIT_CODE:-}" == "0" ]]; then
+    _TESTS_CLEAN=1
+  elif [[ "${TEST_RAN:-False}" == "True" && -n "${TEST_EXIT_CODE:-}" && "${TEST_EXIT_CODE}" != "-1" ]]; then
+    _TEST_FAILED=1
+  fi
+  _TEST_PREEXIST_VERIFIED=0
+  if [[ -n "${TEST_FAIL_DETAIL:-}" ]]; then
+    _TEST_PREEXIST_VERIFIED=1
+  elif [[ "${MAIN_TEST_EXIT:-}" =~ ^[0-9]+$ && "${MAIN_TEST_EXIT}" -gt 0 ]]; then
+    _TEST_PREEXIST_VERIFIED=1
+  fi
+  # Shared phrases (pipe-safe for the markdown table; backticks escaped so bash never runs them).
+  _TEST_SIGNAL_CELL=""
+  _TEST_HOWCHECKED=""
+  if [[ "$_TEST_FAILED" == "1" ]]; then
+    if [[ "$_TEST_PREEXIST_VERIFIED" == "1" ]]; then
+      _TEST_SIGNAL_CELL="⚠️ tests fail (classified pre-existing — \`main\` tests also fail, not introduced by this PR)"
+      _TEST_HOWCHECKED="⚙️ Automated tests fail — classified pre-existing: \`main\` tests also fail, so this PR did not introduce them"
+    else
+      _TEST_SIGNAL_CELL="⚠️ tests fail (exit ${TEST_EXIT_CODE}) — could not confirm against \`main\` (its build/tests did not run clean); NOT verified pre-existing"
+      _TEST_HOWCHECKED="⚙️ Automated tests fail (exit ${TEST_EXIT_CODE}) — could NOT confirm against \`main\` (its build/tests did not run clean); not verified as pre-existing — treat as unresolved"
+    fi
+  fi
   BUILD_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_EVIDENCE=' | cut -d= -f2-)
   BUILD_DIRS=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_DIRS=' | cut -d= -f2-)
   MERGE_RISK_TAG=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_TAG=' | cut -d= -f2-)
@@ -1384,7 +1418,7 @@ ${_DEP_RESOLUTION_LINE}
 
 ${_DEP_RESOLUTION_LINE}
 - ✅ Build passes${_EV_BUILD} — exit 0, $NEW_ERR_COUNT new error(s)
-- ⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — pre-existing, same failure on main
+- ${_TEST_HOWCHECKED:-⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — see test output}
 - ✅ Diffed error output: PR introduces 0 new diagnostics${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_USAGE_CONTEXT_BLOCK}${_DECLARED_BREAK_REACH_BLOCK}${_FILES_DETAIL_BLOCK}${_GO_RESOLUTION_BLOCK}${_BUILD_STDOUT_BLOCK}${_NO_TEST_CONFIDENCE_BLOCK}${CHANGELOG_LINK}"
         else
@@ -2013,8 +2047,14 @@ ${RUN_LINK}
     _CVE_HEADING="$CVE_COUNT CVE(s) resolved (version-verified): $_FIXES_CVE_DATA"
     if [[ "$_BEHAV_BREAK" == "1" ]]; then
       _CVE_RECOMMEND="**REVIEW THEN MERGE.** It resolves ${CVE_COUNT} version-verified known CVE(s) (the resulting version reaches each advisory's fixed-in version) with zero new build errors — but the behavioral oracle graded a **${_bg_grade_lc_cve}** breaking-change exposure (see the graded call sites below). Confirm those call sites, then merge to clear the CVE."
+    elif [[ "$_TESTS_CLEAN" == "1" ]]; then
+      _CVE_RECOMMEND="**MERGE NOW.** It resolves ${CVE_COUNT} version-verified known CVE(s) (the resulting version reaches each advisory's fixed-in version), introduces zero new build errors, and the test suite passes."
+    elif [[ "$_TEST_FAILED" == "1" && "$_TEST_PREEXIST_VERIFIED" == "1" ]]; then
+      _CVE_RECOMMEND="**REVIEW THEN MERGE.** It resolves ${CVE_COUNT} version-verified known CVE(s) with zero new build errors, but the test suite is **also failing on \`main\`** (pre-existing). Confirm the failures are unrelated to this upgrade, then merge to clear the CVE."
+    elif [[ "$_TEST_FAILED" == "1" ]]; then
+      _CVE_RECOMMEND="**REVIEW THEN MERGE.** It resolves ${CVE_COUNT} version-verified known CVE(s) with zero new build errors, but the test suite is **currently failing** and we could NOT confirm the failures pre-date this PR (\`main\` did not build/test clean). Verify the failures are unrelated before merging."
     else
-      _CVE_RECOMMEND="**MERGE THIS PR IMMEDIATELY.** It resolves ${CVE_COUNT} version-verified known CVE(s) (the resulting version reaches each advisory's fixed-in version) and introduces zero new build errors."
+      _CVE_RECOMMEND="**PRIORITIZE — review then merge.** It resolves ${CVE_COUNT} version-verified known CVE(s) with zero new build errors; the build and type-check pass, but **tests were not run**, so safety is not fully verified. Prioritize it, give it a quick review, then merge to clear the CVE."
     fi
   else
     _CVE_VERIFIED=0
@@ -2184,8 +2224,20 @@ print(body)
         # headline "MERGE NOW" — that contradicts the body/plan. Say REVIEW THEN MERGE so the
         # security urgency is preserved without over-promising safety.
         _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}; verify the version/breaking-change note below, but merging is the path to clear the CVE · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+      elif [[ "$_TESTS_CLEAN" == "1" ]]; then
+        # Build clean AND the test suite actually ran green — the only state that earns the
+        # confident "MERGE NOW". Urgency never bypasses verification.
+        _V2_HEADLINE="🔴 Security fix · MERGE NOW — ${_SEC_VERB} ${_SEC_CVE_DESC}; build clean and tests pass · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+      elif [[ "$_TEST_FAILED" == "1" && "$_TEST_PREEXIST_VERIFIED" == "1" ]]; then
+        # Tests fail, but they ALSO fail on main (proven pre-existing). Prioritize, but the dev
+        # must confirm the failures are unrelated before merging — never "merge now" over red.
+        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}; the test suite also fails on \`main\` (pre-existing) — confirm it is unrelated, then merge to clear the CVE · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+      elif [[ "$_TEST_FAILED" == "1" ]]; then
+        # Tests fail and we could NOT prove they pre-date this PR. Highest-caution security verb.
+        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}, but the test suite is currently failing and not confirmed pre-existing — verify before merging · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
       else
-        _V2_HEADLINE="🔴 Security fix · MERGE NOW — ${_SEC_VERB} ${_SEC_CVE_DESC}, no new build errors · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+        # Build clean, no behavioral break, but tests were not run — prioritize, glance, merge.
+        _V2_HEADLINE="🔴 Security fix · PRIORITIZE — review then merge — ${_SEC_VERB} ${_SEC_CVE_DESC}; build clean but tests were not run (safety not fully verified) · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
       fi
     fi
     case "${V2_VERDICT:-REVIEW}" in
@@ -2332,7 +2384,7 @@ if blockers:
 |---|---|
 | Resolve | $(v2_signal_label "${V2_SIG_resolve:-UNAVAILABLE}") |
 | Build | $(v2_signal_label "${V2_SIG_build:-UNAVAILABLE}") |
-| Test | $(if [[ "$VERDICT" == "pre_existing" || -n "${TEST_FAIL_DETAIL:-}" ]]; then printf '⚠️ pre-existing failures — tests did not re-verify clean'; elif [[ "${TEST_RAN:-False}" != "True" ]]; then printf '· not run (no test suite or tests not executed)'; elif [[ "${TEST_EXIT_CODE:-}" != "0" && -n "${TEST_EXIT_CODE:-}" && "${TEST_EXIT_CODE:-}" != "-1" ]]; then printf '⚠️ tests failed (exit %s) — not verified clean' "$TEST_EXIT_CODE"; else v2_signal_label "${V2_SIG_test:-UNAVAILABLE}"; fi) |
+| Test | $(if [[ "$_TEST_FAILED" == "1" ]]; then printf '%s' "$_TEST_SIGNAL_CELL"; elif [[ "$VERDICT" == "pre_existing" || -n "${TEST_FAIL_DETAIL:-}" ]]; then printf '⚠️ pre-existing failures — tests did not re-verify clean'; elif [[ "${TEST_RAN:-False}" != "True" ]]; then printf '· not run (no test suite or tests not executed)'; else v2_signal_label "${V2_SIG_test:-UNAVAILABLE}"; fi) |
 | API diff | $(v2_signal_label "${V2_SIG_api_diff:-UNAVAILABLE}") |
 | Usage | $(v2_signal_label "${V2_SIG_usage:-UNAVAILABLE}") |
 | Vulnerability | $(v2_signal_label "${V2_SIG_vuln:-UNAVAILABLE}") |
@@ -2849,7 +2901,7 @@ if _sec_safe_l4:
     _step += 1
 if _sec_safe_l2:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe_l2)
-    lines.append(f"{_step}. **MERGE AFTER REVIEW — security fixes (tests not run):** {_sec_nums} ({len(_sec_safe_l2)} PR(s) fix known CVEs — build verified L2/L3 but tests were not run; CVE reachability is hint-only, patch regardless)")
+    lines.append(f"{_step}. **MERGE AFTER REVIEW — security fixes (tests not verified clean):** {_sec_nums} ({len(_sec_safe_l2)} PR(s) fix known CVEs — build verified L2/L3 but tests did not pass or were not run; verify, then merge — CVE reachability is hint-only, patch regardless)")
     _step += 1
 if _sec_blocked:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_blocked)
@@ -2863,7 +2915,7 @@ if _l4_safe:
 # L2 safe PRs (build passes, tests fail or not run)
 _l2_safe = [e for e in safe if not e.get("ver", "").startswith("L4") and not e.get("cves")]
 if _l2_safe:
-    lines.append(f"{_step}. **Review then merge — {len(_l2_safe)} PRs** (build + type-check pass, tests not run — review changelog before merging)")
+    lines.append(f"{_step}. **Review then merge — {len(_l2_safe)} PRs** (build + type-check pass, tests not verified clean — review changelog before merging)")
     _step += 1
 # Companion blocked
 if companion_blocked:
@@ -2998,7 +3050,7 @@ if all_cves:
         elif _b in ("not_analyzed", "cancelled"):
             verdict_note = " ❓ Not analyzed this run — re-run the tool before merging"
         elif _b in ("safe", "ci_only"):
-            verdict_note = " ✅ **SAFE — merge now** (tests pass, L4)" if _is_l4 else " ⚙️ **Build verified (L2/L3) — tests not run; merge after review**"
+            verdict_note = " ✅ **SAFE — merge now** (tests pass, L4)" if _is_l4 else " ⚙️ **Build verified (L2/L3) — tests not verified clean; review then merge**"
         else:
             verdict_note = ""
         lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {cve_str}{verdict_note}")
