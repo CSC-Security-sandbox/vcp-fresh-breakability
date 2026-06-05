@@ -113,6 +113,7 @@ var (
 	crossRegionBackupEnabled                           = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
 	RestoreVolumeBufferEnabled                         = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
 	EnableBackupVaultSwitching                         = env.GetBool("ENABLE_BACKUP_VAULT_SWITCHING", false)
+	EnableGCNVVaultSwitching                           = env.GetBool("ENABLE_GCNV_VAULT_SWITCHING", false)
 	enableKerberos                                     = env.GetBool("ENABLE_KERBEROS", false)
 	EnableJobResourceUUIDIndex                         = env.GetBool("ENABLE_JOB_RESOURCE_UUID_INDEX", false)
 	// TODO: Remove FORCE_VCP_KMS_PATH_FOR_TESTING once CMEK VPC-SC testing is complete.
@@ -1385,6 +1386,12 @@ func SetCrossRegionBackupEnabledForTest(enabled bool) {
 // This should only be used in tests
 func SetEnableBackupVaultSwitchingForTest(enabled bool) {
 	EnableBackupVaultSwitching = enabled
+}
+
+// SetEnableGCNVVaultSwitchingForTest allows tests to override the GCNV vault switching feature flag.
+// This should only be used in tests.
+func SetEnableGCNVVaultSwitchingForTest(enabled bool) {
+	EnableGCNVVaultSwitching = enabled
 }
 
 // GetSourceVolumePathFromBackup gets the source volume path from a backup object

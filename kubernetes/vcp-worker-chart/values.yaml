@@ -132,6 +132,7 @@ workerConfig:
   immutableBackupEnabled: "false"
   crossRegionBackupEnabled: "false"
   enableBackupVaultSwitching: "false"
+  enableGCNVVaultSwitching: "false"
   gcbdrVaultEnabled: "true"
   restoreVolumeBufferEnabled: "false"
   maxRetryAttemptsForSDEPollJob: "20"

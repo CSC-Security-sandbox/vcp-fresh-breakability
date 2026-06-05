@@ -140,6 +140,7 @@ data:
   IMMUTABLE_BACKUP_ENABLED: {{$.Values.workerConfig.immutableBackupEnabled | quote }}
   CROSS_REGION_BACKUP_ENABLED: {{$.Values.workerConfig.crossRegionBackupEnabled | quote }}
   ENABLE_BACKUP_VAULT_SWITCHING: {{$.Values.workerConfig.enableBackupVaultSwitching | quote }}
+  ENABLE_GCNV_VAULT_SWITCHING: {{$.Values.workerConfig.enableGCNVVaultSwitching | quote }}
   GCBDR_VAULT_ENABLED: {{$.Values.workerConfig.gcbdrVaultEnabled | quote }}
   THIN_CLONE_GA_SUPPORT: {{$.Values.workerConfig.thinCloneGASupport | quote }}
   ENABLE_JOB_RESOURCE_UUID_INDEX: {{$.Values.workerConfig.enableJobResourceUuidIndex | quote }}

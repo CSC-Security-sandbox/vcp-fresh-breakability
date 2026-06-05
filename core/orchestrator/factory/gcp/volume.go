@@ -2474,6 +2474,60 @@ func validateDetachedBackupsAllowAttachVault(ctx context.Context, se database.St
 	return nil
 }
 
+// validateDetachedBackupsAllowAttachVaultLegacy enforces pre-GCNV-vault-switching re-attach rules:
+// only GCBDR vaults may be attached when detached backups still exist on the volume.
+func validateDetachedBackupsAllowAttachVaultLegacy(ctx context.Context, se database.Storage, volumeUUID string, attachVault *datamodel.BackupVault) error {
+	if attachVault == nil {
+		return nil
+	}
+	vaultIDs, err := se.GetDistinctBackupVaultIDsByVolumeUUID(ctx, volumeUUID)
+	if err != nil {
+		return err
+	}
+	if len(vaultIDs) > 0 && attachVault.ServiceType != activities.GCBDRServiceType {
+		return customerrors.NewUserInputValidationErr("Cannot attach a non-GCBDR backup vault while the volume has existing backups from a detached backup vault. Delete those backups first, or attach a GCBDR backup vault.")
+	}
+	return nil
+}
+
+func validateReattachVaultAfterDetach(ctx context.Context, se database.Storage, volumeUUID string, attachVault *datamodel.BackupVault) error {
+	if utils.EnableGCNVVaultSwitching {
+		return validateDetachedBackupsAllowAttachVault(ctx, se, volumeUUID, attachVault)
+	}
+	return validateDetachedBackupsAllowAttachVaultLegacy(ctx, se, volumeUUID, attachVault)
+}
+
+// validateBackupVaultChangeLegacy enforces backup-vault detach/switch rules before GCNV vault switching.
+func validateBackupVaultChangeLegacy(
+	currentVault, newVault *datamodel.BackupVault,
+	dbVolume *datamodel.Volume,
+	removingVault bool,
+	distinctVaultIDsWithBackups []int64,
+) error {
+	if removingVault {
+		if currentVault != nil && currentVault.ServiceType != activities.GCBDRServiceType && len(distinctVaultIDsWithBackups) > 0 {
+			return customerrors.NewUserInputValidationErr("cannot remove backup vault as there are backups associated with it")
+		}
+		return nil
+	}
+
+	volumeHasBackups := len(distinctVaultIDsWithBackups) > 0
+	if volumeHasBackups {
+		if currentVault != nil && currentVault.ServiceType != activities.GCBDRServiceType {
+			return customerrors.NewUserInputValidationErr("Backup vault switching is only allowed for GCBDR backup vaults. The current backup vault is not a GCBDR vault.")
+		}
+		if newVault != nil && newVault.ServiceType != activities.GCBDRServiceType {
+			if newVault.AccountID != dbVolume.AccountID {
+				return customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
+			}
+			return customerrors.NewUserInputValidationErr("Backup vault switching is only allowed between GCBDR backup vaults. The target backup vault is not a GCBDR vault.")
+		}
+	} else if newVault != nil && newVault.ServiceType != activities.GCBDRServiceType && newVault.AccountID != dbVolume.AccountID {
+		return customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
+	}
+	return nil
+}
+
 // validateBackupVaultFamilySwitch enforces backup-vault switches that do not cross
 // GCBDR (CrossProject) and GCNV families when the volume still has backups in another vault.
 // With no such backups, switching across families is allowed.
@@ -2523,7 +2577,6 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 					return nil, "", customerrors.NewUserInputValidationErr("A backup operation on the volume is currently in progress. Please wait for it to complete before changing or removing the backup vault")
 				}
 				// Vault change/remove: one volume-wide query for any vault with available backups (detach + switch).
-				// Switch: allow GCBDR→GCBDR and GCNV→GCNV; block crossing GCBDR↔GCNV; with backups, same-family only.
 				currentVault, err := se.GetBackupVault(ctx, dbVolume.DataProtection.BackupVaultID)
 				if err != nil && !customerrors.IsNotFoundErr(err) {
 					return nil, "", err
@@ -2532,33 +2585,41 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				if errDistinct != nil {
 					return nil, "", errDistinct
 				}
-				volumeHasBackups := len(distinctVaultIDsWithBackups) > 0
-
-				if *params.DataProtection.BackupVaultID == "" {
-					// Removing vault: detach workflow runs when backups remain under other vaults.
-					serviceType := ""
-					if currentVault != nil {
-						serviceType = currentVault.ServiceType
-					}
+				removingVault := *params.DataProtection.BackupVaultID == ""
+				serviceType := ""
+				if currentVault != nil {
+					serviceType = currentVault.ServiceType
+				}
+				if removingVault {
 					logger.Infof("Removing backup vault from volume %s. Current vault service type: %s, distinct backup vaults with available backups: %d", dbVolume.UUID, serviceType, len(distinctVaultIDsWithBackups))
 					if dbVolume.DataProtection.BackupPolicyID != "" {
 						return nil, "", customerrors.NewUserInputValidationErr("Cannot remove backup vault while a backup policy is attached. Detach the backup policy first, then remove the backup vault.")
 					}
 				} else {
-					// Changing to another vault
 					logger.Infof("Switching backup vault for volume %s. Distinct vaults with available backups: %d", dbVolume.UUID, len(distinctVaultIDsWithBackups))
+				}
 
-					newVault, err := se.GetBackupVault(ctx, *params.DataProtection.BackupVaultID)
+				var newVault *datamodel.BackupVault
+				if !removingVault {
+					newVault, err = se.GetBackupVault(ctx, *params.DataProtection.BackupVaultID)
 					if err != nil && !customerrors.IsNotFoundErr(err) {
 						return nil, "", err
 					}
+				}
 
-					if err := validateBackupVaultFamilySwitch(currentVault, newVault, volumeHasBackups); err != nil {
-						return nil, "", err
+				if utils.EnableGCNVVaultSwitching {
+					// GCNV vault switching: same-family switch/detach with backups; cross-family only without backups.
+					if !removingVault {
+						volumeHasBackups := len(distinctVaultIDsWithBackups) > 0
+						if err := validateBackupVaultFamilySwitch(currentVault, newVault, volumeHasBackups); err != nil {
+							return nil, "", err
+						}
+						if newVault != nil && newVault.ServiceType == models.ServiceTypeGCNV && newVault.AccountID != dbVolume.AccountID {
+							return nil, "", customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
+						}
 					}
-					if newVault != nil && newVault.ServiceType == models.ServiceTypeGCNV && newVault.AccountID != dbVolume.AccountID {
-						return nil, "", customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
-					}
+				} else if err := validateBackupVaultChangeLegacy(currentVault, newVault, dbVolume, removingVault, distinctVaultIDsWithBackups); err != nil {
+					return nil, "", err
 				}
 			} else {
 				// Flag off: block when backup policy is attached (change or remove)
@@ -2602,7 +2663,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 					return nil, "", customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
 				}
 				if utils.EnableBackupVaultSwitching && noVaultAttachedPrior {
-					if err := validateDetachedBackupsAllowAttachVault(ctx, se, dbVolume.UUID, incomingVault); err != nil {
+					if err := validateReattachVaultAfterDetach(ctx, se, dbVolume.UUID, incomingVault); err != nil {
 						return nil, "", err
 					}
 				}
@@ -2966,11 +3027,10 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 		if bv != nil {
 			// Re-attaching a vault after detach: available backups may still reference a detached vault.
-			// Only supported vault families (GCBDR and GCNV) may be attached in that case.
 			// Only applies when vault switching is enabled: detach can leave available backups tied to the old vault.
 			noVaultAttached := volume.DataProtection == nil || volume.DataProtection.BackupVaultID == ""
 			if utils.EnableBackupVaultSwitching && noVaultAttached {
-				if err := validateDetachedBackupsAllowAttachVault(ctx, se, volume.UUID, bv); err != nil {
+				if err := validateReattachVaultAfterDetach(ctx, se, volume.UUID, bv); err != nil {
 					return err
 				}
 			}

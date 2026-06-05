@@ -4551,6 +4551,17 @@ func TestSetEnableBackupVaultSwitchingForTest(t *testing.T) {
 	assert.False(t, EnableBackupVaultSwitching)
 }
 
+func TestSetEnableGCNVVaultSwitchingForTest(t *testing.T) {
+	orig := EnableGCNVVaultSwitching
+	defer SetEnableGCNVVaultSwitchingForTest(orig)
+
+	SetEnableGCNVVaultSwitchingForTest(true)
+	assert.True(t, EnableGCNVVaultSwitching)
+
+	SetEnableGCNVVaultSwitchingForTest(false)
+	assert.False(t, EnableGCNVVaultSwitching)
+}
+
 func TestConvertSourceBackupVaultNameToRemoteBackupVaultName(t *testing.T) {
 	t.Run("NoTruncationWithStandardUUID", func(tt *testing.T) {
 		result := ConvertSourceBackupVaultNameToRemoteBackupVaultName("source-vault", "abcd-1234-5678")
