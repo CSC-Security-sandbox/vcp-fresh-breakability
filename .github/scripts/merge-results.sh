@@ -206,6 +206,16 @@ if len(k8s_prs) > 1:
             if not any((d["pr_a"]==int(na) and d["pr_b"]==int(nb)) or (d["pr_a"]==int(nb) and d["pr_b"]==int(na)) for d in cross_deps):
                 cross_deps.append({"pr_a": int(na), "pr_b": int(nb), "reason": f"K8s module coordination: {pa} + {pb} must match versions", "merge_order": "merge together"})
     print(f"  K8s module group: {len(k8s_prs)} PRs need coordinated merge")
+# OpenTelemetry coordination: go.opentelemetry.io/otel* modules share a release train and
+# should move together so the resolved otel core version is consistent (otel trio #23/#27/#36).
+otel_prs = [(num, pr["package"]) for num, pr in prs.items()
+            if pr.get("package", "").startswith("go.opentelemetry.io/otel")]
+if len(otel_prs) > 1:
+    for i, (na, pa) in enumerate(otel_prs):
+        for nb, pb in otel_prs[i+1:]:
+            if not any((d["pr_a"]==int(na) and d["pr_b"]==int(nb)) or (d["pr_a"]==int(nb) and d["pr_b"]==int(na)) for d in cross_deps):
+                cross_deps.append({"pr_a": int(na), "pr_b": int(nb), "reason": f"OpenTelemetry release-train coordination: {pa} + {pb} share the otel core version — merge together to keep the resolved otel version consistent", "merge_order": "merge together"})
+    print(f"  OpenTelemetry module group: {len(otel_prs)} PRs need coordinated merge")
 try:
     with open("/tmp/_bc_workspace_graph.json") as f: graph = json.load(f)
     for num, pr in prs.items():
@@ -352,7 +362,15 @@ for a in open_alerts:
                 cve_fixes.append({
                     "pr": int(num) if str(num).isdigit() else num,
                     "package": alert_pkg, "cve_id": cve, "severity": sev,
-                    "from_version": pr.get("from", ""), "to_version": resulting_ver,
+                    # For a transitive fix the PR's own from/to belong to a DIFFERENT
+                    # (primary) package, so pairing the primary's from-version with the
+                    # alert package's resulting version fabricates a nonsensical range
+                    # (e.g. migrate 4.18.2 -> x/crypto 0.45.0). Leave from_version empty
+                    # for transitive fixes and record the primary package that carried
+                    # the bump so the render can say "(transitive via <primary pkg>)".
+                    "from_version": ("" if via == "transitive" else pr.get("from", "")),
+                    "to_version": resulting_ver,
+                    "primary_package": pr.get("package", ""),
                     "first_patched_version": fpv, "via": via, "summary": summary[:200],
                 })
             matched = True

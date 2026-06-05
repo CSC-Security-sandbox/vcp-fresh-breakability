@@ -610,6 +610,7 @@ fields = {
     'PR_BUILD_EXIT': str(d.get('pr_exit', -1)),
     'MAIN_BUILD_EXIT': str(d.get('main_exit', -1)),
     'TEST_EXIT_CODE': str(d.get('test_exit', -1)),
+    'TEST_RAN': str(d.get('test_ran', False)),
     'BUILD_EVIDENCE': (lambda t: next((l.strip() for l in t.splitlines() if 'targeted build' in l or 'full build' in l or 'npm run build' in l), ''))(d.get('output_tail', '')),
     'BUILD_DIRS': (lambda t: next((l.strip() for l in t.splitlines() if 'dirs:' in l), ''))(d.get('output_tail', '')),
     'MERGE_RISK_TAG': (d.get('merge_risk') or {}).get('tag', ''),
@@ -668,6 +669,7 @@ for k, v in fields.items():
     _TIMEOUT_CAVEAT=" ⚠️ **Build was killed (timeout/OOM, exit ${PR_BUILD_EXIT}/${MAIN_BUILD_EXIT}) — the error comparison is INCOMPLETE.** Packages after the kill point were never compiled, so new type errors there would not be detected. Treat as inconclusive, not verified-safe."
   fi
   TEST_EXIT_CODE=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_EXIT_CODE=' | cut -d= -f2-)
+  TEST_RAN=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_RAN=' | cut -d= -f2-)
   BUILD_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_EVIDENCE=' | cut -d= -f2-)
   BUILD_DIRS=$(echo "$_FIELDS_EXTRACTED" | grep '^BUILD_DIRS=' | cut -d= -f2-)
   MERGE_RISK_TAG=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_TAG=' | cut -d= -f2-)
@@ -1985,10 +1987,27 @@ ${RUN_LINK}
   # CVE the bump does not actually deliver — keeping it consistent with the merge-plan
   # orphan table (e.g. PR#23 CVE-2026-39883 fixed-in 1.43 while the PR reaches only 1.42;
   # PR#10 CVE-2025-30204 with no Dependabot match).
+  # Reconcile the SECURITY-FIX recommendation with the committed behavioral grade so the body
+  # cannot say "MERGE IMMEDIATELY" while the headline/merge-plan say "REVIEW THEN MERGE" (PR#23).
+  # BG_* are available here (eval'd at get_behavioral_grade above); V2_VERDICT is not yet set.
+  _BEHAV_BREAK=0
+  if [[ "${BG_OK:-0}" == "1" ]]; then
+    _bg_src_lc_cve="$(printf '%s' "${BG_SOURCE:-}" | tr '[:upper:]' '[:lower:]')"
+    _bg_grade_lc_cve="$(printf '%s' "${BG_GRADE:-}" | tr '[:upper:]' '[:lower:]')"
+    if [[ ( "$_bg_src_lc_cve" == "reasoning" || "$_bg_src_lc_cve" == "probe" ) \
+          && ( -n "${BG_RATIONALE:-}" || -n "${BG_GUIDANCE:-}" || -n "${BG_EVIDENCE:-}" ) \
+          && ( "$_bg_grade_lc_cve" == "high" || "$_bg_grade_lc_cve" == "medium" ) ]]; then
+      _BEHAV_BREAK=1
+    fi
+  fi
   if [[ -n "${_FIXES_CVE_DATA:-}" ]]; then
     _CVE_VERIFIED=1
     _CVE_HEADING="$CVE_COUNT CVE(s) resolved (version-verified): $_FIXES_CVE_DATA"
-    _CVE_RECOMMEND="**MERGE THIS PR IMMEDIATELY.** It resolves ${CVE_COUNT} version-verified known CVE(s) (the resulting version reaches each advisory's fixed-in version) and introduces zero new build errors."
+    if [[ "$_BEHAV_BREAK" == "1" ]]; then
+      _CVE_RECOMMEND="**REVIEW THEN MERGE.** It resolves ${CVE_COUNT} version-verified known CVE(s) (the resulting version reaches each advisory's fixed-in version) with zero new build errors — but the behavioral oracle graded a **${_bg_grade_lc_cve}** breaking-change exposure (see the graded call sites below). Confirm those call sites, then merge to clear the CVE."
+    else
+      _CVE_RECOMMEND="**MERGE THIS PR IMMEDIATELY.** It resolves ${CVE_COUNT} version-verified known CVE(s) (the resulting version reaches each advisory's fixed-in version) and introduces zero new build errors."
+    fi
   else
     _CVE_VERIFIED=0
     _CVE_HEADING="$CVE_COUNT CVE(s) claimed by the PR body — ⚠️ NOT version-verified against the resulting (incl. transitive) go.mod/lockfile version: $CVE_LIST"
@@ -2141,7 +2160,12 @@ print(body)
       if [[ "$_GATED_CVE_FIX" == "1" ]]; then _SEC_VERB="resolves"; else _SEC_VERB="claims to fix (not version-verified)"; fi
       if [[ "${NEW_ERR_COUNT:-0}" =~ ^[0-9]+$ && "${NEW_ERR_COUNT:-0}" -gt 0 ]]; then
         _V2_HEADLINE="🔴 Security fix · BLOCKED — ${_SEC_VERB} ${_SEC_CVE_DESC} but introduces build errors · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0 (fix build, then merge)"
-      elif [[ "$_GATED_CVE_FIX" != "1" || "${V2_VERDICT:-REVIEW}" == "BLOCKED" || "${V2_VERDICT:-REVIEW}" == "REVIEW" || "$_GRADE" == "high" || "$_GRADE" == "medium" ]]; then
+      elif [[ "$_GRADE" == "high" ]]; then
+        # The PR's OWN deterministic/behavioral break grade is High. An incidental (often
+        # transitive) CVE must NOT bury that — keep the breaking-change identity as the lead
+        # so the dev sees the dominant risk first, with the CVE noted as a secondary benefit.
+        _V2_HEADLINE="🔴 Breakability: High · REVIEW THEN MERGE — also ${_SEC_VERB} ${_SEC_CVE_DESC}; the breaking change is the dominant risk (verify the call sites below), merging still clears the CVE · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+      elif [[ "$_GATED_CVE_FIX" != "1" || "${V2_VERDICT:-REVIEW}" == "BLOCKED" || "${V2_VERDICT:-REVIEW}" == "REVIEW" || "$_GRADE" == "medium" ]]; then
         # A CVE-fixing PR that the body routes to REVIEW (breaking change flagged, or a
         # committed behavioral grade of high/medium), OR an unverified PR-body claim, must NOT
         # headline "MERGE NOW" — that contradicts the body/plan. Say REVIEW THEN MERGE so the
@@ -2295,7 +2319,7 @@ if blockers:
 |---|---|
 | Resolve | $(v2_signal_label "${V2_SIG_resolve:-UNAVAILABLE}") |
 | Build | $(v2_signal_label "${V2_SIG_build:-UNAVAILABLE}") |
-| Test | $(if [[ "$VERDICT" == "pre_existing" || -n "${TEST_FAIL_DETAIL:-}" ]]; then printf '⚠️ pre-existing failures — tests did not re-verify clean'; else v2_signal_label "${V2_SIG_test:-UNAVAILABLE}"; fi) |
+| Test | $(if [[ "$VERDICT" == "pre_existing" || -n "${TEST_FAIL_DETAIL:-}" ]]; then printf '⚠️ pre-existing failures — tests did not re-verify clean'; elif [[ "${TEST_RAN:-False}" != "True" ]]; then printf '· not run (no test suite or tests not executed)'; elif [[ "${TEST_EXIT_CODE:-}" != "0" && -n "${TEST_EXIT_CODE:-}" && "${TEST_EXIT_CODE:-}" != "-1" ]]; then printf '⚠️ tests failed (exit %s) — not verified clean' "$TEST_EXIT_CODE"; else v2_signal_label "${V2_SIG_test:-UNAVAILABLE}"; fi) |
 | API diff | $(v2_signal_label "${V2_SIG_api_diff:-UNAVAILABLE}") |
 | Usage | $(v2_signal_label "${V2_SIG_usage:-UNAVAILABLE}") |
 | Vulnerability | $(v2_signal_label "${V2_SIG_vuln:-UNAVAILABLE}") |
@@ -2428,13 +2452,23 @@ def committed_v2_verdict(pr):
         return "REVIEW"
     return verdict
 
+def _det_risk_tag(pr):
+    # The raw deterministic merge_risk tag, normalized to a bare High/Medium/Low word.
+    raw = ((pr.get("merge_risk") or (pr.get("deterministic") or {}).get("merge_risk") or {}).get("tag")) or "Medium"
+    first = str(raw).replace("—", " ").replace("(", " ").split()[0].strip().capitalize() if str(raw).strip() else "Medium"
+    return first if first in ("High", "Medium", "Low") else "Medium"
+
 def effective_risk_tag(pr):
-    # Committed behavioral grade wins over the deterministic merge_risk heuristic so every
-    # surface (routing / plan row / headline) shows ONE verdict. none -> Low (lowest risk).
+    # ONE verdict across every surface (routing / plan row / headline). The deterministic
+    # merge_risk is a FLOOR: a cited behavioral grade may RAISE the risk above it, but a
+    # behavioral none/low may NOT erase a deterministic High/Medium signal (floor invariant).
+    _RANK = {"Low": 0, "Medium": 1, "High": 2}
+    det_tag = _det_risk_tag(pr)
     g = _bg_cited_grade(pr)
-    if g is not None:
-        return {"high": "High", "medium": "Medium", "low": "Low", "none": "Low"}[g]
-    return ((pr.get("merge_risk") or (pr.get("deterministic") or {}).get("merge_risk") or {}).get("tag")) or "Medium"
+    if g is None:
+        return det_tag
+    beh_tag = {"high": "High", "medium": "Medium", "low": "Low", "none": "Low"}[g]
+    return beh_tag if _RANK[beh_tag] >= _RANK[det_tag] else det_tag
 
 def fmt_merge_risk(pr):
     risk = pr.get("merge_risk") or (pr.get("deterministic") or {}).get("merge_risk") or {}
@@ -2524,11 +2558,16 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
         entry["v2_review"] = True
         review.append(entry)
     elif committed_v2_verdict(pr) == "SAFE" and v in ("pass", "pre_existing"):
-        # Committed SAFE wins over the raw deterministic High heuristic below: the oracle already
-        # weighed the declared-breaking-change signal and still graded SAFE. Trusting it keeps the
-        # plan row consistent with the PR comment's green headline (avoids none-vs-High clash).
-        entry["v2_safe"] = True
-        safe.append(entry)
+        # Committed SAFE normally wins over the raw deterministic heuristic. EXCEPTION (floor
+        # invariant): a behavioral none/low must not erase a deterministic High signal. If the
+        # effective risk is still High here, the deterministic floor stands and it routes to
+        # review — a behavioral oracle cannot lower the final merge action below a det High.
+        if effective_risk_tag(pr) == "High":
+            entry["high_merge_risk"] = True
+            review.append(entry)
+        else:
+            entry["v2_safe"] = True
+            safe.append(entry)
     elif effective_risk_tag(pr) == "High" and v in ("pass", "pre_existing"):
         # FALSE-SAFE GUARD (fallback only when verdict_v2 is entirely absent/invalid): a High
         # effective risk must go to REVIEW, not safe.
@@ -3094,7 +3133,21 @@ if needs_review:
                 reason = ("Declared behavioral breaking change in a used package — build/test/api-diff "
                           "cannot confirm runtime exposure; see the PR comment for the graded verdict")
         else:
-            reason = "Build error / infrastructure issue"
+            _v = e.get("verdict", "")
+            _ver = str(e.get("ver", "") or "")
+            _verified_clean = (
+                _v in ("pass", "pre_existing") or _ver.startswith(("L2", "L3", "L4"))
+            ) and e.get("new_error_count", 0) == 0
+            if e.get("vuln_incomplete"):
+                reason = ("Build passed but the vulnerability scan was incomplete (timeout/OOM) — "
+                          "re-run govulncheck to confirm no new CVEs before merging")
+            elif _verified_clean:
+                # The build VERIFIED clean (L2+/no new errors); it is only here because a
+                # committed REVIEW verdict routed it. Do not mislabel it a build/infra failure.
+                reason = (f"Verified clean ({_ver or 'build passed'}); routed to review — "
+                          f"see the PR comment for the committed verdict")
+            else:
+                reason = "Build error / infrastructure issue"
         lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — Merge Risk: {e.get('merge_risk', 'Medium — default caution')} — {reason}")
     lines.append("")
 
@@ -3160,21 +3213,43 @@ if security:
         def _pr_sort_key(pr_num):
             sev = min(_SEV_RANK.get((f["severity"] or "").lower(), 4) for f in fixes_by_pr[pr_num])
             return (sev, pr_num)
+        # Which CVEs are delivered by more than one PR (so a dev knows "merge any one").
+        _prs_per_cve = {}
+        for f in cve_fixes:
+            cid = f.get("cve_id") or ""
+            if cid:
+                _prs_per_cve.setdefault(cid, set()).add(str(f["pr"]))
         lines.append("### 🛡️ Security Fixes — Merge with Priority")
         lines.append("")
-        lines.append("| PR | Package | Version | CVE(s) | Severity | Advisory |")
-        lines.append("|---|---|---|---|---|---|")
+        lines.append("| PR | Package | Version | CVE(s) | Severity | Fixed in | Advisory |")
+        lines.append("|---|---|---|---|---|---|---|")
         for pr_num in sorted(fixes_by_pr.keys(), key=_pr_sort_key):
             flist = fixes_by_pr[pr_num]
             pkg = flist[0]["package"]
-            fr = flist[0]["from_version"]; to = flist[0]["to_version"]
+            fr = flist[0].get("from_version", ""); to = flist[0].get("to_version", "")
+            via = flist[0].get("via", "primary")
+            primary_pkg = flist[0].get("primary_package", "")
+            # A transitive fix bumps the vulnerable package indirectly: its from-version is
+            # not the PR's own (primary) from-version, so render only "→{to}" and name the
+            # primary package that carried the bump instead of fabricating a range.
+            if via == "transitive":
+                ver_cell = f"→{to} (transitive via `{primary_pkg}`)" if primary_pkg else f"→{to} (transitive)"
+            else:
+                ver_cell = f"{fr}→{to}"
             cve_cell = ", ".join(sorted(set(f["cve_id"] for f in flist if f["cve_id"])))
             sev_cell = ", ".join(sorted(set(f["severity"] for f in flist if f["severity"])))
+            fixed_cell = ", ".join(sorted(set(f.get("first_patched_version") or "?" for f in flist)))
             adv_cell = " ".join(f"[{f['cve_id']}](https://nvd.nist.gov/vuln/detail/{f['cve_id']})" for f in flist if (f['cve_id'] or '').startswith('CVE-'))
             if not adv_cell:
                 adv_cell = "_see Dependabot_"
-            lines.append(f"| #{pr_num} | `{pkg}` | {fr}→{to} | {cve_cell} | {sev_cell} | {adv_cell} |")
+            lines.append(f"| #{pr_num} | `{pkg}` | {ver_cell} | {cve_cell} | {sev_cell} | {fixed_cell} | {adv_cell} |")
         lines.append("")
+        _multi = {c: sorted(p, key=lambda x: int(x) if x.isdigit() else 0) for c, p in _prs_per_cve.items() if len(p) > 1}
+        if _multi:
+            lines.append("> ℹ️ **Some CVEs are delivered by more than one PR — merge any one to clear them:**")
+            for cid in sorted(_multi):
+                lines.append(f">   - `{cid}`: " + ", ".join(f"#{n}" for n in _multi[cid]))
+            lines.append("")
 
     # V9.8 iter6 (B): orphan alerts (no PR fixes them) — needs manual attention
     orphans = security.get("orphan_alerts", [])
