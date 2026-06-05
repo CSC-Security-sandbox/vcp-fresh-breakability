@@ -74,8 +74,8 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	//     detached-vault BMF pass both need the map even when all skip flags are on.
 	backupVaultMap := make(map[string]*datamodel.BackupVault)
 	prefetchBackupVaults := config.EnableBackupBillingMetrics &&
-		(config.EnableGcbdrBackupBilling ||
-			config.EnableExpertModeBackupBilling ||
+		(!config.EnableGcbdrBackupBilling ||
+			!config.EnableExpertModeBackupBilling ||
 			!config.EnableCrossRegionBackupBillingMetrics ||
 			!config.EnableCmekBackupBilling)
 	if prefetchBackupVaults {
