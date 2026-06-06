@@ -106,7 +106,28 @@ func TestCheckDeleteProtection_NoDeleteRestriction_Skips(t *testing.T) {
 	}
 }
 
-func TestCheckDeleteProtection_SANHostGroupWithoutDeleteRestriction_Denies(t *testing.T) {
+func TestCheckDeleteProtection_SANHostGroupWithoutDeleteRestriction_FlagOff_Allows(t *testing.T) {
+	orig := enableSanVolDeleteProtection
+	enableSanVolDeleteProtection = false
+	t.Cleanup(func() { enableSanVolDeleteProtection = orig })
+
+	volume := &datamodel.Volume{
+		Name: "san-vol",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolISCSI},
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{{HostGroupUUID: "hg-1"}},
+			},
+		},
+	}
+	assert.NoError(t, CheckDeleteProtection(context.Background(), volume, nil, nil))
+}
+
+func TestCheckDeleteProtection_SANHostGroupWithoutDeleteRestriction_FlagOn_Denies(t *testing.T) {
+	orig := enableSanVolDeleteProtection
+	enableSanVolDeleteProtection = true
+	t.Cleanup(func() { enableSanVolDeleteProtection = orig })
+
 	volume := &datamodel.Volume{
 		Name: "san-vol",
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -122,6 +143,33 @@ func TestCheckDeleteProtection_SANHostGroupWithoutDeleteRestriction_Denies(t *te
 		vsaerrors.ErrDeleteVolumeRestrictedAction,
 		expectedDeleteProtectionSANHostGroupMessage,
 	)
+}
+
+func TestCheckDeleteProtection_SANHostGroupWithDeleteRestriction_Denies(t *testing.T) {
+	for _, flagOn := range []bool{true, false} {
+		t.Run(fmt.Sprintf("flagOn=%v", flagOn), func(t *testing.T) {
+			orig := enableSanVolDeleteProtection
+			enableSanVolDeleteProtection = flagOn
+			t.Cleanup(func() { enableSanVolDeleteProtection = orig })
+
+			volume := &datamodel.Volume{
+				Name: "san-vol",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols:         []string{utils.ProtocolISCSI},
+					RestrictedActions: []string{RestrictedActionDelete},
+					BlockProperties: &datamodel.BlockProperties{
+						HostGroupDetails: []datamodel.HostGroupDetail{{HostGroupUUID: "hg-1"}},
+					},
+				},
+			}
+			assertDeleteProtectionDenied(
+				t,
+				CheckDeleteProtection(context.Background(), volume, nil, nil),
+				vsaerrors.ErrDeleteVolumeRestrictedAction,
+				expectedDeleteProtectionSANHostGroupMessage,
+			)
+		})
+	}
 }
 
 func TestCheckDeleteProtection_AtAPI_SANWithoutHostGroupDoesNotRequirePool(t *testing.T) {
@@ -163,7 +211,11 @@ func TestCheckDeleteProtection_NFSWithoutRestriction_Allows(t *testing.T) {
 	assert.NoError(t, CheckDeleteProtection(context.Background(), volume, nil, nil))
 }
 
-func TestCheckDeleteProtection_SANHostGroup(t *testing.T) {
+func TestCheckDeleteProtection_SANHostGroup_FlagOffWithDeleteRestriction_Denies(t *testing.T) {
+	orig := enableSanVolDeleteProtection
+	enableSanVolDeleteProtection = false
+	t.Cleanup(func() { enableSanVolDeleteProtection = orig })
+
 	tests := []struct {
 		name  string
 		attrs *datamodel.VolumeAttributes

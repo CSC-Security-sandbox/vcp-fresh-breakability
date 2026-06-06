@@ -5881,6 +5881,10 @@ func TestEnforceDeleteProtection_NFSNoClients_Allows(t *testing.T) {
 }
 
 func TestEnforceDeleteProtection_SANHostGroup_Denies(t *testing.T) {
+	orig := enableSanVolDeleteProtection
+	enableSanVolDeleteProtection = true
+	t.Cleanup(func() { enableSanVolDeleteProtection = orig })
+
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
 	activity := VolumeDeleteActivity{}

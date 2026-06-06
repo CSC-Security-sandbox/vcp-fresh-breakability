@@ -3729,9 +3729,10 @@ func setRestrictedActionsFromRequest(restrictedActions []gcpgenserver.Restricted
 }
 
 // parseRestrictedActionsFromRequest normalizes restrictedActions from the request.
-// Call only when the field was present on the request. Returns a non-nil *[]string:
-// empty slice clears restrictions on update; non-empty replaces them. Create callers
-// should assign *parsed only when len(*parsed) > 0.
+// Duplicate values are deduplicated (first occurrence wins). Call only when the field
+// was present on the request. Returns a non-nil *[]string: empty slice clears
+// restrictions on update; non-empty replaces them. Create callers should assign *parsed
+// only when len(*parsed) > 0.
 func parseRestrictedActionsFromRequest(restrictedActions []gcpgenserver.RestrictedActionsV1betaItem, protocols []string) (*[]string, error) {
 	if len(restrictedActions) == 0 {
 		empty := []string{}
@@ -3745,11 +3746,17 @@ func parseRestrictedActionsFromRequest(restrictedActions []gcpgenserver.Restrict
 	}
 
 	apiActions := make([]string, 0, len(restrictedActions))
+	seen := make(map[string]struct{}, len(restrictedActions))
 	for _, action := range restrictedActions {
 		if action == gcpgenserver.RestrictedActionsV1betaItemRESTRICTEDACTIONUNSPECIFIED {
 			continue
 		}
-		apiActions = append(apiActions, string(action))
+		actionStr := string(action)
+		if _, ok := seen[actionStr]; ok {
+			continue
+		}
+		seen[actionStr] = struct{}{}
+		apiActions = append(apiActions, actionStr)
 	}
 	if len(apiActions) == 0 {
 		empty := []string{}

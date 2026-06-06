@@ -11,10 +11,16 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 const deleteProtectionSANHostGroupMessage = "Cannot delete the volume because it is associated with one or more host groups. Detach it from all host groups and try again."
+
+// enableSanVolDeleteProtection enables classic SAN host-group delete protection.
+// When true, delete is blocked whenever a host group is still attached (regardless of restricted_actions).
+// When false, delete is blocked on host-group attachment only when restricted_actions contains DELETE.
+var enableSanVolDeleteProtection = env.GetBool("SAN_VOL_DELETE_PROTECTION_ENABLED", true)
 
 // CheckDeleteProtection enforces delete-protection rules before a volume delete proceeds.
 //
@@ -30,9 +36,9 @@ func CheckDeleteProtection(ctx context.Context, volume *datamodel.Volume, node *
 	}
 	attrs := volume.VolumeAttributes
 
-	// SAN: block only when a host group is still attached to the LUN.
+	// SAN: host-group delete rules depend on SAN_VOL_DELETE_PROTECTION_ENABLED.
 	if utils.IsSanProtocols(attrs.Protocols) {
-		if sanVolumeHasHostGroupAttachedToLUN(attrs) {
+		if shouldBlockSanDeleteForAttachedHostGroup(attrs) {
 			return newDeleteProtectionError(deleteProtectionSANHostGroupMessage)
 		}
 		return nil
@@ -107,6 +113,16 @@ func nfsClientsForVolume(ctx context.Context, node *models.Node, volume *datamod
 		VolumeUUID: &attrs.ExternalUUID,
 		SvmName:    &svmName,
 	})
+}
+
+func shouldBlockSanDeleteForAttachedHostGroup(attrs *datamodel.VolumeAttributes) bool {
+	if enableSanVolDeleteProtection {
+		return sanVolumeHasHostGroupAttachedToLUN(attrs)
+	}
+	if !HasVolumeDeleteRestriction(attrs) {
+		return false
+	}
+	return sanVolumeHasHostGroupAttachedToLUN(attrs)
 }
 
 func sanVolumeHasHostGroupAttachedToLUN(attrs *datamodel.VolumeAttributes) bool {

@@ -153,6 +153,7 @@ data:
   ENABLE_SMB: {{$.Values.workerConfig.enableSmb | quote }}
   ENABLE_QUOTA_RULE: {{$.Values.workerConfig.enableQuotaRule | quote }}
   VOL_DEL_PROTECTION_ENABLED: {{$.Values.workerConfig.volDelProtectionEnabled | quote }}
+  SAN_VOL_DELETE_PROTECTION_ENABLED: {{$.Values.workerConfig.sanVolDeleteProtectionEnabled | quote }}
   ENABLE_KERBEROS: {{$.Values.workerConfig.enableKerberos | quote }}
   ENABLE_NFS_OVER_TLS: {{$.Values.workerConfig.enableNfsOverTls | quote }}
   NFS_TLS_CONN_MAX_LIMIT: {{$.Values.workerConfig.nfsTlsConnMaxLimit | quote }}

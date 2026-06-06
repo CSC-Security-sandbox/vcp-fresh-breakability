@@ -142,6 +142,7 @@ workerConfig:
   enableSmb: "false"
   enableQuotaRule: "true"
   volDelProtectionEnabled: "true"
+  sanVolDeleteProtectionEnabled: "false"
   enableKerberos: "false"
   enableNfsOverTls: "false"
   nfsTlsConnMaxLimit: "100"

@@ -43,6 +43,7 @@ cpcrrEnabled: false
 czcrrEnabled: false
 enableQuotaRule: true # Enable quota rule API (create/update/delete/get multiple)
 volDelProtectionEnabled: true # Enforce volume DELETE restrictedActions at delete API (HTTP 409 / 7017)
+sanVolDeleteProtectionEnabled: false # true: block SAN delete whenever host group attached; false: block only when restricted_actions has DELETE
 refreshAdminJobSpecs: true
 flexCacheEnabled: false
 hybridReplicationEnabled: false

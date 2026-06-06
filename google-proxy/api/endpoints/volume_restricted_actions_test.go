@@ -78,6 +78,16 @@ func TestSetRestrictedActionsFromRequest(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, []string{"DELETE"}, actions)
 	})
+
+	t.Run("dedupes duplicate DELETE", func(t *testing.T) {
+		var actions []string
+		err := setRestrictedActionsFromRequest([]gcpgenserver.RestrictedActionsV1betaItem{
+			gcpgenserver.RestrictedActionsV1betaItemDELETE,
+			gcpgenserver.RestrictedActionsV1betaItemDELETE,
+		}, &actions, []string{utils.ProtocolNFSv3})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"DELETE"}, actions)
+	})
 }
 
 func TestParseRestrictedActionsFromRequest(t *testing.T) {
@@ -114,6 +124,19 @@ func TestParseRestrictedActionsFromRequest(t *testing.T) {
 	t.Run("replace with DELETE", func(t *testing.T) {
 		actions, err := parseRestrictedActionsFromRequest(
 			[]gcpgenserver.RestrictedActionsV1betaItem{gcpgenserver.RestrictedActionsV1betaItemDELETE},
+			[]string{utils.ProtocolNFSv3},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, actions)
+		assert.Equal(t, []string{"DELETE"}, *actions)
+	})
+
+	t.Run("dedupes duplicate DELETE", func(t *testing.T) {
+		actions, err := parseRestrictedActionsFromRequest(
+			[]gcpgenserver.RestrictedActionsV1betaItem{
+				gcpgenserver.RestrictedActionsV1betaItemDELETE,
+				gcpgenserver.RestrictedActionsV1betaItemDELETE,
+			},
 			[]string{utils.ProtocolNFSv3},
 		)
 		require.NoError(t, err)
@@ -171,5 +194,18 @@ func TestPrepareUpdateVolumeParams_RestrictedActions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, param.RestrictedActions)
 		assert.Empty(t, *param.RestrictedActions)
+	})
+
+	t.Run("duplicate DELETE is deduped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			RestrictedActions: []gcpgenserver.RestrictedActionsV1betaItem{
+				gcpgenserver.RestrictedActionsV1betaItemDELETE,
+				gcpgenserver.RestrictedActionsV1betaItemDELETE,
+			},
+		}
+		param, err := prepareUpdateVolumeParams(req, params, "us-central1", dbVolume)
+		require.NoError(t, err)
+		require.NotNil(t, param.RestrictedActions)
+		assert.Equal(t, []string{"DELETE"}, *param.RestrictedActions)
 	})
 }
