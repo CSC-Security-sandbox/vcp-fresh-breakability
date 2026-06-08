@@ -354,6 +354,10 @@ func TestCustomErrorMethods_NilPointer(t *testing.T) {
 		t.Errorf("Expected empty string for nil CustomError.GetMessage(), got %s", customErr.GetMessage())
 	}
 
+	if customErr.GetDetailMessage() != "" {
+		t.Errorf("Expected empty string for nil CustomError.GetDetailMessage(), got %s", customErr.GetDetailMessage())
+	}
+
 	// Test LogOriginalError method with nil pointer (should not panic)
 	customErr.LogOriginalError()
 }
@@ -846,6 +850,35 @@ func TestCustomErrorArgsModification(t *testing.T) {
 	// Verify that the original baseErr is not affected (it has no args)
 	if baseErr.GetArgs() != nil {
 		t.Error("Expected base error to have no args")
+	}
+}
+
+// TestGetDetailMessage tests GetDetailMessage prefers OriginalErr over catalog text.
+func TestGetDetailMessage(t *testing.T) {
+	catalogMessage := "Resource is in an invalid state for the requested operation"
+	errorMap = map[int]ErrorMessage{
+		ErrResourceStateConflictError: {
+			Message:   catalogMessage,
+			Retriable: new(bool),
+			HttpCode:  new(int),
+		},
+	}
+	*errorMap[ErrResourceStateConflictError].Retriable = false
+	*errorMap[ErrResourceStateConflictError].HttpCode = 409
+
+	originalErr := New("external cluster host \"host-1\" already onboarded in location \"us-central1\"")
+	customErr := NewVCPError(ErrResourceStateConflictError, originalErr)
+
+	if customErr.GetMessage() != catalogMessage {
+		t.Errorf("Expected catalog message from GetMessage(), got %q", customErr.GetMessage())
+	}
+	if customErr.GetDetailMessage() != originalErr.Error() {
+		t.Errorf("Expected detail message %q, got %q", originalErr.Error(), customErr.GetDetailMessage())
+	}
+
+	customErrNoOriginal := NewVCPError(ErrResourceStateConflictError, nil)
+	if customErrNoOriginal.GetDetailMessage() != catalogMessage {
+		t.Errorf("Expected catalog message from GetDetailMessage() when OriginalErr is nil, got %q", customErrNoOriginal.GetDetailMessage())
 	}
 }
 

@@ -58,6 +58,12 @@ type Invoker interface {
 	//
 	// DELETE /v1/addressRange/{addressRangeId}
 	V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error)
+	// V1DeleteExternalCluster invokes v1_deleteExternalCluster operation.
+	//
+	// Soft-deletes the external cluster host identified by the given UUID.
+	//
+	// DELETE /v1/externalClusters/{externalClusterId}
+	V1DeleteExternalCluster(ctx context.Context, params V1DeleteExternalClusterParams) (V1DeleteExternalClusterRes, error)
 	// V1DeleteImageVersion invokes v1_deleteImageVersion operation.
 	//
 	// Deletes an image version entry from the database by ONTAP version.
@@ -108,6 +114,12 @@ type Invoker interface {
 	//
 	// GET /v1/clusters/upgrade/{jobId}
 	V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error)
+	// V1GetExternalCluster invokes v1_getExternalCluster operation.
+	//
+	// Returns the external cluster host identified by the given UUID.
+	//
+	// GET /v1/externalClusters/{externalClusterId}
+	V1GetExternalCluster(ctx context.Context, params V1GetExternalClusterParams) (V1GetExternalClusterRes, error)
 	// V1GetMultipleReplicationsByExternalUUID invokes v1_getMultipleReplicationsByExternalUUID operation.
 	//
 	// Returns replications filtered by external UUIDs and endpoint type.
@@ -145,6 +157,15 @@ type Invoker interface {
 	//
 	// GET /v1/pools
 	V1ListPools(ctx context.Context, params V1ListPoolsParams) (V1ListPoolsRes, error)
+	// V1OnboardExternalCluster invokes v1_onboardExternalCluster operation.
+	//
+	// Registers one or more external ONTAP cluster hosts in the control
+	// plane at the specified location. Creates a persistent record per host
+	// with the supplied management endpoint and admin username. This is a
+	// synchronous operation (no long-running operation or job).
+	//
+	// POST /v1/externalClusters/onboard
+	V1OnboardExternalCluster(ctx context.Context, request *ExternalClusterOnboardRequestV1, params V1OnboardExternalClusterParams) (V1OnboardExternalClusterRes, error)
 	// V1RefreshRbacForExpertModePoolById invokes v1_refreshRbacForExpertModePoolById operation.
 	//
 	// Triggers a workflow to update RBAC hash for a specific ONTAP mode pool identified by UUID,
@@ -192,6 +213,14 @@ type Invoker interface {
 	//
 	// PUT /v1/addressRange/{addressRangeId}/updateState
 	V1UpdateAddressRangeState(ctx context.Context, request *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error)
+	// V1UpdateExternalCluster invokes v1_updateExternalCluster operation.
+	//
+	// Updates mutable fields of an external cluster host.
+	// Fields included in the request body replace the current values.
+	// `hostName` and `locationId` cannot be updated.
+	//
+	// PUT /v1/externalClusters/{externalClusterId}
+	V1UpdateExternalCluster(ctx context.Context, request *ExternalClusterHostUpdateV1, params V1UpdateExternalClusterParams) (V1UpdateExternalClusterRes, error)
 	// V1UpdatePool invokes v1_updatePool operation.
 	//
 	// Update the pool.
@@ -649,6 +678,76 @@ func (c *Client) sendV1DeleteAddressRange(ctx context.Context, params V1DeleteAd
 	defer resp.Body.Close()
 
 	result, err := decodeV1DeleteAddressRangeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1DeleteExternalCluster invokes v1_deleteExternalCluster operation.
+//
+// Soft-deletes the external cluster host identified by the given UUID.
+//
+// DELETE /v1/externalClusters/{externalClusterId}
+func (c *Client) V1DeleteExternalCluster(ctx context.Context, params V1DeleteExternalClusterParams) (V1DeleteExternalClusterRes, error) {
+	res, err := c.sendV1DeleteExternalCluster(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1DeleteExternalCluster(ctx context.Context, params V1DeleteExternalClusterParams) (res V1DeleteExternalClusterRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/externalClusters/"
+	{
+		// Encode "externalClusterId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "externalClusterId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ExternalClusterId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1DeleteExternalClusterResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -1132,6 +1231,76 @@ func (c *Client) sendV1GetClusterUpgradeStatus(ctx context.Context, params V1Get
 	defer resp.Body.Close()
 
 	result, err := decodeV1GetClusterUpgradeStatusResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1GetExternalCluster invokes v1_getExternalCluster operation.
+//
+// Returns the external cluster host identified by the given UUID.
+//
+// GET /v1/externalClusters/{externalClusterId}
+func (c *Client) V1GetExternalCluster(ctx context.Context, params V1GetExternalClusterParams) (V1GetExternalClusterRes, error) {
+	res, err := c.sendV1GetExternalCluster(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1GetExternalCluster(ctx context.Context, params V1GetExternalClusterParams) (res V1GetExternalClusterRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/externalClusters/"
+	{
+		// Encode "externalClusterId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "externalClusterId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ExternalClusterId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1GetExternalClusterResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -1628,6 +1797,73 @@ func (c *Client) sendV1ListPools(ctx context.Context, params V1ListPoolsParams) 
 	defer resp.Body.Close()
 
 	result, err := decodeV1ListPoolsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1OnboardExternalCluster invokes v1_onboardExternalCluster operation.
+//
+// Registers one or more external ONTAP cluster hosts in the control
+// plane at the specified location. Creates a persistent record per host
+// with the supplied management endpoint and admin username. This is a
+// synchronous operation (no long-running operation or job).
+//
+// POST /v1/externalClusters/onboard
+func (c *Client) V1OnboardExternalCluster(ctx context.Context, request *ExternalClusterOnboardRequestV1, params V1OnboardExternalClusterParams) (V1OnboardExternalClusterRes, error) {
+	res, err := c.sendV1OnboardExternalCluster(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1OnboardExternalCluster(ctx context.Context, request *ExternalClusterOnboardRequestV1, params V1OnboardExternalClusterParams) (res V1OnboardExternalClusterRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/externalClusters/onboard"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1OnboardExternalClusterRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1OnboardExternalClusterResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -2205,6 +2441,90 @@ func (c *Client) sendV1UpdateAddressRangeState(ctx context.Context, request *Add
 	defer resp.Body.Close()
 
 	result, err := decodeV1UpdateAddressRangeStateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1UpdateExternalCluster invokes v1_updateExternalCluster operation.
+//
+// Updates mutable fields of an external cluster host.
+// Fields included in the request body replace the current values.
+// `hostName` and `locationId` cannot be updated.
+//
+// PUT /v1/externalClusters/{externalClusterId}
+func (c *Client) V1UpdateExternalCluster(ctx context.Context, request *ExternalClusterHostUpdateV1, params V1UpdateExternalClusterParams) (V1UpdateExternalClusterRes, error) {
+	res, err := c.sendV1UpdateExternalCluster(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1UpdateExternalCluster(ctx context.Context, request *ExternalClusterHostUpdateV1, params V1UpdateExternalClusterParams) (res V1UpdateExternalClusterRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/externalClusters/"
+	{
+		// Encode "externalClusterId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "externalClusterId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ExternalClusterId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1UpdateExternalClusterRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1UpdateExternalClusterResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

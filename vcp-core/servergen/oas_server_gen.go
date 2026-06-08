@@ -45,6 +45,12 @@ type Handler interface {
 	//
 	// DELETE /v1/addressRange/{addressRangeId}
 	V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error)
+	// V1DeleteExternalCluster implements v1_deleteExternalCluster operation.
+	//
+	// Soft-deletes the external cluster host identified by the given UUID.
+	//
+	// DELETE /v1/externalClusters/{externalClusterId}
+	V1DeleteExternalCluster(ctx context.Context, params V1DeleteExternalClusterParams) (V1DeleteExternalClusterRes, error)
 	// V1DeleteImageVersion implements v1_deleteImageVersion operation.
 	//
 	// Deletes an image version entry from the database by ONTAP version.
@@ -95,6 +101,12 @@ type Handler interface {
 	//
 	// GET /v1/clusters/upgrade/{jobId}
 	V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error)
+	// V1GetExternalCluster implements v1_getExternalCluster operation.
+	//
+	// Returns the external cluster host identified by the given UUID.
+	//
+	// GET /v1/externalClusters/{externalClusterId}
+	V1GetExternalCluster(ctx context.Context, params V1GetExternalClusterParams) (V1GetExternalClusterRes, error)
 	// V1GetMultipleReplicationsByExternalUUID implements v1_getMultipleReplicationsByExternalUUID operation.
 	//
 	// Returns replications filtered by external UUIDs and endpoint type.
@@ -132,6 +144,15 @@ type Handler interface {
 	//
 	// GET /v1/pools
 	V1ListPools(ctx context.Context, params V1ListPoolsParams) (V1ListPoolsRes, error)
+	// V1OnboardExternalCluster implements v1_onboardExternalCluster operation.
+	//
+	// Registers one or more external ONTAP cluster hosts in the control
+	// plane at the specified location. Creates a persistent record per host
+	// with the supplied management endpoint and admin username. This is a
+	// synchronous operation (no long-running operation or job).
+	//
+	// POST /v1/externalClusters/onboard
+	V1OnboardExternalCluster(ctx context.Context, req *ExternalClusterOnboardRequestV1, params V1OnboardExternalClusterParams) (V1OnboardExternalClusterRes, error)
 	// V1RefreshRbacForExpertModePoolById implements v1_refreshRbacForExpertModePoolById operation.
 	//
 	// Triggers a workflow to update RBAC hash for a specific ONTAP mode pool identified by UUID,
@@ -179,6 +200,14 @@ type Handler interface {
 	//
 	// PUT /v1/addressRange/{addressRangeId}/updateState
 	V1UpdateAddressRangeState(ctx context.Context, req *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error)
+	// V1UpdateExternalCluster implements v1_updateExternalCluster operation.
+	//
+	// Updates mutable fields of an external cluster host.
+	// Fields included in the request body replace the current values.
+	// `hostName` and `locationId` cannot be updated.
+	//
+	// PUT /v1/externalClusters/{externalClusterId}
+	V1UpdateExternalCluster(ctx context.Context, req *ExternalClusterHostUpdateV1, params V1UpdateExternalClusterParams) (V1UpdateExternalClusterRes, error)
 	// V1UpdatePool implements v1_updatePool operation.
 	//
 	// Update the pool.

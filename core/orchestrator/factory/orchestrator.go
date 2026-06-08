@@ -160,6 +160,10 @@ type OrchestratorFactory interface {
 
 	// Cluster upgrade methods
 	UpgradeCluster(ctx context.Context, params *commonparams.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error)
+	OnboardExternalClusters(ctx context.Context, params *commonparams.OnboardExternalClustersParams) ([]*datamodel.Cluster, error)
+	GetExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error)
+	UpdateExternalCluster(ctx context.Context, params *commonparams.UpdateExternalClusterParams) (*datamodel.Cluster, error)
+	DeleteExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error)
 	GetClusterUpgradeStatus(ctx context.Context, jobUUID string) (*models.UpgradeProgress, error)
 	HasActiveClusterUpgrade(ctx context.Context, clusterID string) (bool, error)
 	ListAvailableVersions(ctx context.Context) (*models.ListAvailableVersionsResponse, error)

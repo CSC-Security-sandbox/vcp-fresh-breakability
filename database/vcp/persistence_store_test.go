@@ -8639,3 +8639,37 @@ func TestPersistenceStore_GetNextSerialNumber(t *testing.T) {
 	require.Error(t, err,
 		"sqlite-backed test DB cannot run nextval() — wrapper must surface the underlying error rather than silently returning 0")
 }
+
+func TestPersistenceStore_ExternalClusterDelegates(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if cerr := store.Close(); cerr != nil {
+			t.Logf("Error closing store: %v", cerr)
+		}
+	}()
+
+	ctx := context.Background()
+	created, err := store.CreateExternalCluster(ctx, &datamodel.Cluster{
+		LocationID:    "us-central1",
+		HostName:      "persist-host-1",
+		AdminUsername: "admin",
+		Protocol:      "HTTPS",
+		Port:          443,
+	})
+	require.NoError(t, err)
+
+	got, err := store.GetExternalCluster(ctx, created.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, created.UUID, got.UUID)
+
+	created.Description = "updated via persistence store"
+	updated, err := store.UpdateExternalCluster(ctx, created)
+	require.NoError(t, err)
+	assert.Equal(t, "updated via persistence store", updated.Description)
+
+	deleted, err := store.DeleteExternalCluster(ctx, created.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, ExternalClusterStateDeleted, deleted.LifecycleState)
+}

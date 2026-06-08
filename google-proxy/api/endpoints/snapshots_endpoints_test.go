@@ -1577,7 +1577,15 @@ func (m *mockInvoker) V1DeletePool(ctx context.Context, params coreapi.V1DeleteP
 	return nil, nil
 }
 
+func (m *mockInvoker) V1DeleteExternalCluster(ctx context.Context, params coreapi.V1DeleteExternalClusterParams) (coreapi.V1DeleteExternalClusterRes, error) {
+	return nil, nil
+}
+
 func (m *mockInvoker) V1GetClusterUpgradeStatus(ctx context.Context, params coreapi.V1GetClusterUpgradeStatusParams) (coreapi.V1GetClusterUpgradeStatusRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1GetExternalCluster(ctx context.Context, params coreapi.V1GetExternalClusterParams) (coreapi.V1GetExternalClusterRes, error) {
 	return nil, nil
 }
 
@@ -1601,11 +1609,19 @@ func (m *mockInvoker) V1ListPools(ctx context.Context, params coreapi.V1ListPool
 	return nil, nil
 }
 
+func (m *mockInvoker) V1OnboardExternalCluster(ctx context.Context, request *coreapi.ExternalClusterOnboardRequestV1, params coreapi.V1OnboardExternalClusterParams) (coreapi.V1OnboardExternalClusterRes, error) {
+	return nil, nil
+}
+
 func (m *mockInvoker) V1RotateGcpKmsConfig(ctx context.Context, request *coreapi.GcpKmsKeyRotateV1, params coreapi.V1RotateGcpKmsConfigParams) (coreapi.V1RotateGcpKmsConfigRes, error) {
 	return nil, nil
 }
 
 func (m *mockInvoker) V1UpdatePool(ctx context.Context, request *coreapi.PoolUpdateV1, params coreapi.V1UpdatePoolParams) (coreapi.V1UpdatePoolRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1UpdateExternalCluster(ctx context.Context, request *coreapi.ExternalClusterHostUpdateV1, params coreapi.V1UpdateExternalClusterParams) (coreapi.V1UpdateExternalClusterRes, error) {
 	return nil, nil
 }
 

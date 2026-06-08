@@ -2288,6 +2288,65 @@ func (_c *MockOrchestratorFactory_DeleteExpertModeVolume_Call) RunAndReturn(run 
 	return _c
 }
 
+// DeleteExternalCluster provides a mock function with given fields: ctx, hostID
+func (_m *MockOrchestratorFactory) DeleteExternalCluster(ctx context.Context, hostID string) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, hostID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteExternalCluster")
+	}
+
+	var r0 *datamodel.Cluster
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Cluster, error)); ok {
+		return rf(ctx, hostID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Cluster); ok {
+		r0 = rf(ctx, hostID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Cluster)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, hostID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_DeleteExternalCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteExternalCluster'
+type MockOrchestratorFactory_DeleteExternalCluster_Call struct {
+	*mock.Call
+}
+
+// DeleteExternalCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostID string
+func (_e *MockOrchestratorFactory_Expecter) DeleteExternalCluster(ctx interface{}, hostID interface{}) *MockOrchestratorFactory_DeleteExternalCluster_Call {
+	return &MockOrchestratorFactory_DeleteExternalCluster_Call{Call: _e.mock.On("DeleteExternalCluster", ctx, hostID)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteExternalCluster_Call) Run(run func(ctx context.Context, hostID string)) *MockOrchestratorFactory_DeleteExternalCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteExternalCluster_Call) Return(_a0 *datamodel.Cluster, _a1 error) *MockOrchestratorFactory_DeleteExternalCluster_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteExternalCluster_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Cluster, error)) *MockOrchestratorFactory_DeleteExternalCluster_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID
 func (_m *MockOrchestratorFactory) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroupUUID, accountID)
@@ -4741,6 +4800,65 @@ func (_c *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call) Return
 }
 
 func (_c *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ExpertModeVolumes, error)) *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetExternalCluster provides a mock function with given fields: ctx, hostID
+func (_m *MockOrchestratorFactory) GetExternalCluster(ctx context.Context, hostID string) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, hostID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExternalCluster")
+	}
+
+	var r0 *datamodel.Cluster
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Cluster, error)); ok {
+		return rf(ctx, hostID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Cluster); ok {
+		r0 = rf(ctx, hostID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Cluster)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, hostID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetExternalCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExternalCluster'
+type MockOrchestratorFactory_GetExternalCluster_Call struct {
+	*mock.Call
+}
+
+// GetExternalCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostID string
+func (_e *MockOrchestratorFactory_Expecter) GetExternalCluster(ctx interface{}, hostID interface{}) *MockOrchestratorFactory_GetExternalCluster_Call {
+	return &MockOrchestratorFactory_GetExternalCluster_Call{Call: _e.mock.On("GetExternalCluster", ctx, hostID)}
+}
+
+func (_c *MockOrchestratorFactory_GetExternalCluster_Call) Run(run func(ctx context.Context, hostID string)) *MockOrchestratorFactory_GetExternalCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetExternalCluster_Call) Return(_a0 *datamodel.Cluster, _a1 error) *MockOrchestratorFactory_GetExternalCluster_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetExternalCluster_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Cluster, error)) *MockOrchestratorFactory_GetExternalCluster_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -7724,6 +7842,65 @@ func (_c *MockOrchestratorFactory_MigrateKmsConfig_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// OnboardExternalClusters provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) OnboardExternalClusters(ctx context.Context, params *common.OnboardExternalClustersParams) ([]*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OnboardExternalClusters")
+	}
+
+	var r0 []*datamodel.Cluster
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.OnboardExternalClustersParams) ([]*datamodel.Cluster, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.OnboardExternalClustersParams) []*datamodel.Cluster); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Cluster)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.OnboardExternalClustersParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_OnboardExternalClusters_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OnboardExternalClusters'
+type MockOrchestratorFactory_OnboardExternalClusters_Call struct {
+	*mock.Call
+}
+
+// OnboardExternalClusters is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.OnboardExternalClustersParams
+func (_e *MockOrchestratorFactory_Expecter) OnboardExternalClusters(ctx interface{}, params interface{}) *MockOrchestratorFactory_OnboardExternalClusters_Call {
+	return &MockOrchestratorFactory_OnboardExternalClusters_Call{Call: _e.mock.On("OnboardExternalClusters", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_OnboardExternalClusters_Call) Run(run func(ctx context.Context, params *common.OnboardExternalClustersParams)) *MockOrchestratorFactory_OnboardExternalClusters_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.OnboardExternalClustersParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_OnboardExternalClusters_Call) Return(_a0 []*datamodel.Cluster, _a1 error) *MockOrchestratorFactory_OnboardExternalClusters_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_OnboardExternalClusters_Call) RunAndReturn(run func(context.Context, *common.OnboardExternalClustersParams) ([]*datamodel.Cluster, error)) *MockOrchestratorFactory_OnboardExternalClusters_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PerformMountCheck provides a mock function with given fields: ctx, replicationUUID, accountName
 func (_m *MockOrchestratorFactory) PerformMountCheck(ctx context.Context, replicationUUID string, accountName string) (*models.Job, error) {
 	ret := _m.Called(ctx, replicationUUID, accountName)
@@ -9625,6 +9802,65 @@ func (_c *MockOrchestratorFactory_UpdateExpertModeVolume_Call) Return(_a0 error)
 }
 
 func (_c *MockOrchestratorFactory_UpdateExpertModeVolume_Call) RunAndReturn(run func(context.Context, *common.ExpertModeVolumeParams) error) *MockOrchestratorFactory_UpdateExpertModeVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateExternalCluster provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateExternalCluster(ctx context.Context, params *common.UpdateExternalClusterParams) (*datamodel.Cluster, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateExternalCluster")
+	}
+
+	var r0 *datamodel.Cluster
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateExternalClusterParams) (*datamodel.Cluster, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateExternalClusterParams) *datamodel.Cluster); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Cluster)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateExternalClusterParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_UpdateExternalCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateExternalCluster'
+type MockOrchestratorFactory_UpdateExternalCluster_Call struct {
+	*mock.Call
+}
+
+// UpdateExternalCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdateExternalClusterParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateExternalCluster(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateExternalCluster_Call {
+	return &MockOrchestratorFactory_UpdateExternalCluster_Call{Call: _e.mock.On("UpdateExternalCluster", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateExternalCluster_Call) Run(run func(ctx context.Context, params *common.UpdateExternalClusterParams)) *MockOrchestratorFactory_UpdateExternalCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateExternalClusterParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateExternalCluster_Call) Return(_a0 *datamodel.Cluster, _a1 error) *MockOrchestratorFactory_UpdateExternalCluster_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateExternalCluster_Call) RunAndReturn(run func(context.Context, *common.UpdateExternalClusterParams) (*datamodel.Cluster, error)) *MockOrchestratorFactory_UpdateExternalCluster_Call {
 	_c.Call.Return(run)
 	return _c
 }

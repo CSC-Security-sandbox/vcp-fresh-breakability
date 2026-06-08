@@ -502,6 +502,13 @@ type (
 		UpdateAddressRangeStateToCreatedIfLastPool(ctx context.Context, arUUID, network, excludePoolUUID, addressRangeCidr string) (bool, error)
 		ResetAddressRangesInUseToCreated(ctx context.Context, hostProjectNumber, vpcName string) error
 		DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error)
+
+		// External cluster hosts
+		CreateExternalCluster(ctx context.Context, cluster *datamodel.Cluster) (*datamodel.Cluster, error)
+		GetExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error)
+		UpdateExternalCluster(ctx context.Context, cluster *datamodel.Cluster) (*datamodel.Cluster, error)
+		DeleteExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error)
+
 		GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error)
 		ListExpertModeVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error)
 	}

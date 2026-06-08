@@ -706,6 +706,259 @@ func TestExpertModeVolumeV1Style_Examples(t *testing.T) {
 		})
 	}
 }
+func TestExternalClusterAdminCredentialsV1_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterAdminCredentialsV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterAdminCredentialsV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestExternalClusterHostResourceV1_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterHostResourceV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterHostResourceV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestExternalClusterHostResourceV1LifeCycleState_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterHostResourceV1LifeCycleState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterHostResourceV1LifeCycleState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestExternalClusterHostResourceV1LifeCycleState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"CREATED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ExternalClusterHostResourceV1LifeCycleState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ExternalClusterHostResourceV1LifeCycleState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestExternalClusterHostResourceV1Protocol_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterHostResourceV1Protocol
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterHostResourceV1Protocol
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestExternalClusterHostResourceV1Protocol_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"INSECURE_HTTPS\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ExternalClusterHostResourceV1Protocol
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ExternalClusterHostResourceV1Protocol
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestExternalClusterHostUpdateV1_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterHostUpdateV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterHostUpdateV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestExternalClusterHostUpdateV1Protocol_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterHostUpdateV1Protocol
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterHostUpdateV1Protocol
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestExternalClusterHostUpdateV1Protocol_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"HTTPS\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ExternalClusterHostUpdateV1Protocol
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ExternalClusterHostUpdateV1Protocol
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestExternalClusterHostV1_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterHostV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterHostV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestExternalClusterHostV1Protocol_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterHostV1Protocol
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterHostV1Protocol
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestExternalClusterHostV1Protocol_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"HTTPS\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ExternalClusterHostV1Protocol
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ExternalClusterHostV1Protocol
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestExternalClusterOnboardRequestV1_EncodeDecode(t *testing.T) {
+	var typ ExternalClusterOnboardRequestV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExternalClusterOnboardRequestV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestExternalClusterOnboardRequestV1_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"hosts\":[{\"adminCredentials\":{\"password\":\"S3cr3tP@ssw0rd\",\"username\":\"admin\"},\"description\":\"Primary DR site ONTAP cluster\",\"hostName\":\"ontap-hw-cluster-01.example.com\",\"label\":\"type=SAPHANA\",\"managementIp\":\"10.10.10.50\",\"protocol\":\"INSECURE_HTTPS\"}],\"locationId\":\"us-central1\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ExternalClusterOnboardRequestV1
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ExternalClusterOnboardRequestV1
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestGcpKmsConfigV1_EncodeDecode(t *testing.T) {
 	var typ GcpKmsConfigV1
 	typ.SetFake()
@@ -1994,6 +2247,90 @@ func TestV1DeleteAddressRangeUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1DeleteAddressRangeUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1DeleteExternalClusterBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1DeleteExternalClusterBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteExternalClusterBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteExternalClusterForbidden_EncodeDecode(t *testing.T) {
+	var typ V1DeleteExternalClusterForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteExternalClusterForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteExternalClusterInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1DeleteExternalClusterInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteExternalClusterInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteExternalClusterNotFound_EncodeDecode(t *testing.T) {
+	var typ V1DeleteExternalClusterNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteExternalClusterNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteExternalClusterTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1DeleteExternalClusterTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteExternalClusterTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteExternalClusterUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1DeleteExternalClusterUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteExternalClusterUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteExternalClusterUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1DeleteExternalClusterUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteExternalClusterUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1DeleteImageVersionBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1DeleteImageVersionBadRequest
 	typ.SetFake()
@@ -2582,6 +2919,90 @@ func TestV1GetClusterUpgradeStatusUnprocessableEntity_EncodeDecode(t *testing.T)
 	var typ2 V1GetClusterUpgradeStatusUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1GetExternalClusterBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1GetExternalClusterBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetExternalClusterBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetExternalClusterForbidden_EncodeDecode(t *testing.T) {
+	var typ V1GetExternalClusterForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetExternalClusterForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetExternalClusterInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1GetExternalClusterInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetExternalClusterInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetExternalClusterNotFound_EncodeDecode(t *testing.T) {
+	var typ V1GetExternalClusterNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetExternalClusterNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetExternalClusterTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1GetExternalClusterTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetExternalClusterTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetExternalClusterUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1GetExternalClusterUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetExternalClusterUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetExternalClusterUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1GetExternalClusterUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetExternalClusterUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1GetMultipleReplicationsByExternalUUIDBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1GetMultipleReplicationsByExternalUUIDBadRequest
 	typ.SetFake()
@@ -3096,6 +3517,114 @@ func TestV1ListPoolsUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1ListPoolsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterConflict_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterCreatedApplicationJSON_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterCreatedApplicationJSON
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterCreatedApplicationJSON
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterForbidden_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterNotFound_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1OnboardExternalClusterUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1OnboardExternalClusterUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1OnboardExternalClusterUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1RefreshRbacForExpertModePoolByIdBadRequest_EncodeDecode(t *testing.T) {
@@ -3720,6 +4249,90 @@ func TestV1UpdateAddressRangeUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1UpdateAddressRangeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateExternalClusterBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1UpdateExternalClusterBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateExternalClusterBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateExternalClusterForbidden_EncodeDecode(t *testing.T) {
+	var typ V1UpdateExternalClusterForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateExternalClusterForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateExternalClusterInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1UpdateExternalClusterInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateExternalClusterInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateExternalClusterNotFound_EncodeDecode(t *testing.T) {
+	var typ V1UpdateExternalClusterNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateExternalClusterNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateExternalClusterTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1UpdateExternalClusterTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateExternalClusterTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateExternalClusterUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1UpdateExternalClusterUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateExternalClusterUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateExternalClusterUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1UpdateExternalClusterUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateExternalClusterUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1UpdatePoolBadRequest_EncodeDecode(t *testing.T) {

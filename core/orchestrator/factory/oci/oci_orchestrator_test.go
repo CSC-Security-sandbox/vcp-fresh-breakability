@@ -3008,3 +3008,36 @@ func TestUpgradeCluster(t *testing.T) {
 		assert.Empty(tt, wfID)
 	})
 }
+
+func TestOCIOrchestrator_ExternalClusterMethods(t *testing.T) {
+	orch := &OCIOrchestrator{}
+	ctx := context.Background()
+
+	t.Run("OnboardExternalClusters", func(tt *testing.T) {
+		result, err := orch.OnboardExternalClusters(ctx, &commonparams.OnboardExternalClustersParams{})
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("GetExternalCluster", func(tt *testing.T) {
+		result, err := orch.GetExternalCluster(ctx, "host-id")
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("UpdateExternalCluster", func(tt *testing.T) {
+		result, err := orch.UpdateExternalCluster(ctx, &commonparams.UpdateExternalClusterParams{ExternalClusterID: "host-id"})
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, result)
+	})
+
+	t.Run("DeleteExternalCluster", func(tt *testing.T) {
+		result, err := orch.DeleteExternalCluster(ctx, "host-id")
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, result)
+	})
+}

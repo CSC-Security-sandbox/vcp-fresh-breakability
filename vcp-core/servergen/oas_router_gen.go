@@ -305,9 +305,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
-				case 'e': // Prefix: "expertMode/"
+				case 'e': // Prefix: "ex"
 
-					if l := len("expertMode/"); len(elem) >= l && elem[0:l] == "expertMode/" {
+					if l := len("ex"); len(elem) >= l && elem[0:l] == "ex" {
 						elem = elem[l:]
 					} else {
 						break
@@ -317,133 +317,29 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
-					case 'p': // Prefix: "pools/"
+					case 'p': // Prefix: "pertMode/"
 
-						if l := len("pools/"); len(elem) >= l && elem[0:l] == "pools/" {
-							elem = elem[l:]
-						} else {
-							break
-						}
-
-						// Param: "poolId"
-						// Match until "/"
-						idx := strings.IndexByte(elem, '/')
-						if idx < 0 {
-							idx = len(elem)
-						}
-						args[0] = elem[:idx]
-						elem = elem[idx:]
-
-						if len(elem) == 0 {
-							break
-						}
-						switch elem[0] {
-						case '/': // Prefix: "/credentials"
-
-							if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "GET":
-									s.handleV1GetOntapCredentialsRequest([1]string{
-										args[0],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET")
-								}
-
-								return
-							}
-
-						}
-
-					case 'r': // Prefix: "rbac/refresh"
-
-						if l := len("rbac/refresh"); len(elem) >= l && elem[0:l] == "rbac/refresh" {
+						if l := len("pertMode/"); len(elem) >= l && elem[0:l] == "pertMode/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							switch r.Method {
-							case "POST":
-								s.handleV1RefreshRbacForExpertModePoolsRequest([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, "POST")
-							}
-
-							return
+							break
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/pool/"
+						case 'p': // Prefix: "pools/"
 
-							if l := len("/pool/"); len(elem) >= l && elem[0:l] == "/pool/" {
+							if l := len("pools/"); len(elem) >= l && elem[0:l] == "pools/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
 							// Param: "poolId"
-							// Leaf parameter, slashes are prohibited
+							// Match until "/"
 							idx := strings.IndexByte(elem, '/')
-							if idx >= 0 {
-								break
-							}
-							args[0] = elem
-							elem = ""
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "POST":
-									s.handleV1RefreshRbacForExpertModePoolByIdRequest([1]string{
-										args[0],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "POST")
-								}
-
-								return
-							}
-
-						}
-
-					case 'v': // Prefix: "volumes"
-
-						if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
-							elem = elem[l:]
-						} else {
-							break
-						}
-
-						if len(elem) == 0 {
-							switch r.Method {
-							case "POST":
-								s.handleV1ExpertModeVolumeRequest([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, "POST")
-							}
-
-							return
-						}
-						switch elem[0] {
-						case '/': // Prefix: "/"
-
-							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							// Param: "name"
-							// Match until ":"
-							idx := strings.IndexByte(elem, ':')
 							if idx < 0 {
 								idx = len(elem)
 							}
@@ -454,9 +350,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 							switch elem[0] {
-							case ':': // Prefix: ":rename"
+							case '/': // Prefix: "/credentials"
 
-								if l := len(":rename"); len(elem) >= l && elem[0:l] == ":rename" {
+								if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
 									elem = elem[l:]
 								} else {
 									break
@@ -465,8 +361,60 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								if len(elem) == 0 {
 									// Leaf node.
 									switch r.Method {
+									case "GET":
+										s.handleV1GetOntapCredentialsRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET")
+									}
+
+									return
+								}
+
+							}
+
+						case 'r': // Prefix: "rbac/refresh"
+
+							if l := len("rbac/refresh"); len(elem) >= l && elem[0:l] == "rbac/refresh" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "POST":
+									s.handleV1RefreshRbacForExpertModePoolsRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/pool/"
+
+								if l := len("/pool/"); len(elem) >= l && elem[0:l] == "/pool/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "poolId"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[0] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
 									case "POST":
-										s.handleV1ExpertModeVolumeRenameRequest([1]string{
+										s.handleV1RefreshRbacForExpertModePoolByIdRequest([1]string{
 											args[0],
 										}, elemIsEscaped, w, r)
 									default:
@@ -478,9 +426,109 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 							}
 
-						case ':': // Prefix: ":flexCloneSplit"
+						case 'v': // Prefix: "volumes"
 
-							if l := len(":flexCloneSplit"); len(elem) >= l && elem[0:l] == ":flexCloneSplit" {
+							if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "POST":
+									s.handleV1ExpertModeVolumeRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "name"
+								// Match until ":"
+								idx := strings.IndexByte(elem, ':')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[0] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case ':': // Prefix: ":rename"
+
+									if l := len(":rename"); len(elem) >= l && elem[0:l] == ":rename" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleV1ExpertModeVolumeRenameRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
+								}
+
+							case ':': // Prefix: ":flexCloneSplit"
+
+								if l := len(":flexCloneSplit"); len(elem) >= l && elem[0:l] == ":flexCloneSplit" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleV1ExpertModeVolumeFlexCloneSplitRequest([0]string{}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
+							}
+
+						}
+
+					case 't': // Prefix: "ternalClusters/"
+
+						if l := len("ternalClusters/"); len(elem) >= l && elem[0:l] == "ternalClusters/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 'o': // Prefix: "onboard"
+							origElem := elem
+							if l := len("onboard"); len(elem) >= l && elem[0:l] == "onboard" {
 								elem = elem[l:]
 							} else {
 								break
@@ -490,7 +538,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								// Leaf node.
 								switch r.Method {
 								case "POST":
-									s.handleV1ExpertModeVolumeFlexCloneSplitRequest([0]string{}, elemIsEscaped, w, r)
+									s.handleV1OnboardExternalClusterRequest([0]string{}, elemIsEscaped, w, r)
 								default:
 									s.notAllowed(w, r, "POST")
 								}
@@ -498,6 +546,37 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 
+							elem = origElem
+						}
+						// Param: "externalClusterId"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "DELETE":
+								s.handleV1DeleteExternalClusterRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							case "GET":
+								s.handleV1GetExternalClusterRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							case "PUT":
+								s.handleV1UpdateExternalClusterRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "DELETE,GET,PUT")
+							}
+
+							return
 						}
 
 					}
@@ -1193,9 +1272,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
-				case 'e': // Prefix: "expertMode/"
+				case 'e': // Prefix: "ex"
 
-					if l := len("expertMode/"); len(elem) >= l && elem[0:l] == "expertMode/" {
+					if l := len("ex"); len(elem) >= l && elem[0:l] == "ex" {
 						elem = elem[l:]
 					} else {
 						break
@@ -1205,145 +1284,29 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
-					case 'p': // Prefix: "pools/"
+					case 'p': // Prefix: "pertMode/"
 
-						if l := len("pools/"); len(elem) >= l && elem[0:l] == "pools/" {
-							elem = elem[l:]
-						} else {
-							break
-						}
-
-						// Param: "poolId"
-						// Match until "/"
-						idx := strings.IndexByte(elem, '/')
-						if idx < 0 {
-							idx = len(elem)
-						}
-						args[0] = elem[:idx]
-						elem = elem[idx:]
-
-						if len(elem) == 0 {
-							break
-						}
-						switch elem[0] {
-						case '/': // Prefix: "/credentials"
-
-							if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "GET":
-									r.name = V1GetOntapCredentialsOperation
-									r.summary = "Get ONTAP credentials"
-									r.operationID = "v1_getOntapCredentials"
-									r.pathPattern = "/v1/expertMode/pools/{poolId}/credentials"
-									r.args = args
-									r.count = 1
-									return r, true
-								default:
-									return
-								}
-							}
-
-						}
-
-					case 'r': // Prefix: "rbac/refresh"
-
-						if l := len("rbac/refresh"); len(elem) >= l && elem[0:l] == "rbac/refresh" {
+						if l := len("pertMode/"); len(elem) >= l && elem[0:l] == "pertMode/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							switch method {
-							case "POST":
-								r.name = V1RefreshRbacForExpertModePoolsOperation
-								r.summary = "Refresh RBAC hash for all pools"
-								r.operationID = "v1_refreshRbacForExpertModePools"
-								r.pathPattern = "/v1/expertMode/rbac/refresh"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
-							}
+							break
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/pool/"
+						case 'p': // Prefix: "pools/"
 
-							if l := len("/pool/"); len(elem) >= l && elem[0:l] == "/pool/" {
+							if l := len("pools/"); len(elem) >= l && elem[0:l] == "pools/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
 							// Param: "poolId"
-							// Leaf parameter, slashes are prohibited
+							// Match until "/"
 							idx := strings.IndexByte(elem, '/')
-							if idx >= 0 {
-								break
-							}
-							args[0] = elem
-							elem = ""
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "POST":
-									r.name = V1RefreshRbacForExpertModePoolByIdOperation
-									r.summary = "Refresh RBAC hash for a single pool by UUID"
-									r.operationID = "v1_refreshRbacForExpertModePoolById"
-									r.pathPattern = "/v1/expertMode/rbac/refresh/pool/{poolId}"
-									r.args = args
-									r.count = 1
-									return r, true
-								default:
-									return
-								}
-							}
-
-						}
-
-					case 'v': // Prefix: "volumes"
-
-						if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
-							elem = elem[l:]
-						} else {
-							break
-						}
-
-						if len(elem) == 0 {
-							switch method {
-							case "POST":
-								r.name = V1ExpertModeVolumeOperation
-								r.summary = "Create/Update/Delete volume in expert mode"
-								r.operationID = "v1_expertModeVolume"
-								r.pathPattern = "/v1/expertMode/volumes"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
-							}
-						}
-						switch elem[0] {
-						case '/': // Prefix: "/"
-
-							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							// Param: "name"
-							// Match until ":"
-							idx := strings.IndexByte(elem, ':')
 							if idx < 0 {
 								idx = len(elem)
 							}
@@ -1354,9 +1317,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 							switch elem[0] {
-							case ':': // Prefix: ":rename"
+							case '/': // Prefix: "/credentials"
 
-								if l := len(":rename"); len(elem) >= l && elem[0:l] == ":rename" {
+								if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
 									elem = elem[l:]
 								} else {
 									break
@@ -1365,11 +1328,11 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								if len(elem) == 0 {
 									// Leaf node.
 									switch method {
-									case "POST":
-										r.name = V1ExpertModeVolumeRenameOperation
-										r.summary = "Rename expert mode volume"
-										r.operationID = "v1_expertModeVolumeRename"
-										r.pathPattern = "/v1/expertMode/volumes/{name}:rename"
+									case "GET":
+										r.name = V1GetOntapCredentialsOperation
+										r.summary = "Get ONTAP credentials"
+										r.operationID = "v1_getOntapCredentials"
+										r.pathPattern = "/v1/expertMode/pools/{poolId}/credentials"
 										r.args = args
 										r.count = 1
 										return r, true
@@ -1380,9 +1343,177 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 							}
 
-						case ':': // Prefix: ":flexCloneSplit"
+						case 'r': // Prefix: "rbac/refresh"
 
-							if l := len(":flexCloneSplit"); len(elem) >= l && elem[0:l] == ":flexCloneSplit" {
+							if l := len("rbac/refresh"); len(elem) >= l && elem[0:l] == "rbac/refresh" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch method {
+								case "POST":
+									r.name = V1RefreshRbacForExpertModePoolsOperation
+									r.summary = "Refresh RBAC hash for all pools"
+									r.operationID = "v1_refreshRbacForExpertModePools"
+									r.pathPattern = "/v1/expertMode/rbac/refresh"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/pool/"
+
+								if l := len("/pool/"); len(elem) >= l && elem[0:l] == "/pool/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "poolId"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[0] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1RefreshRbacForExpertModePoolByIdOperation
+										r.summary = "Refresh RBAC hash for a single pool by UUID"
+										r.operationID = "v1_refreshRbacForExpertModePoolById"
+										r.pathPattern = "/v1/expertMode/rbac/refresh/pool/{poolId}"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+
+						case 'v': // Prefix: "volumes"
+
+							if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch method {
+								case "POST":
+									r.name = V1ExpertModeVolumeOperation
+									r.summary = "Create/Update/Delete volume in expert mode"
+									r.operationID = "v1_expertModeVolume"
+									r.pathPattern = "/v1/expertMode/volumes"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "name"
+								// Match until ":"
+								idx := strings.IndexByte(elem, ':')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[0] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case ':': // Prefix: ":rename"
+
+									if l := len(":rename"); len(elem) >= l && elem[0:l] == ":rename" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = V1ExpertModeVolumeRenameOperation
+											r.summary = "Rename expert mode volume"
+											r.operationID = "v1_expertModeVolumeRename"
+											r.pathPattern = "/v1/expertMode/volumes/{name}:rename"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
+							case ':': // Prefix: ":flexCloneSplit"
+
+								if l := len(":flexCloneSplit"); len(elem) >= l && elem[0:l] == ":flexCloneSplit" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1ExpertModeVolumeFlexCloneSplitOperation
+										r.summary = "Start FlexClone split for an expert-mode volume"
+										r.operationID = "v1_expertModeVolumeFlexCloneSplit"
+										r.pathPattern = "/v1/expertMode/volumes:flexCloneSplit"
+										r.args = args
+										r.count = 0
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+
+						}
+
+					case 't': // Prefix: "ternalClusters/"
+
+						if l := len("ternalClusters/"); len(elem) >= l && elem[0:l] == "ternalClusters/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 'o': // Prefix: "onboard"
+							origElem := elem
+							if l := len("onboard"); len(elem) >= l && elem[0:l] == "onboard" {
 								elem = elem[l:]
 							} else {
 								break
@@ -1392,10 +1523,10 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								// Leaf node.
 								switch method {
 								case "POST":
-									r.name = V1ExpertModeVolumeFlexCloneSplitOperation
-									r.summary = "Start FlexClone split for an expert-mode volume"
-									r.operationID = "v1_expertModeVolumeFlexCloneSplit"
-									r.pathPattern = "/v1/expertMode/volumes:flexCloneSplit"
+									r.name = V1OnboardExternalClusterOperation
+									r.summary = "Onboard one or more external ONTAP cluster hosts"
+									r.operationID = "v1_onboardExternalCluster"
+									r.pathPattern = "/v1/externalClusters/onboard"
 									r.args = args
 									r.count = 0
 									return r, true
@@ -1404,6 +1535,47 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								}
 							}
 
+							elem = origElem
+						}
+						// Param: "externalClusterId"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "DELETE":
+								r.name = V1DeleteExternalClusterOperation
+								r.summary = "Delete an external ONTAP cluster host"
+								r.operationID = "v1_deleteExternalCluster"
+								r.pathPattern = "/v1/externalClusters/{externalClusterId}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "GET":
+								r.name = V1GetExternalClusterOperation
+								r.summary = "Get an external ONTAP cluster host"
+								r.operationID = "v1_getExternalCluster"
+								r.pathPattern = "/v1/externalClusters/{externalClusterId}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "PUT":
+								r.name = V1UpdateExternalClusterOperation
+								r.summary = "Update an external ONTAP cluster host"
+								r.operationID = "v1_updateExternalCluster"
+								r.pathPattern = "/v1/externalClusters/{externalClusterId}"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
 						}
 
 					}

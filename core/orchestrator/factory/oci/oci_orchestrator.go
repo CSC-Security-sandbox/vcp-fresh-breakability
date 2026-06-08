@@ -816,3 +816,27 @@ func (o *OCIOrchestrator) UpdateAddressRangeState(ctx context.Context, arID, sta
 func (o *OCIOrchestrator) DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
+
+func (o *OCIOrchestrator) OnboardExternalClusters(ctx context.Context, params *commonparams.OnboardExternalClustersParams) ([]*datamodel.Cluster, error) {
+	_ = ctx
+	_ = params
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) GetExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error) {
+	_ = ctx
+	_ = externalClusterID
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) UpdateExternalCluster(ctx context.Context, params *commonparams.UpdateExternalClusterParams) (*datamodel.Cluster, error) {
+	_ = ctx
+	_ = params
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) DeleteExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error) {
+	_ = ctx
+	_ = externalClusterID
+	return nil, utilserrors.NewNotImplementedYetErr()
+}

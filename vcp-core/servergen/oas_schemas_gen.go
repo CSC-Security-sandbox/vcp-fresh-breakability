@@ -1469,6 +1469,599 @@ func (s *ExpertModeVolumeV1Style) UnmarshalText(data []byte) error {
 	}
 }
 
+// Administrator credentials used to discover and register an external ONTAP cluster host.
+// Ref: #/components/schemas/ExternalClusterAdminCredentials_v1
+type ExternalClusterAdminCredentialsV1 struct {
+	// Administrator username on the external ONTAP cluster.
+	Username string `json:"username"`
+	// Administrator password on the external ONTAP cluster. Write-only; never returned in responses.
+	Password string `json:"password"`
+}
+
+// GetUsername returns the value of Username.
+func (s *ExternalClusterAdminCredentialsV1) GetUsername() string {
+	return s.Username
+}
+
+// GetPassword returns the value of Password.
+func (s *ExternalClusterAdminCredentialsV1) GetPassword() string {
+	return s.Password
+}
+
+// SetUsername sets the value of Username.
+func (s *ExternalClusterAdminCredentialsV1) SetUsername(val string) {
+	s.Username = val
+}
+
+// SetPassword sets the value of Password.
+func (s *ExternalClusterAdminCredentialsV1) SetPassword(val string) {
+	s.Password = val
+}
+
+// A registered external ONTAP cluster host (response only; credentials are never returned).
+// Ref: #/components/schemas/ExternalClusterHostResource_v1
+type ExternalClusterHostResourceV1 struct {
+	// UUID v4 identifying this external cluster host record.
+	ExternalClusterId OptString   `json:"externalClusterId"`
+	CreatedAt         OptDateTime `json:"createdAt"`
+	UpdatedAt         OptDateTime `json:"updatedAt"`
+	// Date the resource was deleted.
+	DeletedAt     OptNilDateTime `json:"deletedAt"`
+	LocationId    OptString      `json:"locationId"`
+	HostName      OptString      `json:"hostName"`
+	AdminUsername OptString      `json:"adminUsername"`
+	// User-provided description for this external cluster host.
+	Description OptString `json:"description"`
+	// Label to store the metadata information related to host.
+	Label OptString `json:"label"`
+	// The protocol used for communicating with the host.
+	Protocol OptExternalClusterHostResourceV1Protocol `json:"protocol"`
+	// Port for host management API.
+	Port OptInt32 `json:"port"`
+	// Operational lifecycle state of the host (for example CREATED after onboard,
+	// DELETED after soft-delete). Not accepted on update requests.
+	LifeCycleState OptExternalClusterHostResourceV1LifeCycleState `json:"lifeCycleState"`
+	// ONTAP software version populated after discovery (not accepted on onboard).
+	OntapVersion OptString `json:"ontapVersion"`
+	// Management IP address supplied at onboard or resolved after discovery.
+	ManagementIp OptString `json:"managementIp"`
+}
+
+// GetExternalClusterId returns the value of ExternalClusterId.
+func (s *ExternalClusterHostResourceV1) GetExternalClusterId() OptString {
+	return s.ExternalClusterId
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExternalClusterHostResourceV1) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExternalClusterHostResourceV1) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *ExternalClusterHostResourceV1) GetDeletedAt() OptNilDateTime {
+	return s.DeletedAt
+}
+
+// GetLocationId returns the value of LocationId.
+func (s *ExternalClusterHostResourceV1) GetLocationId() OptString {
+	return s.LocationId
+}
+
+// GetHostName returns the value of HostName.
+func (s *ExternalClusterHostResourceV1) GetHostName() OptString {
+	return s.HostName
+}
+
+// GetAdminUsername returns the value of AdminUsername.
+func (s *ExternalClusterHostResourceV1) GetAdminUsername() OptString {
+	return s.AdminUsername
+}
+
+// GetDescription returns the value of Description.
+func (s *ExternalClusterHostResourceV1) GetDescription() OptString {
+	return s.Description
+}
+
+// GetLabel returns the value of Label.
+func (s *ExternalClusterHostResourceV1) GetLabel() OptString {
+	return s.Label
+}
+
+// GetProtocol returns the value of Protocol.
+func (s *ExternalClusterHostResourceV1) GetProtocol() OptExternalClusterHostResourceV1Protocol {
+	return s.Protocol
+}
+
+// GetPort returns the value of Port.
+func (s *ExternalClusterHostResourceV1) GetPort() OptInt32 {
+	return s.Port
+}
+
+// GetLifeCycleState returns the value of LifeCycleState.
+func (s *ExternalClusterHostResourceV1) GetLifeCycleState() OptExternalClusterHostResourceV1LifeCycleState {
+	return s.LifeCycleState
+}
+
+// GetOntapVersion returns the value of OntapVersion.
+func (s *ExternalClusterHostResourceV1) GetOntapVersion() OptString {
+	return s.OntapVersion
+}
+
+// GetManagementIp returns the value of ManagementIp.
+func (s *ExternalClusterHostResourceV1) GetManagementIp() OptString {
+	return s.ManagementIp
+}
+
+// SetExternalClusterId sets the value of ExternalClusterId.
+func (s *ExternalClusterHostResourceV1) SetExternalClusterId(val OptString) {
+	s.ExternalClusterId = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExternalClusterHostResourceV1) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExternalClusterHostResourceV1) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *ExternalClusterHostResourceV1) SetDeletedAt(val OptNilDateTime) {
+	s.DeletedAt = val
+}
+
+// SetLocationId sets the value of LocationId.
+func (s *ExternalClusterHostResourceV1) SetLocationId(val OptString) {
+	s.LocationId = val
+}
+
+// SetHostName sets the value of HostName.
+func (s *ExternalClusterHostResourceV1) SetHostName(val OptString) {
+	s.HostName = val
+}
+
+// SetAdminUsername sets the value of AdminUsername.
+func (s *ExternalClusterHostResourceV1) SetAdminUsername(val OptString) {
+	s.AdminUsername = val
+}
+
+// SetDescription sets the value of Description.
+func (s *ExternalClusterHostResourceV1) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ExternalClusterHostResourceV1) SetLabel(val OptString) {
+	s.Label = val
+}
+
+// SetProtocol sets the value of Protocol.
+func (s *ExternalClusterHostResourceV1) SetProtocol(val OptExternalClusterHostResourceV1Protocol) {
+	s.Protocol = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExternalClusterHostResourceV1) SetPort(val OptInt32) {
+	s.Port = val
+}
+
+// SetLifeCycleState sets the value of LifeCycleState.
+func (s *ExternalClusterHostResourceV1) SetLifeCycleState(val OptExternalClusterHostResourceV1LifeCycleState) {
+	s.LifeCycleState = val
+}
+
+// SetOntapVersion sets the value of OntapVersion.
+func (s *ExternalClusterHostResourceV1) SetOntapVersion(val OptString) {
+	s.OntapVersion = val
+}
+
+// SetManagementIp sets the value of ManagementIp.
+func (s *ExternalClusterHostResourceV1) SetManagementIp(val OptString) {
+	s.ManagementIp = val
+}
+
+func (*ExternalClusterHostResourceV1) v1DeleteExternalClusterRes() {}
+func (*ExternalClusterHostResourceV1) v1GetExternalClusterRes()    {}
+func (*ExternalClusterHostResourceV1) v1UpdateExternalClusterRes() {}
+
+// Operational lifecycle state of the host (for example CREATED after onboard,
+// DELETED after soft-delete). Not accepted on update requests.
+type ExternalClusterHostResourceV1LifeCycleState string
+
+const (
+	ExternalClusterHostResourceV1LifeCycleStateCREATED ExternalClusterHostResourceV1LifeCycleState = "CREATED"
+	ExternalClusterHostResourceV1LifeCycleStateERROR   ExternalClusterHostResourceV1LifeCycleState = "ERROR"
+	ExternalClusterHostResourceV1LifeCycleStateDELETED ExternalClusterHostResourceV1LifeCycleState = "DELETED"
+)
+
+// AllValues returns all ExternalClusterHostResourceV1LifeCycleState values.
+func (ExternalClusterHostResourceV1LifeCycleState) AllValues() []ExternalClusterHostResourceV1LifeCycleState {
+	return []ExternalClusterHostResourceV1LifeCycleState{
+		ExternalClusterHostResourceV1LifeCycleStateCREATED,
+		ExternalClusterHostResourceV1LifeCycleStateERROR,
+		ExternalClusterHostResourceV1LifeCycleStateDELETED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExternalClusterHostResourceV1LifeCycleState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExternalClusterHostResourceV1LifeCycleStateCREATED:
+		return []byte(s), nil
+	case ExternalClusterHostResourceV1LifeCycleStateERROR:
+		return []byte(s), nil
+	case ExternalClusterHostResourceV1LifeCycleStateDELETED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExternalClusterHostResourceV1LifeCycleState) UnmarshalText(data []byte) error {
+	switch ExternalClusterHostResourceV1LifeCycleState(data) {
+	case ExternalClusterHostResourceV1LifeCycleStateCREATED:
+		*s = ExternalClusterHostResourceV1LifeCycleStateCREATED
+		return nil
+	case ExternalClusterHostResourceV1LifeCycleStateERROR:
+		*s = ExternalClusterHostResourceV1LifeCycleStateERROR
+		return nil
+	case ExternalClusterHostResourceV1LifeCycleStateDELETED:
+		*s = ExternalClusterHostResourceV1LifeCycleStateDELETED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The protocol used for communicating with the host.
+type ExternalClusterHostResourceV1Protocol string
+
+const (
+	ExternalClusterHostResourceV1ProtocolHTTP          ExternalClusterHostResourceV1Protocol = "HTTP"
+	ExternalClusterHostResourceV1ProtocolHTTPS         ExternalClusterHostResourceV1Protocol = "HTTPS"
+	ExternalClusterHostResourceV1ProtocolINSECUREHTTPS ExternalClusterHostResourceV1Protocol = "INSECURE_HTTPS"
+)
+
+// AllValues returns all ExternalClusterHostResourceV1Protocol values.
+func (ExternalClusterHostResourceV1Protocol) AllValues() []ExternalClusterHostResourceV1Protocol {
+	return []ExternalClusterHostResourceV1Protocol{
+		ExternalClusterHostResourceV1ProtocolHTTP,
+		ExternalClusterHostResourceV1ProtocolHTTPS,
+		ExternalClusterHostResourceV1ProtocolINSECUREHTTPS,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExternalClusterHostResourceV1Protocol) MarshalText() ([]byte, error) {
+	switch s {
+	case ExternalClusterHostResourceV1ProtocolHTTP:
+		return []byte(s), nil
+	case ExternalClusterHostResourceV1ProtocolHTTPS:
+		return []byte(s), nil
+	case ExternalClusterHostResourceV1ProtocolINSECUREHTTPS:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExternalClusterHostResourceV1Protocol) UnmarshalText(data []byte) error {
+	switch ExternalClusterHostResourceV1Protocol(data) {
+	case ExternalClusterHostResourceV1ProtocolHTTP:
+		*s = ExternalClusterHostResourceV1ProtocolHTTP
+		return nil
+	case ExternalClusterHostResourceV1ProtocolHTTPS:
+		*s = ExternalClusterHostResourceV1ProtocolHTTPS
+		return nil
+	case ExternalClusterHostResourceV1ProtocolINSECUREHTTPS:
+		*s = ExternalClusterHostResourceV1ProtocolINSECUREHTTPS
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Update request for an external cluster host. Fields included in the request
+// body replace the current mutable values.
+// Ref: #/components/schemas/ExternalClusterHostUpdate_v1
+type ExternalClusterHostUpdateV1 struct {
+	// Description for this external cluster host. Set to null to clear.
+	Description OptNilString `json:"description"`
+	// Label for metadata related to this host.
+	Label OptString `json:"label"`
+	// The protocol used for communicating with the host.
+	Protocol OptExternalClusterHostUpdateV1Protocol `json:"protocol"`
+	// Port for host management API.
+	Port OptInt32 `json:"port"`
+	// Management IP address. Set to null to clear.
+	ManagementIp     OptNilString                         `json:"managementIp"`
+	AdminCredentials OptExternalClusterAdminCredentialsV1 `json:"adminCredentials"`
+}
+
+// GetDescription returns the value of Description.
+func (s *ExternalClusterHostUpdateV1) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetLabel returns the value of Label.
+func (s *ExternalClusterHostUpdateV1) GetLabel() OptString {
+	return s.Label
+}
+
+// GetProtocol returns the value of Protocol.
+func (s *ExternalClusterHostUpdateV1) GetProtocol() OptExternalClusterHostUpdateV1Protocol {
+	return s.Protocol
+}
+
+// GetPort returns the value of Port.
+func (s *ExternalClusterHostUpdateV1) GetPort() OptInt32 {
+	return s.Port
+}
+
+// GetManagementIp returns the value of ManagementIp.
+func (s *ExternalClusterHostUpdateV1) GetManagementIp() OptNilString {
+	return s.ManagementIp
+}
+
+// GetAdminCredentials returns the value of AdminCredentials.
+func (s *ExternalClusterHostUpdateV1) GetAdminCredentials() OptExternalClusterAdminCredentialsV1 {
+	return s.AdminCredentials
+}
+
+// SetDescription sets the value of Description.
+func (s *ExternalClusterHostUpdateV1) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ExternalClusterHostUpdateV1) SetLabel(val OptString) {
+	s.Label = val
+}
+
+// SetProtocol sets the value of Protocol.
+func (s *ExternalClusterHostUpdateV1) SetProtocol(val OptExternalClusterHostUpdateV1Protocol) {
+	s.Protocol = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExternalClusterHostUpdateV1) SetPort(val OptInt32) {
+	s.Port = val
+}
+
+// SetManagementIp sets the value of ManagementIp.
+func (s *ExternalClusterHostUpdateV1) SetManagementIp(val OptNilString) {
+	s.ManagementIp = val
+}
+
+// SetAdminCredentials sets the value of AdminCredentials.
+func (s *ExternalClusterHostUpdateV1) SetAdminCredentials(val OptExternalClusterAdminCredentialsV1) {
+	s.AdminCredentials = val
+}
+
+// The protocol used for communicating with the host.
+type ExternalClusterHostUpdateV1Protocol string
+
+const (
+	ExternalClusterHostUpdateV1ProtocolHTTP          ExternalClusterHostUpdateV1Protocol = "HTTP"
+	ExternalClusterHostUpdateV1ProtocolHTTPS         ExternalClusterHostUpdateV1Protocol = "HTTPS"
+	ExternalClusterHostUpdateV1ProtocolINSECUREHTTPS ExternalClusterHostUpdateV1Protocol = "INSECURE_HTTPS"
+)
+
+// AllValues returns all ExternalClusterHostUpdateV1Protocol values.
+func (ExternalClusterHostUpdateV1Protocol) AllValues() []ExternalClusterHostUpdateV1Protocol {
+	return []ExternalClusterHostUpdateV1Protocol{
+		ExternalClusterHostUpdateV1ProtocolHTTP,
+		ExternalClusterHostUpdateV1ProtocolHTTPS,
+		ExternalClusterHostUpdateV1ProtocolINSECUREHTTPS,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExternalClusterHostUpdateV1Protocol) MarshalText() ([]byte, error) {
+	switch s {
+	case ExternalClusterHostUpdateV1ProtocolHTTP:
+		return []byte(s), nil
+	case ExternalClusterHostUpdateV1ProtocolHTTPS:
+		return []byte(s), nil
+	case ExternalClusterHostUpdateV1ProtocolINSECUREHTTPS:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExternalClusterHostUpdateV1Protocol) UnmarshalText(data []byte) error {
+	switch ExternalClusterHostUpdateV1Protocol(data) {
+	case ExternalClusterHostUpdateV1ProtocolHTTP:
+		*s = ExternalClusterHostUpdateV1ProtocolHTTP
+		return nil
+	case ExternalClusterHostUpdateV1ProtocolHTTPS:
+		*s = ExternalClusterHostUpdateV1ProtocolHTTPS
+		return nil
+	case ExternalClusterHostUpdateV1ProtocolINSECUREHTTPS:
+		*s = ExternalClusterHostUpdateV1ProtocolINSECUREHTTPS
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// A single external ONTAP cluster host to onboard.
+// Ref: #/components/schemas/ExternalClusterHost_v1
+type ExternalClusterHostV1 struct {
+	// Hostname, FQDN, or management IP address of the external ONTAP cluster.
+	HostName         string                            `json:"hostName"`
+	AdminCredentials ExternalClusterAdminCredentialsV1 `json:"adminCredentials"`
+	// Management IP address of the external ONTAP cluster.
+	ManagementIp string `json:"managementIp"`
+	// Optional description for this external cluster host.
+	Description OptString `json:"description"`
+	// Label to store the metadata information related to host.
+	Label OptString `json:"label"`
+	// The protocol used for communicating with the host.
+	Protocol OptExternalClusterHostV1Protocol `json:"protocol"`
+	// Port for host management API. Defaults to 80 for HTTP and 443 for HTTPS and INSECURE_HTTPS.
+	Port OptInt32 `json:"port"`
+}
+
+// GetHostName returns the value of HostName.
+func (s *ExternalClusterHostV1) GetHostName() string {
+	return s.HostName
+}
+
+// GetAdminCredentials returns the value of AdminCredentials.
+func (s *ExternalClusterHostV1) GetAdminCredentials() ExternalClusterAdminCredentialsV1 {
+	return s.AdminCredentials
+}
+
+// GetManagementIp returns the value of ManagementIp.
+func (s *ExternalClusterHostV1) GetManagementIp() string {
+	return s.ManagementIp
+}
+
+// GetDescription returns the value of Description.
+func (s *ExternalClusterHostV1) GetDescription() OptString {
+	return s.Description
+}
+
+// GetLabel returns the value of Label.
+func (s *ExternalClusterHostV1) GetLabel() OptString {
+	return s.Label
+}
+
+// GetProtocol returns the value of Protocol.
+func (s *ExternalClusterHostV1) GetProtocol() OptExternalClusterHostV1Protocol {
+	return s.Protocol
+}
+
+// GetPort returns the value of Port.
+func (s *ExternalClusterHostV1) GetPort() OptInt32 {
+	return s.Port
+}
+
+// SetHostName sets the value of HostName.
+func (s *ExternalClusterHostV1) SetHostName(val string) {
+	s.HostName = val
+}
+
+// SetAdminCredentials sets the value of AdminCredentials.
+func (s *ExternalClusterHostV1) SetAdminCredentials(val ExternalClusterAdminCredentialsV1) {
+	s.AdminCredentials = val
+}
+
+// SetManagementIp sets the value of ManagementIp.
+func (s *ExternalClusterHostV1) SetManagementIp(val string) {
+	s.ManagementIp = val
+}
+
+// SetDescription sets the value of Description.
+func (s *ExternalClusterHostV1) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ExternalClusterHostV1) SetLabel(val OptString) {
+	s.Label = val
+}
+
+// SetProtocol sets the value of Protocol.
+func (s *ExternalClusterHostV1) SetProtocol(val OptExternalClusterHostV1Protocol) {
+	s.Protocol = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExternalClusterHostV1) SetPort(val OptInt32) {
+	s.Port = val
+}
+
+// The protocol used for communicating with the host.
+type ExternalClusterHostV1Protocol string
+
+const (
+	ExternalClusterHostV1ProtocolHTTP          ExternalClusterHostV1Protocol = "HTTP"
+	ExternalClusterHostV1ProtocolHTTPS         ExternalClusterHostV1Protocol = "HTTPS"
+	ExternalClusterHostV1ProtocolINSECUREHTTPS ExternalClusterHostV1Protocol = "INSECURE_HTTPS"
+)
+
+// AllValues returns all ExternalClusterHostV1Protocol values.
+func (ExternalClusterHostV1Protocol) AllValues() []ExternalClusterHostV1Protocol {
+	return []ExternalClusterHostV1Protocol{
+		ExternalClusterHostV1ProtocolHTTP,
+		ExternalClusterHostV1ProtocolHTTPS,
+		ExternalClusterHostV1ProtocolINSECUREHTTPS,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExternalClusterHostV1Protocol) MarshalText() ([]byte, error) {
+	switch s {
+	case ExternalClusterHostV1ProtocolHTTP:
+		return []byte(s), nil
+	case ExternalClusterHostV1ProtocolHTTPS:
+		return []byte(s), nil
+	case ExternalClusterHostV1ProtocolINSECUREHTTPS:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExternalClusterHostV1Protocol) UnmarshalText(data []byte) error {
+	switch ExternalClusterHostV1Protocol(data) {
+	case ExternalClusterHostV1ProtocolHTTP:
+		*s = ExternalClusterHostV1ProtocolHTTP
+		return nil
+	case ExternalClusterHostV1ProtocolHTTPS:
+		*s = ExternalClusterHostV1ProtocolHTTPS
+		return nil
+	case ExternalClusterHostV1ProtocolINSECUREHTTPS:
+		*s = ExternalClusterHostV1ProtocolINSECUREHTTPS
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Request to onboard one or more external ONTAP cluster hosts at a given location.
+// Ref: #/components/schemas/ExternalClusterOnboardRequest_v1
+type ExternalClusterOnboardRequestV1 struct {
+	// The GCP location/region in which to onboard the external cluster(s).
+	LocationId string `json:"locationId"`
+	// One or more external ONTAP cluster hosts to onboard.
+	Hosts []ExternalClusterHostV1 `json:"hosts"`
+}
+
+// GetLocationId returns the value of LocationId.
+func (s *ExternalClusterOnboardRequestV1) GetLocationId() string {
+	return s.LocationId
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExternalClusterOnboardRequestV1) GetHosts() []ExternalClusterHostV1 {
+	return s.Hosts
+}
+
+// SetLocationId sets the value of LocationId.
+func (s *ExternalClusterOnboardRequestV1) SetLocationId(val string) {
+	s.LocationId = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExternalClusterOnboardRequestV1) SetHosts(val []ExternalClusterHostV1) {
+	s.Hosts = val
+}
+
 // Gcp customer managed encryption key configuration.
 // Ref: #/components/schemas/GcpKmsConfig_v1
 type GcpKmsConfigV1 struct {
@@ -2926,6 +3519,236 @@ func (o OptExpertModeVolumeV1CloneParentVolume) Or(d ExpertModeVolumeV1ClonePare
 	return d
 }
 
+// NewOptExternalClusterAdminCredentialsV1 returns new OptExternalClusterAdminCredentialsV1 with value set to v.
+func NewOptExternalClusterAdminCredentialsV1(v ExternalClusterAdminCredentialsV1) OptExternalClusterAdminCredentialsV1 {
+	return OptExternalClusterAdminCredentialsV1{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExternalClusterAdminCredentialsV1 is optional ExternalClusterAdminCredentialsV1.
+type OptExternalClusterAdminCredentialsV1 struct {
+	Value ExternalClusterAdminCredentialsV1
+	Set   bool
+}
+
+// IsSet returns true if OptExternalClusterAdminCredentialsV1 was set.
+func (o OptExternalClusterAdminCredentialsV1) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExternalClusterAdminCredentialsV1) Reset() {
+	var v ExternalClusterAdminCredentialsV1
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExternalClusterAdminCredentialsV1) SetTo(v ExternalClusterAdminCredentialsV1) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExternalClusterAdminCredentialsV1) Get() (v ExternalClusterAdminCredentialsV1, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExternalClusterAdminCredentialsV1) Or(d ExternalClusterAdminCredentialsV1) ExternalClusterAdminCredentialsV1 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExternalClusterHostResourceV1LifeCycleState returns new OptExternalClusterHostResourceV1LifeCycleState with value set to v.
+func NewOptExternalClusterHostResourceV1LifeCycleState(v ExternalClusterHostResourceV1LifeCycleState) OptExternalClusterHostResourceV1LifeCycleState {
+	return OptExternalClusterHostResourceV1LifeCycleState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExternalClusterHostResourceV1LifeCycleState is optional ExternalClusterHostResourceV1LifeCycleState.
+type OptExternalClusterHostResourceV1LifeCycleState struct {
+	Value ExternalClusterHostResourceV1LifeCycleState
+	Set   bool
+}
+
+// IsSet returns true if OptExternalClusterHostResourceV1LifeCycleState was set.
+func (o OptExternalClusterHostResourceV1LifeCycleState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExternalClusterHostResourceV1LifeCycleState) Reset() {
+	var v ExternalClusterHostResourceV1LifeCycleState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExternalClusterHostResourceV1LifeCycleState) SetTo(v ExternalClusterHostResourceV1LifeCycleState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExternalClusterHostResourceV1LifeCycleState) Get() (v ExternalClusterHostResourceV1LifeCycleState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExternalClusterHostResourceV1LifeCycleState) Or(d ExternalClusterHostResourceV1LifeCycleState) ExternalClusterHostResourceV1LifeCycleState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExternalClusterHostResourceV1Protocol returns new OptExternalClusterHostResourceV1Protocol with value set to v.
+func NewOptExternalClusterHostResourceV1Protocol(v ExternalClusterHostResourceV1Protocol) OptExternalClusterHostResourceV1Protocol {
+	return OptExternalClusterHostResourceV1Protocol{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExternalClusterHostResourceV1Protocol is optional ExternalClusterHostResourceV1Protocol.
+type OptExternalClusterHostResourceV1Protocol struct {
+	Value ExternalClusterHostResourceV1Protocol
+	Set   bool
+}
+
+// IsSet returns true if OptExternalClusterHostResourceV1Protocol was set.
+func (o OptExternalClusterHostResourceV1Protocol) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExternalClusterHostResourceV1Protocol) Reset() {
+	var v ExternalClusterHostResourceV1Protocol
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExternalClusterHostResourceV1Protocol) SetTo(v ExternalClusterHostResourceV1Protocol) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExternalClusterHostResourceV1Protocol) Get() (v ExternalClusterHostResourceV1Protocol, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExternalClusterHostResourceV1Protocol) Or(d ExternalClusterHostResourceV1Protocol) ExternalClusterHostResourceV1Protocol {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExternalClusterHostUpdateV1Protocol returns new OptExternalClusterHostUpdateV1Protocol with value set to v.
+func NewOptExternalClusterHostUpdateV1Protocol(v ExternalClusterHostUpdateV1Protocol) OptExternalClusterHostUpdateV1Protocol {
+	return OptExternalClusterHostUpdateV1Protocol{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExternalClusterHostUpdateV1Protocol is optional ExternalClusterHostUpdateV1Protocol.
+type OptExternalClusterHostUpdateV1Protocol struct {
+	Value ExternalClusterHostUpdateV1Protocol
+	Set   bool
+}
+
+// IsSet returns true if OptExternalClusterHostUpdateV1Protocol was set.
+func (o OptExternalClusterHostUpdateV1Protocol) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExternalClusterHostUpdateV1Protocol) Reset() {
+	var v ExternalClusterHostUpdateV1Protocol
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExternalClusterHostUpdateV1Protocol) SetTo(v ExternalClusterHostUpdateV1Protocol) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExternalClusterHostUpdateV1Protocol) Get() (v ExternalClusterHostUpdateV1Protocol, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExternalClusterHostUpdateV1Protocol) Or(d ExternalClusterHostUpdateV1Protocol) ExternalClusterHostUpdateV1Protocol {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExternalClusterHostV1Protocol returns new OptExternalClusterHostV1Protocol with value set to v.
+func NewOptExternalClusterHostV1Protocol(v ExternalClusterHostV1Protocol) OptExternalClusterHostV1Protocol {
+	return OptExternalClusterHostV1Protocol{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExternalClusterHostV1Protocol is optional ExternalClusterHostV1Protocol.
+type OptExternalClusterHostV1Protocol struct {
+	Value ExternalClusterHostV1Protocol
+	Set   bool
+}
+
+// IsSet returns true if OptExternalClusterHostV1Protocol was set.
+func (o OptExternalClusterHostV1Protocol) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExternalClusterHostV1Protocol) Reset() {
+	var v ExternalClusterHostV1Protocol
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExternalClusterHostV1Protocol) SetTo(v ExternalClusterHostV1Protocol) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExternalClusterHostV1Protocol) Get() (v ExternalClusterHostV1Protocol, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExternalClusterHostV1Protocol) Or(d ExternalClusterHostV1Protocol) ExternalClusterHostV1Protocol {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFloat64 returns new OptFloat64 with value set to v.
 func NewOptFloat64(v float64) OptFloat64 {
 	return OptFloat64{
@@ -3058,6 +3881,52 @@ func (o OptInt) Get() (v int, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInt32 returns new OptInt32 with value set to v.
+func NewOptInt32(v int32) OptInt32 {
+	return OptInt32{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt32 is optional int32.
+type OptInt32 struct {
+	Value int32
+	Set   bool
+}
+
+// IsSet returns true if OptInt32 was set.
+func (o OptInt32) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt32) Reset() {
+	var v int32
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt32) SetTo(v int32) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt32) Get() (v int32, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt32) Or(d int32) int32 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -5680,6 +6549,34 @@ type V1DeleteAddressRangeUnprocessableEntity Error
 
 func (*V1DeleteAddressRangeUnprocessableEntity) v1DeleteAddressRangeRes() {}
 
+type V1DeleteExternalClusterBadRequest Error
+
+func (*V1DeleteExternalClusterBadRequest) v1DeleteExternalClusterRes() {}
+
+type V1DeleteExternalClusterForbidden Error
+
+func (*V1DeleteExternalClusterForbidden) v1DeleteExternalClusterRes() {}
+
+type V1DeleteExternalClusterInternalServerError Error
+
+func (*V1DeleteExternalClusterInternalServerError) v1DeleteExternalClusterRes() {}
+
+type V1DeleteExternalClusterNotFound Error
+
+func (*V1DeleteExternalClusterNotFound) v1DeleteExternalClusterRes() {}
+
+type V1DeleteExternalClusterTooManyRequests Error
+
+func (*V1DeleteExternalClusterTooManyRequests) v1DeleteExternalClusterRes() {}
+
+type V1DeleteExternalClusterUnauthorized Error
+
+func (*V1DeleteExternalClusterUnauthorized) v1DeleteExternalClusterRes() {}
+
+type V1DeleteExternalClusterUnprocessableEntity Error
+
+func (*V1DeleteExternalClusterUnprocessableEntity) v1DeleteExternalClusterRes() {}
+
 type V1DeleteImageVersionBadRequest Error
 
 func (*V1DeleteImageVersionBadRequest) v1DeleteImageVersionRes() {}
@@ -5901,6 +6798,34 @@ type V1GetClusterUpgradeStatusUnprocessableEntity Error
 
 func (*V1GetClusterUpgradeStatusUnprocessableEntity) v1GetClusterUpgradeStatusRes() {}
 
+type V1GetExternalClusterBadRequest Error
+
+func (*V1GetExternalClusterBadRequest) v1GetExternalClusterRes() {}
+
+type V1GetExternalClusterForbidden Error
+
+func (*V1GetExternalClusterForbidden) v1GetExternalClusterRes() {}
+
+type V1GetExternalClusterInternalServerError Error
+
+func (*V1GetExternalClusterInternalServerError) v1GetExternalClusterRes() {}
+
+type V1GetExternalClusterNotFound Error
+
+func (*V1GetExternalClusterNotFound) v1GetExternalClusterRes() {}
+
+type V1GetExternalClusterTooManyRequests Error
+
+func (*V1GetExternalClusterTooManyRequests) v1GetExternalClusterRes() {}
+
+type V1GetExternalClusterUnauthorized Error
+
+func (*V1GetExternalClusterUnauthorized) v1GetExternalClusterRes() {}
+
+type V1GetExternalClusterUnprocessableEntity Error
+
+func (*V1GetExternalClusterUnprocessableEntity) v1GetExternalClusterRes() {}
+
 type V1GetMultipleReplicationsByExternalUUIDBadRequest Error
 
 func (*V1GetMultipleReplicationsByExternalUUIDBadRequest) v1GetMultipleReplicationsByExternalUUIDRes() {
@@ -6104,6 +7029,42 @@ func (*V1ListPoolsTooManyRequests) v1ListPoolsRes() {}
 type V1ListPoolsUnauthorized Error
 
 func (*V1ListPoolsUnauthorized) v1ListPoolsRes() {}
+
+type V1OnboardExternalClusterBadRequest Error
+
+func (*V1OnboardExternalClusterBadRequest) v1OnboardExternalClusterRes() {}
+
+type V1OnboardExternalClusterConflict Error
+
+func (*V1OnboardExternalClusterConflict) v1OnboardExternalClusterRes() {}
+
+type V1OnboardExternalClusterCreatedApplicationJSON []ExternalClusterHostResourceV1
+
+func (*V1OnboardExternalClusterCreatedApplicationJSON) v1OnboardExternalClusterRes() {}
+
+type V1OnboardExternalClusterForbidden Error
+
+func (*V1OnboardExternalClusterForbidden) v1OnboardExternalClusterRes() {}
+
+type V1OnboardExternalClusterInternalServerError Error
+
+func (*V1OnboardExternalClusterInternalServerError) v1OnboardExternalClusterRes() {}
+
+type V1OnboardExternalClusterNotFound Error
+
+func (*V1OnboardExternalClusterNotFound) v1OnboardExternalClusterRes() {}
+
+type V1OnboardExternalClusterTooManyRequests Error
+
+func (*V1OnboardExternalClusterTooManyRequests) v1OnboardExternalClusterRes() {}
+
+type V1OnboardExternalClusterUnauthorized Error
+
+func (*V1OnboardExternalClusterUnauthorized) v1OnboardExternalClusterRes() {}
+
+type V1OnboardExternalClusterUnprocessableEntity Error
+
+func (*V1OnboardExternalClusterUnprocessableEntity) v1OnboardExternalClusterRes() {}
 
 type V1RefreshRbacForExpertModePoolByIdBadRequest Error
 
@@ -6314,6 +7275,34 @@ func (*V1UpdateAddressRangeUnauthorized) v1UpdateAddressRangeRes() {}
 type V1UpdateAddressRangeUnprocessableEntity Error
 
 func (*V1UpdateAddressRangeUnprocessableEntity) v1UpdateAddressRangeRes() {}
+
+type V1UpdateExternalClusterBadRequest Error
+
+func (*V1UpdateExternalClusterBadRequest) v1UpdateExternalClusterRes() {}
+
+type V1UpdateExternalClusterForbidden Error
+
+func (*V1UpdateExternalClusterForbidden) v1UpdateExternalClusterRes() {}
+
+type V1UpdateExternalClusterInternalServerError Error
+
+func (*V1UpdateExternalClusterInternalServerError) v1UpdateExternalClusterRes() {}
+
+type V1UpdateExternalClusterNotFound Error
+
+func (*V1UpdateExternalClusterNotFound) v1UpdateExternalClusterRes() {}
+
+type V1UpdateExternalClusterTooManyRequests Error
+
+func (*V1UpdateExternalClusterTooManyRequests) v1UpdateExternalClusterRes() {}
+
+type V1UpdateExternalClusterUnauthorized Error
+
+func (*V1UpdateExternalClusterUnauthorized) v1UpdateExternalClusterRes() {}
+
+type V1UpdateExternalClusterUnprocessableEntity Error
+
+func (*V1UpdateExternalClusterUnprocessableEntity) v1UpdateExternalClusterRes() {}
 
 type V1UpdatePoolBadRequest Error
 

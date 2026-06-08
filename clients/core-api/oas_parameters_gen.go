@@ -44,6 +44,14 @@ type V1DeleteAddressRangeParams struct {
 	AddressRangeId string
 }
 
+// V1DeleteExternalClusterParams is parameters of v1_deleteExternalCluster operation.
+type V1DeleteExternalClusterParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the external cluster host.
+	ExternalClusterId string
+}
+
 // V1DeleteImageVersionParams is parameters of v1_deleteImageVersion operation.
 type V1DeleteImageVersionParams struct {
 	// The ONTAP version to delete.
@@ -96,6 +104,14 @@ type V1GetAddressRangeParams struct {
 type V1GetClusterUpgradeStatusParams struct {
 	// Job ID of the upgrade operation.
 	JobId string
+}
+
+// V1GetExternalClusterParams is parameters of v1_getExternalCluster operation.
+type V1GetExternalClusterParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the external cluster host.
+	ExternalClusterId string
 }
 
 // V1GetMultipleReplicationsByExternalUUIDParams is parameters of v1_getMultipleReplicationsByExternalUUID operation.
@@ -163,6 +179,12 @@ type V1ListPoolsParams struct {
 	IncludeDeleted OptBool
 }
 
+// V1OnboardExternalClusterParams is parameters of v1_onboardExternalCluster operation.
+type V1OnboardExternalClusterParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1RefreshRbacForExpertModePoolByIdParams is parameters of v1_refreshRbacForExpertModePoolById operation.
 type V1RefreshRbacForExpertModePoolByIdParams struct {
 	// UUID v4 used to identify the pool.
@@ -221,6 +243,14 @@ type V1UpdateAddressRangeStateParams struct {
 	XCorrelationID OptString
 	// UUID v4 used to identify the address range.
 	AddressRangeId string
+}
+
+// V1UpdateExternalClusterParams is parameters of v1_updateExternalCluster operation.
+type V1UpdateExternalClusterParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the external cluster host.
+	ExternalClusterId string
 }
 
 // V1UpdatePoolParams is parameters of v1_updatePool operation.

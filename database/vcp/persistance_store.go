@@ -1884,6 +1884,22 @@ func (s *PersistenceStore) CreateAddressRange(ctx context.Context, ar *datamodel
 	return s.dataStore.CreateAddressRange(ctx, ar)
 }
 
+func (s *PersistenceStore) CreateExternalCluster(ctx context.Context, host *datamodel.Cluster) (*datamodel.Cluster, error) {
+	return s.dataStore.CreateExternalCluster(ctx, host)
+}
+
+func (s *PersistenceStore) GetExternalCluster(ctx context.Context, hostID string) (*datamodel.Cluster, error) {
+	return s.dataStore.GetExternalCluster(ctx, hostID)
+}
+
+func (s *PersistenceStore) UpdateExternalCluster(ctx context.Context, host *datamodel.Cluster) (*datamodel.Cluster, error) {
+	return s.dataStore.UpdateExternalCluster(ctx, host)
+}
+
+func (s *PersistenceStore) DeleteExternalCluster(ctx context.Context, hostID string) (*datamodel.Cluster, error) {
+	return s.dataStore.DeleteExternalCluster(ctx, hostID)
+}
+
 func (s *PersistenceStore) GetAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
 	return s.dataStore.GetAddressRange(ctx, arID)
 }

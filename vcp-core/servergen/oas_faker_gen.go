@@ -509,6 +509,208 @@ func (s *ExpertModeVolumeV1Style) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ExternalClusterAdminCredentialsV1) SetFake() {
+	{
+		{
+			s.Username = "string"
+		}
+	}
+	{
+		{
+			s.Password = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ExternalClusterHostResourceV1) SetFake() {
+	{
+		{
+			s.ExternalClusterId.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.UpdatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.DeletedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.LocationId.SetFake()
+		}
+	}
+	{
+		{
+			s.HostName.SetFake()
+		}
+	}
+	{
+		{
+			s.AdminUsername.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Label.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocol.SetFake()
+		}
+	}
+	{
+		{
+			s.Port.SetFake()
+		}
+	}
+	{
+		{
+			s.LifeCycleState.SetFake()
+		}
+	}
+	{
+		{
+			s.OntapVersion.SetFake()
+		}
+	}
+	{
+		{
+			s.ManagementIp.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ExternalClusterHostResourceV1LifeCycleState) SetFake() {
+	*s = ExternalClusterHostResourceV1LifeCycleStateCREATED
+}
+
+// SetFake set fake values.
+func (s *ExternalClusterHostResourceV1Protocol) SetFake() {
+	*s = ExternalClusterHostResourceV1ProtocolHTTP
+}
+
+// SetFake set fake values.
+func (s *ExternalClusterHostUpdateV1) SetFake() {
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Label.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocol.SetFake()
+		}
+	}
+	{
+		{
+			s.Port.SetFake()
+		}
+	}
+	{
+		{
+			s.ManagementIp.SetFake()
+		}
+	}
+	{
+		{
+			s.AdminCredentials.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ExternalClusterHostUpdateV1Protocol) SetFake() {
+	*s = ExternalClusterHostUpdateV1ProtocolHTTP
+}
+
+// SetFake set fake values.
+func (s *ExternalClusterHostV1) SetFake() {
+	{
+		{
+			s.HostName = "string"
+		}
+	}
+	{
+		{
+			s.AdminCredentials.SetFake()
+		}
+	}
+	{
+		{
+			s.ManagementIp = "string"
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Label.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocol.SetFake()
+		}
+	}
+	{
+		{
+			s.Port.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ExternalClusterHostV1Protocol) SetFake() {
+	*s = ExternalClusterHostV1ProtocolHTTP
+}
+
+// SetFake set fake values.
+func (s *ExternalClusterOnboardRequestV1) SetFake() {
+	{
+		{
+			s.LocationId = "string"
+		}
+	}
+	{
+		{
+			s.Hosts = nil
+			for i := 0; i < 1; i++ {
+				var elem ExternalClusterHostV1
+				{
+					elem.SetFake()
+				}
+				s.Hosts = append(s.Hosts, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *GcpKmsConfigV1) SetFake() {
 	{
 		{
@@ -965,6 +1167,51 @@ func (s *OptExpertModeVolumeV1CloneParentVolume) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptExternalClusterAdminCredentialsV1) SetFake() {
+	var elem ExternalClusterAdminCredentialsV1
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptExternalClusterHostResourceV1LifeCycleState) SetFake() {
+	var elem ExternalClusterHostResourceV1LifeCycleState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptExternalClusterHostResourceV1Protocol) SetFake() {
+	var elem ExternalClusterHostResourceV1Protocol
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptExternalClusterHostUpdateV1Protocol) SetFake() {
+	var elem ExternalClusterHostUpdateV1Protocol
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptExternalClusterHostV1Protocol) SetFake() {
+	var elem ExternalClusterHostV1Protocol
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptFloat64) SetFake() {
 	var elem float64
 	{
@@ -987,6 +1234,15 @@ func (s *OptInt) SetFake() {
 	var elem int
 	{
 		elem = int(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInt32) SetFake() {
+	var elem int32
+	{
+		elem = int32(0)
 	}
 	s.SetTo(elem)
 }
@@ -1919,6 +2175,69 @@ func (s *V1DeleteAddressRangeUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1DeleteExternalClusterBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteExternalClusterBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteExternalClusterForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteExternalClusterForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteExternalClusterInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteExternalClusterInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteExternalClusterNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteExternalClusterNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteExternalClusterTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteExternalClusterTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteExternalClusterUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteExternalClusterUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteExternalClusterUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteExternalClusterUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1DeleteImageVersionBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -2360,6 +2679,69 @@ func (s *V1GetClusterUpgradeStatusUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1GetExternalClusterBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetExternalClusterBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetExternalClusterForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetExternalClusterForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetExternalClusterInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetExternalClusterInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetExternalClusterNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetExternalClusterNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetExternalClusterTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetExternalClusterTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetExternalClusterUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetExternalClusterUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetExternalClusterUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetExternalClusterUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1GetMultipleReplicationsByExternalUUIDBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -2765,6 +3147,94 @@ func (s *V1ListPoolsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1ListPoolsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1OnboardExternalClusterBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1OnboardExternalClusterConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterCreatedApplicationJSON) SetFake() {
+	var unwrapped []ExternalClusterHostResourceV1
+	{
+		unwrapped = nil
+		for i := 0; i < 0; i++ {
+			var elem ExternalClusterHostResourceV1
+			{
+				elem.SetFake()
+			}
+			unwrapped = append(unwrapped, elem)
+		}
+	}
+	*s = V1OnboardExternalClusterCreatedApplicationJSON(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1OnboardExternalClusterForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1OnboardExternalClusterInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1OnboardExternalClusterNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1OnboardExternalClusterTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1OnboardExternalClusterUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1OnboardExternalClusterUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1OnboardExternalClusterUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -3233,6 +3703,69 @@ func (s *V1UpdateAddressRangeUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1UpdateAddressRangeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateExternalClusterBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateExternalClusterBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateExternalClusterForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateExternalClusterForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateExternalClusterInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateExternalClusterInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateExternalClusterNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateExternalClusterNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateExternalClusterTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateExternalClusterTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateExternalClusterUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateExternalClusterUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateExternalClusterUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateExternalClusterUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

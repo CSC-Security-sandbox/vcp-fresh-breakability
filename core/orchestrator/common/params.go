@@ -385,6 +385,49 @@ type UpgradeClusterParams struct {
 	SkipUpdateRBAC     bool              `json:"skipUpdateRBAC,omitempty"`     // OCI: when true, skip RBAC refresh after upgrade completes
 }
 
+// ExternalClusterParams describes a single external ONTAP cluster to onboard.
+// Password is plaintext from the API; encrypt before persisting (see gcp.OnboardExternalClusters).
+// ManagementIP is required on the onboard API and must be non-empty.
+type ExternalClusterParams struct {
+	HostName     string
+	Username     string
+	Password     string
+	Description  string
+	Label        string
+	Protocol     string
+	Port         int
+	ManagementIP string
+}
+
+// OnboardExternalClustersParams describes parameters for v1_onboardExternalCluster.
+type OnboardExternalClustersParams struct {
+	LocationID string
+	Hosts      []ExternalClusterParams
+}
+
+// UpdateExternalClusterParams describes parameters for v1_updateExternalCluster.
+// Pointer fields use nil to mean "not provided"; a non-nil pointer sets the field (empty string clears).
+type UpdateExternalClusterParams struct {
+	ExternalClusterID string
+
+	Description  *string
+	Label        *string
+	ManagementIP *string
+	Protocol     *string
+	Port         *int
+	Username     *string
+	Password     *string
+}
+
+// HasUpdates reports whether at least one mutable field is being changed.
+func (p *UpdateExternalClusterParams) HasUpdates() bool {
+	if p == nil {
+		return false
+	}
+	return p.Description != nil || p.Label != nil || p.ManagementIP != nil ||
+		p.Protocol != nil || p.Port != nil || p.Username != nil || p.Password != nil
+}
+
 type ListSnapshotsParams struct {
 	SnapshotBaseParams
 }

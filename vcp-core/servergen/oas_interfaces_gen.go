@@ -25,6 +25,10 @@ type V1DeleteAddressRangeRes interface {
 	v1DeleteAddressRangeRes()
 }
 
+type V1DeleteExternalClusterRes interface {
+	v1DeleteExternalClusterRes()
+}
+
 type V1DeleteImageVersionRes interface {
 	v1DeleteImageVersionRes()
 }
@@ -53,6 +57,10 @@ type V1GetClusterUpgradeStatusRes interface {
 	v1GetClusterUpgradeStatusRes()
 }
 
+type V1GetExternalClusterRes interface {
+	v1GetExternalClusterRes()
+}
+
 type V1GetMultipleReplicationsByExternalUUIDRes interface {
 	v1GetMultipleReplicationsByExternalUUIDRes()
 }
@@ -75,6 +83,10 @@ type V1ListImageVersionsRes interface {
 
 type V1ListPoolsRes interface {
 	v1ListPoolsRes()
+}
+
+type V1OnboardExternalClusterRes interface {
+	v1OnboardExternalClusterRes()
 }
 
 type V1RefreshRbacForExpertModePoolByIdRes interface {
@@ -103,6 +115,10 @@ type V1UpdateAddressRangeRes interface {
 
 type V1UpdateAddressRangeStateRes interface {
 	v1UpdateAddressRangeStateRes()
+}
+
+type V1UpdateExternalClusterRes interface {
+	v1UpdateExternalClusterRes()
 }
 
 type V1UpdatePoolRes interface {

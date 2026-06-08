@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_external_cluster_hosts_host_name;
+DROP INDEX IF EXISTS idx_external_cluster_hosts_location_host_unique;

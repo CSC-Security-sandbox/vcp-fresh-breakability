@@ -19,6 +19,8 @@ tags:
     description: Expert mode operations  
   - name: clusters
     description: Cluster upgrade operations
+  - name: externalClusters
+    description: External (hardware) cluster onboarding operations
   - name: replications
     description: Replication operations
   - name: expertMode
@@ -717,6 +719,194 @@ paths:
           $ref: '#/components/responses/StandardError-429'
         '409':
           $ref: '#/components/responses/StandardError-409'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/externalClusters/onboard:
+    post:
+      tags:
+        - externalClusters
+      summary: Onboard one or more external ONTAP cluster hosts
+      description: |
+        Registers one or more external ONTAP cluster hosts in the control
+        plane at the specified location. Creates a persistent record per host
+        with the supplied management endpoint and admin username. This is a
+        synchronous operation (no long-running operation or job).
+      operationId: v1_onboardExternalCluster
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: Location and host(s) to onboard, along with admin credentials.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalClusterOnboardRequest_v1'
+            example:
+              locationId: us-central1
+              hosts:
+                - hostName: ontap-hw-cluster-01.example.com
+                  adminCredentials:
+                    username: admin
+                    password: S3cr3tP@ssw0rd
+                  description: Primary DR site ONTAP cluster
+                  label: "type=SAPHANA"
+                  protocol: INSECURE_HTTPS
+                  managementIp: 10.10.10.50
+      responses:
+        "201":
+          description: External cluster host records created successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExternalClusterHostResource_v1'
+              example:
+                - externalClusterId: "9760acf5-4638-11e7-9bdb-020073ca3333"
+                  locationId: us-central1
+                  hostName: ontap-hw-cluster-01
+                  adminUsername: admin
+                  lifeCycleState: CREATED
+        "400":
+          $ref: '#/components/responses/StandardError-400'
+        "401":
+          $ref: '#/components/responses/StandardError-401'
+        "403":
+          $ref: '#/components/responses/StandardError-403'
+        "404":
+          $ref: '#/components/responses/StandardError-404'
+        "409":
+          $ref: '#/components/responses/StandardError-409'
+        "422":
+          $ref: '#/components/responses/StandardError-422'
+        "429":
+          $ref: '#/components/responses/StandardError-429'
+        "500":
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1/externalClusters/{externalClusterId}:
+    get:
+      tags:
+        - externalClusters
+      summary: Get an external ONTAP cluster host
+      description: Returns the external cluster host identified by the given UUID.
+      operationId: v1_getExternalCluster
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/externalClusterIdPathParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalClusterHostResource_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - externalClusters
+      summary: Update an external ONTAP cluster host
+      description: |
+        Updates mutable fields of an external cluster host.
+        Fields included in the request body replace the current values.
+        `hostName` and `locationId` cannot be updated.
+      operationId: v1_updateExternalCluster
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/externalClusterIdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalClusterHostUpdate_v1'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalClusterHostResource_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    delete:
+      tags:
+        - externalClusters
+      summary: Delete an external ONTAP cluster host
+      description: Soft-deletes the external cluster host identified by the given UUID.
+      operationId: v1_deleteExternalCluster
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/externalClusterIdPathParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalClusterHostResource_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
         default:
@@ -2555,6 +2745,229 @@ components:
       required:
         - ip
         - dns
+    ExternalClusterAdminCredentials_v1:
+      type: object
+      title: ExternalClusterAdminCredentials
+      description: Administrator credentials used to discover and register an external ONTAP cluster host.
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Administrator username on the external ONTAP cluster.
+          example: admin
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+          description: Administrator password on the external ONTAP cluster. Write-only; never returned in responses.
+          example: S3cr3tP@ssw0rd
+    ExternalClusterHost_v1:
+      type: object
+      title: ExternalClusterHost
+      description: A single external ONTAP cluster host to onboard.
+      required:
+        - hostName
+        - adminCredentials
+        - managementIp
+      properties:
+        hostName:
+          type: string
+          minLength: 1
+          maxLength: 253
+          description: Hostname, FQDN, or management IP address of the external ONTAP cluster.
+          example: ontap-hw-cluster-01
+        adminCredentials:
+          $ref: '#/components/schemas/ExternalClusterAdminCredentials_v1'
+        managementIp:
+          type: string
+          minLength: 1
+          maxLength: 45
+          description: Management IP address of the external ONTAP cluster.
+          example: 10.10.10.50
+        description:
+          type: string
+          maxLength: 2048
+          description: Optional description for this external cluster host.
+          example: Primary DR site ONTAP cluster
+        label:
+          title: label
+          type: string
+          maxLength: 2048
+          description: Label to store the metadata information related to host
+          example: "type=SAPHANA"
+          x-omitempty: false
+        protocol:
+          title: protocol
+          type: string
+          description: The protocol used for communicating with the host.
+          enum:
+            - HTTP
+            - HTTPS
+            - INSECURE_HTTPS
+          default: INSECURE_HTTPS
+          example: HTTPS
+        port:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 65535
+          description: Port for host management API. Defaults to 80 for HTTP and 443 for HTTPS and INSECURE_HTTPS.
+          example: 443
+    ExternalClusterHostUpdate_v1:
+      type: object
+      title: ExternalClusterHostUpdate
+      description: |
+        Update request for an external cluster host. Fields included in the request
+        body replace the current mutable values.
+      properties:
+        description:
+          type: string
+          maxLength: 2048
+          nullable: true
+          description: Description for this external cluster host. Set to null to clear.
+          example: Primary DR site ONTAP cluster
+        label:
+          type: string
+          maxLength: 2048
+          description: Label for metadata related to this host.
+          example: "type=SAPHANA"
+        protocol:
+          type: string
+          description: The protocol used for communicating with the host.
+          enum:
+            - HTTP
+            - HTTPS
+            - INSECURE_HTTPS
+          example: HTTPS
+        port:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 65535
+          description: Port for host management API.
+          example: 443
+        managementIp:
+          type: string
+          maxLength: 45
+          nullable: true
+          description: Management IP address. Set to null to clear.
+          example: 10.10.10.50
+        adminCredentials:
+          $ref: '#/components/schemas/ExternalClusterAdminCredentials_v1'
+    ExternalClusterOnboardRequest_v1:
+      type: object
+      title: ExternalClusterOnboardRequest
+      description: Request to onboard one or more external ONTAP cluster hosts at a given location.
+      required:
+        - locationId
+        - hosts
+      properties:
+        locationId:
+          type: string
+          maxLength: 255
+          description: The GCP location/region in which to onboard the external cluster(s).
+          example: us-central1
+        hosts:
+          type: array
+          minItems: 1
+          description: One or more external ONTAP cluster hosts to onboard.
+          items:
+            $ref: '#/components/schemas/ExternalClusterHost_v1'
+    ExternalClusterHostResource_v1:
+      type: object
+      title: ExternalClusterHostResource
+      description: A registered external ONTAP cluster host (response only; credentials are never returned).
+      properties:
+        externalClusterId:
+          type: string
+          readOnly: true
+          description: UUID v4 identifying this external cluster host record
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          maxLength: 36
+          minLength: 36
+          example: "9760acf5-4638-11e7-9bdb-020073ca3333"
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2023-11-28T19:30:23.123Z"
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: "2023-11-29T20:32:50.459Z"
+        deletedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Date the resource was deleted
+          example: "2023-11-30T23:59:59.999Z"
+        locationId:
+          type: string
+          readOnly: true
+          example: us-central1
+        hostName:
+          type: string
+          readOnly: true
+          example: ontap-hw-cluster-01
+        adminUsername:
+          type: string
+          readOnly: true
+          example: admin
+        description:
+          type: string
+          readOnly: true
+          description: User-provided description for this external cluster host.
+          example: Primary DR site ONTAP cluster
+        label:
+          title: label
+          type: string
+          readOnly: true
+          description: Label to store the metadata information related to host
+          example: "type=SAPHANA"
+          x-omitempty: false
+        protocol:
+          title: protocol
+          type: string
+          readOnly: true
+          description: The protocol used for communicating with the host.
+          enum:
+            - HTTP
+            - HTTPS
+            - INSECURE_HTTPS
+          example: INSECURE_HTTPS
+        port:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Port for host management API.
+          example: 443
+        lifeCycleState:
+          type: string
+          readOnly: true
+          description: |
+            Operational lifecycle state of the host (for example CREATED after onboard,
+            DELETED after soft-delete). Not accepted on update requests.
+          enum:
+            - CREATED
+            - ERROR
+            - DELETED
+          example: CREATED
+        ontapVersion:
+          type: string
+          readOnly: true
+          description: ONTAP software version populated after discovery (not accepted on onboard).
+        managementIp:
+          type: string
+          readOnly: true
+          description: Management IP address supplied at onboard or resolved after discovery.
     ClusterUpgradeRequest_v1:
       type: object
       title: ClusterUpgradeRequest
@@ -3535,6 +3948,16 @@ components:
       name: addressRangeId
       in: path
       description: UUID v4 used to identify the address range
+      required: true
+      schema:
+        pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        maxLength: 36
+        minLength: 36
+        type: string
+    externalClusterIdPathParameter:
+      name: externalClusterId
+      in: path
+      description: UUID v4 used to identify the external cluster host
       required: true
       schema:
         pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"

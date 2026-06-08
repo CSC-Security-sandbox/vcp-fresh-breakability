@@ -378,6 +378,65 @@ func (_c *MockInvoker_V1DeleteAddressRange_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// V1DeleteExternalCluster provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1DeleteExternalCluster(ctx context.Context, params V1DeleteExternalClusterParams) (V1DeleteExternalClusterRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1DeleteExternalCluster")
+	}
+
+	var r0 V1DeleteExternalClusterRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1DeleteExternalClusterParams) (V1DeleteExternalClusterRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1DeleteExternalClusterParams) V1DeleteExternalClusterRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1DeleteExternalClusterRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1DeleteExternalClusterParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1DeleteExternalCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1DeleteExternalCluster'
+type MockInvoker_V1DeleteExternalCluster_Call struct {
+	*mock.Call
+}
+
+// V1DeleteExternalCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1DeleteExternalClusterParams
+func (_e *MockInvoker_Expecter) V1DeleteExternalCluster(ctx interface{}, params interface{}) *MockInvoker_V1DeleteExternalCluster_Call {
+	return &MockInvoker_V1DeleteExternalCluster_Call{Call: _e.mock.On("V1DeleteExternalCluster", ctx, params)}
+}
+
+func (_c *MockInvoker_V1DeleteExternalCluster_Call) Run(run func(ctx context.Context, params V1DeleteExternalClusterParams)) *MockInvoker_V1DeleteExternalCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1DeleteExternalClusterParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1DeleteExternalCluster_Call) Return(_a0 V1DeleteExternalClusterRes, _a1 error) *MockInvoker_V1DeleteExternalCluster_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1DeleteExternalCluster_Call) RunAndReturn(run func(context.Context, V1DeleteExternalClusterParams) (V1DeleteExternalClusterRes, error)) *MockInvoker_V1DeleteExternalCluster_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1DeleteImageVersion provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1DeleteImageVersion(ctx context.Context, params V1DeleteImageVersionParams) (V1DeleteImageVersionRes, error) {
 	ret := _m.Called(ctx, params)
@@ -794,6 +853,65 @@ func (_c *MockInvoker_V1GetClusterUpgradeStatus_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// V1GetExternalCluster provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1GetExternalCluster(ctx context.Context, params V1GetExternalClusterParams) (V1GetExternalClusterRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1GetExternalCluster")
+	}
+
+	var r0 V1GetExternalClusterRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetExternalClusterParams) (V1GetExternalClusterRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetExternalClusterParams) V1GetExternalClusterRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1GetExternalClusterRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1GetExternalClusterParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1GetExternalCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1GetExternalCluster'
+type MockInvoker_V1GetExternalCluster_Call struct {
+	*mock.Call
+}
+
+// V1GetExternalCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1GetExternalClusterParams
+func (_e *MockInvoker_Expecter) V1GetExternalCluster(ctx interface{}, params interface{}) *MockInvoker_V1GetExternalCluster_Call {
+	return &MockInvoker_V1GetExternalCluster_Call{Call: _e.mock.On("V1GetExternalCluster", ctx, params)}
+}
+
+func (_c *MockInvoker_V1GetExternalCluster_Call) Run(run func(ctx context.Context, params V1GetExternalClusterParams)) *MockInvoker_V1GetExternalCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1GetExternalClusterParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1GetExternalCluster_Call) Return(_a0 V1GetExternalClusterRes, _a1 error) *MockInvoker_V1GetExternalCluster_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1GetExternalCluster_Call) RunAndReturn(run func(context.Context, V1GetExternalClusterParams) (V1GetExternalClusterRes, error)) *MockInvoker_V1GetExternalCluster_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1GetMultipleReplicationsByExternalUUID provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params V1GetMultipleReplicationsByExternalUUIDParams) (V1GetMultipleReplicationsByExternalUUIDRes, error) {
 	ret := _m.Called(ctx, params)
@@ -1144,6 +1262,66 @@ func (_c *MockInvoker_V1ListPools_Call) Return(_a0 V1ListPoolsRes, _a1 error) *M
 }
 
 func (_c *MockInvoker_V1ListPools_Call) RunAndReturn(run func(context.Context, V1ListPoolsParams) (V1ListPoolsRes, error)) *MockInvoker_V1ListPools_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1OnboardExternalCluster provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1OnboardExternalCluster(ctx context.Context, request *ExternalClusterOnboardRequestV1, params V1OnboardExternalClusterParams) (V1OnboardExternalClusterRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1OnboardExternalCluster")
+	}
+
+	var r0 V1OnboardExternalClusterRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ExternalClusterOnboardRequestV1, V1OnboardExternalClusterParams) (V1OnboardExternalClusterRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ExternalClusterOnboardRequestV1, V1OnboardExternalClusterParams) V1OnboardExternalClusterRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1OnboardExternalClusterRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ExternalClusterOnboardRequestV1, V1OnboardExternalClusterParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1OnboardExternalCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1OnboardExternalCluster'
+type MockInvoker_V1OnboardExternalCluster_Call struct {
+	*mock.Call
+}
+
+// V1OnboardExternalCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *ExternalClusterOnboardRequestV1
+//   - params V1OnboardExternalClusterParams
+func (_e *MockInvoker_Expecter) V1OnboardExternalCluster(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1OnboardExternalCluster_Call {
+	return &MockInvoker_V1OnboardExternalCluster_Call{Call: _e.mock.On("V1OnboardExternalCluster", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1OnboardExternalCluster_Call) Run(run func(ctx context.Context, request *ExternalClusterOnboardRequestV1, params V1OnboardExternalClusterParams)) *MockInvoker_V1OnboardExternalCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ExternalClusterOnboardRequestV1), args[2].(V1OnboardExternalClusterParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1OnboardExternalCluster_Call) Return(_a0 V1OnboardExternalClusterRes, _a1 error) *MockInvoker_V1OnboardExternalCluster_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1OnboardExternalCluster_Call) RunAndReturn(run func(context.Context, *ExternalClusterOnboardRequestV1, V1OnboardExternalClusterParams) (V1OnboardExternalClusterRes, error)) *MockInvoker_V1OnboardExternalCluster_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1560,6 +1738,66 @@ func (_c *MockInvoker_V1UpdateAddressRangeState_Call) Return(_a0 V1UpdateAddress
 }
 
 func (_c *MockInvoker_V1UpdateAddressRangeState_Call) RunAndReturn(run func(context.Context, *AddressRangeCVNUpdateV1, V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error)) *MockInvoker_V1UpdateAddressRangeState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1UpdateExternalCluster provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1UpdateExternalCluster(ctx context.Context, request *ExternalClusterHostUpdateV1, params V1UpdateExternalClusterParams) (V1UpdateExternalClusterRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1UpdateExternalCluster")
+	}
+
+	var r0 V1UpdateExternalClusterRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ExternalClusterHostUpdateV1, V1UpdateExternalClusterParams) (V1UpdateExternalClusterRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ExternalClusterHostUpdateV1, V1UpdateExternalClusterParams) V1UpdateExternalClusterRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1UpdateExternalClusterRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ExternalClusterHostUpdateV1, V1UpdateExternalClusterParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1UpdateExternalCluster_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1UpdateExternalCluster'
+type MockInvoker_V1UpdateExternalCluster_Call struct {
+	*mock.Call
+}
+
+// V1UpdateExternalCluster is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *ExternalClusterHostUpdateV1
+//   - params V1UpdateExternalClusterParams
+func (_e *MockInvoker_Expecter) V1UpdateExternalCluster(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1UpdateExternalCluster_Call {
+	return &MockInvoker_V1UpdateExternalCluster_Call{Call: _e.mock.On("V1UpdateExternalCluster", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1UpdateExternalCluster_Call) Run(run func(ctx context.Context, request *ExternalClusterHostUpdateV1, params V1UpdateExternalClusterParams)) *MockInvoker_V1UpdateExternalCluster_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ExternalClusterHostUpdateV1), args[2].(V1UpdateExternalClusterParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1UpdateExternalCluster_Call) Return(_a0 V1UpdateExternalClusterRes, _a1 error) *MockInvoker_V1UpdateExternalCluster_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1UpdateExternalCluster_Call) RunAndReturn(run func(context.Context, *ExternalClusterHostUpdateV1, V1UpdateExternalClusterParams) (V1UpdateExternalClusterRes, error)) *MockInvoker_V1UpdateExternalCluster_Call {
 	_c.Call.Return(run)
 	return _c
 }

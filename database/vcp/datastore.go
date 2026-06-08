@@ -42,6 +42,7 @@ func getVcpModels() []interface{} {
 		&datamodel.BackupChainHistory{},
 		&datamodel.AppConfig{},
 		&datamodel.AddressRange{},
+		&datamodel.Cluster{},
 	}
 }
 

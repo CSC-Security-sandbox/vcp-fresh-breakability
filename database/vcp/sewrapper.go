@@ -6196,6 +6196,70 @@ func (re *retryEngine) DeleteAddressRange(ctx context.Context, arID string) (*da
 	return var0, err
 }
 
+func (re *retryEngine) CreateExternalCluster(ctx context.Context, cluster *datamodel.Cluster) (*datamodel.Cluster, error) {
+	var var0 *datamodel.Cluster
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateExternalCluster(ctx, cluster)
+		if err != nil {
+			re.logError("CreateExternalCluster", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error) {
+	var var0 *datamodel.Cluster
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetExternalCluster(ctx, externalClusterID)
+		if err != nil {
+			re.logError("GetExternalCluster", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) UpdateExternalCluster(ctx context.Context, cluster *datamodel.Cluster) (*datamodel.Cluster, error) {
+	var var0 *datamodel.Cluster
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateExternalCluster(ctx, cluster)
+		if err != nil {
+			re.logError("UpdateExternalCluster", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) DeleteExternalCluster(ctx context.Context, externalClusterID string) (*datamodel.Cluster, error) {
+	var var0 *datamodel.Cluster
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteExternalCluster(ctx, externalClusterID)
+		if err != nil {
+			re.logError("DeleteExternalCluster", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error) {
 	var var0 []*datamodel.ExpertModeVolumes
 	err := retry.Do(func(attempt int) (bool, error) {

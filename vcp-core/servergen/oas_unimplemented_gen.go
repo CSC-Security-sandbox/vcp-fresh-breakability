@@ -68,6 +68,15 @@ func (UnimplementedHandler) V1DeleteAddressRange(ctx context.Context, params V1D
 	return r, ht.ErrNotImplemented
 }
 
+// V1DeleteExternalCluster implements v1_deleteExternalCluster operation.
+//
+// Soft-deletes the external cluster host identified by the given UUID.
+//
+// DELETE /v1/externalClusters/{externalClusterId}
+func (UnimplementedHandler) V1DeleteExternalCluster(ctx context.Context, params V1DeleteExternalClusterParams) (r V1DeleteExternalClusterRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1DeleteImageVersion implements v1_deleteImageVersion operation.
 //
 // Deletes an image version entry from the database by ONTAP version.
@@ -139,6 +148,15 @@ func (UnimplementedHandler) V1GetClusterUpgradeStatus(ctx context.Context, param
 	return r, ht.ErrNotImplemented
 }
 
+// V1GetExternalCluster implements v1_getExternalCluster operation.
+//
+// Returns the external cluster host identified by the given UUID.
+//
+// GET /v1/externalClusters/{externalClusterId}
+func (UnimplementedHandler) V1GetExternalCluster(ctx context.Context, params V1GetExternalClusterParams) (r V1GetExternalClusterRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1GetMultipleReplicationsByExternalUUID implements v1_getMultipleReplicationsByExternalUUID operation.
 //
 // Returns replications filtered by external UUIDs and endpoint type.
@@ -191,6 +209,18 @@ func (UnimplementedHandler) V1ListImageVersions(ctx context.Context, params V1Li
 //
 // GET /v1/pools
 func (UnimplementedHandler) V1ListPools(ctx context.Context, params V1ListPoolsParams) (r V1ListPoolsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1OnboardExternalCluster implements v1_onboardExternalCluster operation.
+//
+// Registers one or more external ONTAP cluster hosts in the control
+// plane at the specified location. Creates a persistent record per host
+// with the supplied management endpoint and admin username. This is a
+// synchronous operation (no long-running operation or job).
+//
+// POST /v1/externalClusters/onboard
+func (UnimplementedHandler) V1OnboardExternalCluster(ctx context.Context, req *ExternalClusterOnboardRequestV1, params V1OnboardExternalClusterParams) (r V1OnboardExternalClusterRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -259,6 +289,17 @@ func (UnimplementedHandler) V1UpdateAddressRange(ctx context.Context, req *Addre
 //
 // PUT /v1/addressRange/{addressRangeId}/updateState
 func (UnimplementedHandler) V1UpdateAddressRangeState(ctx context.Context, req *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (r V1UpdateAddressRangeStateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1UpdateExternalCluster implements v1_updateExternalCluster operation.
+//
+// Updates mutable fields of an external cluster host.
+// Fields included in the request body replace the current values.
+// `hostName` and `locationId` cannot be updated.
+//
+// PUT /v1/externalClusters/{externalClusterId}
+func (UnimplementedHandler) V1UpdateExternalCluster(ctx context.Context, req *ExternalClusterHostUpdateV1, params V1UpdateExternalClusterParams) (r V1UpdateExternalClusterRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

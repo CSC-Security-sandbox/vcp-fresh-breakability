@@ -217,7 +217,7 @@ const (
 	ErrSnapshotInsufficientSpace          = 7014
 	ErrSnapshotMaximumLimitExceeded       = 7015
 	ErrHotTierCapacityExhausted           = 7016
-	ErrDeleteVolumeRestrictedAction        = 7017
+	ErrDeleteVolumeRestrictedAction       = 7017
 	ErrSplitBlockedByDependentChildClones = 7018
 
 	// CMEK Error Codes
@@ -591,6 +591,19 @@ func (e *CustomError) GetMessage() string {
 	}
 
 	return e.Message
+}
+
+// GetDetailMessage returns the most specific user-facing message for API responses.
+// When OriginalErr is set (for example duplicate-resource detail from the DB layer), that text is returned;
+// otherwise the catalog message from GetMessage() is used.
+func (e *CustomError) GetDetailMessage() string {
+	if e == nil {
+		return ""
+	}
+	if e.OriginalErr != nil {
+		return e.OriginalErr.Error()
+	}
+	return e.GetMessage()
 }
 
 // GetRawMessage returns the unformatted message template without any placeholder substitution.

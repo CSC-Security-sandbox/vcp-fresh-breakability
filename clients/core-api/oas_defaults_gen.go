@@ -39,6 +39,14 @@ func (s *ClusterUpgradeRequestV1) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *ExternalClusterHostV1) setDefaults() {
+	{
+		val := ExternalClusterHostV1Protocol("INSECURE_HTTPS")
+		s.Protocol.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *ImageVersionCreateRequestV1) setDefaults() {
 	{
 		val := bool(true)
