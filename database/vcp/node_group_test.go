@@ -5,10 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
 func setupNodeGroupTestRepo(t *testing.T) (*DataStoreRepository, *datamodel.NodeGroup) {
@@ -28,6 +31,31 @@ func TestCreateNodeGroup(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.Equal(t, "test-group", created.Name)
+}
+
+func TestCreateNodeGroup_UsesTxFromContext(t *testing.T) {
+	repo, _ := setupNodeGroupTestRepo(t)
+	ctx := context.Background()
+	tx := repo.db.GORM().WithContext(ctx).Begin()
+	require.NoError(t, tx.Error)
+	defer func() { _ = tx.Rollback() }()
+
+	ctxTx := utils.WithTx(ctx, tx)
+	created, err := repo.CreateNodeGroup(ctxTx, &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{UUID: uuid.NewString()},
+		Name:      "tx-group-" + uuid.NewString(),
+	})
+	require.NoError(t, err)
+	require.NotZero(t, created.ID)
+
+	var visible int64
+	require.NoError(t, tx.Model(&datamodel.NodeGroup{}).Where("id = ?", created.ID).Count(&visible).Error)
+	assert.Equal(t, int64(1), visible)
+	require.NoError(t, tx.Commit().Error)
+
+	got, err := repo.GetNodeGroup(ctx, created.ID)
+	require.NoError(t, err)
+	assert.Equal(t, created.Name, got.Name)
 }
 
 func TestGetNodeGroup(t *testing.T) {

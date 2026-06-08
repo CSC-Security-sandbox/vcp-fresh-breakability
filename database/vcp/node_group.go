@@ -7,6 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
@@ -19,10 +20,13 @@ func (d *DataStoreRepository) CreateNodeGroup(ctx context.Context, group *datamo
 	if group.Name == "" {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, errors.New("node_group name is empty"))
 	}
-	tx := d.db.GORM().WithContext(ctx)
+	db := d.db.GORM().WithContext(ctx)
+	if tx := utils.TxFromContext(ctx); tx != nil {
+		db = tx.WithContext(ctx)
+	}
 	group.CreatedAt = time.Now()
 	group.UpdatedAt = group.CreatedAt
-	err := tx.Create(group).Error
+	err := db.Create(group).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 	}

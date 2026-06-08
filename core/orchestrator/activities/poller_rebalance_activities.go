@@ -910,6 +910,12 @@ func (a *PollerRebalanceActivities) CommitRebalanceMovesInDBActivity(ctx context
 			u.mapping.HarvestConfig.LEASE_NAME = u.targetRef.LeaseName
 			u.mapping.HarvestConfig.PORT = u.port
 			if err := g.Save(u.mapping).Error; err != nil {
+				if database.IsHarvestNodeGroupPortUniqueViolation(err) {
+					msg := fmt.Sprintf("rebalance commit port conflict: node %d target group %d port %s (concurrent assign)",
+						u.nodeID, u.targetID, u.port)
+					logger.Warnf(msg)
+					return temporal.NewApplicationError(msg, "HarvestRebalancePortConflict")
+				}
 				return err
 			}
 		}

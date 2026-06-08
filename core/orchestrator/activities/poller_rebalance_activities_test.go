@@ -1223,6 +1223,56 @@ func TestCommitRebalanceMovesInDBActivity_NodeAlreadyOnTargetMismatchedConfig(t 
 	assert.Contains(t, err.Error(), "already on target group")
 }
 
+func TestCommitRebalanceMovesInDBActivity_PortConflictRetryable(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	mockSE.On("GetActiveNodeNodeGroupMapByNodeID", mock.Anything, int64(1), mock.Anything).Return(
+		&datamodel.NodeNodeGroupMap{
+			NodeID:        1,
+			NodeGroupID:   1,
+			HarvestConfig: &datamodel.HarvestConfig{LEASE_NAME: "src-lease", PORT: "13000"},
+		}, nil)
+	mockSE.On("WithTransaction", mock.Anything, mock.Anything).Return(
+		func(_ context.Context, fn func(dbutils.Transaction) error) error {
+			db, smock, err := sqlmock.New()
+			if err != nil {
+				return err
+			}
+			defer func() { _ = db.Close() }()
+			gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
+			if err != nil {
+				return err
+			}
+			mockTx := dbutils.NewMockTransaction(t)
+			mockTx.On("GORM").Return(gormDB)
+
+			smock.ExpectQuery(`SELECT.*FROM "node_groups"`).WillReturnRows(
+				sqlmock.NewRows([]string{"id", "lease_name"}).AddRow(2, "tgt-lease"),
+			)
+			smock.ExpectQuery(`SELECT.*COUNT`).WillReturnRows(
+				sqlmock.NewRows([]string{"node_group_id", "cnt"}).AddRow(2, 10),
+			)
+			smock.ExpectBegin()
+			smock.ExpectExec(`UPDATE "node_node_group_maps"`).
+				WillReturnError(errors.New(`duplicate key value violates unique constraint "idx_node_node_group_maps_group_port_active_uq"`))
+			smock.ExpectRollback()
+			return fn(mockTx)
+		})
+
+	act := &PollerRebalanceActivities{SE: mockSE}
+	ts := &testsuite.WorkflowTestSuite{}
+	env := ts.NewTestActivityEnvironment()
+	env.RegisterActivity(act.CommitRebalanceMovesInDBActivity)
+
+	_, err := env.ExecuteActivity(act.CommitRebalanceMovesInDBActivity, &CommitRebalanceMovesParams{
+		Staged: []RebalanceStagedNode{
+			{NodeID: 1, SourceGroupID: 1, TargetGroupID: 2, SourceLeaseName: "src-lease", TargetLeaseName: "tgt-lease", Port: "13001"},
+		},
+		MaxNodesPerGroup: 200,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "HarvestRebalancePortConflict")
+}
+
 func TestCommitRebalanceMovesInDBActivity_CapacityExceededRetryable(t *testing.T) {
 	mockSE := database.NewMockStorage(t)
 	mockSE.On("WithTransaction", mock.Anything, mock.Anything).Return(

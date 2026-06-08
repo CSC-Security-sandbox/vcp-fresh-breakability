@@ -4,15 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/lib/errors"
+	"gorm.io/driver/postgres"
+	gormdb "gorm.io/gorm"
 )
 
 func prepareNodeNodeGroupMap() *datamodel.NodeNodeGroupMap {
@@ -483,7 +488,8 @@ func TestAssignTwoNodesToTwoGroups_NonexistentNodes(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// Parallel test will not work properly until file based sqlite is implemented, Will uncomment when ready
+// Parallel test uses CreateNodeNodeGroupMap (not AssignTwoNodesToTwoGroups). Concurrent Assign coverage lives in
+// TestAssignTwoNodesToTwoGroups_ConcurrentIndependentPools and TestAssignTwoNodesToTwoGroups_ConcurrentSharedNearFullGroup.
 func TestAssignTwoNodesToTwoGroups_ParallelRequests(t *testing.T) {
 	// Use file-based SQLite for concurrency safety
 	db, dbFile, err := SetupTestFileDB()
@@ -557,6 +563,172 @@ func TestAssignTwoNodesToTwoGroups_ParallelRequests(t *testing.T) {
 			assert.NotNil(t, mapping, "mapping for node %d in request %d is nil", j, i)
 			assert.NotZero(t, mapping.NodeGroupID, "node %d in request %d not assigned to a group", j, i)
 		}
+	}
+}
+
+// TestAssignTwoNodesToTwoGroups_ConcurrentIndependentPools simulates multiple pools registering harvest mappings at once
+// (file-backed SQLite + WAL). Asserts every assignment succeeds and no (node_group_id, port) duplicate exists.
+func TestAssignTwoNodesToTwoGroups_ConcurrentIndependentPools(t *testing.T) {
+	db, dbFile, err := SetupTestFileDB()
+	assert.NoError(t, err)
+	defer cleanupTestDBFile(db, dbFile)
+	repo := &DataStoreRepository{db: gorm.New(db)}
+	assert.NoError(t, ClearInMemoryDB(db))
+
+	const workers = 12
+	ctx := context.Background()
+	var wg sync.WaitGroup
+	errCh := make(chan error, workers)
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n1, e := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n1-" + uuid.NewString()})
+			if e != nil {
+				errCh <- e
+				return
+			}
+			n2, e := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2-" + uuid.NewString()})
+			if e != nil {
+				errCh <- e
+				return
+			}
+			_, e = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+				Node1:            n1,
+				Node2:            n2,
+				MaxNodesPerGroup: 50,
+				CustomerProject:  "concurrent-pools",
+			})
+			errCh <- e
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for e := range errCh {
+		assert.NoError(t, e)
+	}
+
+	gdb := repo.db.GORM().WithContext(ctx)
+	var maps []datamodel.NodeNodeGroupMap
+	assert.NoError(t, gdb.Find(&maps).Error)
+	type groupPort struct {
+		gid int64
+		p   string
+	}
+	seen := make(map[groupPort]struct{})
+	for i := range maps {
+		m := &maps[i]
+		if m.DeletedAt != nil && m.DeletedAt.Valid {
+			continue
+		}
+		if m.HarvestConfig == nil || m.HarvestConfig.PORT == "" {
+			continue
+		}
+		k := groupPort{gid: m.NodeGroupID, p: m.HarvestConfig.PORT}
+		_, dup := seen[k]
+		assert.False(t, dup, "duplicate port %q in node_group_id %d", k.p, k.gid)
+		seen[k] = struct{}{}
+	}
+
+	var groups []datamodel.NodeGroup
+	assert.NoError(t, gdb.Find(&groups).Error)
+	for i := range groups {
+		g := &groups[i]
+		if g.DeletedAt != nil && g.DeletedAt.Valid {
+			continue
+		}
+		var cnt int64
+		assert.NoError(t, gdb.Model(&datamodel.NodeNodeGroupMap{}).
+			Where("node_group_id = ? AND deleted_at IS NULL", g.ID).Count(&cnt).Error)
+		assert.LessOrEqual(t, cnt, int64(50), "group %d exceeds MaxNodesPerGroup", g.ID)
+	}
+}
+
+// TestAssignTwoNodesToTwoGroups_ConcurrentSharedNearFullGroup contends on one nearly-full lease group (simulates two
+// pools racing for the last slots in a shared global group under SQLite WAL).
+func TestAssignTwoNodesToTwoGroups_ConcurrentSharedNearFullGroup(t *testing.T) {
+	db, dbFile, err := SetupTestFileDB()
+	assert.NoError(t, err)
+	defer cleanupTestDBFile(db, dbFile)
+	repo := &DataStoreRepository{db: gorm.New(db)}
+	assert.NoError(t, ClearInMemoryDB(db))
+	ctx := context.Background()
+
+	const maxPer = 10
+	g1, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-near1-" + uuid.NewString()})
+	assert.NoError(t, err)
+	_, err = repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-near2-" + uuid.NewString()})
+	assert.NoError(t, err)
+
+	for i := 0; i < 9; i++ {
+		n, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: fmt.Sprintf("pre-near-%d", i)})
+		assert.NoError(t, err)
+		_, err = repo.CreateNodeNodeGroupMap(ctx, &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        n.ID,
+			NodeGroupID:   g1.ID,
+			HarvestConfig: &datamodel.HarvestConfig{PORT: fmt.Sprintf("%d", 13001+i)},
+		})
+		assert.NoError(t, err)
+	}
+
+	const workers = 8
+	var wg sync.WaitGroup
+	errCh := make(chan error, workers)
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n1, e := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "near1-" + uuid.NewString()})
+			if e != nil {
+				errCh <- e
+				return
+			}
+			n2, e := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "near2-" + uuid.NewString()})
+			if e != nil {
+				errCh <- e
+				return
+			}
+			_, e = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+				Node1:            n1,
+				Node2:            n2,
+				MaxNodesPerGroup: maxPer,
+				CustomerProject:  "near-full-shared",
+			})
+			errCh <- e
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for e := range errCh {
+		assert.NoError(t, e)
+	}
+
+	gdb := repo.db.GORM().WithContext(ctx)
+	var c1 int64
+	assert.NoError(t, gdb.Model(&datamodel.NodeNodeGroupMap{}).
+		Where("node_group_id = ? AND deleted_at IS NULL", g1.ID).Count(&c1).Error)
+	assert.LessOrEqual(t, c1, int64(maxPer), "shared group g1 exceeded capacity")
+
+	var maps []datamodel.NodeNodeGroupMap
+	assert.NoError(t, gdb.Find(&maps).Error)
+	type groupPort struct {
+		gid int64
+		p   string
+	}
+	seen := make(map[groupPort]struct{})
+	for i := range maps {
+		m := &maps[i]
+		if m.DeletedAt != nil && m.DeletedAt.Valid {
+			continue
+		}
+		if m.HarvestConfig == nil || m.HarvestConfig.PORT == "" {
+			continue
+		}
+		k := groupPort{gid: m.NodeGroupID, p: m.HarvestConfig.PORT}
+		_, dup := seen[k]
+		assert.False(t, dup, "duplicate port %q in node_group_id %d", k.p, k.gid)
+		seen[k] = struct{}{}
 	}
 }
 
@@ -1205,6 +1377,17 @@ func TestListNodeNodeGroupMapsByNodeGroupID(t *testing.T) {
 	assert.Equal(t, created.NodeID, maps[0].NodeID)
 }
 
+func TestIsHarvestNodeGroupPortUniqueViolation(t *testing.T) {
+	assert.False(t, IsHarvestNodeGroupPortUniqueViolation(nil))
+	assert.True(t, IsHarvestNodeGroupPortUniqueViolation(
+		errors.New(`duplicate key value violates unique constraint "idx_node_node_group_maps_group_port_active_uq"`)))
+	assert.True(t, IsHarvestNodeGroupPortUniqueViolation(
+		errors.New("UNIQUE constraint failed: node_node_group_maps.node_group_id, node_node_group_maps.harvest_config")))
+	assert.True(t, IsHarvestNodeGroupPortUniqueViolation(
+		errors.New("duplicate key on node_node_group_maps (node_group_id)=(1)")))
+	assert.False(t, IsHarvestNodeGroupPortUniqueViolation(errors.New("other database error")))
+}
+
 func TestGetFirstAvailablePort_QueryError(t *testing.T) {
 	db, _ := SetupTestDB()
 	wrapper := gorm.New(db)
@@ -1241,6 +1424,452 @@ func TestGetFirstAvailablePort_AllPortsUsed(t *testing.T) {
 	_, err := GetFirstAvailablePort(tx, 1)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no available port found")
+}
+
+func TestGetFirstAvailablePort_FillsLowestGap(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	tx := gorm.New(db).GORM()
+	group, err := (&DataStoreRepository{db: gorm.New(db)}).CreateNodeGroup(context.Background(), &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{UUID: uuid.NewString()},
+		Name:      "g-gap-" + uuid.NewString(),
+	})
+	require.NoError(t, err)
+	for i, p := range []string{fmt.Sprintf("%d", portStart), fmt.Sprintf("%d", portStart+2)} {
+		require.NoError(t, tx.Create(&datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(1000 + i),
+			NodeGroupID:   group.ID,
+			HarvestConfig: &datamodel.HarvestConfig{PORT: p},
+		}).Error)
+	}
+	port, err := GetFirstAvailablePort(tx, group.ID)
+	require.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("%d", portStart+1), port)
+}
+
+func TestGetFirstAvailablePort_PostgresUsesLockedCTE(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	gormDB, err := gormdb.Open(postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true}), &gormdb.Config{})
+	require.NoError(t, err)
+
+	mock.ExpectQuery("WITH locked AS").WillReturnRows(
+		sqlmock.NewRows([]string{"port"}).
+			AddRow(fmt.Sprintf("%d", portStart)).
+			AddRow(fmt.Sprintf("%d", portStart+2)),
+	)
+
+	port, err := GetFirstAvailablePort(gormDB, 42)
+	require.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("%d", portStart+1), port)
+}
+
+func TestGetFirstAvailablePort_PostgresQueryError(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	gormDB, err := gormdb.Open(postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true}), &gormdb.Config{})
+	require.NoError(t, err)
+
+	mock.ExpectQuery("WITH locked AS").WillReturnError(errors.New("postgres port scan failed"))
+
+	_, err = GetFirstAvailablePort(gormDB, 7)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to query assigned ports")
+}
+
+func TestAppendSortedUniqueIDs(t *testing.T) {
+	t.Run("duplicate returns unchanged", func(t *testing.T) {
+		ids := []int64{1, 3, 5}
+		got := appendSortedUniqueIDs(ids, 3)
+		assert.Equal(t, []int64{1, 3, 5}, got)
+		assert.Equal(t, ids, got, "should return same slice header when id already present")
+	})
+	t.Run("appends and sorts", func(t *testing.T) {
+		got := appendSortedUniqueIDs([]int64{5, 1}, 3)
+		assert.Equal(t, []int64{1, 3, 5}, got)
+	})
+}
+
+func TestPickGroupIDWithCapacity_Table(t *testing.T) {
+	counts := map[int64]int64{1: 9, 2: 3, 3: 10}
+	assert.Equal(t, int64(1), pickGroupIDWithCapacity([]int64{1, 2, 3}, counts, 0, 10))
+	assert.Equal(t, int64(1), pickGroupIDWithCapacity([]int64{1, 2, 3}, counts, 2, 10))
+	full := map[int64]int64{1: 10, 3: 10}
+	assert.Equal(t, int64(0), pickGroupIDWithCapacity([]int64{1, 3}, full, 0, 10))
+}
+
+func TestCountsActiveMapsByGroup_EmptyIDs(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	tx := gorm.New(db).GORM()
+	out, err := countsActiveMapsByGroup(tx, nil)
+	require.NoError(t, err)
+	assert.Empty(t, out)
+}
+
+func TestCountsActiveMapsByGroup_ActiveOnly(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+	g, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-count-" + uuid.NewString()})
+	require.NoError(t, err)
+	n1, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n-count-1"})
+	require.NoError(t, err)
+	n2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n-count-2"})
+	require.NoError(t, err)
+	m1, err := repo.CreateNodeNodeGroupMap(ctx, &datamodel.NodeNodeGroupMap{
+		BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+		NodeID:        n1.ID,
+		NodeGroupID:   g.ID,
+		HarvestConfig: &datamodel.HarvestConfig{PORT: "13001"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, repo.DeleteNodeNodeGroupMap(ctx, m1.ID))
+	_, err = repo.CreateNodeNodeGroupMap(ctx, &datamodel.NodeNodeGroupMap{
+		BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+		NodeID:        n2.ID,
+		NodeGroupID:   g.ID,
+		HarvestConfig: &datamodel.HarvestConfig{PORT: "13002"},
+	})
+	require.NoError(t, err)
+
+	tx := repo.db.GORM()
+	out, err := countsActiveMapsByGroup(tx, []int64{g.ID, 99999})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), out[g.ID])
+	_, ok := out[99999]
+	assert.False(t, ok)
+}
+
+func TestLockNonFullNodeGroupIDs_ExcludesFullGroups(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+	const maxPer = 3
+	full, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-full-lock"})
+	require.NoError(t, err)
+	partial, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-partial-lock"})
+	require.NoError(t, err)
+	for i := 0; i < maxPer; i++ {
+		n, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: fmt.Sprintf("n-full-%d", i)})
+		require.NoError(t, err)
+		_, err = repo.CreateNodeNodeGroupMap(ctx, &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        n.ID,
+			NodeGroupID:   full.ID,
+			HarvestConfig: &datamodel.HarvestConfig{PORT: fmt.Sprintf("%d", 13001+i)},
+		})
+		require.NoError(t, err)
+	}
+
+	tx := repo.db.GORM()
+	ids, err := lockNonFullNodeGroupIDs(tx, maxPer)
+	require.NoError(t, err)
+	assert.Contains(t, ids, partial.ID)
+	assert.NotContains(t, ids, full.ID)
+}
+
+func installSQLiteGroupPortUniqueIndex(t *testing.T, db *gormdb.DB) {
+	t.Helper()
+	err := db.Exec(`
+CREATE UNIQUE INDEX IF NOT EXISTS idx_node_node_group_maps_group_port_active_uq
+ON node_node_group_maps (node_group_id, json_extract(harvest_config, '$.PORT'))
+WHERE deleted_at IS NULL`).Error
+	require.NoError(t, err)
+}
+
+func TestCreateNodeNodeGroupMapWithPortRetries_ConcurrentSameGroup(t *testing.T) {
+	db, dbFile, err := SetupTestFileDB()
+	require.NoError(t, err)
+	defer cleanupTestDBFile(db, dbFile)
+	repo := &DataStoreRepository{db: gorm.New(db)}
+	require.NoError(t, ClearInMemoryDB(db))
+	installSQLiteGroupPortUniqueIndex(t, db)
+
+	ctx := context.Background()
+	group, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-port-race"})
+	require.NoError(t, err)
+	group.LeaseName = "lease-race"
+
+	const workers = 16
+	var wg sync.WaitGroup
+	errCh := make(chan error, workers)
+	params := datamodel.NodeGroupAssignmentParams{CustomerProject: "port-race", MaxNodesPerGroup: 50}
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n, e := repo.CreateNode(ctx, &datamodel.Node{
+				BaseModel: datamodel.BaseModel{UUID: uuid.NewString()},
+				Name:      "n-race-" + uuid.NewString(),
+				PoolID:    1,
+			})
+			if e != nil {
+				errCh <- e
+				return
+			}
+			tx := repo.db.GORM().WithContext(ctx).Begin()
+			if tx.Error != nil {
+				errCh <- tx.Error
+				return
+			}
+			_, e = repo.createNodeNodeGroupMapWithPortRetries(ctx, tx, n, group, params)
+			if e != nil {
+				_ = tx.Rollback()
+				errCh <- e
+				return
+			}
+			errCh <- tx.Commit().Error
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for e := range errCh {
+		require.NoError(t, e)
+	}
+
+	gdb := repo.db.GORM()
+	var cnt int64
+	require.NoError(t, gdb.Model(&datamodel.NodeNodeGroupMap{}).
+		Where("node_group_id = ? AND deleted_at IS NULL", group.ID).Count(&cnt).Error)
+	assert.Equal(t, int64(workers), cnt)
+
+	type groupPort struct {
+		gid int64
+		p   string
+	}
+	seen := make(map[groupPort]struct{})
+	var maps []datamodel.NodeNodeGroupMap
+	require.NoError(t, gdb.Find(&maps).Error)
+	for i := range maps {
+		m := &maps[i]
+		if m.DeletedAt != nil && m.DeletedAt.Valid || m.HarvestConfig == nil || m.HarvestConfig.PORT == "" {
+			continue
+		}
+		k := groupPort{gid: m.NodeGroupID, p: m.HarvestConfig.PORT}
+		_, dup := seen[k]
+		assert.False(t, dup, "duplicate port %q in group %d", k.p, k.gid)
+		seen[k] = struct{}{}
+	}
+}
+
+func TestCreateNodeNodeGroupMapWithPortRetries_RetriesAfterPortCollision(t *testing.T) {
+	db, dbFile, err := SetupTestFileDB()
+	require.NoError(t, err)
+	defer cleanupTestDBFile(db, dbFile)
+	repo := &DataStoreRepository{db: gorm.New(db)}
+	require.NoError(t, ClearInMemoryDB(db))
+	installSQLiteGroupPortUniqueIndex(t, db)
+
+	oldStart, oldEnd := portStart, portEnd
+	portStart = 13001
+	portEnd = 13002
+	defer func() {
+		portStart = oldStart
+		portEnd = oldEnd
+	}()
+
+	ctx := context.Background()
+	group, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-port-retry"})
+	require.NoError(t, err)
+	group.LeaseName = "lease-retry"
+	params := datamodel.NodeGroupAssignmentParams{CustomerProject: "port-retry", MaxNodesPerGroup: 50}
+
+	nodes := make([]*datamodel.Node, 2)
+	for i := range nodes {
+		nodes[i], err = repo.CreateNode(ctx, &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: uuid.NewString()},
+			Name:      fmt.Sprintf("n-retry-%d", i),
+			PoolID:    2,
+		})
+		require.NoError(t, err)
+	}
+
+	ready := make(chan struct{})
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2)
+	for _, n := range nodes {
+		wg.Add(1)
+		go func(node *datamodel.Node) {
+			defer wg.Done()
+			<-ready
+			tx := repo.db.GORM().WithContext(ctx).Begin()
+			if tx.Error != nil {
+				errCh <- tx.Error
+				return
+			}
+			<-start
+			_, e := repo.createNodeNodeGroupMapWithPortRetries(ctx, tx, node, group, params)
+			if e != nil {
+				_ = tx.Rollback()
+				errCh <- e
+				return
+			}
+			errCh <- tx.Commit().Error
+		}(n)
+	}
+	close(ready)
+	close(start)
+	wg.Wait()
+	close(errCh)
+	for e := range errCh {
+		require.NoError(t, e)
+	}
+
+	gdb := repo.db.GORM()
+	var maps []datamodel.NodeNodeGroupMap
+	require.NoError(t, gdb.Where("node_group_id = ? AND deleted_at IS NULL", group.ID).Find(&maps).Error)
+	require.Len(t, maps, 2)
+	ports := make(map[string]struct{})
+	for i := range maps {
+		require.NotNil(t, maps[i].HarvestConfig)
+		ports[maps[i].HarvestConfig.PORT] = struct{}{}
+	}
+	assert.Equal(t, map[string]struct{}{"13001": {}, "13002": {}}, ports)
+}
+
+func TestCreateNodeNodeGroupMapWithPortRetries_NonUniqueErrorNoRetry(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+	group, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-nonuniq"})
+	require.NoError(t, err)
+	node, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n-nonuniq"})
+	require.NoError(t, err)
+
+	tx := repo.db.GORM().WithContext(ctx)
+	tx.Error = errors.New("simulated insert failure")
+	_, err = repo.createNodeNodeGroupMapWithPortRetries(ctx, tx, node, group, datamodel.NodeGroupAssignmentParams{CustomerProject: "x"})
+	require.Error(t, err)
+}
+
+func TestAssignTwoNodesToTwoGroups_Node2OnlyExcludesGroup(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+	node1, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n1-exclude"})
+	require.NoError(t, err)
+	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2-exclude"})
+	require.NoError(t, err)
+	occupied, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g-node2-only"})
+	require.NoError(t, err)
+	_, err = repo.CreateNodeNodeGroupMap(ctx, &datamodel.NodeNodeGroupMap{
+		BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+		NodeID:        node2.ID,
+		NodeGroupID:   occupied.ID,
+		HarvestConfig: &datamodel.HarvestConfig{PORT: "13001"},
+	})
+	require.NoError(t, err)
+
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "exclude-sibling-group",
+	})
+	require.NoError(t, err)
+	require.Len(t, mappings, 2)
+
+	var node1Map, node2Map *datamodel.NodeNodeGroupMap
+	for _, m := range mappings {
+		switch m.NodeID {
+		case node1.ID:
+			node1Map = m
+		case node2.ID:
+			node2Map = m
+		}
+	}
+	require.NotNil(t, node1Map)
+	require.NotNil(t, node2Map)
+	assert.Equal(t, occupied.ID, node2Map.NodeGroupID)
+	assert.NotEqual(t, occupied.ID, node1Map.NodeGroupID)
+}
+
+// TestAssignTwoNodesToTwoGroups_SequentialNineThenConcurrentLastTwo mirrors the 11-pool race:
+// nine sequential pair-assigns fill two groups to nine each; the last two assigns run concurrently
+// and must not push either group above maxNodesPerGroup.
+func TestAssignTwoNodesToTwoGroups_SequentialNineThenConcurrentLastTwo(t *testing.T) {
+	db, dbFile, err := SetupTestFileDB()
+	require.NoError(t, err)
+	defer cleanupTestDBFile(db, dbFile)
+	repo := &DataStoreRepository{db: gorm.New(db)}
+	require.NoError(t, ClearInMemoryDB(db))
+	installSQLiteGroupPortUniqueIndex(t, db)
+
+	ctx := context.Background()
+	const maxPer = 10
+
+	var g1ID, g2ID int64
+	for i := 0; i < 9; i++ {
+		n1, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: fmt.Sprintf("seq-n1-%d", i)})
+		require.NoError(t, err)
+		n2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: fmt.Sprintf("seq-n2-%d", i)})
+		require.NoError(t, err)
+		mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+			Node1:            n1,
+			Node2:            n2,
+			MaxNodesPerGroup: maxPer,
+			CustomerProject:  "race11-seq",
+		})
+		require.NoError(t, err)
+		require.Len(t, mappings, 2)
+		if i == 0 {
+			g1ID = mappings[0].NodeGroupID
+			g2ID = mappings[1].NodeGroupID
+		}
+	}
+
+	gdb := repo.db.GORM()
+	var c1, c2 int64
+	require.NoError(t, gdb.Model(&datamodel.NodeNodeGroupMap{}).Where("node_group_id = ? AND deleted_at IS NULL", g1ID).Count(&c1).Error)
+	require.NoError(t, gdb.Model(&datamodel.NodeNodeGroupMap{}).Where("node_group_id = ? AND deleted_at IS NULL", g2ID).Count(&c2).Error)
+	assert.Equal(t, int64(9), c1)
+	assert.Equal(t, int64(9), c2)
+
+	const burst = 2
+	var wg sync.WaitGroup
+	errCh := make(chan error, burst)
+	for i := 0; i < burst; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			n1, e := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: fmt.Sprintf("burst-n1-%d", idx)})
+			if e != nil {
+				errCh <- e
+				return
+			}
+			n2, e := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: fmt.Sprintf("burst-n2-%d", idx)})
+			if e != nil {
+				errCh <- e
+				return
+			}
+			_, e = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+				Node1:            n1,
+				Node2:            n2,
+				MaxNodesPerGroup: maxPer,
+				CustomerProject:  "race11-burst",
+			})
+			errCh <- e
+		}(i)
+	}
+	wg.Wait()
+	close(errCh)
+	for e := range errCh {
+		require.NoError(t, e)
+	}
+
+	require.NoError(t, gdb.Model(&datamodel.NodeNodeGroupMap{}).Where("node_group_id = ? AND deleted_at IS NULL", g1ID).Count(&c1).Error)
+	require.NoError(t, gdb.Model(&datamodel.NodeNodeGroupMap{}).Where("node_group_id = ? AND deleted_at IS NULL", g2ID).Count(&c2).Error)
+	assert.LessOrEqual(t, c1, int64(maxPer))
+	assert.LessOrEqual(t, c2, int64(maxPer))
+	assert.Equal(t, int64(maxPer), c1)
+	assert.Equal(t, int64(maxPer), c2)
 }
 
 func TestListNodeNodeGroupMap_NoPagination(t *testing.T) {

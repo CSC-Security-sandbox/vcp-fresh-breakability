@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,9 @@ var (
 	portEnd                 = env.GetInt("HARVEST_PORT_END", 13500)
 	vsaNodeUserName         = env.GetString("VSA_NODE_USERNAME", "admin")
 )
+
+// maxHarvestPortInsertRetries limits remap attempts when the unique (node_group_id, port) index rejects an insert.
+const maxHarvestPortInsertRetries = 8
 
 // CreateNodeNodeGroupMap creates a new node to nodegroup mapping
 func (d *DataStoreRepository) CreateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error) {
@@ -157,6 +161,17 @@ func (d *DataStoreRepository) DeleteNodeNodeGroupMap(ctx context.Context, id int
 // AssignTwoNodesToTwoGroups assigns two nodes to two different node groups, ensuring no group exceeds maxNodesPerGroup nodes
 // Assumes that node1 and node2 are pre-created and have valid IDs
 // This function is idempotent - if nodes are already assigned to groups, it returns the existing mappings
+//
+// All reads and writes run in a single database transaction. On PostgreSQL, non-full node_groups rows are locked
+// (ORDER BY id FOR UPDATE) before capacity is re-checked, preventing concurrent overfill and port races; a unique
+// index on (node_group_id, harvest port) is a safety net with bounded insert retries.
+//
+// Cross-pool safety: node groups are global; concurrent pool registrations serialize on overlapping node_groups row
+// locks on PostgreSQL. SQLite unit tests use a file-backed DB plus one transaction per assign; production uses Postgres.
+//
+// Poller / rebalance: rebalance commit locks target node_groups (FOR UPDATE) before Save. Upload picks a port via
+// GetFirstAvailablePort (single locked read on Postgres). A concurrent pool assign can still commit between upload
+// and commit so Save hits the unique (node_group_id, port) index—rebalance workflows should retry on that failure.
 func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error) {
 	logger := util.GetLogger(ctx)
 	if params.Node1 == nil || params.Node2 == nil {
@@ -171,152 +186,264 @@ func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, par
 		logger.Errorf("AssignTwoNodesToTwoGroups: maxNodesPerGroup must be greater than zero (got %d)", params.MaxNodesPerGroup)
 		return nil, errors.New("maxNodesPerGroup must be greater than zero")
 	}
-	tx := d.db.GORM().WithContext(ctx)
+
+	tx, err := startTransaction(d.db.GORM().WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	ctxTx := utils.WithTx(ctx, tx)
 	logger.Debugf("AssignTwoNodesToTwoGroups: node1.ID=%d, node2.ID=%d, maxNodesPerGroup=%d", params.Node1.ID, params.Node2.ID, params.MaxNodesPerGroup)
-	ctxWithTx := utils.WithTx(ctx, tx)
 
-	// Check if nodes are already assigned to groups
-	logger.Debugf("Checking existing mappings for node1.ID=%d and node2.ID=%d", params.Node1.ID, params.Node2.ID)
+	var mappings []*datamodel.NodeNodeGroupMap
+	mappings, err = d.assignTwoNodesToTwoGroupsTx(ctxTx, tx, params)
+	return mappings, err
+}
+
+func (d *DataStoreRepository) assignTwoNodesToTwoGroupsTx(
+	ctx context.Context,
+	tx *gorm.DB,
+	params datamodel.NodeGroupAssignmentParams,
+) ([]*datamodel.NodeNodeGroupMap, error) {
+	logger := util.GetLogger(ctx)
 	var existingMapping1, existingMapping2 datamodel.NodeNodeGroupMap
-	err1 := tx.Preload("NodeGroup").Where("node_id = ?", params.Node1.ID).First(&existingMapping1).Error
-	err2 := tx.Preload("NodeGroup").Where("node_id = ?", params.Node2.ID).First(&existingMapping2).Error
+	err1 := tx.WithContext(ctx).Preload("NodeGroup").Where("node_id = ?", params.Node1.ID).First(&existingMapping1).Error
+	err2 := tx.WithContext(ctx).Preload("NodeGroup").Where("node_id = ?", params.Node2.ID).First(&existingMapping2).Error
 
-	// If both nodes already have mappings, return them (idempotent behavior)
 	if err1 == nil && err2 == nil {
 		logger.Infof("Both nodes are already assigned: node1 (ID: %d) -> group %d, node2 (ID: %d) -> group %d",
 			params.Node1.ID, existingMapping1.NodeGroupID, params.Node2.ID, existingMapping2.NodeGroupID)
 		return []*datamodel.NodeNodeGroupMap{&existingMapping1, &existingMapping2}, nil
 	}
+	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
+	}
+	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err2)
+	}
 
-	var group1, group2 datamodel.NodeGroup
+	lockedIDs, err := lockNonFullNodeGroupIDs(tx, params.MaxNodesPerGroup)
+	if err != nil {
+		logger.Errorf("lockNonFullNodeGroupIDs: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
 
-	// Handle node1 assignment
+	counts, err := countsActiveMapsByGroup(tx, lockedIDs)
+	if err != nil {
+		logger.Errorf("countsActiveMapsByGroup: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	candidates := append([]int64(nil), lockedIDs...)
+
+	excludeForNode1 := int64(0)
+	if err2 == nil {
+		excludeForNode1 = existingMapping2.NodeGroupID
+	}
+
+	var group1 datamodel.NodeGroup
 	if err1 == nil {
-		// Node1 already has a mapping, get its group
 		logger.Infof("Node1 (ID: %d) is already assigned to group %d", params.Node1.ID, existingMapping1.NodeGroupID)
-		err := tx.Where("id = ?", existingMapping1.NodeGroupID).First(&group1).Error
-		if err != nil {
+		if err := tx.WithContext(ctx).First(&group1, existingMapping1.NodeGroupID).Error; err != nil {
 			logger.Errorf("Failed to fetch group for node1.ID=%d, groupID=%d: %v", params.Node1.ID, existingMapping1.NodeGroupID, err)
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
-	} else if errors.Is(err1, gorm.ErrRecordNotFound) {
-		// Node1 needs a new assignment, find an available group
-		logger.Debugf("Node1 (ID: %d) not assigned, searching for available group (maxNodesPerGroup=%d)", params.Node1.ID, params.MaxNodesPerGroup)
-		subquery := tx.Model(&datamodel.NodeNodeGroupMap{}).
-			Select("node_group_id").
-			Group("node_group_id").
-			Having("COUNT(node_id) < ?", params.MaxNodesPerGroup)
-
-		err := tx.Model(&datamodel.NodeGroup{}).
-			Where("id IN (?)", subquery).
-			Limit(1).
-			Find(&group1).Error
-		if err != nil {
-			logger.Errorf("Error searching for available group for node1.ID=%d: %v", params.Node1.ID, err)
-		}
-		if group1.ID == 0 {
+	} else {
+		logger.Debugf("Node1 (ID: %d) not assigned, picking group (maxNodesPerGroup=%d)", params.Node1.ID, params.MaxNodesPerGroup)
+		gid := pickGroupIDWithCapacity(candidates, counts, excludeForNode1, params.MaxNodesPerGroup)
+		if gid == 0 {
 			logger.Infof("No available group found for node1.ID=%d, creating new group", params.Node1.ID)
-			group1Ptr, err := generateRandomNodeGroup(ctxWithTx, d, group1)
+			group1Ptr, err := generateRandomNodeGroup(ctx, d, datamodel.NodeGroup{})
 			if err != nil {
 				logger.Errorf("Failed to create new group for node1.ID=%d: %v", params.Node1.ID, err)
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 			}
 			group1 = *group1Ptr
+			candidates = appendSortedUniqueIDs(candidates, group1.ID)
+			counts[group1.ID] = 0
+		} else {
+			if err := tx.WithContext(ctx).First(&group1, gid).Error; err != nil {
+				logger.Errorf("Failed to fetch group id=%d for node1: %v", gid, err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+			}
 		}
-	} else {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
 	}
 
-	// Handle node2 assignment
+	var group2 datamodel.NodeGroup
 	if err2 == nil {
-		// Node2 already has a mapping, get its group
 		logger.Infof("Node2 (ID: %d) is already assigned to group %d", params.Node2.ID, existingMapping2.NodeGroupID)
-		err := tx.Where("id = ?", existingMapping2.NodeGroupID).First(&group2).Error
-		if err != nil {
+		if err := tx.WithContext(ctx).First(&group2, existingMapping2.NodeGroupID).Error; err != nil {
 			logger.Errorf("Failed to fetch group for node2.ID=%d, groupID=%d: %v", params.Node2.ID, existingMapping2.NodeGroupID, err)
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
-	} else if errors.Is(err2, gorm.ErrRecordNotFound) {
-		// Node2 needs a new assignment, find an available group (different from group1)
-		logger.Debugf("Node2 (ID: %d) not assigned, searching for available group (maxNodesPerGroup=%d, exclude group1.ID=%d)", params.Node2.ID, params.MaxNodesPerGroup, group1.ID)
-		subquery := tx.Model(&datamodel.NodeNodeGroupMap{}).
-			Select("node_group_id").
-			Group("node_group_id").
-			Having("COUNT(node_id) < ?", params.MaxNodesPerGroup)
-
-		err := tx.Model(&datamodel.NodeGroup{}).
-			Where("id IN (?)", subquery).
-			Where("id != ?", group1.ID).
-			Limit(1).
-			Find(&group2).Error
-		if err != nil {
-			logger.Errorf("Error searching for available group for node2.ID=%d: %v", params.Node2.ID, err)
-		}
-		if group2.ID == 0 {
+	} else {
+		logger.Debugf("Node2 (ID: %d) not assigned, picking group (maxNodesPerGroup=%d, exclude group1.ID=%d)", params.Node2.ID, params.MaxNodesPerGroup, group1.ID)
+		gid := pickGroupIDWithCapacity(candidates, counts, group1.ID, params.MaxNodesPerGroup)
+		if gid == 0 {
 			logger.Infof("No available group found for node2.ID=%d, creating new group", params.Node2.ID)
-			group2Ptr, err := generateRandomNodeGroup(ctxWithTx, d, group2)
+			group2Ptr, err := generateRandomNodeGroup(ctx, d, datamodel.NodeGroup{})
 			if err != nil {
 				logger.Errorf("Failed to create new group for node2.ID=%d: %v", params.Node2.ID, err)
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 			}
 			group2 = *group2Ptr
+		} else {
+			if err := tx.WithContext(ctx).First(&group2, gid).Error; err != nil {
+				logger.Errorf("Failed to fetch group id=%d for node2: %v", gid, err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+			}
 		}
-	} else {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err2)
 	}
 
 	var mappings []*datamodel.NodeNodeGroupMap
 
-	group1Port, g1PortErr1 := GetFirstAvailablePort(tx, group1.ID)
-	if g1PortErr1 != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, g1PortErr1)
-	}
-	group2Port, g1PortErr2 := GetFirstAvailablePort(tx, group2.ID)
-	if g1PortErr2 != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, g1PortErr2)
-	}
-
-	// Create mapping for node1 if it doesn't exist
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
-		logger.Infof("Creating new mapping for node1.ID=%d to group1.ID=%d", params.Node1.ID, group1.ID)
-		mapping1 := &datamodel.NodeNodeGroupMap{
-			BaseModel:     datamodel.BaseModel{UUID: uuid.New().String()},
-			NodeID:        params.Node1.ID,
-			NodeGroupID:   group1.ID,
-			HarvestConfig: renderHarvestConfig(*params.Node1, group1Port, group1.LeaseName, params),
-			NodeGroup:     &group1,
+		m1, err := d.createNodeNodeGroupMapWithPortRetries(ctx, tx, params.Node1, &group1, params)
+		if err != nil {
+			return nil, err
 		}
-		if err := tx.Create(mapping1).Error; err != nil {
-			logger.Errorf("Failed to create mapping for node1.ID=%d: %v", params.Node1.ID, err)
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
-		}
-		mappings = append(mappings, mapping1)
+		mappings = append(mappings, m1)
 	} else {
 		logger.Debugf("Mapping for node1.ID=%d already exists", params.Node1.ID)
 		mappings = append(mappings, &existingMapping1)
 	}
 
-	// Create mapping for node2 if it doesn't exist
 	if errors.Is(err2, gorm.ErrRecordNotFound) {
-		logger.Infof("Creating new mapping for node2.ID=%d to group2.ID=%d", params.Node2.ID, group2.ID)
-		mapping2 := &datamodel.NodeNodeGroupMap{
-			BaseModel:     datamodel.BaseModel{UUID: uuid.New().String()},
-			NodeID:        params.Node2.ID,
-			NodeGroupID:   group2.ID,
-			HarvestConfig: renderHarvestConfig(*params.Node2, group2Port, group2.LeaseName, params),
-			NodeGroup:     &group2,
+		m2, err := d.createNodeNodeGroupMapWithPortRetries(ctx, tx, params.Node2, &group2, params)
+		if err != nil {
+			return nil, err
 		}
-		if err := tx.Create(mapping2).Error; err != nil {
-			logger.Errorf("Failed to create mapping for node2.ID=%d: %v", params.Node2.ID, err)
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
-		}
-		mappings = append(mappings, mapping2)
+		mappings = append(mappings, m2)
 	} else {
 		logger.Debugf("Mapping for node2.ID=%d already exists", params.Node2.ID)
 		mappings = append(mappings, &existingMapping2)
 	}
 
 	return mappings, nil
+}
+
+func lockNonFullNodeGroupIDs(tx *gorm.DB, maxNodesPerGroup int) ([]int64, error) {
+	var ids []int64
+	// PostgreSQL: pessimistic row locks on candidate groups in deterministic order (wiki Approach A).
+	// SQLite (unit tests): same predicate without FOR UPDATE — assignment still runs atomically in one transaction.
+	q := `
+SELECT g.id
+FROM node_groups g
+WHERE g.deleted_at IS NULL
+  AND (
+        SELECT COUNT(*) FROM node_node_group_maps m
+        WHERE m.node_group_id = g.id AND m.deleted_at IS NULL
+      ) < ?
+ORDER BY g.id ASC`
+	if tx.Dialector.Name() == "postgres" {
+		q += `
+FOR UPDATE OF g`
+	}
+	err := tx.Raw(q, maxNodesPerGroup).Scan(&ids).Error
+	return ids, err
+}
+
+type nodeGroupCountRow struct {
+	NodeGroupID int64 `gorm:"column:node_group_id"`
+	N           int64 `gorm:"column:n"`
+}
+
+func countsActiveMapsByGroup(tx *gorm.DB, groupIDs []int64) (map[int64]int64, error) {
+	out := make(map[int64]int64)
+	if len(groupIDs) == 0 {
+		return out, nil
+	}
+	var rows []nodeGroupCountRow
+	err := tx.Raw(`
+SELECT node_group_id, COUNT(*) AS n
+FROM node_node_group_maps
+WHERE node_group_id IN ? AND deleted_at IS NULL
+GROUP BY node_group_id`, groupIDs).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		out[rows[i].NodeGroupID] = rows[i].N
+	}
+	return out, nil
+}
+
+func pickGroupIDWithCapacity(orderedGroupIDs []int64, counts map[int64]int64, excludeID int64, maxNodesPerGroup int) int64 {
+	maxN := int64(maxNodesPerGroup)
+	for _, id := range orderedGroupIDs {
+		if excludeID != 0 && id == excludeID {
+			continue
+		}
+		n := counts[id]
+		if n < maxN {
+			return id
+		}
+	}
+	return 0
+}
+
+func appendSortedUniqueIDs(ids []int64, id int64) []int64 {
+	for _, x := range ids {
+		if x == id {
+			return ids
+		}
+	}
+	ids = append(ids, id)
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids
+}
+
+// IsHarvestNodeGroupPortUniqueViolation reports whether err is a unique violation on
+// (node_group_id, harvest_config->>'PORT') from idx_node_node_group_maps_group_port_active_uq.
+func IsHarvestNodeGroupPortUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	if strings.Contains(s, "idx_node_node_group_maps_group_port_active_uq") {
+		return true
+	}
+	if strings.Contains(s, "UNIQUE constraint failed") {
+		return true
+	}
+	return strings.Contains(s, "duplicate key") && strings.Contains(s, "node_node_group_maps")
+}
+
+func (d *DataStoreRepository) createNodeNodeGroupMapWithPortRetries(
+	ctx context.Context,
+	tx *gorm.DB,
+	node *datamodel.Node,
+	group *datamodel.NodeGroup,
+	params datamodel.NodeGroupAssignmentParams,
+) (*datamodel.NodeNodeGroupMap, error) {
+	logger := util.GetLogger(ctx)
+	var lastErr error
+	for attempt := 0; attempt < maxHarvestPortInsertRetries; attempt++ {
+		port, err := GetFirstAvailablePort(tx, group.ID)
+		if err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
+		}
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.New().String()},
+			NodeID:        node.ID,
+			NodeGroupID:   group.ID,
+			HarvestConfig: renderHarvestConfig(*node, port, group.LeaseName, params),
+			NodeGroup:     group,
+		}
+		logger.Infof("Creating new mapping for node.ID=%d to group.ID=%d (port attempt %d)", node.ID, group.ID, attempt+1)
+		if err := tx.WithContext(ctx).Create(mapping).Error; err != nil {
+			lastErr = err
+			if IsHarvestNodeGroupPortUniqueViolation(err) && attempt < maxHarvestPortInsertRetries-1 {
+				logger.Warnf("Port collision on insert for node.ID=%d group.ID=%d, retrying: %v", node.ID, group.ID, err)
+				continue
+			}
+			logger.Errorf("Failed to create mapping for node.ID=%d: %v", node.ID, err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
+		}
+		return mapping, nil
+	}
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, lastErr)
 }
 
 func renderHarvestConfig(node datamodel.Node, port string, leaseName string, params datamodel.NodeGroupAssignmentParams) *datamodel.HarvestConfig {
@@ -349,10 +476,47 @@ func _generateRandomNodeGroup(ctx context.Context, d *DataStoreRepository, group
 	return group1Ptr, err
 }
 
+// portRow is a single assigned poller port for a node group (harvest_config.PORT).
+type portRow struct {
+	Port string `gorm:"column:port"`
+}
+
+// GetFirstAvailablePort returns the lowest free TCP port in [portStart, portEnd] for harvest_config on
+// active mappings in the given node_group_id.
+//
+// On PostgreSQL, port discovery runs in the same SQL statement as a FOR UPDATE on the parent node_groups
+// row (CTE locked), so the lock is held for the entire port scan even when tx is in autocommit mode.
+// When tx is part of a larger transaction, that lock integrates with other row locks in that transaction.
+// SQLite uses a plain scan (no row lock); concurrent writers there rely on the unique (node_group_id, port)
+// index and insert-time retries where applicable.
 func GetFirstAvailablePort(tx *gorm.DB, groupID int64) (string, error) {
-	assigned := make(map[int]struct{})
-	type result struct{ Port string }
-	var rows []result
+	if tx != nil && tx.Dialector.Name() == "postgres" {
+		return getFirstAvailablePortPostgres(tx, groupID)
+	}
+	return getFirstAvailablePortDefaultScan(tx, groupID)
+}
+
+func getFirstAvailablePortPostgres(tx *gorm.DB, groupID int64) (string, error) {
+	var rows []portRow
+	err := tx.Raw(`
+WITH locked AS (
+	SELECT id FROM node_groups WHERE id = ? AND deleted_at IS NULL FOR UPDATE
+)
+SELECT m.harvest_config->>'PORT' AS port
+FROM node_node_group_maps m
+WHERE m.node_group_id = (SELECT id FROM locked)
+  AND m.deleted_at IS NULL
+  AND m.harvest_config->>'PORT' IS NOT NULL
+  AND m.harvest_config->>'PORT' <> ''
+`, groupID).Scan(&rows).Error
+	if err != nil {
+		return "", fmt.Errorf("failed to query assigned ports: %w", err)
+	}
+	return pickLowestFreePortFromUsed(rows, groupID)
+}
+
+func getFirstAvailablePortDefaultScan(tx *gorm.DB, groupID int64) (string, error) {
+	var rows []portRow
 	err := tx.Model(&datamodel.NodeNodeGroupMap{}).
 		Select("harvest_config->>'PORT' as port").
 		Where("node_group_id = ? AND harvest_config->>'PORT' IS NOT NULL AND harvest_config->>'PORT' != ''", groupID).
@@ -360,6 +524,11 @@ func GetFirstAvailablePort(tx *gorm.DB, groupID int64) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to query assigned ports: %w", err)
 	}
+	return pickLowestFreePortFromUsed(rows, groupID)
+}
+
+func pickLowestFreePortFromUsed(rows []portRow, groupID int64) (string, error) {
+	assigned := make(map[int]struct{})
 	for _, r := range rows {
 		var p int
 		if _, err := fmt.Sscanf(r.Port, "%d", &p); err != nil {

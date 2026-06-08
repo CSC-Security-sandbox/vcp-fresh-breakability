@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_node_node_group_maps_group_port_active_uq;
