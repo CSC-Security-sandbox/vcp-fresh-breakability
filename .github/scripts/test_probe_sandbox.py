@@ -181,6 +181,44 @@ def test_env_scrub_no_leaks():
     print("✓ test_env_scrub_no_leaks passed")
 
 
+def test_grade_residual_classifies_all_bullets_before_truncating():
+    """A not-observable bullet after MAX_BULLETS must still veto probing."""
+    pr = {
+        "package": "example.com/pkg",
+        "from": "1.0.0",
+        "to": "1.1.0",
+        "deterministic": {
+            "changelogSignal": {
+                "bullets": [
+                    "function now returns an error instead of nil",
+                    "function now returns 0 instead of -1",
+                    "output format changed to RFC3339",
+                    "now rejects empty strings with a validation error",
+                    "no longer returns nil; returns an empty slice",
+                    "default cardinality limit changed 0 -> 2000",
+                ]
+            }
+        },
+        "declared_break_reachability": {
+            "surface_evidence": [{
+                "named": True,
+                "is_test": False,
+                "path": "example.com/pkg",
+                "symbol": "New",
+                "file": "internal/metrics.go",
+                "line": 22,
+            }]
+        },
+    }
+
+    grade = differential_probe.grade_residual("999", pr, {"probe": 10, "reason": 0})
+    assert grade["router_class"] == "not_observable", (
+        "not-observable bullet after MAX_BULLETS must still route to reasoning, not probe"
+    )
+    assert grade["source"] != "budget_exhausted", "probe path should not be reached"
+    print("✓ test_grade_residual_classifies_all_bullets_before_truncating passed")
+
+
 def run_all():
     """Run all tests."""
     tests = [
@@ -189,6 +227,7 @@ def run_all():
         test_ephemeral_home,
         test_workdir_validation,
         test_env_scrub_no_leaks,
+        test_grade_residual_classifies_all_bullets_before_truncating,
     ]
     
     failed = []

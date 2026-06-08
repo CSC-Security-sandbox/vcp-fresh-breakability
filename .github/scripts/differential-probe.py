@@ -571,11 +571,15 @@ def grade_residual(num, pr, budgets):
     """
     det = pr.get("deterministic") or {}
     sig = det.get("changelogSignal") or {}
-    bullets = clean_bullets(sig.get("bullets") or [])[:MAX_BULLETS]
+    # Classify over ALL bullets before truncating prompt payload. A not-observable
+    # runtime/default/config bullet hidden after MAX_BULLETS must still veto probing;
+    # otherwise earlier call-observable bullets can create a false-green probe.
+    all_bullets = clean_bullets(sig.get("bullets") or [])
+    bullets = all_bullets[:MAX_BULLETS]
     site = first_prod_site(pr)
-    router = classify_break(bullets)
+    router = classify_break(all_bullets)
 
-    if not bullets or not site:
+    if not all_bullets or not site:
         # No usable scope -> honest Medium (still committed, no punt).
         return {
             "grade": "medium", "source": "insufficient_context",
