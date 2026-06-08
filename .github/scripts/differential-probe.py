@@ -219,18 +219,79 @@ def _as_bool(v):
     return None  # unknown / "unclear"
 
 
-def derive_grade(c):
+# ── provenance helpers ──────────────────────────────────────────────────────
+# Strings the agent might write as placeholder "observed" values that do NOT
+# constitute real probe output. Checked case-insensitively.
+_TRIVIAL_OUTPUT = frozenset({
+    "", "none", "n/a", "null", "undefined", "unknown", "false", "true",
+    "0", "1", "[]", "{}", '""', "''", "pass", "ok", "error", "(none)", "n/a.",
+    "no output", "no change", "-", "--",
+})
+# Minimum bytes for a non-trivial observed value.
+_MIN_OBSERVED_LEN = 4
+
+
+def _observed_output_is_real(ofrom: str, oto: str) -> bool:
+    """Both observed_from/to are non-trivial, indicating the probe actually ran
+    and captured concrete output rather than filling in placeholder text."""
+    f = ofrom.strip()
+    t = oto.strip()
+    return (
+        len(f) >= _MIN_OBSERVED_LEN
+        and len(t) >= _MIN_OBSERVED_LEN
+        and f.lower() not in _TRIVIAL_OUTPUT
+        and t.lower() not in _TRIVIAL_OUTPUT
+    )
+
+
+def _evidence_grounded_in_sources(evidence_text: str, source_context) -> bool:
+    """Return True iff evidence_text contains at least one verifiable anchor
+    (a token of ≥10 characters) drawn from the supplied changelog/bullet/callsite
+    inputs that were fed to the agent.
+
+    Conservative by design: if all source texts are too generic (no 10-char
+    tokens), or if source_context is absent, this returns False (→ Medium floor).
+    AI-authored prose that does not quote from the actual supplied inputs fails
+    the check regardless of length.
+    """
+    if not source_context or not evidence_text:
+        return False
+    ev = evidence_text.lower()
+    # Changelog text and bullet: shared technical tokens are reliable anchors.
+    for key in ("bullet", "changelog_text"):
+        src = (source_context.get(key) or "").strip().lower()
+        for token in re.findall(r"[a-z0-9_/.\-]{10,}", src):
+            if token in ev:
+                return True
+    # Call-site: the file path or symbol name are stable identifiers.
+    cs = source_context.get("call_site") or {}
+    for anchor_key in ("file", "symbol"):
+        anchor = (cs.get(anchor_key) or "").strip()
+        if len(anchor) >= 6 and anchor.lower() in ev:
+            return True
+    return False
+
+
+def derive_grade(c, source_context=None):
     grade, reason = _derive_grade_raw(c)
-    # PROOF FLOOR: the AI may only LOWER risk with cited proof. A probe-derived low/none
-    # must carry either a release-note/source quote (evidence) or concrete observed
-    # from->to values. Plausible prose without a citation is floored back to Medium.
+    # PROOF FLOOR: the AI may only LOWER risk with grounded proof.
+    # A probe-derived low/none must be backed by:
+    #   (a) real observed from->to values (both non-trivial — the probe ran), OR
+    #   (b) evidence text containing a verifiable anchor from the supplied
+    #       changelog/bullet/callsite inputs (not arbitrary prose).
+    # Length of invented prose is NOT sufficient — floored back to Medium.
     if grade in ("low", "none"):
-        evidence = str(c.get("evidence", "")).strip()
         ofrom = str(c.get("observed_from", "")).strip()
         oto = str(c.get("observed_to", "")).strip()
-        if not (len(evidence) >= 20 or (ofrom and oto)):
-            return "medium", ("probe lowered risk but lacked cited proof (no source quote and no "
-                              "observed from->to values); floored to Medium (no false-green)")
+        evidence = str(c.get("evidence", "")).strip()
+        if not (_observed_output_is_real(ofrom, oto)
+                or _evidence_grounded_in_sources(evidence, source_context)):
+            return "medium", (
+                "probe lowered risk but evidence lacked provenance: "
+                "observed from/to were absent or trivial, and evidence contained "
+                "no verifiable anchor from the supplied changelog/bullet/callsite; "
+                "floored to Medium (no false-green)"
+            )
     return grade, reason
 
 
@@ -271,8 +332,8 @@ def _derive_grade_raw(c):
     return "medium", "inconclusive probe result; committed at Medium"
 
 
-def build_grade_from_contract(c):
-    grade, reason = derive_grade(c)
+def build_grade_from_contract(c, source_context=None):
+    grade, reason = derive_grade(c, source_context)
     return {
         "grade": grade,
         "source": "probe",
@@ -298,15 +359,20 @@ def build_grade_from_contract(c):
 
 
 # ── not-observable reasoning oracle (release-notes + usage, no execution) ────
-def derive_reasoning_grade(c):
+def derive_reasoning_grade(c, source_context=None):
     grade, reason = _derive_reasoning_grade_raw(c)
-    # PROOF FLOOR: lowering to LOW requires a cited release-note/source quote, not just
-    # plausible "structurally avoids" prose. No citation -> honest Medium.
+    # PROOF FLOOR: lowering to LOW requires evidence grounded in the supplied
+    # changelog/bullet/callsite inputs, not arbitrary "structurally avoids" prose.
+    # Length alone is not sufficient — the reasoning path has no probe output to
+    # rely on, so only source-text grounding counts. No anchor → honest Medium.
     if grade == "low":
         evidence = str(c.get("evidence", "")).strip()
-        if len(evidence) < 20:
-            return "medium", ("release-notes reasoning suggested low exposure but cited no source "
-                              "quote; committed at Medium (only lower with cited proof)")
+        if not _evidence_grounded_in_sources(evidence, source_context):
+            return "medium", (
+                "release-notes reasoning suggested low exposure but evidence "
+                "lacked verifiable provenance (no anchor from supplied "
+                "changelog/bullet/callsite); committed at Medium (no false-green)"
+            )
     return grade, reason
 
 
@@ -330,8 +396,8 @@ def _derive_reasoning_grade_raw(c):
     return "medium", "release-notes reasoning: exposure uncertain; committed at Medium"
 
 
-def build_reasoning_grade(c, site, router):
-    grade, reason = derive_reasoning_grade(c)
+def build_reasoning_grade(c, site, router, source_context=None):
+    grade, reason = derive_reasoning_grade(c, source_context)
     loc = f"{site['file']}:{site['line']}" if site and site.get("line") else (site.get("file") if site else "")
     return {
         "grade": grade,
@@ -650,7 +716,12 @@ def grade_residual(num, pr, budgets):
         }
 
     try:
-        g = build_grade_from_contract(contract)
+        source_ctx = {
+            "bullet": ctx.get("bullet", ""),
+            "changelog_text": str((pr.get("deterministic") or {}).get("changelogText", "")),
+            "call_site": site,
+        }
+        g = build_grade_from_contract(contract, source_ctx)
     except Exception as e:
         # Agent already ran (budget consumed); a malformed contract must NOT escape
         # un-counted or crash the loop. Commit Medium, preserve the budget flag.
@@ -715,7 +786,12 @@ def run_reasoning(num, pr, site, router, bullets):
         log(f"PR {num}: reasoning oracle produced no contract; committed Medium note")
         return note
     try:
-        g = build_reasoning_grade(contract, site, router)
+        source_ctx = {
+            "bullet": ctx.get("bullet", ""),
+            "changelog_text": ctx.get("changelog_text", ""),
+            "call_site": ctx.get("call_site"),
+        }
+        g = build_reasoning_grade(contract, site, router, source_ctx)
     except Exception as e:
         log(f"PR {num}: reasoning contract invalid ({e}); falling back to Medium note")
         g = targeted_note(pr, bullet, site, router)
