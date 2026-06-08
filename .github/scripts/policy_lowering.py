@@ -34,6 +34,7 @@ from evidence_contract import (  # noqa: E402
 )
 from release_notes_evidence import analyse_pr as analyse_release_notes  # noqa: E402
 from callsite_impact import analyze as analyze_callsite_impact  # noqa: E402
+from agent_adjudicator import adjudicate_reachability  # noqa: E402
 
 
 def _load_lite_module() -> Any:
@@ -401,10 +402,15 @@ def bundle_for_pr(pr: Mapping[str, Any], global_test_exit: Optional[int] = None)
             or bool(pr.get("cves"))
         ),
     )
+    # Reachability adjudication — the agent-review layer's deterministic core. For a
+    # break-reachable API, decide whether a *changed* symbol is actually called, or scope a
+    # precise task for the AI agent when symbol-level reachability is unresolved.
+    adjudication = adjudicate_reachability(pr, callsite, reachability)
     support = {
         "release_notes": release_notes.to_dict(),
         "reachability": reachability,
         "callsite_impact": callsite,
+        "reachability_adjudication": adjudication,
     }
     return bundle, support
 
