@@ -18,6 +18,7 @@ unset GH_TOKEN
 
 RESULTS_FILE="/tmp/build-results.json"
 OWNER_REPO="${GITHUB_REPOSITORY:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "════════════ MERGE BATCH RESULTS ════════════"
 
@@ -247,8 +248,9 @@ CROSSDEPS
 # ── Step 5: Security posture scan ────────────────────────────────────────────
 echo ""
 echo "════════════ SECURITY POSTURE ════════════"
-OWNER_REPO="$OWNER_REPO" python3 << 'SECURITYEOF'
+PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}" OWNER_REPO="$OWNER_REPO" python3 << 'SECURITYEOF'
 import json, subprocess, os
+from cve_security_posture import build_cve_attribution
 
 owner_repo = os.environ["OWNER_REPO"]
 
@@ -312,79 +314,7 @@ for num, pr in prs.items():
             "cve_ids": [a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "") for a in matching_alerts]
         }
 
-# V9.8 iter6 (B): precise alert↔PR matching via first_patched_version + orphan alerts
-def _parse_semver(v):
-    if not v: return None
-    s = str(v).lstrip("v").lstrip("=").strip()
-    for sep in ("-", "+"):
-        if sep in s: s = s.split(sep, 1)[0]
-    parts = s.split(".")
-    try:
-        return tuple(int(p) for p in parts[:3]) + (0,) * (3 - min(3, len(parts)))
-    except ValueError:
-        return None
-
-def _semver_gte(a, b):
-    pa, pb = _parse_semver(a), _parse_semver(b)
-    if pa is None or pb is None: return False
-    return pa >= pb
-
-cve_fixes, orphan_alerts = [], []
-_seen_fixes = set()
-_seen_orphans = set()
-for a in open_alerts:
-    alert_pkg = a.get("dependency", {}).get("package", "")
-    fpv = a.get("security_vulnerability", {}).get("first_patched_version")
-    sev = a.get("security_advisory", {}).get("severity", "unknown")
-    cve = a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "")
-    summary = a.get("security_advisory", {}).get("summary", "")
-    matched = False
-    for num, pr in prs.items():
-        bumped = pr.get("bumped_modules") or {}
-        # Resulting version of the alert package after this PR: the PR's own bump if
-        # it targets the package directly, else the version this PR raised it to in
-        # go.sum (transitive go.mod bump). Gate on first_patched_version so a bump
-        # that lands below the fix (e.g. otel/sdk 1.42 vs a CVE fixed in 1.43) is NOT
-        # credited, and a delivered transitive bump (otel 1.38->1.42 fixing a CVE
-        # fixed in 1.41) IS credited.
-        if pr.get("package", "") == alert_pkg:
-            resulting_ver = pr.get("to", "")
-            via = "primary"
-        elif alert_pkg in bumped:
-            resulting_ver = bumped[alert_pkg]
-            via = "transitive"
-        else:
-            continue
-        if fpv and _semver_gte(resulting_ver, fpv):
-            _fix_key = (alert_pkg, cve, num)
-            if _fix_key not in _seen_fixes:
-                _seen_fixes.add(_fix_key)
-                cve_fixes.append({
-                    "pr": int(num) if str(num).isdigit() else num,
-                    "package": alert_pkg, "cve_id": cve, "severity": sev,
-                    # For a transitive fix the PR's own from/to belong to a DIFFERENT
-                    # (primary) package, so pairing the primary's from-version with the
-                    # alert package's resulting version fabricates a nonsensical range
-                    # (e.g. migrate 4.18.2 -> x/crypto 0.45.0). Leave from_version empty
-                    # for transitive fixes and record the primary package that carried
-                    # the bump so the render can say "(transitive via <primary pkg>)".
-                    "from_version": ("" if via == "transitive" else pr.get("from", "")),
-                    "to_version": resulting_ver,
-                    "primary_package": pr.get("package", ""),
-                    "first_patched_version": fpv, "via": via, "summary": summary[:200],
-                })
-            matched = True
-    if not matched:
-        _orphan_key = (alert_pkg, cve)
-        if _orphan_key not in _seen_orphans:
-            _seen_orphans.add(_orphan_key)
-            orphan_alerts.append({
-                "cve_id": cve, "package": alert_pkg, "severity": sev,
-                "first_patched_version": fpv or "unknown", "summary": summary[:200],
-            })
-_SEV_ORDER = {"critical": 0, "high": 1, "medium": 2, "moderate": 2, "low": 3, "unknown": 4}
-cve_fixes.sort(key=lambda x: (_SEV_ORDER.get((x["severity"] or "").lower(), 4), x.get("pr", 9999)))
-orphan_alerts.sort(key=lambda x: _SEV_ORDER.get((x["severity"] or "").lower(), 4))
+cve_fixes, orphan_alerts = build_cve_attribution(open_alerts, prs)
 
 security_posture = {
     "total_open_alerts": len(open_alerts),
