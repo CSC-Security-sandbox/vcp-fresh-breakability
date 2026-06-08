@@ -440,7 +440,8 @@ def normalize(pr):
         "tag": existing.get("tag") or "Medium",
         "reason": existing.get("reason") or "change evidence is limited; default caution",
         "evidenceAxis": existing.get("evidenceAxis") or "limited evidence",
-        "confidenceAxis": existing.get("confidenceAxis") or pr.get("verification_label") or "unverified",
+        "buildVerificationAxis": existing.get("buildVerificationAxis") or existing.get("confidenceAxis") or pr.get("verification_label") or "unverified",
+        "confidenceAxis": existing.get("confidenceAxis") or existing.get("buildVerificationAxis") or pr.get("verification_label") or "unverified",
     }
 
 counts = {"Low": 0, "Medium": 0, "High": 0}

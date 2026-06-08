@@ -3900,7 +3900,8 @@ else:
         pr_data["verification_label"] = "L2_build_failed"
 if isinstance(pr_data.get("merge_risk"), dict):
     pr_data["merge_risk"].setdefault("evidenceAxis", "limited evidence")
-    pr_data["merge_risk"]["confidenceAxis"] = f"L{level}" if level >= 0 else pr_data["verification_label"]
+    pr_data["merge_risk"]["buildVerificationAxis"] = f"L{level}" if level >= 0 else pr_data["verification_label"]
+    pr_data["merge_risk"]["confidenceAxis"] = pr_data["merge_risk"]["buildVerificationAxis"]
     if isinstance(pr_data.get("deterministic"), dict) and isinstance(pr_data["deterministic"].get("merge_risk"), dict):
         pr_data["deterministic"]["merge_risk"] = pr_data["merge_risk"]
 
