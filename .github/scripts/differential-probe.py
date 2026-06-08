@@ -38,6 +38,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from break_class_router import classify_break, NOT_OBSERVABLE, AMBIGUOUS, CALL_OBSERVABLE
+from cross_pr_reconciler import filter_package_correct_evidence, reconcile_release_train_grades
 
 RESULTS = os.environ.get("DP_RESULTS", "/tmp/build-results.json")
 PROMPT_FILE = os.environ.get("DP_PROMPT", ".github/differential-probe-prompt.md")
@@ -108,19 +109,33 @@ def clean_bullets(raw_bullets):
 
 def first_prod_site(pr):
     r = pr.get("declared_break_reachability") or {}
+    pr_package = pr.get("package") or ""
     # Prefer the ACTUAL usage site (surface_evidence: where our code references the
     # changed symbol, named first), not the bare import line. The probe/oracle must
     # reason about the real call, e.g. prometheus.New at metric.go:22, not the import.
-    surf = [e for e in (r.get("surface_evidence") or []) if isinstance(e, dict)]
+    #
+    # Package-correctness guard: filter evidence to prefer entries whose import path
+    # matches this PR's package before selecting a call site.  This prevents a trace PR
+    # from picking up a prometheus exporter call site from a sibling otel package that
+    # happens to appear first in the evidence list.
+    raw_surf = [e for e in (r.get("surface_evidence") or []) if isinstance(e, dict)]
+    surf = filter_package_correct_evidence(raw_surf, pr_package)
     for e in sorted(surf, key=lambda x: (not x.get("named"),)):
         if not e.get("is_test") and e.get("file"):
-            return {
-                "import_path": e.get("path") or e.get("import_path") or "",
+            site_ip = e.get("path") or e.get("import_path") or ""
+            site = {
+                "import_path": site_ip,
                 "symbol": e.get("symbol") or "",
                 "file": e.get("file"),
                 "line": safe_int(e.get("line")),
                 "snippet": read_snippet(e.get("file"), safe_int(e.get("line"))),
             }
+            if e.get("_package_mismatch"):
+                log(f"package-mismatch fallback: PR package='{pr_package}' but "
+                    f"best evidence import path='{site_ip}' — no matching evidence found; "
+                    f"oracle will reason about the wrong package unless evidence is corrected")
+                site["_package_mismatch"] = True
+            return site
     for e in (r.get("evidence") or []):
         if isinstance(e, dict) and not e.get("is_test") and e.get("file"):
             return {
@@ -568,7 +583,22 @@ def grade_residual(num, pr, budgets):
     budgets = {"probe": int, "reason": int} -- remaining AI-call allowances. The
     returned dict may carry a private "_ai_kind" ("probe"/"reason") + "_ai_attempted"
     so main() can decrement the right budget.
+
+    The returned dict always includes "call_site_import_path" (the import path of the
+    package at the selected call site) so the cross-PR reconciler can detect
+    package-mismatch grades (e.g. a trace PR whose site resolved to a prometheus
+    exporter because that entry appeared first in the evidence list).
     """
+    g = _grade_residual_inner(num, pr, budgets)
+    site = first_prod_site(pr)
+    if isinstance(g, dict) and site:
+        g.setdefault("call_site_import_path", site.get("import_path") or "")
+        if site.get("_package_mismatch"):
+            g.setdefault("_call_site_package_mismatch", True)
+    return g
+
+
+def _grade_residual_inner(num, pr, budgets):
     det = pr.get("deterministic") or {}
     sig = det.get("changelogSignal") or {}
     # Classify over ALL bullets before truncating prompt payload. A not-observable
@@ -786,6 +816,23 @@ def main():
         # Persist after EACH PR so a mid-loop timeout/kill (budgets can exceed the step
         # timeout) does not discard grades already committed.
         _persist()
+
+    # ── Cross-PR reconciliation: detect package-mismatch and grade inconsistency ──
+    # Run AFTER all PRs are graded so every behavioral_grade is populated.
+    # This catches the "trace PR reasoning about a prometheus exporter callsite" class
+    # of bugs and flags same-evidence -> different-grade inconsistencies within
+    # release-train groups (otel #23/#27/#36, k8s modules, etc.).
+    try:
+        reconcile_notes = reconcile_release_train_grades(prs, data.get("cross_pr_deps") or [])
+        if reconcile_notes:
+            log(f"cross-PR reconciliation flagged {len(reconcile_notes)} PR(s)")
+            for num, note in reconcile_notes.items():
+                if num in prs and isinstance(prs[num].get("behavioral_grade"), dict):
+                    prs[num]["behavioral_grade"]["reconciliation_note"] = note
+                    log(f"  PR {num}: {note[:120]}")
+            _persist()
+    except Exception as e:
+        log(f"cross-PR reconciliation failed (non-fatal): {e}")
 
     if annotated:
         if _persist():
