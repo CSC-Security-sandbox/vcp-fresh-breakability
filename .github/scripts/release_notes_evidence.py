@@ -162,6 +162,22 @@ _OWN_BREAK_MARKERS: List[str] = [
     "requires migration",
 ]
 
+_INSTRUCTION_MARKERS: List[str] = [
+    "ignore prior instruction",
+    "ignore previous instruction",
+    "ignore all rules",
+    "system override",
+    "auto-approve",
+    "safe_to_merge",
+    "verdict:",
+    "status:",
+    "relevant:",
+    "action=",
+    "grade this",
+    "please merge",
+    "do not flag",
+]
+
 
 # ---------------------------------------------------------------------------
 # Text extraction
@@ -291,10 +307,14 @@ def _classify(bullets: List[str], prose: str) -> Tuple[str, List[str], str]:
 
     possible = _hits(norm_prose, POSSIBLE_MARKERS)
     clean = _hits(norm_prose, CLEAN_MARKERS)
+    instruction = _hits(norm_prose, _INSTRUCTION_MARKERS)
 
     if possible:
         snippet = _first_matching_snippet(combined, possible)
         return _RNClass.POSSIBLE_CHANGE, possible, snippet
+
+    if instruction:
+        return _RNClass.UNAVAILABLE, [], ""
 
     if clean:
         snippet = _first_matching_snippet(combined, clean)
