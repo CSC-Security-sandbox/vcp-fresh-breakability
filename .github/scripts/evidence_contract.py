@@ -363,6 +363,20 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     if _is_security_sensitive(bundle):
         return _decision(VerdictAction.REVIEW, _at_least(_max_residual(bundle), SafetySeverity.MEDIUM), Confidence.MEDIUM, "review:security-sensitive")
 
+    release_unavailable = release_notes is not None and release_notes.status == SignalStatus.UNAVAILABLE
+    build_test_clean = _is_pass(build) and _is_pass(test)
+    if build_test_clean and _is_pass(api_diff) and release_unavailable:
+        return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:clean-missing-release-notes")
+    if (
+        build_test_clean
+        and api_diff is not None
+        and api_diff.status == SignalStatus.UNKNOWN
+        and _severity_le(api_diff.severity, SafetySeverity.LOW)
+        and release_notes is not None
+        and not _is_fail(release_notes)
+    ):
+        return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:tests-pass-soft-api-uncertain")
+
     core_clean = _is_pass(build) and _is_pass(test) and _is_pass(api_diff)
     if not core_clean:
         return _decision(VerdictAction.REVIEW, SafetySeverity.MEDIUM, Confidence.LOW, "review:uncertain-critical-signal")
@@ -395,6 +409,8 @@ def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Conf
         "review:security-sensitive": "security-sensitive update requires human review",
         "review:uncertain-critical-signal": "critical build/test/API evidence is missing or uncertain",
         "glance:ci-major-low-residual": "major CI-only update with low residual risk",
+        "glance:clean-missing-release-notes": "build, tests, and API diff are clean; changelog is unavailable",
+        "glance:tests-pass-soft-api-uncertain": "tests pass and API diff only found non-breaking uncertainty",
         "merge:not-reached": "changed dependency is not reached by production code",
         "merge:hard-clean": "hard evidence is clean",
         "review:residual-or-uncertain": "residual behavior or release-note uncertainty remains",

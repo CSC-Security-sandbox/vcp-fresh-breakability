@@ -163,6 +163,27 @@ class EvidenceContractTests(unittest.TestCase):
         self.assertEqual(decision.verdict, VerdictAction.GLANCE)
         self.assertEqual(decision.reason_code, "glance:ci-major-low-residual")
 
+    def test_glance_for_clean_tests_api_with_missing_release_notes(self):
+        release_notes = record(SignalName.RELEASE_NOTES, SignalStatus.UNAVAILABLE, relevant=None)
+        decision = decide(bundle(signals={SignalName.RELEASE_NOTES: release_notes}))
+        self.assertEqual(decision.verdict, VerdictAction.GLANCE)
+        self.assertEqual(decision.reason_code, "glance:clean-missing-release-notes")
+
+    def test_glance_for_tests_pass_soft_api_uncertain(self):
+        release_notes = record(SignalName.RELEASE_NOTES, SignalStatus.UNAVAILABLE, relevant=None)
+        api_diff = record(
+            SignalName.API_DIFF,
+            SignalStatus.UNKNOWN,
+            severity=SafetySeverity.LOW,
+            residual_risk=SafetySeverity.LOW,
+        )
+        decision = decide(bundle(signals={
+            SignalName.API_DIFF: api_diff,
+            SignalName.RELEASE_NOTES: release_notes,
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.GLANCE)
+        self.assertEqual(decision.reason_code, "glance:tests-pass-soft-api-uncertain")
+
     def test_review_for_security_sensitive_even_when_clean(self):
         decision = decide(bundle(security_sensitive=True))
         self.assertEqual(decision.verdict, VerdictAction.REVIEW)

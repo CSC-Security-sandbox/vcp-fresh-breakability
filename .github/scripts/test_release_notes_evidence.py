@@ -90,6 +90,14 @@ class ClassifyTests(unittest.TestCase):
         cls, _, _ = _classify(["cve-2024-1234 security fix"], "security patch for cve-2024-1234")
         self.assertEqual(cls, _RNClass.NO_RELEVANT_CHANGE)
 
+    def test_compatibility_only_backwards_incompatible_phrase_is_clean(self):
+        text = (
+            "This release is made to be compatible with a backwards incompatible API "
+            "change in prometheus/common v0.66.0. There are no functional changes."
+        )
+        cls, matched, _ = _classify([text], text)
+        self.assertEqual(cls, _RNClass.NO_RELEVANT_CHANGE, f"matched={matched}")
+
     def test_internal_refactor(self):
         cls, _, _ = _classify(["internal refactor of auth module"], "")
         self.assertEqual(cls, _RNClass.NO_RELEVANT_CHANGE)
@@ -348,11 +356,12 @@ class PolicyIntegrationTests(unittest.TestCase):
         decision = decide(self._bundle(rn))
         self.assertEqual(decision.verdict, VerdictAction.REVIEW)
 
-    def test_unavailable_triggers_review(self):
+    def test_unavailable_triggers_glance_when_hard_evidence_clean(self):
         pr = _pr()
         rn = analyse_pr(pr)
         decision = decide(self._bundle(rn))
-        self.assertEqual(decision.verdict, VerdictAction.REVIEW)
+        self.assertEqual(decision.verdict, VerdictAction.GLANCE)
+        self.assertEqual(decision.reason_code, "glance:clean-missing-release-notes")
 
 
 # ---------------------------------------------------------------------------

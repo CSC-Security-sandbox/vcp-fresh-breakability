@@ -112,17 +112,28 @@ for bf in batch_files:
     if not merged["nestjs_skew"] and data.get("nestjs_skew"):
         merged["nestjs_skew"] = data["nestjs_skew"]
 
-# Update total PR count and track incomplete batches
-merged["metadata"]["pr_count"] = total_prs
-selected_prs = sorted(int(n) for n in merged["prs"].keys() if str(n).isdigit())
-merged["metadata"]["selected_pr_numbers"] = selected_prs
 if requested_prs:
     subset_requested = True
 if subset_requested:
     requested_sorted = sorted(requested_prs)
+    before_filter = sorted(int(n) for n in merged["prs"].keys() if str(n).isdigit())
+    merged["prs"] = {
+        num: pr
+        for num, pr in merged["prs"].items()
+        if str(num).isdigit() and int(num) in requested_prs
+    }
     merged["metadata"]["subset_requested"] = True
     merged["metadata"]["requested_pr_numbers"] = requested_sorted
     merged["metadata"]["missing_pr_numbers"] = [n for n in requested_sorted if str(n) not in merged["prs"]]
+    dropped = [n for n in before_filter if n not in requested_prs]
+    if dropped:
+        merged["metadata"]["dropped_unrequested_pr_numbers"] = dropped
+
+# Update total PR count and track incomplete batches after subset filtering.
+total_prs = len(merged["prs"])
+merged["metadata"]["pr_count"] = total_prs
+selected_prs = sorted(int(n) for n in merged["prs"].keys() if str(n).isdigit())
+merged["metadata"]["selected_pr_numbers"] = selected_prs
 expected_count = int(os.environ.get("EXPECTED_PR_COUNT", "0"))
 if expected_count > 0 and total_prs < expected_count:
     merged["metadata"]["incomplete"] = True
@@ -141,8 +152,15 @@ MERGEEOF
 # ── Step 2: Collect PR diffs into /tmp/ ───────────────────────────────────────
 echo ""
 echo "Collecting PR diffs..."
+rm -f /tmp/pr-*.diff
+_MERGE_PR_FILTER=",${BREAKABILITY_PR_NUMBERS:-${PR_FILTER:-}},"
+_MERGE_PR_FILTER="${_MERGE_PR_FILTER// /}"
 for diff_file in /tmp/batch-results/batch-*/pr-*.diff; do
   [[ -f "$diff_file" ]] || continue
+  if [[ "$_MERGE_PR_FILTER" != ",," ]]; then
+    _diff_pr="$(basename "$diff_file" | sed -E 's/^pr-([0-9]+)\.diff$/\1/')"
+    [[ "$_MERGE_PR_FILTER" == *",${_diff_pr},"* ]] || continue
+  fi
   cp "$diff_file" /tmp/ 2>/dev/null || true
 done
 DIFF_COUNT=$(find /tmp -maxdepth 1 -name 'pr-*.diff' 2>/dev/null | wc -l | tr -d ' ')

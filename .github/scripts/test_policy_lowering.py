@@ -37,6 +37,38 @@ class PolicyLoweringTests(unittest.TestCase):
         self.assertEqual(out["decision"]["reason_code"], "merge:hard-clean")
         self.assertEqual(out["bundle"]["signals"]["release_notes"]["status"], "pass")
 
+    def test_clean_tests_api_missing_changelog_is_glance_not_deep_review(self):
+        out = decision_for_pr(base_pr(deterministic={
+            "api_changes": 0,
+            "changelogText": "No changelog available",
+            "changelogSignal": {"status": "missing"},
+        }))
+        self.assertEqual(out["decision"]["verdict"], "GLANCE")
+        self.assertEqual(out["decision"]["reason_code"], "glance:clean-missing-release-notes")
+
+    def test_tests_pass_soft_api_uncertain_is_glance(self):
+        out = decision_for_pr(base_pr(deterministic={
+            "api_changes": 1,
+            "api_changes_detail": [{"changeType": "added", "isHardBreak": False, "symbol": "NewOption"}],
+            "changelogText": "No changelog available",
+            "changelogSignal": {"status": "missing"},
+        }))
+        self.assertEqual(out["bundle"]["signals"]["api_diff"]["status"], "unknown")
+        self.assertEqual(out["decision"]["verdict"], "GLANCE")
+        self.assertEqual(out["decision"]["reason_code"], "glance:tests-pass-soft-api-uncertain")
+
+    def test_security_fix_does_not_glance_on_missing_changelog(self):
+        out = decision_for_pr(base_pr(
+            cves=["CVE-2026-0001"],
+            deterministic={
+                "api_changes": 0,
+                "changelogText": "No changelog available",
+                "changelogSignal": {"status": "missing"},
+            },
+        ))
+        self.assertEqual(out["decision"]["verdict"], "REVIEW")
+        self.assertEqual(out["decision"]["reason_code"], "review:security-sensitive")
+
     def test_breaking_but_not_imported_merges_with_not_reached_evidence(self):
         out = decision_for_pr(base_pr(
             deterministic={

@@ -383,7 +383,11 @@ def bundle_for_pr(pr: Mapping[str, Any]) -> tuple[EvidenceBundle, Dict[str, Any]
         residual_risk=_bundle_residual(signals),
         is_major=_is_major_bump(pr),
         is_ci_only=_first_str(pr, "ecosystem").lower() in {"actions", "docker"},
-        security_sensitive=bool(pr.get("security_sensitive")) or str(pr.get("ci_tier") or "") == "secsens",
+        security_sensitive=(
+            bool(pr.get("security_sensitive"))
+            or str(pr.get("ci_tier") or "") == "secsens"
+            or bool(pr.get("cves"))
+        ),
     )
     support = {
         "release_notes": release_notes.to_dict(),

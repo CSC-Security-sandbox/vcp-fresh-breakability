@@ -254,6 +254,39 @@ def policy_has_hard_fail(policy):
     return False
 
 
+def policy_evidence_state(policy, existing_state):
+    state = dict(existing_state) if isinstance(existing_state, dict) else {}
+    bundle = policy.get("bundle") if isinstance(policy, dict) else None
+    signals = bundle.get("signals") if isinstance(bundle, dict) else None
+    if not isinstance(signals, dict):
+        return state
+
+    mapping = {
+        "build": "build",
+        "test": "test",
+        "api_diff": "api_diff",
+        "security": "vuln",
+        "release_notes": "changelog",
+        "reachability": "usage",
+    }
+    for source, target in mapping.items():
+        record = signals.get(source)
+        if not isinstance(record, dict):
+            continue
+        status = record.get("status")
+        if status == "fail":
+            state[target] = "POSITIVE"
+        elif status == "pass":
+            state[target] = "NEGATIVE"
+        elif status == "not_applicable":
+            state[target] = "N_A"
+        elif status == "unavailable":
+            state[target] = "UNAVAILABLE"
+        elif status == "unknown":
+            state[target] = "NONE"
+    return state
+
+
 changed = False
 for pr in (data.get("prs") or {}).values():
     if not isinstance(pr, dict):
@@ -287,8 +320,7 @@ for pr in (data.get("prs") or {}).values():
 
     merged = dict(existing)
     merged.update(mapped)
-    if "evidenceState" not in merged and isinstance(existing.get("evidenceState"), dict):
-        merged["evidenceState"] = existing["evidenceState"]
+    merged["evidenceState"] = policy_evidence_state(policy, existing.get("evidenceState"))
     pr["verdict_v2"] = merged
     changed = True
 

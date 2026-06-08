@@ -310,6 +310,11 @@ jobs:
         env:
           PYTHON_VERSION_FULL: '3.12.13'
 
+      - name: Clean prior run temp artifacts
+        run: |
+          rm -rf /tmp/batch-results
+          rm -f /tmp/build-results.json /tmp/build-results.policy.json /tmp/pr-*.diff
+
       - name: Download all batch artifacts
         uses: actions/download-artifact@v4
         with:
