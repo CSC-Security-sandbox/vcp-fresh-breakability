@@ -72,12 +72,17 @@ class EvidenceContractTests(unittest.TestCase):
         self.assertEqual(decision.verdict, VerdictAction.FIX)
         self.assertEqual(decision.reason_code, "build:fail")
 
-    def test_fix_on_test_failure(self):
+    def test_test_failure_reviews_not_fix(self):
+        # A test failure on a PR whose build compiles is a High review, NOT a hard
+        # Do-Not-Merge: the reference plan reserved FIX for compile breaks.
         decision = decide(bundle(signals={SignalName.TEST: record(SignalName.TEST, SignalStatus.FAIL)}))
-        self.assertEqual(decision.verdict, VerdictAction.FIX)
-        self.assertEqual(decision.reason_code, "test:fail")
+        self.assertEqual(decision.verdict, VerdictAction.REVIEW)
+        self.assertEqual(decision.severity, SafetySeverity.HIGH)
+        self.assertEqual(decision.reason_code, "review:test-regression")
 
-    def test_fix_on_api_diff_failure(self):
+    def test_breaking_api_diff_reviews_not_fix(self):
+        # A breaking dependency API surface that still COMPILES (build not failing) is a
+        # reachable-change to verify (High review), not a build-level block.
         decision = decide(bundle(signals={
             SignalName.API_DIFF: record(
                 SignalName.API_DIFF,
@@ -85,8 +90,18 @@ class EvidenceContractTests(unittest.TestCase):
                 severity=SafetySeverity.HIGH,
             )
         }))
+        self.assertEqual(decision.verdict, VerdictAction.REVIEW)
+        self.assertEqual(decision.severity, SafetySeverity.HIGH)
+        self.assertEqual(decision.reason_code, "review:break-reachable-api")
+
+    def test_build_failure_with_api_break_still_fix(self):
+        # When the build ALSO fails, FIX wins (build precedence) — security/compile blocks.
+        decision = decide(bundle(signals={
+            SignalName.BUILD: record(SignalName.BUILD, SignalStatus.FAIL, severity=SafetySeverity.HIGH),
+            SignalName.API_DIFF: record(SignalName.API_DIFF, SignalStatus.FAIL, severity=SafetySeverity.HIGH),
+        }))
         self.assertEqual(decision.verdict, VerdictAction.FIX)
-        self.assertEqual(decision.reason_code, "api_diff:fail")
+        self.assertEqual(decision.reason_code, "build:fail")
 
     def test_fix_on_introduced_security_failure(self):
         security = record(

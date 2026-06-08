@@ -121,7 +121,9 @@ class PolicyLoweringTests(unittest.TestCase):
         self.assertEqual(out["decision"]["verdict"], "REVIEW")
         self.assertEqual(out["decision"]["reason_code"], "review:uncertain-critical-signal")
 
-    def test_breaking_api_diff_is_blocked(self):
+    def test_breaking_api_diff_reviews_when_build_compiles(self):
+        # A breaking dependency API surface with a passing build is a High review
+        # (reachable change to verify), NOT a Do-Not-Merge block.
         out = decision_for_pr(base_pr(
             deterministic={
                 "api_changes": 1,
@@ -130,10 +132,11 @@ class PolicyLoweringTests(unittest.TestCase):
             }
         ))
         self.assertEqual(out["bundle"]["signals"]["api_diff"]["status"], "fail")
-        self.assertEqual(out["decision"]["verdict"], "FIX")
-        self.assertEqual(out["decision"]["reason_code"], "api_diff:fail")
+        self.assertEqual(out["decision"]["verdict"], "REVIEW")
+        self.assertEqual(out["decision"]["severity"], "high")
+        self.assertEqual(out["decision"]["reason_code"], "review:break-reachable-api")
 
-    def test_structured_hard_api_diff_is_blocked(self):
+    def test_structured_hard_api_diff_reviews_when_build_compiles(self):
         out = decision_for_pr(base_pr(
             deterministic={
                 "api_changes": 1,
@@ -142,8 +145,8 @@ class PolicyLoweringTests(unittest.TestCase):
             }
         ))
         self.assertEqual(out["bundle"]["signals"]["api_diff"]["status"], "fail")
-        self.assertEqual(out["decision"]["verdict"], "FIX")
-        self.assertEqual(out["decision"]["reason_code"], "api_diff:fail")
+        self.assertEqual(out["decision"]["verdict"], "REVIEW")
+        self.assertEqual(out["decision"]["reason_code"], "review:break-reachable-api")
 
     def test_breaking_imported_without_symbol_match_reviews(self):
         out = decision_for_pr(base_pr(
@@ -264,10 +267,26 @@ class PolicyLoweringTests(unittest.TestCase):
         self.assertEqual(out["decision"]["verdict"], "REVIEW")
         self.assertEqual(out["decision"]["reason_code"], "review:probe-changed")
 
-    def test_introduced_test_failure_is_fix(self):
+    def test_introduced_test_failure_reviews_when_build_compiles(self):
+        # Trustworthy baseline (main tests pass), PR tests fail, build compiles:
+        # High review, not a Do-Not-Merge block (FIX is reserved for compile breaks).
         out = decision_for_pr(base_pr(test={"ran": True, "exit": 1, "main_test_exit": 0}))
-        self.assertEqual(out["decision"]["verdict"], "FIX")
-        self.assertEqual(out["decision"]["reason_code"], "test:fail")
+        self.assertEqual(out["bundle"]["signals"]["test"]["status"], "fail")
+        self.assertEqual(out["decision"]["verdict"], "REVIEW")
+        self.assertEqual(out["decision"]["severity"], "high")
+        self.assertEqual(out["decision"]["reason_code"], "review:test-regression")
+
+    def test_test_failure_untrusted_when_global_baseline_racy(self):
+        # The repo-wide `go test -race` baseline does not pass (e.g. pre-existing data race),
+        # so a per-PR test failure cannot be trusted as PR-introduced even if its own
+        # main_test_exit reads 0 (intermittent). It must NOT hard-FIX; it is uncertain.
+        out = decision_for_pr(
+            base_pr(test={"ran": True, "exit": 1, "main_test_exit": 0}),
+            global_test_exit=-1,
+        )
+        self.assertEqual(out["bundle"]["signals"]["test"]["status"], "unknown")
+        self.assertNotEqual(out["decision"]["verdict"], "FIX")
+        self.assertEqual(out["decision"]["reason_code"], "review:uncertain-critical-signal")
 
     def test_preexisting_build_failure_is_not_blocked(self):
         out = decision_for_pr(base_pr(build={"verdict": "pre_existing", "main_exit": 1, "pr_exit": 1, "new_errors": []}))

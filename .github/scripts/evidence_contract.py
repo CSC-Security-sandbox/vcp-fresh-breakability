@@ -345,14 +345,21 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     probe = bundle.signal(SignalName.PROBE)
     security = bundle.signal(SignalName.SECURITY)
 
+    # Hard blockers first (in precedence order): a build that does not compile, or a PR that
+    # INTRODUCES a security finding, are the only states that forbid merge outright (FIX).
     if _is_fail(build):
         return _decision(VerdictAction.FIX, _at_least(_record_severity(build), SafetySeverity.HIGH), Confidence.HIGH, "build:fail")
-    if _is_fail(test):
-        return _decision(VerdictAction.FIX, _at_least(_record_severity(test), SafetySeverity.HIGH), Confidence.HIGH, "test:fail")
-    if _is_fail(api_diff):
-        return _decision(VerdictAction.FIX, _at_least(_record_severity(api_diff), SafetySeverity.HIGH), Confidence.HIGH, "api_diff:fail")
     if _is_fail(security) and security is not None and security.introduced is True:
         return _decision(VerdictAction.FIX, _at_least(_record_severity(security), SafetySeverity.HIGH), Confidence.HIGH, "security:introduced")
+    # A failing test or a breaking dependency API surface is NOT a hard merge blocker when the
+    # build compiles: a Go build that passes proves no *called* signature is incompatible, so a
+    # breaking API diff is a reachable-change to verify (High review), not a "do not merge".
+    # Likewise a test failure on a compiling PR is a High review, not a build-level block — this
+    # matches the proven reference plan, where FIX/Do-Not-Merge was reserved for compile breaks.
+    if _is_fail(test):
+        return _decision(VerdictAction.REVIEW, _at_least(_record_severity(test), SafetySeverity.HIGH), Confidence.HIGH, "review:test-regression")
+    if _is_fail(api_diff):
+        return _decision(VerdictAction.REVIEW, _at_least(_record_severity(api_diff), SafetySeverity.HIGH), Confidence.HIGH, "review:break-reachable-api")
     if _is_fail(probe):
         return _decision(VerdictAction.REVIEW, _at_least(_record_severity(probe), SafetySeverity.MEDIUM), Confidence.HIGH, "review:probe-changed")
 
@@ -404,6 +411,8 @@ def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Conf
         "build:fail": "build failed on the candidate version",
         "test:fail": "tests failed on the candidate version",
         "api_diff:fail": "breaking API diff affects the candidate version",
+        "review:test-regression": "tests failed on the candidate version (the build still compiles — verify whether this upgrade caused it)",
+        "review:break-reachable-api": "a breaking API change in the dependency is reachable from your code (the build still compiles, so verify the changed behavior)",
         "security:introduced": "candidate version introduces a security finding",
         "review:probe-changed": "dynamic probe observed changed behavior",
         "review:security-sensitive": "security-sensitive update requires human review",

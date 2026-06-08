@@ -123,13 +123,17 @@ def _build_record(pr: Mapping[str, Any]) -> EvidenceRecord:
     return _record(SignalName.BUILD, SignalStatus.UNAVAILABLE, tool_failure=True, confidence=Confidence.LOW)
 
 
-def _test_record(pr: Mapping[str, Any]) -> EvidenceRecord:
+def _test_record(pr: Mapping[str, Any], global_test_exit: Optional[int] = None) -> EvidenceRecord:
     test = pr.get("test") if isinstance(pr.get("test"), Mapping) else {}
     if not test.get("ran"):
         return _record(SignalName.TEST, SignalStatus.UNAVAILABLE, confidence=Confidence.LOW)
 
     exit_code = _exit_status(test.get("exit"))
     main_exit = _exit_status(test.get("main_test_exit"))
+    # The repo-wide baseline `go test -race` result. When this is non-zero the suite does NOT
+    # pass on `main` (e.g. a pre-existing data race), so it is non-deterministic and a per-PR
+    # `main_test_exit == 0` cannot be trusted to mean "the PR introduced this failure".
+    baseline_unreliable = global_test_exit is not None and global_test_exit != 0
     if exit_code == 0:
         return _record(SignalName.TEST, SignalStatus.PASS, confidence=Confidence.HIGH)
     if exit_code is not None and exit_code > 0:
@@ -139,6 +143,14 @@ def _test_record(pr: Mapping[str, Any]) -> EvidenceRecord:
                 SignalStatus.PASS,
                 confidence=Confidence.MEDIUM,
                 rationale="test failure also occurs on main; not introduced by this PR",
+            )
+        if baseline_unreliable:
+            return _record(
+                SignalName.TEST,
+                SignalStatus.UNKNOWN,
+                residual_risk=SafetySeverity.MEDIUM,
+                confidence=Confidence.LOW,
+                rationale="baseline test suite is unreliable (pre-existing failure on main); PR test failure not confirmed as introduced",
             )
         if main_exit == 0:
             return _record(
@@ -355,7 +367,7 @@ def _confidence_from_behavioral_grade(bg: Mapping[str, Any]) -> Confidence:
     return Confidence.MEDIUM
 
 
-def bundle_for_pr(pr: Mapping[str, Any]) -> tuple[EvidenceBundle, Dict[str, Any]]:
+def bundle_for_pr(pr: Mapping[str, Any], global_test_exit: Optional[int] = None) -> tuple[EvidenceBundle, Dict[str, Any]]:
     release_notes = analyse_release_notes(dict(pr))
     changed_symbols = _changed_symbols_from_release_notes(release_notes)
     reachability = _lite().analyze(dict(pr), changed_symbols or None)
@@ -363,7 +375,7 @@ def bundle_for_pr(pr: Mapping[str, Any]) -> tuple[EvidenceBundle, Dict[str, Any]
 
     signals: Dict[SignalName, EvidenceRecord] = {
         SignalName.BUILD: _build_record(pr),
-        SignalName.TEST: _test_record(pr),
+        SignalName.TEST: _test_record(pr, global_test_exit),
         SignalName.API_DIFF: _api_record(pr),
         SignalName.RELEASE_NOTES: release_notes,
         SignalName.REACHABILITY: _reachability_record(callsite),
@@ -425,8 +437,25 @@ def _is_major_bump(pr: Mapping[str, Any]) -> bool:
     return old is not None and new is not None and new > old
 
 
-def decision_for_pr(pr: Mapping[str, Any]) -> Dict[str, Any]:
-    bundle, support = bundle_for_pr(pr)
+def _global_test_exit(results: Mapping[str, Any]) -> Optional[int]:
+    """Repo-wide baseline `go test -race` exit code (main_build.go.test_exit).
+
+    Non-zero (or -1) means the suite does not pass cleanly on `main`, so per-PR test
+    failures cannot be trusted as PR-introduced.
+    """
+    if not isinstance(results, Mapping):
+        return None
+    main_build = results.get("main_build")
+    if not isinstance(main_build, Mapping):
+        return None
+    go = main_build.get("go")
+    if not isinstance(go, Mapping):
+        return None
+    return _exit_status(go.get("test_exit"))
+
+
+def decision_for_pr(pr: Mapping[str, Any], global_test_exit: Optional[int] = None) -> Dict[str, Any]:
+    bundle, support = bundle_for_pr(pr, global_test_exit)
     decision: VerdictDecision = decide(bundle)
     return {
         "decision": decision.to_dict(),
@@ -437,6 +466,7 @@ def decision_for_pr(pr: Mapping[str, Any]) -> Dict[str, Any]:
 
 def apply_policy(results: Mapping[str, Any], pr_numbers: Optional[Iterable[str]] = None) -> Dict[str, Any]:
     selected = {str(n) for n in pr_numbers} if pr_numbers else None
+    global_test_exit = _global_test_exit(results)
     out: Dict[str, Any] = {}
     for pr_num, pr in _prs(results).items():
         key = str(pr_num)
@@ -444,7 +474,7 @@ def apply_policy(results: Mapping[str, Any], pr_numbers: Optional[Iterable[str]]
             continue
         if not isinstance(pr, Mapping):
             continue
-        out[key] = decision_for_pr(pr)
+        out[key] = decision_for_pr(pr, global_test_exit)
     return out
 
 

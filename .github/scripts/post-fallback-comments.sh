@@ -2937,8 +2937,43 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     elif committed_v2_verdict(pr) == "REVIEW" and v in ("pass", "pre_existing"):
         # A committed REVIEW verdict routes to Manual Review here, so the plan can never say
         # "SAFE — merge now" while the PR comment says "review required".
-        entry["v2_review"] = True
-        review.append(entry)
+        #
+        # SOFT-REVIEW REFINEMENT (restores the reference plan's "Build Passes — Review
+        # Recommended (L2/L3)" tier): a build-clean PR whose only uncertainty is a missing
+        # changelog / unverifiable (racy) tests — NOT a high-severity break, NOT security-
+        # sensitive, NOT a reachable declared break — is "review recommended", not the
+        # manual-review wall. It routes to the `safe` list, where ver<L4 renders it under
+        # "Build Passes — Review Recommended". Hard guards below keep anything risky out, and
+        # the `soft_review` flag + the ver-not-L4/L5 guard ensure it can never be read as
+        # "safe to merge now" (the L4 "tests pass" section excludes it).
+        _vc = entry.get("v2_check", "")
+        _sev = entry.get("severity", "medium")
+        _is_break_reachable = (
+            _vc == "review:break-reachable-api"
+            or bool((pr.get("declared_break_reachability") or {}).get("prod_reachable"))
+        )
+        _is_sec = (
+            bool(entry.get("cves"))
+            or _vc == "review:security-sensitive"
+            or entry.get("ci_tier") == "secsens"
+            or bool(pr.get("vuln_new_findings"))
+        )
+        _ver = entry.get("ver", "") or ""
+        _soft_review = (
+            _vc in ("review:uncertain-critical-signal", "review:residual-or-uncertain")
+            and _sev in ("low", "medium", "none")
+            and not _is_break_reachable
+            and not _is_sec
+            and not entry.get("vuln_incomplete")
+            and not (_ver.startswith("L4") or _ver.startswith("L5"))
+            and effective_risk_tag(pr) != "High"
+        )
+        if _soft_review:
+            entry["soft_review"] = True
+            safe.append(entry)
+        else:
+            entry["v2_review"] = True
+            review.append(entry)
     elif committed_v2_verdict(pr) == "SAFE" and v in ("pass", "pre_existing"):
         # Committed SAFE normally wins over the raw deterministic heuristic. EXCEPTION (floor
         # invariant): a behavioral none/low must not erase a deterministic High signal. If the
