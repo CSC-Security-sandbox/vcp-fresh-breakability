@@ -2837,6 +2837,37 @@ if meta.get('incomplete'):
     lines.append(f"> PRs missing from this plan should be re-analyzed before merging.")
 lines.append("")
 
+# QUICK ACTION section — high-level guidance without jargon (replaces severity-firsted complexity)
+# This pre-computes what the developer needs to do RIGHT NOW, hiding verification labels in collapsibles below.
+lines.append("## ⚡ What to Do Next")
+lines.append("")
+lines.append("> **TLDR:** Jump to [Developer Action Summary](#developer-action-summary) for numbered merge steps. Or:")
+lines.append("")
+_act_high_risk = len([e for e in (safe + blocked + review + ci_only + companion_blocked) if e.get("severity") == "high"])
+_act_med_risk = len([e for e in (safe + blocked + review + ci_only + companion_blocked) if e.get("severity") == "medium"])
+_act_low_risk = len([e for e in (safe + blocked + review + ci_only + companion_blocked) if e.get("severity") == "low"])
+_act_blocked = len(blocked)
+_quick_cve_fix_prs = set(str(f["pr"]) for f in security.get("cve_fixes", []))
+_quick_sec_safe = [e for e in safe + ci_only if e.get("cves") or e["num"] in _quick_cve_fix_prs]
+_quick_sec_blocked = [e for e in blocked if e.get("cves") or e["num"] in _quick_cve_fix_prs]
+_act_security = len(_quick_sec_safe) + len(_quick_sec_blocked)
+_act_msg = []
+if _act_blocked > 0:
+    _act_msg.append(f"🛑 **Fix first:** {_act_blocked} PR(s) have build/CVE issues — see 'Fix Required' below.")
+if _act_security > 0:
+    _act_msg.append(f"🔐 **Priority merge:** {_act_security} PR(s) fix known CVEs — merge them first.")
+if _act_high_risk > 0:
+    _act_msg.append(f"🔴 **Review required:** {_act_high_risk} PR(s) need careful review before merge.")
+if _act_med_risk > 0:
+    _act_msg.append(f"📋 **Follow the numbered plan:** {_act_med_risk} PR(s) need review/glance handling — see exact actions below.")
+if _act_low_risk > 0 and not _act_msg:
+    _act_msg.append(f"✅ **Most are safe:** {_act_low_risk} routine upgrades ready to merge.")
+if not _act_msg:
+    _act_msg.append("✅ **All clear:** All PRs are ready to merge.")
+for msg in _act_msg:
+    lines.append(f"- {msg}")
+lines.append("")
+
 # V9.7: govulncheck status aggregation — top-level banner shows scan health + vuln findings.
 # V9.7b: distinguish NEW findings (introduced by PR) from pre-existing-on-main.
 _vuln_not_installed = 0
@@ -2895,7 +2926,9 @@ if (_vuln_ok + _vuln_ok_preexisting) and not (_vuln_found or _vuln_failed_oom or
     lines.append("")
 
 # Summary table
-lines.append("## Summary")
+lines.append("<details><summary><strong>📊 Technical Details & Risk Classification</strong> (L-levels, severity, counts)</summary>")
+lines.append("")
+lines.append("## Summary by Verification Level")
 lines.append("")
 lines.append(f"| Category | Count |")
 lines.append(f"|----------|-------|")
@@ -2972,8 +3005,14 @@ if _all_entries:
         "merge-priority headline instead).")
     lines.append("")
 
+# Close the Technical Details collapsible section
+lines.append("</details>")
+lines.append("")
+
 # V8 FIX (M4): Developer Action Summary — prioritized numbered steps (regression from ref plan #39)
 lines.append("## Developer Action Summary")
+lines.append("")
+lines.append("**Plain-English merge guidance — see Technical Details above for verification levels.**")
 lines.append("")
 _step = 1
 # Security fixes first — use BOTH pr-body CVEs AND Dependabot alert matches (cve_fixes)
@@ -2984,30 +3023,30 @@ _sec_safe = _sec_safe_l4 + _sec_safe_l2  # combined for later reference
 _sec_blocked = [e for e in blocked if e.get("cves") or e["num"] in _cve_fix_prs]
 if _sec_safe_l4:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe_l4)
-    lines.append(f"{_step}. **MERGE NOW — security fixes:** {_sec_nums} ({len(_sec_safe_l4)} PR(s) fix known CVEs — tests verified L4; CVE reachability is hint-only, patch regardless)")
+    lines.append(f"{_step}. **MERGE NOW — CVE fixes (tests pass):** {_sec_nums} — fix known vulnerabilities right away")
     _step += 1
 if _sec_safe_l2:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe_l2)
-    lines.append(f"{_step}. **MERGE AFTER REVIEW — security fixes (tests not verified clean):** {_sec_nums} ({len(_sec_safe_l2)} PR(s) fix known CVEs — build verified L2/L3 but tests did not pass or were not run; verify, then merge — CVE reachability is hint-only, patch regardless)")
+    lines.append(f"{_step}. **REVIEW then MERGE — CVE fixes (build passes, tests not run):** {_sec_nums} — check build details, then merge")
     _step += 1
 if _sec_blocked:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_blocked)
-    lines.append(f"{_step}. **FIX + MERGE — security with build issues:** {_sec_nums}")
+    lines.append(f"{_step}. **FIX FIRST — security PRs with issues:** {_sec_nums} — resolve build/test failures before merging")
     _step += 1
 # L4 safe PRs
 _l4_safe = [e for e in safe if e.get("ver", "").startswith("L4") and not e.get("cves")]
 if _l4_safe:
-    lines.append(f"{_step}. **Batch merge — {len(_l4_safe)} PRs with full test pass** (L4 verified, lowest risk — excluding CVE PR above)")
+    lines.append(f"{_step}. **MERGE — tests pass:** {len(_l4_safe)} PR(s) — safest batch, merge together")
     _step += 1
 # L2 safe PRs (build passes, tests fail or not run)
 _l2_safe = [e for e in safe if not e.get("ver", "").startswith("L4") and not e.get("cves")]
 if _l2_safe:
-    lines.append(f"{_step}. **Review then merge — {len(_l2_safe)} PRs** (build + type-check pass, tests not verified clean — review changelog before merging)")
+    lines.append(f"{_step}. **GLANCE then MERGE — build passes, tests not run:** {len(_l2_safe)} PR(s) — skim changelog for breaking changes")
     _step += 1
 # Companion blocked
 if companion_blocked:
     _cb_nums = ", ".join(f"#{e['num']}" for e in companion_blocked)
-    lines.append(f"{_step}. **Fix companion PR first — {len(companion_blocked)} PR(s) blocked:** {_cb_nums} (build passes but companion PR has issues — do NOT merge until companion is fixed)")
+    lines.append(f"{_step}. **WAIT — paired PRs blocked:** {_cb_nums} — merge these only after fixing their companion PR")
     _step += 1
 # CI-only PRs
 if ci_only:
@@ -3015,24 +3054,24 @@ if ci_only:
     _ci_maj = [e for e in ci_only if e.get("ci_tier") == "major"]
     _ci_auto = [e for e in ci_only if not e.get("ci_tier")]
     if _ci_auto:
-        lines.append(f"{_step}. **Merge CI/Actions PRs — {len(_ci_auto)} PRs** (no app code impact)")
+        lines.append(f"{_step}. **MERGE — CI/Actions PRs:** {len(_ci_auto)} PR(s) — no app impact")
         _step += 1
     if _ci_maj:
         _ci_maj_nums = ", ".join(f"#{e['num']}" for e in _ci_maj)
-        lines.append(f"{_step}. **Glance then merge — major CI action bumps — {len(_ci_maj)} PRs:** {_ci_maj_nums} (skim the changelog for breaking inputs/runtime changes; no app code impact)")
+        lines.append(f"{_step}. **GLANCE then MERGE — major CI actions:** {_ci_maj_nums} — review for breaking input changes")
         _step += 1
     if _ci_sec:
         _ci_sec_nums = ", ".join(f"#{e['num']}" for e in _ci_sec)
-        lines.append(f"{_step}. **Review CI supply-chain PRs — {len(_ci_sec)} PRs:** {_ci_sec_nums} (auth/token/registry/deploy actions — pin to a full commit SHA and review permissions/changelog before merging; **not auto-safe**)")
+        lines.append(f"{_step}. **REVIEW — supply-chain sensitive CI:** {_ci_sec_nums} — pin to commit SHA, verify permissions")
         _step += 1
 # Likely safe
 if likely_safe_count > 0:
-    lines.append(f"{_step}. **Investigate — {likely_safe_count} 'Likely Safe' PRs** (no new errors but baseline unclear)")
+    lines.append(f"{_step}. **INVESTIGATE — likely safe (unclear baseline):** {likely_safe_count} PR(s) — no new errors detected, but baseline build may be broken")
     _step += 1
 # Fix required
 _non_sec_blocked = [e for e in blocked if not e.get("cves")]
 if _non_sec_blocked:
-    lines.append(f"{_step}. **Assign to team — {len(_non_sec_blocked)} PRs need code fixes** before merge")
+    lines.append(f"{_step}. **FIX NEEDED:** {len(_non_sec_blocked)} PR(s) have build/CVE issues")
     _step += 1
 lines.append("")
 
