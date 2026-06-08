@@ -1,0 +1,485 @@
+#!/usr/bin/env python3
+"""Typed evidence contract and policy-only verdict decider.
+
+This module is intentionally small, stdlib-only, and side-effect free.  Agents may
+write prose into rationale/citation/output fields, but decide() never reads those
+fields.  Policy decisions are based only on typed evidence fields.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from types import MappingProxyType
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Type, TypeVar, Union
+
+
+class ValidationError(ValueError):
+    """Raised when evidence JSON cannot be coerced into the typed contract."""
+
+
+class VerdictAction(str, Enum):
+    MERGE = "MERGE"
+    GLANCE = "GLANCE"
+    REVIEW = "REVIEW"
+    FIX = "FIX"
+    ABSTAIN = "ABSTAIN"
+
+
+class SafetySeverity(str, Enum):
+    NONE = "none"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class Confidence(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class SignalName(str, Enum):
+    BUILD = "build"
+    TEST = "test"
+    API_DIFF = "api_diff"
+    RELEASE_NOTES = "release_notes"
+    REACHABILITY = "reachability"
+    PROBE = "probe"
+    SECURITY = "security"
+
+
+class SignalStatus(str, Enum):
+    PASS = "pass"
+    FAIL = "fail"
+    UNKNOWN = "unknown"
+    UNAVAILABLE = "unavailable"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class AbstainReason(str, Enum):
+    NONE = "none"
+    TOOL_FAILURE = "tool_failure"
+    BUDGET = "budget"
+    SANDBOX_UNAVAILABLE = "sandbox_unavailable"
+
+
+E = TypeVar("E", bound=Enum)
+_SEVERITY_RANK = {
+    SafetySeverity.NONE: 0,
+    SafetySeverity.LOW: 1,
+    SafetySeverity.MEDIUM: 2,
+    SafetySeverity.HIGH: 3,
+}
+_RANK_TO_SEVERITY = {v: k for k, v in _SEVERITY_RANK.items()}
+
+
+@dataclass(frozen=True)
+class Citation:
+    source: str
+    locator: str = ""
+    text: str = ""  # display-only; ignored by decide()
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "Citation":
+        if not isinstance(data, Mapping):
+            raise ValidationError("citation must be an object")
+        return cls(
+            source=_require_str(data, "source"),
+            locator=_optional_str(data.get("locator")),
+            text=_optional_str(data.get("text")),
+        )
+
+    def to_dict(self) -> Dict[str, str]:
+        return {"source": self.source, "locator": self.locator, "text": self.text}
+
+
+@dataclass(frozen=True)
+class CommandEvidence:
+    command: str
+    exit_code: Optional[int] = None
+    old_output_hash: str = ""
+    new_output_hash: str = ""
+    old_output_text: str = ""  # display-only; ignored by decide()
+    new_output_text: str = ""  # display-only; ignored by decide()
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "CommandEvidence":
+        if not isinstance(data, Mapping):
+            raise ValidationError("command evidence must be an object")
+        exit_code = data.get("exit_code")
+        if exit_code is not None and not isinstance(exit_code, int):
+            raise ValidationError("command exit_code must be int or null")
+        return cls(
+            command=_require_str(data, "command"),
+            exit_code=exit_code,
+            old_output_hash=_optional_str(data.get("old_output_hash")),
+            new_output_hash=_optional_str(data.get("new_output_hash")),
+            old_output_text=_optional_str(data.get("old_output_text")),
+            new_output_text=_optional_str(data.get("new_output_text")),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "command": self.command,
+            "exit_code": self.exit_code,
+            "old_output_hash": self.old_output_hash,
+            "new_output_hash": self.new_output_hash,
+            "old_output_text": self.old_output_text,
+            "new_output_text": self.new_output_text,
+        }
+
+
+@dataclass(frozen=True)
+class EvidenceRecord:
+    name: SignalName
+    status: SignalStatus = SignalStatus.UNKNOWN
+    severity: SafetySeverity = SafetySeverity.NONE
+    relevant: Optional[bool] = None
+    introduced: Optional[bool] = None
+    same_behavior: Optional[bool] = None
+    residual_risk: SafetySeverity = SafetySeverity.NONE
+    sensitive: bool = False
+    tool_failure: bool = False
+    confidence: Confidence = Confidence.MEDIUM
+    abstain_reason: AbstainReason = AbstainReason.NONE
+    citations: Tuple[Citation, ...] = field(default_factory=tuple)
+    commands: Tuple[CommandEvidence, ...] = field(default_factory=tuple)
+    old_output_hash: str = ""
+    new_output_hash: str = ""
+    old_output_text: str = ""  # display-only; ignored by decide()
+    new_output_text: str = ""  # display-only; ignored by decide()
+    rationale: str = ""  # display-only; ignored by decide()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "name", _coerce_enum(SignalName, self.name, "name"))
+        object.__setattr__(self, "status", _coerce_enum(SignalStatus, self.status, "status"))
+        object.__setattr__(self, "severity", _coerce_enum(SafetySeverity, self.severity, "severity"))
+        object.__setattr__(self, "residual_risk", _coerce_enum(SafetySeverity, self.residual_risk, "residual_risk"))
+        object.__setattr__(self, "confidence", _coerce_enum(Confidence, self.confidence, "confidence"))
+        object.__setattr__(self, "abstain_reason", _coerce_enum(AbstainReason, self.abstain_reason, "abstain_reason"))
+        object.__setattr__(self, "citations", _coerce_tuple(self.citations, Citation, "citations"))
+        object.__setattr__(self, "commands", _coerce_tuple(self.commands, CommandEvidence, "commands"))
+        for attr in ("sensitive", "tool_failure"):
+            if not isinstance(getattr(self, attr), bool):
+                raise ValidationError(f"{attr} must be bool")
+        for attr in ("relevant", "introduced", "same_behavior"):
+            value = getattr(self, attr)
+            if value is not None and not isinstance(value, bool):
+                raise ValidationError(f"{attr} must be bool or null")
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "EvidenceRecord":
+        if not isinstance(data, Mapping):
+            raise ValidationError("evidence record must be an object")
+        return cls(
+            name=_coerce_enum(SignalName, _require_str(data, "name"), "name"),
+            status=_coerce_enum(SignalStatus, data.get("status", SignalStatus.UNKNOWN), "status"),
+            severity=_coerce_enum(SafetySeverity, data.get("severity", SafetySeverity.NONE), "severity"),
+            relevant=_optional_bool(data.get("relevant"), "relevant"),
+            introduced=_optional_bool(data.get("introduced"), "introduced"),
+            same_behavior=_optional_bool(data.get("same_behavior"), "same_behavior"),
+            residual_risk=_coerce_enum(SafetySeverity, data.get("residual_risk", SafetySeverity.NONE), "residual_risk"),
+            sensitive=_bool(data.get("sensitive", False), "sensitive"),
+            tool_failure=_bool(data.get("tool_failure", False), "tool_failure"),
+            confidence=_coerce_enum(Confidence, data.get("confidence", Confidence.MEDIUM), "confidence"),
+            abstain_reason=_coerce_enum(AbstainReason, data.get("abstain_reason", AbstainReason.NONE), "abstain_reason"),
+            citations=tuple(Citation.from_dict(c) for c in data.get("citations", ())),
+            commands=tuple(CommandEvidence.from_dict(c) for c in data.get("commands", ())),
+            old_output_hash=_optional_str(data.get("old_output_hash")),
+            new_output_hash=_optional_str(data.get("new_output_hash")),
+            old_output_text=_optional_str(data.get("old_output_text")),
+            new_output_text=_optional_str(data.get("new_output_text")),
+            rationale=_optional_str(data.get("rationale")),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name.value,
+            "status": self.status.value,
+            "severity": self.severity.value,
+            "relevant": self.relevant,
+            "introduced": self.introduced,
+            "same_behavior": self.same_behavior,
+            "residual_risk": self.residual_risk.value,
+            "sensitive": self.sensitive,
+            "tool_failure": self.tool_failure,
+            "confidence": self.confidence.value,
+            "abstain_reason": self.abstain_reason.value,
+            "citations": [c.to_dict() for c in self.citations],
+            "commands": [c.to_dict() for c in self.commands],
+            "old_output_hash": self.old_output_hash,
+            "new_output_hash": self.new_output_hash,
+            "old_output_text": self.old_output_text,
+            "new_output_text": self.new_output_text,
+            "rationale": self.rationale,
+        }
+
+
+@dataclass(frozen=True)
+class EvidenceBundle:
+    package: str
+    ecosystem: str
+    from_version: str
+    to_version: str
+    signals: Mapping[SignalName, EvidenceRecord]
+    citations: Tuple[Citation, ...] = field(default_factory=tuple)
+    commands: Tuple[CommandEvidence, ...] = field(default_factory=tuple)
+    confidence: Confidence = Confidence.MEDIUM
+    abstain_reason: AbstainReason = AbstainReason.NONE
+    residual_risk: SafetySeverity = SafetySeverity.NONE
+    is_major: bool = False
+    is_ci_only: bool = False
+    security_sensitive: bool = False
+    rationale: str = ""  # display-only; ignored by decide()
+
+    def __post_init__(self) -> None:
+        for attr in ("package", "ecosystem", "from_version", "to_version"):
+            if not isinstance(getattr(self, attr), str) or not getattr(self, attr):
+                raise ValidationError(f"{attr} must be a non-empty string")
+        if not isinstance(self.signals, Mapping):
+            raise ValidationError("signals must be an object keyed by signal name")
+        normalized: Dict[SignalName, EvidenceRecord] = {}
+        for raw_name, raw_record in self.signals.items():
+            name = _coerce_enum(SignalName, raw_name, "signals key")
+            record = EvidenceRecord.from_dict(raw_record) if isinstance(raw_record, Mapping) else raw_record
+            if not isinstance(record, EvidenceRecord):
+                raise ValidationError("signals values must be EvidenceRecord objects")
+            if record.name != name:
+                raise ValidationError(f"signal key {name.value!r} does not match record name {record.name.value!r}")
+            normalized[name] = record
+        object.__setattr__(self, "signals", MappingProxyType(normalized))
+        object.__setattr__(self, "citations", _coerce_tuple(self.citations, Citation, "citations"))
+        object.__setattr__(self, "commands", _coerce_tuple(self.commands, CommandEvidence, "commands"))
+        object.__setattr__(self, "confidence", _coerce_enum(Confidence, self.confidence, "confidence"))
+        object.__setattr__(self, "abstain_reason", _coerce_enum(AbstainReason, self.abstain_reason, "abstain_reason"))
+        object.__setattr__(self, "residual_risk", _coerce_enum(SafetySeverity, self.residual_risk, "residual_risk"))
+        for attr in ("is_major", "is_ci_only", "security_sensitive"):
+            if not isinstance(getattr(self, attr), bool):
+                raise ValidationError(f"{attr} must be bool")
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "EvidenceBundle":
+        if not isinstance(data, Mapping):
+            raise ValidationError("evidence bundle must be an object")
+        raw_signals = data.get("signals")
+        if not isinstance(raw_signals, Mapping):
+            raise ValidationError("signals must be an object keyed by signal name")
+        signals = {}
+        for name, record in raw_signals.items():
+            signal_name = _coerce_enum(SignalName, name, "signals key")
+            if not isinstance(record, Mapping):
+                raise ValidationError("signals values must be objects")
+            signals[signal_name] = EvidenceRecord.from_dict({**record, "name": record.get("name", signal_name.value)})
+        return cls(
+            package=_require_str(data, "package"),
+            ecosystem=_require_str(data, "ecosystem"),
+            from_version=_require_str(data, "from_version"),
+            to_version=_require_str(data, "to_version"),
+            signals=signals,
+            citations=tuple(Citation.from_dict(c) for c in data.get("citations", ())),
+            commands=tuple(CommandEvidence.from_dict(c) for c in data.get("commands", ())),
+            confidence=_coerce_enum(Confidence, data.get("confidence", Confidence.MEDIUM), "confidence"),
+            abstain_reason=_coerce_enum(AbstainReason, data.get("abstain_reason", AbstainReason.NONE), "abstain_reason"),
+            residual_risk=_coerce_enum(SafetySeverity, data.get("residual_risk", SafetySeverity.NONE), "residual_risk"),
+            is_major=_bool(data.get("is_major", False), "is_major"),
+            is_ci_only=_bool(data.get("is_ci_only", False), "is_ci_only"),
+            security_sensitive=_bool(data.get("security_sensitive", False), "security_sensitive"),
+            rationale=_optional_str(data.get("rationale")),
+        )
+
+    def signal(self, name: Union[SignalName, str]) -> Optional[EvidenceRecord]:
+        return self.signals.get(_coerce_enum(SignalName, name, "signal name"))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "package": self.package,
+            "ecosystem": self.ecosystem,
+            "from_version": self.from_version,
+            "to_version": self.to_version,
+            "signals": {name.value: record.to_dict() for name, record in self.signals.items()},
+            "citations": [c.to_dict() for c in self.citations],
+            "commands": [c.to_dict() for c in self.commands],
+            "confidence": self.confidence.value,
+            "abstain_reason": self.abstain_reason.value,
+            "residual_risk": self.residual_risk.value,
+            "is_major": self.is_major,
+            "is_ci_only": self.is_ci_only,
+            "security_sensitive": self.security_sensitive,
+            "rationale": self.rationale,
+        }
+
+
+@dataclass(frozen=True)
+class VerdictDecision:
+    verdict: VerdictAction
+    severity: SafetySeverity
+    confidence: Confidence
+    reason_code: str
+    display_reason: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "verdict": self.verdict.value,
+            "severity": self.severity.value,
+            "confidence": self.confidence.value,
+            "reason_code": self.reason_code,
+            "display_reason": self.display_reason,
+        }
+
+
+def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
+    """Return policy verdict from typed fields only.
+
+    Display fields intentionally ignored: rationale, citation text, command strings,
+    and old/new output text.  Those may be rendered later, but they cannot lower risk.
+    """
+    if isinstance(bundle, Mapping):
+        bundle = EvidenceBundle.from_dict(bundle)
+    if not isinstance(bundle, EvidenceBundle):
+        raise ValidationError("decide() requires EvidenceBundle or dict")
+
+    abstain = _abstain_reason(bundle)
+    if abstain != AbstainReason.NONE:
+        return _decision(VerdictAction.ABSTAIN, SafetySeverity.MEDIUM, Confidence.LOW, f"abstain:{abstain.value}")
+
+    build = bundle.signal(SignalName.BUILD)
+    test = bundle.signal(SignalName.TEST)
+    api_diff = bundle.signal(SignalName.API_DIFF)
+    release_notes = bundle.signal(SignalName.RELEASE_NOTES)
+    probe = bundle.signal(SignalName.PROBE)
+    security = bundle.signal(SignalName.SECURITY)
+
+    if _is_fail(build):
+        return _decision(VerdictAction.FIX, _at_least(_record_severity(build), SafetySeverity.HIGH), Confidence.HIGH, "build:fail")
+    if _is_fail(test):
+        return _decision(VerdictAction.FIX, _at_least(_record_severity(test), SafetySeverity.HIGH), Confidence.HIGH, "test:fail")
+    if _is_fail(security) and security is not None and security.introduced is True:
+        return _decision(VerdictAction.FIX, _at_least(_record_severity(security), SafetySeverity.HIGH), Confidence.HIGH, "security:introduced")
+
+    if _is_security_sensitive(bundle):
+        return _decision(VerdictAction.REVIEW, _at_least(_max_residual(bundle), SafetySeverity.MEDIUM), Confidence.MEDIUM, "review:security-sensitive")
+
+    core_clean = _is_pass(build) and _is_pass(test) and _is_pass(api_diff)
+    if not core_clean:
+        return _decision(VerdictAction.REVIEW, SafetySeverity.MEDIUM, Confidence.LOW, "review:uncertain-critical-signal")
+
+    if bundle.is_ci_only and bundle.is_major and _severity_le(_max_residual(bundle), SafetySeverity.LOW):
+        return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:ci-major-low-residual")
+
+    release_clean = release_notes is not None and _is_pass(release_notes) and release_notes.relevant is False
+    probe_same = probe is not None and _is_pass(probe) and probe.same_behavior is True
+    if release_clean or probe_same:
+        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, Confidence.HIGH, "merge:hard-clean")
+
+    return _decision(VerdictAction.REVIEW, _at_least(_max_residual(bundle), SafetySeverity.MEDIUM), Confidence.MEDIUM, "review:residual-or-uncertain")
+
+
+def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Confidence, reason_code: str) -> VerdictDecision:
+    display = {
+        "abstain:tool_failure": "tooling failed before trustworthy evidence was produced",
+        "abstain:budget": "analysis budget exhausted before trustworthy evidence was produced",
+        "abstain:sandbox_unavailable": "sandbox unavailable before trustworthy evidence was produced",
+        "build:fail": "build failed on the candidate version",
+        "test:fail": "tests failed on the candidate version",
+        "security:introduced": "candidate version introduces a security finding",
+        "review:security-sensitive": "security-sensitive update requires human review",
+        "review:uncertain-critical-signal": "critical build/test/API evidence is missing or uncertain",
+        "glance:ci-major-low-residual": "major CI-only update with low residual risk",
+        "merge:hard-clean": "hard evidence is clean",
+        "review:residual-or-uncertain": "residual behavior or release-note uncertainty remains",
+    }.get(reason_code, reason_code)
+    return VerdictDecision(verdict=verdict, severity=severity, confidence=confidence, reason_code=reason_code, display_reason=display)
+
+
+def _abstain_reason(bundle: EvidenceBundle) -> AbstainReason:
+    if bundle.abstain_reason != AbstainReason.NONE:
+        return bundle.abstain_reason
+    for record in bundle.signals.values():
+        if record.abstain_reason != AbstainReason.NONE:
+            return record.abstain_reason
+        if record.tool_failure:
+            return AbstainReason.TOOL_FAILURE
+    return AbstainReason.NONE
+
+
+def _is_fail(record: Optional[EvidenceRecord]) -> bool:
+    return record is not None and record.status == SignalStatus.FAIL
+
+
+def _is_pass(record: Optional[EvidenceRecord]) -> bool:
+    return record is not None and record.status in (SignalStatus.PASS, SignalStatus.NOT_APPLICABLE)
+
+
+def _record_severity(record: Optional[EvidenceRecord]) -> SafetySeverity:
+    return SafetySeverity.NONE if record is None else record.severity
+
+
+def _max_residual(bundle: EvidenceBundle) -> SafetySeverity:
+    rank = _SEVERITY_RANK[bundle.residual_risk]
+    for record in bundle.signals.values():
+        rank = max(rank, _SEVERITY_RANK[record.residual_risk], _SEVERITY_RANK[record.severity])
+    return _RANK_TO_SEVERITY[rank]
+
+
+def _at_least(value: SafetySeverity, floor: SafetySeverity) -> SafetySeverity:
+    return _RANK_TO_SEVERITY[max(_SEVERITY_RANK[value], _SEVERITY_RANK[floor])]
+
+
+def _severity_le(left: SafetySeverity, right: SafetySeverity) -> bool:
+    return _SEVERITY_RANK[left] <= _SEVERITY_RANK[right]
+
+
+def _is_security_sensitive(bundle: EvidenceBundle) -> bool:
+    return bundle.security_sensitive or any(r.sensitive for r in bundle.signals.values())
+
+
+def _coerce_enum(enum_type: Type[E], value: Any, field_name: str) -> E:
+    if isinstance(value, enum_type):
+        return value
+    if isinstance(value, str):
+        try:
+            return enum_type(value)
+        except ValueError:
+            pass
+    allowed = ", ".join(e.value for e in enum_type)
+    raise ValidationError(f"{field_name} must be one of: {allowed}")
+
+
+def _coerce_tuple(values: Iterable[Any], item_type: Type[Any], field_name: str) -> Tuple[Any, ...]:
+    if isinstance(values, (str, bytes)) or not isinstance(values, Iterable):
+        raise ValidationError(f"{field_name} must be iterable")
+    out = []
+    for item in values:
+        if not isinstance(item, item_type):
+            raise ValidationError(f"{field_name} entries must be {item_type.__name__}")
+        out.append(item)
+    return tuple(out)
+
+
+def _require_str(data: Mapping[str, Any], key: str) -> str:
+    value = data.get(key)
+    if not isinstance(value, str) or not value:
+        raise ValidationError(f"{key} must be a non-empty string")
+    return value
+
+
+def _optional_str(value: Any) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ValidationError("expected string")
+    return value
+
+
+def _bool(value: Any, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValidationError(f"{field_name} must be bool")
+    return value
+
+
+def _optional_bool(value: Any, field_name: str) -> Optional[bool]:
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise ValidationError(f"{field_name} must be bool or null")
+    return value
