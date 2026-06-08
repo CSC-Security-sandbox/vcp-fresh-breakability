@@ -98,6 +98,14 @@ class ClassifyTests(unittest.TestCase):
         cls, matched, _ = _classify([text], text)
         self.assertEqual(cls, _RNClass.NO_RELEVANT_CHANGE, f"matched={matched}")
 
+    def test_compatibility_phrase_does_not_mask_own_breaking_change(self):
+        text = (
+            "BREAKING CHANGE: removed Foo. Bug fix for bar. "
+            "Compatible with Python 3.12."
+        )
+        cls, matched, _ = _classify([text], text)
+        self.assertEqual(cls, _RNClass.BREAKING_CHANGE, f"matched={matched}")
+
     def test_internal_refactor(self):
         cls, _, _ = _classify(["internal refactor of auth module"], "")
         self.assertEqual(cls, _RNClass.NO_RELEVANT_CHANGE)

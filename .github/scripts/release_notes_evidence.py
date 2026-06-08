@@ -150,7 +150,16 @@ _MIN_TOKENS = 5  # fewer tokens than this → treat as thin / no-signal text
 _COMPAT_ONLY_MARKERS: List[str] = [
     "made to be compatible with",
     "made to be compatible",
-    "compatible with",
+]
+
+_OWN_BREAK_MARKERS: List[str] = [
+    "breaking change:",
+    "removed ",
+    "removes ",
+    "dropped support",
+    "no longer supports",
+    "migration required",
+    "requires migration",
 ]
 
 
@@ -273,7 +282,8 @@ def _classify(bullets: List[str], prose: str) -> Tuple[str, List[str], str]:
     breaking = _hits(norm_prose, BREAKING_MARKERS)
     if breaking:
         clean = _hits(norm_prose, CLEAN_MARKERS)
-        if clean and any(marker in norm_prose for marker in _COMPAT_ONLY_MARKERS):
+        own_break = any(marker in norm_prose for marker in _OWN_BREAK_MARKERS)
+        if clean and not own_break and any(marker in norm_prose for marker in _COMPAT_ONLY_MARKERS):
             snippet = _first_matching_snippet(combined, clean)
             return _RNClass.NO_RELEVANT_CHANGE, clean, snippet
         snippet = _first_matching_snippet(combined, breaking)

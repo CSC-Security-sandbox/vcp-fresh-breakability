@@ -310,23 +310,18 @@ jobs:
         env:
           PYTHON_VERSION_FULL: '3.12.13'
 
-      - name: Clean prior run temp artifacts
-        run: |
-          rm -rf /tmp/batch-results
-          rm -f /tmp/build-results.json /tmp/build-results.policy.json /tmp/pr-*.diff
-
       - name: Download all batch artifacts
         uses: actions/download-artifact@v4
         with:
-          path: /tmp/batch-results
+          path: ${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}
           pattern: batch-*
 
       - name: List downloaded artifacts
         run: |
           echo "=== Downloaded artifacts ==="
-          find /tmp/batch-results -type f | sort | head -60
+          find "${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}" -type f | sort | head -60
           echo "=== Batch result files ==="
-          ls -la /tmp/batch-results/batch-*/build-results-*.json 2>/dev/null || echo "No batch files found"
+          ls -la "${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}"/batch-*/build-results-*.json 2>/dev/null || echo "No batch files found"
 
       - name: Merge results
         run: |
@@ -336,6 +331,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BREAKABILITY_PAT: ${{ secrets.BREAKABILITY_PAT }}
+          BATCH_RESULTS_DIR: ${{ runner.temp }}/batch-results-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Show build results summary
         if: always()
