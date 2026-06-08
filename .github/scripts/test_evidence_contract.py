@@ -184,6 +184,27 @@ class EvidenceContractTests(unittest.TestCase):
         self.assertEqual(decision.verdict, VerdictAction.GLANCE)
         self.assertEqual(decision.reason_code, "glance:tests-pass-soft-api-uncertain")
 
+    def test_soft_api_uncertain_does_not_glance_possible_behavior_change(self):
+        release_notes = record(
+            SignalName.RELEASE_NOTES,
+            SignalStatus.UNKNOWN,
+            relevant=True,
+            severity=SafetySeverity.MEDIUM,
+            residual_risk=SafetySeverity.MEDIUM,
+        )
+        api_diff = record(
+            SignalName.API_DIFF,
+            SignalStatus.UNKNOWN,
+            severity=SafetySeverity.LOW,
+            residual_risk=SafetySeverity.LOW,
+        )
+        decision = decide(bundle(signals={
+            SignalName.API_DIFF: api_diff,
+            SignalName.RELEASE_NOTES: release_notes,
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.REVIEW)
+        self.assertEqual(decision.reason_code, "review:uncertain-critical-signal")
+
     def test_review_for_security_sensitive_even_when_clean(self):
         decision = decide(bundle(security_sensitive=True))
         self.assertEqual(decision.verdict, VerdictAction.REVIEW)

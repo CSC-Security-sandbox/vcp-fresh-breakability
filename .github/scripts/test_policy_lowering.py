@@ -57,6 +57,17 @@ class PolicyLoweringTests(unittest.TestCase):
         self.assertEqual(out["decision"]["verdict"], "GLANCE")
         self.assertEqual(out["decision"]["reason_code"], "glance:tests-pass-soft-api-uncertain")
 
+    def test_soft_api_uncertain_does_not_glance_possible_release_note_change(self):
+        out = decision_for_pr(base_pr(deterministic={
+            "api_changes": 1,
+            "api_changes_detail": [{"changeType": "added", "isHardBreak": False, "symbol": "NewOption"}],
+            "changelogText": "Default changed for retry policy",
+            "changelogSignal": {"status": "unknown"},
+        }))
+        self.assertEqual(out["bundle"]["signals"]["api_diff"]["status"], "unknown")
+        self.assertEqual(out["bundle"]["signals"]["release_notes"]["status"], "unknown")
+        self.assertEqual(out["decision"]["verdict"], "REVIEW")
+
     def test_security_fix_does_not_glance_on_missing_changelog(self):
         out = decision_for_pr(base_pr(
             cves=["CVE-2026-0001"],

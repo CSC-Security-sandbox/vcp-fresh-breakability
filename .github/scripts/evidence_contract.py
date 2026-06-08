@@ -373,7 +373,7 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
         and api_diff.status == SignalStatus.UNKNOWN
         and _severity_le(api_diff.severity, SafetySeverity.LOW)
         and release_notes is not None
-        and not _is_fail(release_notes)
+        and release_notes.status in {SignalStatus.PASS, SignalStatus.UNAVAILABLE}
     ):
         return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:tests-pass-soft-api-uncertain")
 
