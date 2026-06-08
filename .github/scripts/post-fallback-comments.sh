@@ -2892,7 +2892,8 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     error_class = pr.get("build", {}).get("error_class", "")
     new_errors = pr.get("build", {}).get("new_errors", [])
     main_exit = pr.get("build", {}).get("main_exit", -1)
-    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr), "behavioral_grade": pr.get("behavioral_grade") or {}, "severity": headline_severity(pr), "ci_tier": (ci_review_tier(pkg, bump) if eco in ("actions", "docker") else "")}
+    v2 = pr.get("verdict_v2") if isinstance(pr.get("verdict_v2"), dict) else {}
+    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit, "merge_risk": fmt_merge_risk(pr), "behavioral_grade": pr.get("behavioral_grade") or {}, "severity": headline_severity(pr), "ci_tier": (ci_review_tier(pkg, bump) if eco in ("actions", "docker") else ""), "v2_reason": v2.get("reason") or (v2.get("residual") or {}).get("summary") or "", "v2_check": (v2.get("residual") or {}).get("check") or ""}
 
     # V9.8 iter6 (A): security verdict gate — a PR that INTRODUCES new CVEs must never be "safe"
     vuln_status = pr.get("vuln_status", "")
@@ -3219,6 +3220,20 @@ _sec_safe_l4 = [e for e in safe + ci_only if (e.get("cves") or e["num"] in _cve_
 _sec_safe_l2 = [e for e in safe + ci_only if (e.get("cves") or e["num"] in _cve_fix_prs) and (not (e.get("ver", "").startswith("L4") or e.get("ver", "").startswith("L5")) or e.get("ci_tier"))]
 _sec_safe = _sec_safe_l4 + _sec_safe_l2  # combined for later reference
 _sec_blocked = [e for e in blocked if e.get("cves") or e["num"] in _cve_fix_prs]
+def is_optional_glance_entry(e):
+    check = str(e.get("v2_check") or "")
+    return (
+        e.get("severity") in ("low", "none")
+        and e.get("verdict") != "pre_existing"
+        and check.startswith("glance:")
+        and not e.get("cves")
+        and e["num"] not in _cve_fix_prs
+        and not e.get("ci_tier")
+    )
+_review_optional_glance = [
+    e for e in review
+    if is_optional_glance_entry(e)
+]
 if _sec_safe_l4:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe_l4)
     lines.append(f"{_step}. **MERGE NOW — CVE fixes (tests pass):** {_sec_nums} — fix known vulnerabilities right away")
@@ -3240,6 +3255,10 @@ if _l4_safe:
 _l2_safe = [e for e in safe if not e.get("ver", "").startswith("L4") and not e.get("cves")]
 if _l2_safe:
     lines.append(f"{_step}. **GLANCE then MERGE — build passes, tests not run:** {len(_l2_safe)} PR(s) — skim changelog for breaking changes")
+    _step += 1
+if _review_optional_glance:
+    _glance_nums = ", ".join(f"#{e['num']}" for e in _review_optional_glance)
+    lines.append(f"{_step}. **GLANCE then MERGE — low breakability:** {_glance_nums} — optional changelog/API skim, not deep review")
     _step += 1
 # Companion blocked
 if companion_blocked:
@@ -3535,7 +3554,15 @@ if blocked:
 # Only truly "unverified" PRs (where comparison couldn't happen) go into unverified.
 likely_safe = [e for e in review if e["verdict"] == "pre_existing" and e.get("new_error_count", 0) == 0]
 unverified = [e for e in review if e["verdict"] == "pre_existing" and e.get("new_error_count", 0) > 0]
-needs_review = [e for e in review if e["verdict"] != "pre_existing"]
+optional_glance = [
+    e for e in review
+    if is_optional_glance_entry(e)
+]
+needs_review = [
+    e for e in review
+    if e["verdict"] != "pre_existing"
+    and not is_optional_glance_entry(e)
+]
 
 if likely_safe:
     lines.append("## ⚙️ Likely Safe — No New Errors (pre-existing build failure)")
@@ -3566,6 +3593,17 @@ if unverified:
         pkg_dir = e.get('pkg_dir', '/')
         mod_col = pkg_dir if pkg_dir != '/' else 'root'
         lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e.get('merge_risk', 'Medium — default caution')} | {mod_col} | Deps failed — infra issue{cve_badge} |")
+    lines.append("")
+
+if optional_glance:
+    lines.append("## 🟡 Optional Glance — Low Breakability")
+    lines.append("")
+    lines.append("These PR comments are already downgraded to **Low / optional glance** by the committed verdict. Skim the noted evidence, then merge if no project-specific concern appears.")
+    lines.append("")
+    for e in optional_glance:
+        reason = e.get("v2_reason") or "low breakability evidence"
+        check = f" (`{e.get('v2_check')}`)" if e.get("v2_check") else ""
+        lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — **Low / optional glance**: {reason}{check}")
     lines.append("")
 
 if needs_review:
