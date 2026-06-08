@@ -3,6 +3,17 @@
 // entrypoints (main/init/exported funcs/methods/tests), is a changed dependency
 // symbol transitively reachable in the static call graph?"
 //
+// CALLGRAPH POLICY (see lite.py for full context)
+// ================================================
+// This tool is the SECOND-TIER reachability check. Use it when:
+//   1. The first tier (lite.py) yields UNCERTAIN on a high-risk PR, or
+//   2. Whole-repo static analysis is required for policy validation or deep review
+//   3. The cost (30-300s per repo) is justified by the decision weight
+//
+// Do NOT use for routine PR analysis; lite.py's lightweight deterministic approach
+// is sufficient for most cases and scales to all PRs. deep.go is targeted, not
+// typical dev workflow.
+//
 // It deliberately mirrors govulncheck's proven pipeline: load SSA, seed with CHA,
 // refine twice with VTA, then forward-search from entrypoints to the target sinks.
 //
@@ -84,6 +95,8 @@ func analyze(repo, patterns string, targetList []string, symbolSet map[string]bo
 
 	// Dynamic-hazard detection runs even if the call graph fails, so the caller
 	// always learns whether a "not reachable" result would be trustworthy.
+	// This enforces the CRITICAL HONESTY RULE: unreachable + dynamic = downgrade
+	// to POTENTIALLY_REACHABLE to avoid false-negative merge gate decisions.
 	out.DynamicPresent, out.DynamicReasons = detectDynamic(repo)
 
 	cfg := &packages.Config{
@@ -315,6 +328,10 @@ func entryPoints(prog *ssa.Program, pkgs []*packages.Package, modPath string) []
 }
 
 // detectDynamic scans source for constructs that make static reachability unsound.
+// These include reflection, unsafe operations, cgo, plugin loading, code generation,
+// and go:linkname directives. Their presence means an "unreachable" verdict cannot
+// be trusted (downgraded to POTENTIALLY_REACHABLE by verdict() to protect the
+// merge gate from false negatives).
 func detectDynamic(repo string) (bool, []string) {
 	reasons := map[string]bool{}
 	markers := map[string][]string{
