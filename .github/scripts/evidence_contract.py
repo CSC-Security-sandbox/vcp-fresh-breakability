@@ -338,10 +338,6 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     if not isinstance(bundle, EvidenceBundle):
         raise ValidationError("decide() requires EvidenceBundle or dict")
 
-    abstain = _abstain_reason(bundle)
-    if abstain != AbstainReason.NONE:
-        return _decision(VerdictAction.ABSTAIN, SafetySeverity.MEDIUM, Confidence.LOW, f"abstain:{abstain.value}")
-
     build = bundle.signal(SignalName.BUILD)
     test = bundle.signal(SignalName.TEST)
     api_diff = bundle.signal(SignalName.API_DIFF)
@@ -353,8 +349,16 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
         return _decision(VerdictAction.FIX, _at_least(_record_severity(build), SafetySeverity.HIGH), Confidence.HIGH, "build:fail")
     if _is_fail(test):
         return _decision(VerdictAction.FIX, _at_least(_record_severity(test), SafetySeverity.HIGH), Confidence.HIGH, "test:fail")
+    if _is_fail(api_diff):
+        return _decision(VerdictAction.FIX, _at_least(_record_severity(api_diff), SafetySeverity.HIGH), Confidence.HIGH, "api_diff:fail")
     if _is_fail(security) and security is not None and security.introduced is True:
         return _decision(VerdictAction.FIX, _at_least(_record_severity(security), SafetySeverity.HIGH), Confidence.HIGH, "security:introduced")
+    if _is_fail(probe):
+        return _decision(VerdictAction.REVIEW, _at_least(_record_severity(probe), SafetySeverity.MEDIUM), Confidence.HIGH, "review:probe-changed")
+
+    abstain = _abstain_reason(bundle)
+    if abstain != AbstainReason.NONE:
+        return _decision(VerdictAction.ABSTAIN, SafetySeverity.MEDIUM, Confidence.LOW, f"abstain:{abstain.value}")
 
     if _is_security_sensitive(bundle):
         return _decision(VerdictAction.REVIEW, _at_least(_max_residual(bundle), SafetySeverity.MEDIUM), Confidence.MEDIUM, "review:security-sensitive")
@@ -365,6 +369,10 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
 
     if bundle.is_ci_only and bundle.is_major and _severity_le(_max_residual(bundle), SafetySeverity.LOW):
         return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:ci-major-low-residual")
+
+    reachability = bundle.signal(SignalName.REACHABILITY)
+    if _is_not_relevant_pass(reachability):
+        return _decision(VerdictAction.MERGE, SafetySeverity.NONE, Confidence.HIGH, "merge:not-reached")
 
     release_clean = release_notes is not None and _is_pass(release_notes) and release_notes.relevant is False
     probe_same = probe is not None and _is_pass(probe) and probe.same_behavior is True
@@ -381,10 +389,13 @@ def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Conf
         "abstain:sandbox_unavailable": "sandbox unavailable before trustworthy evidence was produced",
         "build:fail": "build failed on the candidate version",
         "test:fail": "tests failed on the candidate version",
+        "api_diff:fail": "breaking API diff affects the candidate version",
         "security:introduced": "candidate version introduces a security finding",
+        "review:probe-changed": "dynamic probe observed changed behavior",
         "review:security-sensitive": "security-sensitive update requires human review",
         "review:uncertain-critical-signal": "critical build/test/API evidence is missing or uncertain",
         "glance:ci-major-low-residual": "major CI-only update with low residual risk",
+        "merge:not-reached": "changed dependency is not reached by production code",
         "merge:hard-clean": "hard evidence is clean",
         "review:residual-or-uncertain": "residual behavior or release-note uncertainty remains",
     }.get(reason_code, reason_code)
@@ -408,6 +419,10 @@ def _is_fail(record: Optional[EvidenceRecord]) -> bool:
 
 def _is_pass(record: Optional[EvidenceRecord]) -> bool:
     return record is not None and record.status in (SignalStatus.PASS, SignalStatus.NOT_APPLICABLE)
+
+
+def _is_not_relevant_pass(record: Optional[EvidenceRecord]) -> bool:
+    return _is_pass(record) and record is not None and record.relevant is False
 
 
 def _record_severity(record: Optional[EvidenceRecord]) -> SafetySeverity:

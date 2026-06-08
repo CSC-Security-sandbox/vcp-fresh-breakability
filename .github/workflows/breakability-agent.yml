@@ -399,9 +399,19 @@ jobs:
           DP_CACHE_DIR: ${{ runner.temp }}/dp-cache
         timeout-minutes: 30
 
-      # Upload AFTER the probe so the artifact carries the committed behavioral grades
-      # (the probe annotates /tmp/build-results.json in place). always() + the probe's
-      # continue-on-error keep this robust even if the probe step fails.
+      - name: Policy lowering evidence
+        if: always()
+        run: |
+          if [ ! -f /tmp/build-results.json ]; then
+            echo "No merged build-results.json; skipping policy lowering"
+            exit 0
+          fi
+          python3 .github/scripts/policy_lowering.py /tmp/build-results.json --enrich -o /tmp/build-results.policy.json
+          mv /tmp/build-results.policy.json /tmp/build-results.json
+        timeout-minutes: 5
+
+      # Upload AFTER the probe and policy lowering so the artifact carries the
+      # committed behavioral grades plus typed policy evidence.
       - name: Upload merged results
         if: always()
         uses: actions/upload-artifact@v4

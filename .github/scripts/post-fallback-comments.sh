@@ -167,7 +167,135 @@ else
   echo "  No cancelled PRs detected"
 fi
 
+if [[ -f ".github/scripts/policy_lowering.py" ]]; then
+  if python3 .github/scripts/policy_lowering.py "$RESULTS_FILE" --enrich -o /tmp/build-results.policy.json 2>/tmp/policy-lowering.err; then
+    mv /tmp/build-results.policy.json "$RESULTS_FILE"
+  else
+    echo "[warn] policy lowering unavailable; using legacy verdict map"
+    cat /tmp/policy-lowering.err 2>/dev/null || true
+  fi
+fi
+
 node "$CLI_PATH" verdict-map "$RESULTS_FILE" >/dev/null 2>&1 || echo "[warn] verdict-map unavailable; rendering will fail-closed to REVIEW"
+
+python3 - "$RESULTS_FILE" <<'PYEOF' || echo "[warn] policy lowering overlay unavailable; using legacy verdict_v2"
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+
+severity_rank = {"none": 0, "low": 1, "medium": 2, "high": 3}
+rank_severity = {v: k for k, v in severity_rank.items()}
+valid_v2_verdicts = {"SAFE", "REVIEW", "BLOCKED"}
+
+
+def confidence_to_level(conf, action):
+    if action == "ABSTAIN":
+        return "L0"
+    return {"high": "L4", "medium": "L3", "low": "L2"}.get(str(conf).lower(), "L2")
+
+
+def priority(action, severity):
+    if action == "FIX":
+        return "P0"
+    if severity == "high":
+        return "P1"
+    if severity == "medium":
+        return "P2"
+    return "P3"
+
+
+def map_policy(decision):
+    action = decision.get("verdict")
+    severity = decision.get("severity")
+    if severity not in severity_rank:
+        severity = {"FIX": "high", "ABSTAIN": "medium", "REVIEW": "medium", "GLANCE": "low", "MERGE": "none"}.get(action, "medium")
+    if action == "FIX":
+        verdict = "BLOCKED"
+    elif action in {"REVIEW", "ABSTAIN", "GLANCE"}:
+        verdict = "REVIEW"
+    elif action == "MERGE":
+        verdict = "SAFE"
+    else:
+        return None
+    return {
+        "verdict": verdict,
+        "severity": severity,
+        "confidence": confidence_to_level(decision.get("confidence"), action),
+        "priority": priority(action, severity),
+        "reason": decision.get("display_reason") or decision.get("reason_code") or "",
+        "residual": {
+            "summary": decision.get("display_reason") or decision.get("reason_code") or "",
+            "check": decision.get("reason_code") or "",
+        },
+        "policyDecision": decision,
+    }
+
+
+def stronger_review(existing, mapped):
+    existing_sev = existing.get("severity")
+    if existing_sev not in severity_rank:
+        existing_sev = {"BLOCKED": "high", "REVIEW": "medium", "SAFE": "low"}.get(existing.get("verdict"), "medium")
+    mapped_sev = mapped.get("severity")
+    return severity_rank.get(mapped_sev, 2) >= severity_rank.get(existing_sev, 2)
+
+
+def policy_has_hard_fail(policy):
+    bundle = policy.get("bundle") if isinstance(policy, dict) else None
+    signals = bundle.get("signals") if isinstance(bundle, dict) else None
+    if not isinstance(signals, dict):
+        return False
+    for name in ("build", "test", "api_diff", "probe", "security"):
+        record = signals.get(name)
+        if isinstance(record, dict) and record.get("status") == "fail":
+            return True
+    return False
+
+
+changed = False
+for pr in (data.get("prs") or {}).values():
+    if not isinstance(pr, dict):
+        continue
+    policy = pr.get("policy_lowering") or {}
+    decision = policy.get("decision") if isinstance(policy, dict) else None
+    if not isinstance(decision, dict):
+        continue
+    mapped = map_policy(decision)
+    if not mapped:
+        continue
+
+    existing = pr.get("verdict_v2")
+    if not isinstance(existing, dict) or existing.get("verdict") not in valid_v2_verdicts:
+        existing = {}
+    existing_verdict = existing.get("verdict")
+
+    if existing_verdict == "BLOCKED" and mapped["verdict"] != "BLOCKED":
+        if not (
+            mapped["verdict"] == "REVIEW"
+            and decision.get("reason_code") == "review:uncertain-critical-signal"
+            and not policy_has_hard_fail(policy)
+        ):
+            continue
+    if mapped["verdict"] == "SAFE" and existing_verdict == "BLOCKED":
+        continue
+    if mapped["verdict"] == "REVIEW" and existing_verdict == "REVIEW" and not stronger_review(existing, mapped):
+        continue
+    if mapped["verdict"] == "SAFE" and existing_verdict == "SAFE":
+        continue
+
+    merged = dict(existing)
+    merged.update(mapped)
+    if "evidenceState" not in merged and isinstance(existing.get("evidenceState"), dict):
+        merged["evidenceState"] = existing["evidenceState"]
+    pr["verdict_v2"] = merged
+    changed = True
+
+if changed:
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2)
+PYEOF
 
 get_verdict_v2() {
   local _pr_number="${1:-}" _BC_V2_PR _BC_V2_RESULTS

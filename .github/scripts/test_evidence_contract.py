@@ -60,10 +60,33 @@ class EvidenceContractTests(unittest.TestCase):
         self.assertEqual(decision.verdict, VerdictAction.FIX)
         self.assertEqual(decision.reason_code, "build:fail")
 
+    def test_hard_build_failure_beats_tool_failure_abstain(self):
+        decision = decide(bundle(signals={
+            SignalName.BUILD: record(SignalName.BUILD, SignalStatus.FAIL),
+            SignalName.SECURITY: record(
+                SignalName.SECURITY,
+                SignalStatus.UNAVAILABLE,
+                tool_failure=True,
+            ),
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.FIX)
+        self.assertEqual(decision.reason_code, "build:fail")
+
     def test_fix_on_test_failure(self):
         decision = decide(bundle(signals={SignalName.TEST: record(SignalName.TEST, SignalStatus.FAIL)}))
         self.assertEqual(decision.verdict, VerdictAction.FIX)
         self.assertEqual(decision.reason_code, "test:fail")
+
+    def test_fix_on_api_diff_failure(self):
+        decision = decide(bundle(signals={
+            SignalName.API_DIFF: record(
+                SignalName.API_DIFF,
+                SignalStatus.FAIL,
+                severity=SafetySeverity.HIGH,
+            )
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.FIX)
+        self.assertEqual(decision.reason_code, "api_diff:fail")
 
     def test_fix_on_introduced_security_failure(self):
         security = record(
@@ -98,6 +121,42 @@ class EvidenceContractTests(unittest.TestCase):
         decision = decide(bundle(signals={SignalName.RELEASE_NOTES: release_notes, SignalName.PROBE: probe}))
         self.assertEqual(decision.verdict, VerdictAction.MERGE)
         self.assertEqual(decision.reason_code, "merge:hard-clean")
+
+    def test_probe_changed_behavior_blocks_not_reached_lowering(self):
+        reachability = record(SignalName.REACHABILITY, SignalStatus.PASS, relevant=False)
+        probe = record(
+            SignalName.PROBE,
+            SignalStatus.FAIL,
+            same_behavior=False,
+            severity=SafetySeverity.MEDIUM,
+            residual_risk=SafetySeverity.MEDIUM,
+        )
+        decision = decide(bundle(signals={
+            SignalName.REACHABILITY: reachability,
+            SignalName.PROBE: probe,
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.REVIEW)
+        self.assertEqual(decision.reason_code, "review:probe-changed")
+
+    def test_not_reached_can_clear_relevant_release_note_break(self):
+        release_notes = record(
+            SignalName.RELEASE_NOTES,
+            SignalStatus.FAIL,
+            relevant=True,
+            residual_risk=SafetySeverity.HIGH,
+        )
+        reachability = record(
+            SignalName.REACHABILITY,
+            SignalStatus.PASS,
+            relevant=False,
+            confidence=Confidence.HIGH,
+        )
+        decision = decide(bundle(signals={
+            SignalName.RELEASE_NOTES: release_notes,
+            SignalName.REACHABILITY: reachability,
+        }))
+        self.assertEqual(decision.verdict, VerdictAction.MERGE)
+        self.assertEqual(decision.reason_code, "merge:not-reached")
 
     def test_glance_for_non_sensitive_ci_major_low_residual(self):
         decision = decide(bundle(is_ci_only=True, is_major=True, residual_risk=SafetySeverity.LOW))
