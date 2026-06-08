@@ -1271,6 +1271,12 @@
     "retriable": false,
     "http_code": 409
   },
+  "7019": {
+    "description": "Split Blocked By Active Replication",
+    "message": "Clone volume cannot be split while it is in a replication relationship. Delete the replication on this volume before retrying the split.",
+    "retriable": false,
+    "http_code": 409
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",

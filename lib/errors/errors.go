@@ -219,6 +219,7 @@ const (
 	ErrHotTierCapacityExhausted           = 7016
 	ErrDeleteVolumeRestrictedAction       = 7017
 	ErrSplitBlockedByDependentChildClones = 7018
+	ErrSplitBlockedByActiveReplication    = 7019
 
 	// CMEK Error Codes
 	ErrDescribingSDEJob                            = 6057

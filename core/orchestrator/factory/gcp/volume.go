@@ -4319,6 +4319,14 @@ func _validateSplitStartVolumeParams(ctx context.Context, se database.Storage, v
 		return vsaerrors.NewVCPError(vsaerrors.ErrSplitBlockedByDependentChildClones, nil)
 	}
 
+	replicationCount, err := se.GetVolumeReplicationCountByVolumeID(ctx, volume.ID)
+	if err != nil {
+		return fmt.Errorf("checking replication state for clone split: %w", err)
+	}
+	if replicationCount > 0 {
+		return vsaerrors.NewVCPError(vsaerrors.ErrSplitBlockedByActiveReplication, nil)
+	}
+
 	return nil
 }
 
