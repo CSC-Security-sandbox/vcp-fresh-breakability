@@ -119,8 +119,14 @@ class Scorer:
             "errors": {
                 "false_green_count": int,      # true_review/true_fix predicted as auto_clear
                 "false_green_rate": float,     # false_green_count / total * 100
+                "false_green_pct": float,      # alias for false_green_rate
                 "false_block_count": int,      # true_safe predicted as review/fix
                 "false_block_rate": float,     # false_block_count / total * 100
+                "false_block_pct": float,      # alias for false_block_rate
+                "false_none_count": int,       # true_review/true_fix predicted as abstain
+                "false_none_pct": float,       # false-none rate among all predictions
+                "false_safe_count": int,       # true_review/true_fix predicted as auto_clear/abstain
+                "false_safe_pct": float,       # false-safe rate (false-negative for SAFE/NONE)
             },
             "gates": {
                 "auto_clear_gte_85pct": bool,  # auto_clear_pct >= 85.0
@@ -144,8 +150,9 @@ class Scorer:
             "abstain": 0,
         }
         errors = {
-            "false_green": 0,
-            "false_block": 0,
+            "false_green": 0,       # predicted auto_clear but ground truth is true_review/true_fix
+            "false_none": 0,        # predicted abstain but ground truth is true_review/true_fix
+            "false_block": 0,       # predicted review/fix but ground truth is true_safe
         }
         per_case = []
         
@@ -157,6 +164,11 @@ class Scorer:
             if pred_label == "auto_clear" and case.expected_label in ["true_review", "true_fix"]:
                 error = "false_green"
                 errors["false_green"] += 1
+            
+            # Detect false none: predicted abstain but ground truth is true_review/true_fix
+            elif pred_label == "abstain" and case.expected_label in ["true_review", "true_fix"]:
+                error = "false_none"
+                errors["false_none"] += 1
             
             # Detect false block: predicted review/fix but ground truth is true_safe
             elif pred_label in ["review", "fix"] and case.expected_label == "true_safe":
@@ -188,7 +200,10 @@ class Scorer:
         human_review_pct = review_pct + fix_pct
         false_green_rate = (errors["false_green"] / total) * 100
         false_block_rate = (errors["false_block"] / total) * 100
-        
+        false_safe_count = errors["false_green"] + errors["false_none"]
+        false_none_rate = (errors["false_none"] / total) * 100
+        false_safe_rate = (false_safe_count / total) * 100
+
         # Evaluate gates
         auto_clear_gte_85pct = auto_clear_pct >= self.TARGET_AUTO_CLEAR_PCT
         zero_false_green = errors["false_green"] == self.TARGET_FALSE_GREEN_COUNT
@@ -205,8 +220,14 @@ class Scorer:
             "errors": {
                 "false_green_count": errors["false_green"],
                 "false_green_rate": false_green_rate,
+                "false_green_pct": false_green_rate,
+                "false_none_count": errors["false_none"],
+                "false_none_pct": false_none_rate,
+                "false_safe_count": false_safe_count,
+                "false_safe_pct": false_safe_rate,
                 "false_block_count": errors["false_block"],
                 "false_block_rate": false_block_rate,
+                "false_block_pct": false_block_rate,
             },
             "gates": {
                 "auto_clear_gte_85pct": auto_clear_gte_85pct,
@@ -291,6 +312,13 @@ def main():
         
         gate_status = "PASS" if result["gates"]["pass"] else "FAIL"
         print(f"\n>>> Overall: {gate_status} <<<")
+
+        print(f"\n=== FALSE-NEGATIVE RATE (SAFE/NONE) ===")
+        print(f"  false_green (predicted auto_clear): {result['errors']['false_green_count']} cases ({result['errors']['false_green_pct']:.1f}%)")
+        print(f"  false_none (predicted abstain): {result['errors']['false_none_count']} cases ({result['errors']['false_none_pct']:.1f}%)")
+        print(f"  false_safe_total (false-negative rate): {result['errors']['false_safe_count']} cases ({result['errors']['false_safe_pct']:.1f}%)")
+        print(f"\n=== FALSE-POSITIVE RATE (BLOCKING) ===")
+        print(f"  false_block (predicted review/fix): {result['errors']['false_block_count']} cases ({result['errors']['false_block_pct']:.1f}%)")
         
         print("\nDetailed results saved to: predictions.eval.json")
         with open("predictions.eval.json", "w") as f:

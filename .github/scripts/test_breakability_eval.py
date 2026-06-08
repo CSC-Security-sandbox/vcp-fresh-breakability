@@ -207,6 +207,175 @@ def test_false_block_detection():
     return True
 
 
+def test_false_none_detection():
+    """Test detection of false-none (predicted abstain but ground truth is review/fix)."""
+    cases = [
+        CorpusCase({
+            "pr_id": "2",
+            "ecosystem": "npm",
+            "package": "lodash",
+            "from_version": "4.17.0",
+            "to_version": "4.18.0",
+            "expected_label": "true_review",  # needs review
+            "expected_evidence_class": "supply_chain",
+        }),
+        CorpusCase({
+            "pr_id": "18",
+            "ecosystem": "go",
+            "package": "github.com/example/api",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_fix",  # needs fixing
+            "expected_evidence_class": "api_break",
+        }),
+    ]
+    
+    # Predict both as abstain (dangerous - skips action)
+    predictions = {
+        "2": "abstain",
+        "18": "abstain",
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    # Both should be flagged as false-none
+    assert result["errors"]["false_none_count"] == 2, "Should detect both false-nones"
+    assert result["per_case"][0]["error"] == "false_none"
+    assert result["per_case"][1]["error"] == "false_none"
+    
+    return True
+
+
+def test_false_safe_rate_combined():
+    """Test that false_safe_pct combines false_green and false_none rates."""
+    cases = [
+        CorpusCase({
+            "pr_id": "1",
+            "ecosystem": "go",
+            "package": "pkg1",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_fix",
+            "expected_evidence_class": "api_break",
+        }),
+        CorpusCase({
+            "pr_id": "2",
+            "ecosystem": "go",
+            "package": "pkg2",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_review",
+            "expected_evidence_class": "supply_chain",
+        }),
+        CorpusCase({
+            "pr_id": "3",
+            "ecosystem": "go",
+            "package": "pkg3",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+        CorpusCase({
+            "pr_id": "4",
+            "ecosystem": "go",
+            "package": "pkg4",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+    ]
+    
+    # One false-green, one false-none, rest correct
+    predictions = {
+        "1": "auto_clear",  # FALSE GREEN (should be fix)
+        "2": "abstain",      # FALSE NONE (should be review)
+        "3": "auto_clear",   # correct
+        "4": "auto_clear",   # correct
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    assert result["errors"]["false_green_count"] == 1
+    assert result["errors"]["false_none_count"] == 1
+    assert result["errors"]["false_safe_count"] == 2, "false_safe should be sum of false_green + false_none"
+    assert abs(result["errors"]["false_safe_pct"] - 50.0) < 0.1, f"false_safe_pct should be 50%, got {result['errors']['false_safe_pct']}"
+    
+    return True
+
+
+def test_false_rates_percentages():
+    """Test that all error rate percentages are computed correctly."""
+    cases = [
+        CorpusCase({
+            "pr_id": "1",
+            "ecosystem": "go",
+            "package": "pkg1",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_fix",
+            "expected_evidence_class": "api_break",
+        }),
+        CorpusCase({
+            "pr_id": "2",
+            "ecosystem": "go",
+            "package": "pkg2",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_review",
+            "expected_evidence_class": "supply_chain",
+        }),
+        CorpusCase({
+            "pr_id": "3",
+            "ecosystem": "go",
+            "package": "pkg3",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+        CorpusCase({
+            "pr_id": "4",
+            "ecosystem": "go",
+            "package": "pkg4",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+    ]
+    
+    # 1 false-green, 1 false-none, 1 false-block, 1 correct
+    predictions = {
+        "1": "auto_clear",  # FALSE GREEN
+        "2": "abstain",      # FALSE NONE
+        "3": "review",       # FALSE BLOCK
+        "4": "auto_clear",   # correct
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    # Verify percentages sum to reasonable values
+    assert result["errors"]["false_green_count"] == 1
+    assert result["errors"]["false_none_count"] == 1
+    assert result["errors"]["false_safe_count"] == 2
+    assert result["errors"]["false_block_count"] == 1
+    
+    assert abs(result["errors"]["false_green_pct"] - 25.0) < 0.1
+    assert abs(result["errors"]["false_none_pct"] - 25.0) < 0.1
+    assert abs(result["errors"]["false_safe_pct"] - 50.0) < 0.1
+    assert abs(result["errors"]["false_block_pct"] - 25.0) < 0.1
+    
+    return True
+
+
+
+
+
 def test_mixed_predictions():
     """Test mixed prediction scenario."""
     cases = [
@@ -694,7 +863,10 @@ def main():
         ("corpus_validator", test_corpus_validator),
         ("scorer_metrics", test_scorer_metrics),
         ("false_green_detection", test_false_green_detection),
+        ("false_none_detection", test_false_none_detection),
         ("false_block_detection", test_false_block_detection),
+        ("false_safe_rate_combined", test_false_safe_rate_combined),
+        ("false_rates_percentages", test_false_rates_percentages),
         ("mixed_predictions", test_mixed_predictions),
         ("load_corpus_from_file", test_load_corpus_from_file),
         ("load_predictions_from_file", test_load_predictions_from_file),
