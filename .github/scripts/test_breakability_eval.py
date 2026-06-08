@@ -268,6 +268,372 @@ def test_mixed_predictions():
     return True
 
 
+def test_human_review_pct():
+    """Test that human_review_pct correctly sums review_pct and fix_pct."""
+    cases = [
+        CorpusCase({
+            "pr_id": "18",
+            "ecosystem": "go",
+            "package": "github.com/example/api",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_fix",
+            "expected_evidence_class": "api_break",
+        }),
+        CorpusCase({
+            "pr_id": "2",
+            "ecosystem": "npm",
+            "package": "lodash",
+            "from_version": "4.17.0",
+            "to_version": "4.18.0",
+            "expected_label": "true_review",
+            "expected_evidence_class": "supply_chain",
+        }),
+        CorpusCase({
+            "pr_id": "28",
+            "ecosystem": "go",
+            "package": "github.com/security/fix",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+    ]
+    
+    predictions = {
+        "18": "fix",
+        "2": "review",
+        "28": "auto_clear",
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    # human_review_pct should be review_pct + fix_pct
+    expected_human_review = result["metrics"]["review_pct"] + result["metrics"]["fix_pct"]
+    assert abs(result["metrics"]["human_review_pct"] - expected_human_review) < 0.01, \
+        f"human_review_pct should equal review_pct + fix_pct"
+    assert abs(result["metrics"]["human_review_pct"] - 66.67) < 0.1, \
+        f"human_review_pct should be ~66.7%, got {result['metrics']['human_review_pct']}"
+    
+    return True
+
+
+def test_false_green_rate():
+    """Test that false_green_rate is correctly calculated as percentage."""
+    cases = [
+        CorpusCase({
+            "pr_id": "2",
+            "ecosystem": "npm",
+            "package": "lodash",
+            "from_version": "4.17.0",
+            "to_version": "4.18.0",
+            "expected_label": "true_review",
+            "expected_evidence_class": "supply_chain",
+        }),
+        CorpusCase({
+            "pr_id": "18",
+            "ecosystem": "go",
+            "package": "github.com/example/api",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_fix",
+            "expected_evidence_class": "api_break",
+        }),
+    ]
+    
+    # Predict both as auto_clear (both false-green)
+    predictions = {
+        "2": "auto_clear",
+        "18": "auto_clear",
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    assert result["errors"]["false_green_count"] == 2
+    assert result["errors"]["false_green_rate"] == 100.0, \
+        f"false_green_rate should be 100%, got {result['errors']['false_green_rate']}"
+    
+    return True
+
+
+def test_false_block_rate():
+    """Test that false_block_rate is correctly calculated as percentage."""
+    cases = [
+        CorpusCase({
+            "pr_id": "28",
+            "ecosystem": "go",
+            "package": "github.com/security/fix",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+        CorpusCase({
+            "pr_id": "35",
+            "ecosystem": "python",
+            "package": "requests",
+            "from_version": "2.28.0",
+            "to_version": "2.29.0",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+    ]
+    
+    # Predict both as review (both false-block)
+    predictions = {
+        "28": "review",
+        "35": "fix",
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    assert result["errors"]["false_block_count"] == 2
+    assert result["errors"]["false_block_rate"] == 100.0, \
+        f"false_block_rate should be 100%, got {result['errors']['false_block_rate']}"
+    
+    return True
+
+
+def test_gates_pass_all():
+    """Test gates pass when auto_clear >=85% and zero false-green."""
+    cases = [
+        CorpusCase({
+            "pr_id": "28",
+            "ecosystem": "go",
+            "package": "github.com/security/fix",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+        CorpusCase({
+            "pr_id": "35",
+            "ecosystem": "python",
+            "package": "requests",
+            "from_version": "2.28.0",
+            "to_version": "2.29.0",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+    ]
+    
+    # Perfect predictions: all auto_clear, both safe
+    predictions = {
+        "28": "auto_clear",
+        "35": "auto_clear",
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    assert result["gates"]["auto_clear_gte_85pct"] == True, "Should pass auto_clear gate (100%)"
+    assert result["gates"]["zero_false_green"] == True, "Should pass zero_false_green gate"
+    assert result["gates"]["pass"] == True, "Overall gates should pass"
+    
+    return True
+
+
+def test_gates_fail_auto_clear():
+    """Test gates fail when auto_clear <85%."""
+    cases = [
+        CorpusCase({
+            "pr_id": "2",
+            "ecosystem": "npm",
+            "package": "lodash",
+            "from_version": "4.17.0",
+            "to_version": "4.18.0",
+            "expected_label": "true_review",
+            "expected_evidence_class": "supply_chain",
+        }),
+        CorpusCase({
+            "pr_id": "18",
+            "ecosystem": "go",
+            "package": "github.com/example/api",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_fix",
+            "expected_evidence_class": "api_break",
+        }),
+        CorpusCase({
+            "pr_id": "28",
+            "ecosystem": "go",
+            "package": "github.com/security/fix",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+    ]
+    
+    # Only 1 auto_clear out of 3 = 33.3% < 85%
+    predictions = {
+        "2": "review",
+        "18": "fix",
+        "28": "auto_clear",
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    assert result["metrics"]["auto_clear_pct"] < 85.0
+    assert result["gates"]["auto_clear_gte_85pct"] == False, "Should fail auto_clear gate"
+    assert result["gates"]["pass"] == False, "Overall gates should fail"
+    
+    return True
+
+
+def test_gates_fail_false_green():
+    """Test gates fail when false_green_count > 0."""
+    cases = [
+        CorpusCase({
+            "pr_id": "2",
+            "ecosystem": "npm",
+            "package": "lodash",
+            "from_version": "4.17.0",
+            "to_version": "4.18.0",
+            "expected_label": "true_review",
+            "expected_evidence_class": "supply_chain",
+        }),
+        CorpusCase({
+            "pr_id": "28",
+            "ecosystem": "go",
+            "package": "github.com/security/fix",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+    ]
+    
+    # 50% auto_clear but 1 is false-green
+    predictions = {
+        "2": "auto_clear",  # FALSE GREEN
+        "28": "auto_clear",
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    assert result["gates"]["zero_false_green"] == False, "Should fail zero_false_green gate"
+    assert result["gates"]["pass"] == False, "Overall gates should fail"
+    
+    return True
+
+
+def test_report_shape():
+    """Test that report has correct structure with all required fields."""
+    cases = [
+        CorpusCase({
+            "pr_id": "18",
+            "ecosystem": "go",
+            "package": "github.com/example/api",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_fix",
+            "expected_evidence_class": "api_break",
+        }),
+    ]
+    
+    predictions = {"18": "fix"}
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    # Check top-level keys
+    assert "metrics" in result, "Report must have 'metrics' key"
+    assert "errors" in result, "Report must have 'errors' key"
+    assert "gates" in result, "Report must have 'gates' key"
+    assert "per_case" in result, "Report must have 'per_case' key"
+    
+    # Check metrics keys
+    assert "auto_clear_pct" in result["metrics"]
+    assert "human_review_pct" in result["metrics"]
+    assert "review_pct" in result["metrics"]
+    assert "fix_pct" in result["metrics"]
+    assert "abstain_pct" in result["metrics"]
+    
+    # Check errors keys
+    assert "false_green_count" in result["errors"]
+    assert "false_green_rate" in result["errors"]
+    assert "false_block_count" in result["errors"]
+    assert "false_block_rate" in result["errors"]
+    
+    # Check gates keys
+    assert "auto_clear_gte_85pct" in result["gates"]
+    assert "zero_false_green" in result["gates"]
+    assert "pass" in result["gates"]
+    
+    # Check per_case structure
+    assert len(result["per_case"]) == 1
+    assert "pr_id" in result["per_case"][0]
+    assert "expected" in result["per_case"][0]
+    assert "predicted" in result["per_case"][0]
+    assert "error" in result["per_case"][0]
+    
+    return True
+
+    """Test mixed prediction scenario."""
+    cases = [
+        CorpusCase({
+            "pr_id": "18",
+            "ecosystem": "go",
+            "package": "github.com/example/api",
+            "from_version": "1.0.0",
+            "to_version": "2.0.0",
+            "expected_label": "true_fix",
+            "expected_evidence_class": "api_break",
+        }),
+        CorpusCase({
+            "pr_id": "2",
+            "ecosystem": "npm",
+            "package": "lodash",
+            "from_version": "4.17.0",
+            "to_version": "4.18.0",
+            "expected_label": "true_review",
+            "expected_evidence_class": "supply_chain",
+        }),
+        CorpusCase({
+            "pr_id": "28",
+            "ecosystem": "go",
+            "package": "github.com/security/fix",
+            "from_version": "1.0.0",
+            "to_version": "1.0.1",
+            "expected_label": "true_safe",
+            "expected_evidence_class": "none",
+        }),
+        CorpusCase({
+            "pr_id": "16",
+            "ecosystem": "python",
+            "package": "requests",
+            "from_version": "2.27.0",
+            "to_version": "2.28.0",
+            "expected_label": "true_review",
+            "expected_evidence_class": "test_coverage",
+        }),
+    ]
+    
+    # One false-green, one false-block, one correct
+    predictions = {
+        "18": "fix",           # correct
+        "2": "auto_clear",     # FALSE GREEN (should be review)
+        "28": "review",        # FALSE BLOCK (should be auto_clear)
+        "16": "review",        # correct
+    }
+    
+    scorer = Scorer(cases)
+    result = scorer.score(predictions)
+    
+    assert result["errors"]["false_green_count"] == 1
+    assert result["errors"]["false_block_count"] == 1
+    assert result["metrics"]["auto_clear_pct"] == 25, f"auto_clear_pct should be 25%, got {result['metrics']['auto_clear_pct']}"
+    assert result["metrics"]["review_pct"] == 50
+    assert result["metrics"]["fix_pct"] == 25
+    
+    return True
+
+
 def test_load_corpus_from_file():
     """Test loading corpus from JSON file."""
     corpus_data = {
@@ -332,6 +698,13 @@ def main():
         ("mixed_predictions", test_mixed_predictions),
         ("load_corpus_from_file", test_load_corpus_from_file),
         ("load_predictions_from_file", test_load_predictions_from_file),
+        ("human_review_pct", test_human_review_pct),
+        ("false_green_rate", test_false_green_rate),
+        ("false_block_rate", test_false_block_rate),
+        ("gates_pass_all", test_gates_pass_all),
+        ("gates_fail_auto_clear", test_gates_fail_auto_clear),
+        ("gates_fail_false_green", test_gates_fail_false_green),
+        ("report_shape", test_report_shape),
     ]
     
     fails = 0

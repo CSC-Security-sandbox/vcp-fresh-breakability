@@ -19,8 +19,9 @@ python3 .github/scripts/breakability_eval.py eval-corpus.seed.json --predict <pr
 ```
 
 Output:
-- **Metrics**: auto_clear%, review%, fix%, abstain% distribution
-- **Errors**: false_green_count (predicted safe but ground truth is review/fix), false_block_count (predicted review/fix but ground truth is safe)
+- **Metrics**: auto_clear%, human_review% (<=15% target), review%, fix%, abstain% distribution
+- **Errors**: false_green_count/rate (predicted safe but ground truth is review/fix), false_block_count/rate (predicted review/fix but ground truth is safe)
+- **Gates**: Target validation for 85% dev-work reduction (auto_clear>=85%, zero false-green)
 - **Per-case**: Detailed breakdown with error flags
 
 ### Run Tests
@@ -60,8 +61,11 @@ Frozen snapshot from merge plan #122. Each case is conservative ground truth:
 
 ## Metrics Explained
 
-- **false_green_count**: Cases predicted as auto_clear but ground truth is true_review/true_fix (highest risk)
-- **false_block_count**: Cases predicted as review/fix but ground truth is true_safe (dev friction cost)
-- **Review %**: Fraction predicted to require review
+- **auto_clear_pct**: Fraction of PRs approved automatically (target: >=85% for 85% dev-work reduction)
+- **human_review_pct**: Fraction requiring human review/fix (review_pct + fix_pct, target: <=15%)
+- **false_green_count/rate**: Cases predicted as auto_clear but ground truth is true_review/true_fix (highest risk, target: 0)
+- **false_block_count/rate**: Cases predicted as review/fix but ground truth is true_safe (dev friction cost)
 
-Target: minimize false_green at acceptable false_block/review cost.
+**Target gates for product readiness**:
+- auto_clear >= 85% (enables ~85% dev-work reduction)
+- false_green_count == 0 (zero known false-green)

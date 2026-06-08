@@ -3,8 +3,9 @@
 
 Provides:
   - Corpus schema validation (JSON)
-  - Scoring metrics: auto_clear%, review%, fix%, abstain%, false_green, false_block
-  - False-green/false-block detection
+  - Scoring metrics: auto_clear%, human_review%, review%, fix%, abstain%, false_green, false_block
+  - False-green/false-block detection with rates
+  - Target gates for 85% dev-work reduction: auto_clear >=85%, zero false-green
 
 Run: python3 .github/scripts/breakability_eval.py <corpus.json> [--predict <predictions.json>]
 """
@@ -94,6 +95,10 @@ class CorpusValidator:
 class Scorer:
     """Computes evaluation metrics from predictions vs. corpus."""
     
+    # Target gates for product metrics (85% dev-work reduction, zero false-green)
+    TARGET_AUTO_CLEAR_PCT = 85.0  # >=85% auto-clear reduces dev work by ~85%
+    TARGET_FALSE_GREEN_COUNT = 0  # zero known false-green
+    
     def __init__(self, cases: List[CorpusCase]):
         self.cases = cases
     
@@ -106,13 +111,21 @@ class Scorer:
         Returns: {
             "metrics": {
                 "auto_clear_pct": float,
+                "human_review_pct": float,     # review_pct + fix_pct
                 "review_pct": float,
                 "fix_pct": float,
                 "abstain_pct": float,
             },
             "errors": {
-                "false_green_count": int,    # true_review/true_fix predicted as auto_clear
-                "false_block_count": int,    # true_safe predicted as review/fix
+                "false_green_count": int,      # true_review/true_fix predicted as auto_clear
+                "false_green_rate": float,     # false_green_count / total * 100
+                "false_block_count": int,      # true_safe predicted as review/fix
+                "false_block_rate": float,     # false_block_count / total * 100
+            },
+            "gates": {
+                "auto_clear_gte_85pct": bool,  # auto_clear_pct >= 85.0
+                "zero_false_green": bool,      # false_green_count == 0
+                "pass": bool,                  # all gates pass
             },
             "per_case": [
                 {
@@ -168,16 +181,37 @@ class Scorer:
         if total == 0:
             return {"error": "No cases to score"}
         
+        auto_clear_pct = (metrics["auto_clear"] / total) * 100
+        review_pct = (metrics["review"] / total) * 100
+        fix_pct = (metrics["fix"] / total) * 100
+        abstain_pct = (metrics["abstain"] / total) * 100
+        human_review_pct = review_pct + fix_pct
+        false_green_rate = (errors["false_green"] / total) * 100
+        false_block_rate = (errors["false_block"] / total) * 100
+        
+        # Evaluate gates
+        auto_clear_gte_85pct = auto_clear_pct >= self.TARGET_AUTO_CLEAR_PCT
+        zero_false_green = errors["false_green"] == self.TARGET_FALSE_GREEN_COUNT
+        gates_pass = auto_clear_gte_85pct and zero_false_green
+        
         result = {
             "metrics": {
-                "auto_clear_pct": (metrics["auto_clear"] / total) * 100,
-                "review_pct": (metrics["review"] / total) * 100,
-                "fix_pct": (metrics["fix"] / total) * 100,
-                "abstain_pct": (metrics["abstain"] / total) * 100,
+                "auto_clear_pct": auto_clear_pct,
+                "human_review_pct": human_review_pct,
+                "review_pct": review_pct,
+                "fix_pct": fix_pct,
+                "abstain_pct": abstain_pct,
             },
             "errors": {
                 "false_green_count": errors["false_green"],
+                "false_green_rate": false_green_rate,
                 "false_block_count": errors["false_block"],
+                "false_block_rate": false_block_rate,
+            },
+            "gates": {
+                "auto_clear_gte_85pct": auto_clear_gte_85pct,
+                "zero_false_green": zero_false_green,
+                "pass": gates_pass,
             },
             "per_case": per_case,
         }
@@ -239,16 +273,24 @@ def main():
         scorer = Scorer(cases)
         result = scorer.score(predictions)
         
-        print("\n=== METRICS ===")
+        print("\n=== METRICS (Target: auto_clear >=85%, human_review <=15%) ===")
         for key, val in result["metrics"].items():
             print(f"  {key}: {val:.1f}%")
         
-        print("\n=== ERRORS ===")
+        print("\n=== ERRORS (Target: zero false-green) ===")
         for key, val in result["errors"].items():
-            print(f"  {key}: {val}")
+            if isinstance(val, float):
+                print(f"  {key}: {val:.1f}%")
+            else:
+                print(f"  {key}: {val}")
         
-        print(f"\nFalse-green risk: {result['errors']['false_green_count']} cases")
-        print(f"False-block cost: {result['errors']['false_block_count']} cases")
+        print("\n=== GATES (Target for 85% dev-work reduction) ===")
+        for gate, status in result["gates"].items():
+            symbol = "✓" if status else "✗"
+            print(f"  {symbol} {gate}: {status}")
+        
+        gate_status = "PASS" if result["gates"]["pass"] else "FAIL"
+        print(f"\n>>> Overall: {gate_status} <<<")
         
         print("\nDetailed results saved to: predictions.eval.json")
         with open("predictions.eval.json", "w") as f:
