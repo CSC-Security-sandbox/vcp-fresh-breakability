@@ -3051,7 +3051,7 @@ _quick_sec_blocked = [e for e in blocked if e.get("cves") or e["num"] in _quick_
 _act_security = len(_quick_sec_safe) + len(_quick_sec_blocked)
 _act_msg = []
 if _act_blocked > 0:
-    _act_msg.append(f"🛑 **Fix first:** {_act_blocked} PR(s) have build/CVE issues — see 'Fix Required' below.")
+    _act_msg.append(f"🛑 **Fix first:** {_act_blocked} PR(s) have blocking verification issues — see 'Fix Required' below.")
 if _act_security > 0:
     _act_msg.append(f"🔐 **Priority merge:** {_act_security} PR(s) fix known CVEs — merge them first.")
 if _act_high_risk > 0:
@@ -3229,7 +3229,7 @@ if _sec_safe_l2:
     _step += 1
 if _sec_blocked:
     _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_blocked)
-    lines.append(f"{_step}. **FIX FIRST — security PRs with issues:** {_sec_nums} — resolve build/test failures before merging")
+    lines.append(f"{_step}. **FIX FIRST — security PRs with blocking issues:** {_sec_nums} — resolve the listed blocker before merging")
     _step += 1
 # L4 safe PRs
 _l4_safe = [e for e in safe if e.get("ver", "").startswith("L4") and not e.get("cves")]
@@ -3269,7 +3269,7 @@ if likely_safe_count > 0:
 # Fix required
 _non_sec_blocked = [e for e in blocked if not e.get("cves")]
 if _non_sec_blocked:
-    lines.append(f"{_step}. **FIX NEEDED:** {len(_non_sec_blocked)} PR(s) have build/CVE issues")
+    lines.append(f"{_step}. **FIX NEEDED:** {len(_non_sec_blocked)} PR(s) have blocking verification issues")
     _step += 1
 lines.append("")
 
