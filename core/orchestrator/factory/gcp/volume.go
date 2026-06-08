@@ -2485,7 +2485,7 @@ func validateDetachedBackupsAllowAttachVaultLegacy(ctx context.Context, se datab
 		return err
 	}
 	if len(vaultIDs) > 0 && attachVault.ServiceType != activities.GCBDRServiceType {
-		return customerrors.NewUserInputValidationErr("Cannot attach a non-GCBDR backup vault while the volume has existing backups from a detached backup vault. Delete those backups first, or attach a GCBDR backup vault.")
+		return customerrors.NewUserInputValidationErr("Cannot attach a non-cross project backup vault while the volume has existing backups from a detached backup vault. Delete those backups first, or attach a cross project backup vault.")
 	}
 	return nil
 }
@@ -2514,13 +2514,13 @@ func validateBackupVaultChangeLegacy(
 	volumeHasBackups := len(distinctVaultIDsWithBackups) > 0
 	if volumeHasBackups {
 		if currentVault != nil && currentVault.ServiceType != activities.GCBDRServiceType {
-			return customerrors.NewUserInputValidationErr("Backup vault switching is only allowed for GCBDR backup vaults. The current backup vault is not a GCBDR vault.")
+			return customerrors.NewUserInputValidationErr("Backup vault switching is only allowed for cross project backup vaults. The current backup vault is not a cross project vault.")
 		}
 		if newVault != nil && newVault.ServiceType != activities.GCBDRServiceType {
 			if newVault.AccountID != dbVolume.AccountID {
 				return customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
 			}
-			return customerrors.NewUserInputValidationErr("Backup vault switching is only allowed between GCBDR backup vaults. The target backup vault is not a GCBDR vault.")
+			return customerrors.NewUserInputValidationErr("Backup vault switching is only allowed between cross project backup vaults. The target backup vault is not a cross project vault.")
 		}
 	} else if newVault != nil && newVault.ServiceType != activities.GCBDRServiceType && newVault.AccountID != dbVolume.AccountID {
 		return customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")

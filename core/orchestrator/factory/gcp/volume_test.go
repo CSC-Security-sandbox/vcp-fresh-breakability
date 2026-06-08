@@ -15800,7 +15800,7 @@ func TestUpdateVolume(t *testing.T) {
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Error(tt, err)
 		assert.Nil(tt, volume)
-		assert.Contains(tt, err.Error(), "Backup vault switching is only allowed for GCBDR backup vaults. The current backup vault is not a GCBDR vault.")
+		assert.Contains(tt, err.Error(), "Backup vault switching is only allowed for cross project backup vaults. The current backup vault is not a cross project vault.")
 	})
 	t.Run("WhenGCNVVaultSwitchingOff_GCBDRToGCNV_SameAccount_WithBackups_ReturnsError", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
@@ -15841,7 +15841,7 @@ func TestUpdateVolume(t *testing.T) {
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Error(tt, err)
 		assert.Nil(tt, volume)
-		assert.Contains(tt, err.Error(), "Backup vault switching is only allowed between GCBDR backup vaults. The target backup vault is not a GCBDR vault.")
+		assert.Contains(tt, err.Error(), "Backup vault switching is only allowed between cross project backup vaults. The target backup vault is not a cross project vault.")
 	})
 	t.Run("WhenGCNVVaultSwitchingOff_DetachGCNVVaultWithBackups_ReturnsError", func(tt *testing.T) {
 		orig := utils.EnableBackupVaultSwitching
@@ -17189,7 +17189,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		params := &common.UpdateVolumeParams{DataProtection: &models.UpdateDataProtection{BackupVaultID: &bid}}
 		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Cannot attach a non-GCBDR backup vault while the volume has existing backups")
+		assert.Contains(tt, err.Error(), "Cannot attach a non-cross project backup vault while the volume has existing backups")
 		se.AssertExpectations(tt)
 	})
 
