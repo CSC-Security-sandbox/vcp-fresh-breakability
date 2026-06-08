@@ -291,7 +291,7 @@ get_behavioral_grade() {
 import json, os, shlex
 
 KEYS = ("BG_OK", "BG_GRADE", "BG_SOURCE", "BG_RATIONALE", "BG_GUIDANCE",
-        "BG_EVIDENCE", "BG_CALLSITE", "BG_CHANGED")
+        "BG_EVIDENCE", "BG_CALLSITE", "BG_CHANGED", "BG_CONFIDENCE")
 DEFAULTS = {k: "" for k in KEYS}
 DEFAULTS["BG_OK"] = "0"
 
@@ -316,6 +316,7 @@ try:
         "BG_EVIDENCE": str(g.get("evidence", "")),
         "BG_CALLSITE": str(g.get("call_site", "")),
         "BG_CHANGED": str(g.get("behavior_changed", "")),
+        "BG_CONFIDENCE": str(g.get("confidence", "")),
     })
 except Exception:
     emit(DEFAULTS)
@@ -648,7 +649,7 @@ fields = {
     'MERGE_RISK_TAG': (d.get('merge_risk') or {}).get('tag', ''),
     'MERGE_RISK_REASON': (d.get('merge_risk') or {}).get('reason', ''),
     'MERGE_RISK_EVIDENCE': (d.get('merge_risk') or {}).get('evidenceAxis', ''),
-    'MERGE_RISK_CONFIDENCE': (d.get('merge_risk') or {}).get('confidenceAxis', ''),
+    'MERGE_RISK_BUILD_VERIFICATION': (d.get('merge_risk') or {}).get('buildVerificationAxis', '') or (d.get('merge_risk') or {}).get('confidenceAxis', ''),
 }
 for k, v in fields.items():
     # Use null byte as delimiter to safely handle any value content
@@ -753,7 +754,7 @@ for k, v in fields.items():
   MERGE_RISK_TAG=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_TAG=' | cut -d= -f2-)
   MERGE_RISK_REASON=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_REASON=' | cut -d= -f2-)
   MERGE_RISK_EVIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_EVIDENCE=' | cut -d= -f2-)
-  MERGE_RISK_CONFIDENCE=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_CONFIDENCE=' | cut -d= -f2-)
+  MERGE_RISK_BUILD_VERIFICATION=$(echo "$_FIELDS_EXTRACTED" | grep '^MERGE_RISK_BUILD_VERIFICATION=' | cut -d= -f2-)
   # The deterministic merge-risk reason is built BEFORE the behavioral oracle runs, so it
   # ends in a "verify against the release notes" punt. Once the oracle has committed a CITED
   # grade, that punt is stale — the oracle already read the notes and graded the exposure.
@@ -765,6 +766,15 @@ for k, v in fields.items():
   if [[ "${BG_OK:-0}" == "1" && ( "$_BG_SRC_LC" == "reasoning" || "$_BG_SRC_LC" == "probe" ) \
         && ( -n "${BG_RATIONALE:-}" || -n "${BG_GUIDANCE:-}" || -n "${BG_EVIDENCE:-}" ) ]]; then
     _BG_CITED=1
+  fi
+  _BG_CONF_LC=$(printf '%s' "${BG_CONFIDENCE:-}" | tr '[:upper:]' '[:lower:]')
+  if [[ "$_BG_CITED" == "1" ]]; then
+    case "$_BG_CONF_LC" in
+      low|medium|high) MERGE_RISK_ORACLE_CONFIDENCE="$_BG_CONF_LC" ;;
+      *) MERGE_RISK_ORACLE_CONFIDENCE="cited" ;;
+    esac
+  else
+    MERGE_RISK_ORACLE_CONFIDENCE="not available"
   fi
   _REVIEW_WHY_TAIL=" Verify the affected behavior against the release notes before merging."
   if [[ "$_BG_CITED" == "1" ]]; then
@@ -913,8 +923,8 @@ print(' · '.join(parts))
   MERGE_RISK_TAG="${MERGE_RISK_TAG:-Medium}"
   MERGE_RISK_REASON="${MERGE_RISK_REASON:-change evidence is limited; default caution}"
   MERGE_RISK_EVIDENCE="${MERGE_RISK_EVIDENCE:-limited evidence}"
-  MERGE_RISK_CONFIDENCE="${MERGE_RISK_CONFIDENCE:-${VER_LABEL:-unverified}}"
-  MERGE_RISK_LINE="**Merge Risk: ${MERGE_RISK_TAG}** (Evidence: ${MERGE_RISK_EVIDENCE} × Confidence: ${MERGE_RISK_CONFIDENCE}) — ${MERGE_RISK_REASON}"
+  MERGE_RISK_BUILD_VERIFICATION="${MERGE_RISK_BUILD_VERIFICATION:-${VER_LABEL:-unverified}}"
+  MERGE_RISK_LINE="**Merge Risk: ${MERGE_RISK_TAG}** (Evidence: ${MERGE_RISK_EVIDENCE} × Build verification: ${MERGE_RISK_BUILD_VERIFICATION} × Oracle confidence: ${MERGE_RISK_ORACLE_CONFIDENCE:-not available}) — ${MERGE_RISK_REASON}"
 
     # Build "How we checked" checklist from verification_label
   # Build file-list detail block for evidence
@@ -2196,16 +2206,9 @@ print(body)
     eval "$(get_behavioral_grade "$PR_NUM")"
     # Reset per-PR so a prior PR's residual evidence can never leak onto this one.
     _V2_RESIDUAL_BLOCK=""
-    # ── Behavioral-confidence axis (C0–C5), DISTINCT from the build-verification tier ──
-    # V2_CONF is the confidence in the BEHAVIORAL grade (from the differential probe /
-    # break-class verdict_v2). The body separately shows "Verification: Lx" — the BUILD
-    # pipeline tier (did it compile / type-check / run tests). Both previously rendered as
-    # "Lx", so a reader saw "headline L2 vs body L4" as a self-contradiction when the two
-    # axes simply measure different things. Render behavioral confidence on its own C0–C5
-    # namespace so the headline can never be misread as disagreeing with the build tier.
-    _V2_CONF_RAW="${V2_CONF:-L0}"
-    _V2_CONF_AXIS="C${_V2_CONF_RAW#L}"
-    [[ "$_V2_CONF_AXIS" =~ ^C[0-5]$ ]] || _V2_CONF_AXIS="C0"
+    # ── Behavioral/oracle confidence, DISTINCT from build-verification tier ──
+    # V2_CONF is an L0-L5 build/test verification tier from the verdict mapper. Do not show it
+    # as behavioral confidence. Behavioral/oracle confidence comes from behavioral_grade.confidence.
     # BLOCKED -> High; SAFE -> None; REVIEW -> the committed behavioral grade (the
     # differential probe / break-class router) if present, else Medium. This replaces
     # the "review the release notes yourself" punt with a graded answer.
@@ -2220,6 +2223,15 @@ print(body)
             && ( -n "${BG_RATIONALE:-}" || -n "${BG_GUIDANCE:-}" || -n "${BG_EVIDENCE:-}" ) ]]; then
         _BG_CITED=1
       fi
+    fi
+    _BG_CONF_LC="$(printf '%s' "${BG_CONFIDENCE:-}" | tr '[:upper:]' '[:lower:]')"
+    if [[ "$_BG_CITED" == "1" ]]; then
+      case "$_BG_CONF_LC" in
+        low|medium|high) _BEHAVIORAL_CONF_LABEL="$_BG_CONF_LC" ;;
+        *) _BEHAVIORAL_CONF_LABEL="cited" ;;
+      esac
+    else
+      _BEHAVIORAL_CONF_LABEL="not available"
     fi
     # Normalise the mapper's deterministic severity (none/low/medium/high) as the fallback grade
     # when no CITED behavioral oracle grade exists — this is the SAME severity the merge-plan tiers
@@ -2249,10 +2261,10 @@ print(body)
       case "$_GRADE" in high|medium) ;; *) _GRADE="medium" ;; esac
     fi
     case "$_GRADE" in
-      high)   _V2_HEADLINE="🔴 Breakability: High · review required · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
-      medium) _V2_HEADLINE="🟠 Breakability: Medium · review recommended · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
-      low)    _V2_HEADLINE="🟡 Breakability: Low · optional glance · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
-      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · safe to merge · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: ${V2_PRIO:-P2}" ;;
+      high)   _V2_HEADLINE="🔴 Breakability: High · review required · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}" ;;
+      medium) _V2_HEADLINE="🟠 Breakability: Medium · review recommended · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}" ;;
+      low)    _V2_HEADLINE="🟡 Breakability: Low · optional glance · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}" ;;
+      *)      _GRADE="none"; _V2_HEADLINE="🟢 Breakability: None · safe to merge · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: ${V2_PRIO:-P2}" ;;
     esac
     # ── CVE-aware headline floor ───────────────────────────────────────────────
     # A PR that fixes a known CVE must headline the SECURITY action, not a
@@ -2281,32 +2293,32 @@ print(body)
       # headline can't over-credit a CVE the resulting version doesn't actually reach.
       if [[ "$_GATED_CVE_FIX" == "1" ]]; then _SEC_VERB="resolves"; else _SEC_VERB="claims to fix (not version-verified)"; fi
       if [[ "${NEW_ERR_COUNT:-0}" =~ ^[0-9]+$ && "${NEW_ERR_COUNT:-0}" -gt 0 ]]; then
-        _V2_HEADLINE="🔴 Security fix · BLOCKED — ${_SEC_VERB} ${_SEC_CVE_DESC} but introduces build errors · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0 (fix build, then merge)"
+        _V2_HEADLINE="🔴 Security fix · BLOCKED — ${_SEC_VERB} ${_SEC_CVE_DESC} but introduces build errors · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: P0 (fix build, then merge)"
       elif [[ "$_GRADE" == "high" ]]; then
         # The PR's OWN deterministic/behavioral break grade is High. An incidental (often
         # transitive) CVE must NOT bury that — keep the breaking-change identity as the lead
         # so the dev sees the dominant risk first, with the CVE noted as a secondary benefit.
-        _V2_HEADLINE="🔴 Breakability: High · REVIEW THEN MERGE — also ${_SEC_VERB} ${_SEC_CVE_DESC}; the breaking change is the dominant risk (verify the call sites below), merging still clears the CVE · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+        _V2_HEADLINE="🔴 Breakability: High · REVIEW THEN MERGE — also ${_SEC_VERB} ${_SEC_CVE_DESC}; the breaking change is the dominant risk (verify the call sites below), merging still clears the CVE · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: P0"
       elif [[ "$_GATED_CVE_FIX" != "1" || "${V2_VERDICT:-REVIEW}" == "BLOCKED" || "${V2_VERDICT:-REVIEW}" == "REVIEW" || "$_GRADE" == "medium" ]]; then
         # A CVE-fixing PR that the body routes to REVIEW (breaking change flagged, or a
         # committed behavioral grade of high/medium), OR an unverified PR-body claim, must NOT
         # headline "MERGE NOW" — that contradicts the body/plan. Say REVIEW THEN MERGE so the
         # security urgency is preserved without over-promising safety.
-        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}; verify the version/breaking-change note below, but merging is the path to clear the CVE · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}; verify the version/breaking-change note below, but merging is the path to clear the CVE · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: P0"
       elif [[ "$_TESTS_CLEAN" == "1" ]]; then
         # Build clean AND the test suite actually ran green — the only state that earns the
         # confident "MERGE NOW". Urgency never bypasses verification.
-        _V2_HEADLINE="🔴 Security fix · MERGE NOW — ${_SEC_VERB} ${_SEC_CVE_DESC}; build clean and tests pass · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+        _V2_HEADLINE="🔴 Security fix · MERGE NOW — ${_SEC_VERB} ${_SEC_CVE_DESC}; build clean and tests pass · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: P0"
       elif [[ "$_TEST_FAILED" == "1" && "$_TEST_PREEXIST_VERIFIED" == "1" ]]; then
         # Tests fail, but they ALSO fail on main (proven pre-existing). Prioritize, but the dev
         # must confirm the failures are unrelated before merging — never "merge now" over red.
-        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}; the test suite also fails on \`main\` (pre-existing) — confirm it is unrelated, then merge to clear the CVE · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}; the test suite also fails on \`main\` (pre-existing) — confirm it is unrelated, then merge to clear the CVE · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: P0"
       elif [[ "$_TEST_FAILED" == "1" ]]; then
         # Tests fail and we could NOT prove they pre-date this PR. Highest-caution security verb.
-        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}, but the test suite is currently failing and not confirmed pre-existing — verify before merging · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+        _V2_HEADLINE="🔴 Security fix · REVIEW THEN MERGE — ${_SEC_VERB} ${_SEC_CVE_DESC}, but the test suite is currently failing and not confirmed pre-existing — verify before merging · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: P0"
       else
         # Build clean, no behavioral break, but tests were not run — prioritize, glance, merge.
-        _V2_HEADLINE="🔴 Security fix · PRIORITIZE — review then merge — ${_SEC_VERB} ${_SEC_CVE_DESC}; build clean but tests were not run (safety not fully verified) · Behavioral-confidence: ${_V2_CONF_AXIS:-C0} · Priority: P0"
+        _V2_HEADLINE="🔴 Security fix · PRIORITIZE — review then merge — ${_SEC_VERB} ${_SEC_CVE_DESC}; build clean but tests were not run (safety not fully verified) · Oracle confidence: ${_BEHAVIORAL_CONF_LABEL:-not available} · Priority: P0"
       fi
     fi
     case "${V2_VERDICT:-REVIEW}" in
@@ -2673,7 +2685,7 @@ def fmt_merge_risk(pr):
     tag = risk.get("tag") or "Medium"
     reason = risk.get("reason") or "change evidence is limited; default caution"
     evidence = risk.get("evidenceAxis") or "limited evidence"
-    confidence = risk.get("confidenceAxis") or pr.get("verification_label") or "unverified"
+    build_verification = risk.get("buildVerificationAxis") or risk.get("confidenceAxis") or pr.get("verification_label") or "unverified"
     # The deterministic reason is built before the behavioral oracle runs, so it ends in a
     # "verify against the release notes" punt. When the oracle later committed a CITED grade,
     # that punt is stale here too (same fix as the per-PR comment) — strip it.
@@ -2691,7 +2703,10 @@ def fmt_merge_risk(pr):
     # Reconcile the merge-plan risk TAG with the committed behavioral grade so this row and
     # the PR-comment headline can never disagree (PR#38 headline Medium vs plan High).
     tag = effective_risk_tag(pr)
-    return f"{tag} (Evidence: {evidence} × Confidence: {confidence}) — {reason}"
+    oracle_conf = str(bg.get("confidence", "")).strip().lower() if bg_cited else "not available"
+    if oracle_conf not in ("low", "medium", "high"):
+        oracle_conf = "cited" if bg_cited else "not available"
+    return f"{tag} (Evidence: {evidence} × Build verification: {build_verification} × Oracle confidence: {oracle_conf}) — {reason}"
 
 # Categorize PRs
 safe = []        # pass verdicts + pre_existing with L2+ verification
