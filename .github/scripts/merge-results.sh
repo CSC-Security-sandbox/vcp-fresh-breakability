@@ -23,7 +23,7 @@ echo "════════════ MERGE BATCH RESULTS ═════�
 
 # ── Step 1: Merge partial JSON files ──────────────────────────────────────────
 python3 << 'MERGEEOF'
-import json, glob, os
+import json, glob, os, re
 
 merged = {
     "metadata": {},
@@ -36,6 +36,18 @@ merged = {
 }
 
 total_prs = 0
+requested_prs = set()
+subset_requested = False
+
+def _parse_pr_numbers(value):
+    out = []
+    for token in str(value or "").split(","):
+        token = token.strip().lstrip("#")
+        if re.fullmatch(r"[0-9]+", token or ""):
+            out.append(int(token))
+    return out
+
+requested_prs.update(_parse_pr_numbers(os.environ.get("BREAKABILITY_PR_NUMBERS") or os.environ.get("PR_FILTER")))
 batch_files = sorted(glob.glob("/tmp/batch-results/batch-*/build-results-*.json"))
 if not batch_files:
     # Fallback: single-mode (no batches)
@@ -69,9 +81,18 @@ for bf in batch_files:
         incomplete_batches.append(os.path.basename(os.path.dirname(bf)).replace('batch-', ''))
         continue
     
+    meta = data.get("metadata", {}) or {}
+    if meta.get("subset_requested"):
+        subset_requested = True
+    for n in meta.get("requested_pr_numbers", []) or []:
+        try:
+            requested_prs.add(int(n))
+        except (TypeError, ValueError):
+            pass
+
     # Merge metadata (take first, update count)
     if not merged["metadata"]:
-        merged["metadata"] = data.get("metadata", {})
+        merged["metadata"] = meta
     
     # Merge main_build (take first non-empty)
     if not merged["main_build"] and data.get("main_build"):
@@ -92,6 +113,15 @@ for bf in batch_files:
 
 # Update total PR count and track incomplete batches
 merged["metadata"]["pr_count"] = total_prs
+selected_prs = sorted(int(n) for n in merged["prs"].keys() if str(n).isdigit())
+merged["metadata"]["selected_pr_numbers"] = selected_prs
+if requested_prs:
+    subset_requested = True
+if subset_requested:
+    requested_sorted = sorted(requested_prs)
+    merged["metadata"]["subset_requested"] = True
+    merged["metadata"]["requested_pr_numbers"] = requested_sorted
+    merged["metadata"]["missing_pr_numbers"] = [n for n in requested_sorted if str(n) not in merged["prs"]]
 expected_count = int(os.environ.get("EXPECTED_PR_COUNT", "0"))
 if expected_count > 0 and total_prs < expected_count:
     merged["metadata"]["incomplete"] = True
@@ -291,6 +321,8 @@ with open("/tmp/build-results.json") as f:
     data = json.load(f)
 
 prs = data.get("prs", {})
+meta = data.get("metadata", {})
+subset_requested = bool(meta.get("subset_requested"))
 pr_cves = {}
 total_cve_count = 0
 for num, pr in prs.items():
@@ -387,6 +419,9 @@ cve_fixes.sort(key=lambda x: (_SEV_ORDER.get((x["severity"] or "").lower(), 4), 
 orphan_alerts.sort(key=lambda x: _SEV_ORDER.get((x["severity"] or "").lower(), 4))
 
 security_posture = {
+    "scope": "subset" if subset_requested else "repository",
+    "alert_counts_scope": "repository",
+    "pr_rows_scope": "selected_prs" if subset_requested else "all_analyzed_prs",
     "total_open_alerts": len(open_alerts),
     "alerts_unavailable": _alerts_unavailable,
     "severity_counts": severity_counts,
@@ -397,6 +432,15 @@ security_posture = {
     "cve_fixes": cve_fixes,
     "orphan_alerts": orphan_alerts,
 }
+if subset_requested:
+    security_posture["subset_pr_numbers"] = meta.get("selected_pr_numbers", [])
+    security_posture["subset_note"] = (
+        "PR-scoped security rows are limited to selected PRs; repository-wide "
+        "alert counts remain for context."
+    )
+    security_posture["orphan_alerts_omitted_for_subset"] = len(orphan_alerts)
+    security_posture["omitted_due_to_subset"] = {"orphan_alerts": orphan_alerts} if orphan_alerts else {}
+    security_posture["orphan_alerts"] = []
 
 data["security_posture"] = security_posture
 

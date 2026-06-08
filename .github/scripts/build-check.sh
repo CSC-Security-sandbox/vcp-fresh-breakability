@@ -31,6 +31,7 @@ else
 fi
 CLI_PATH="${CLI_PATH:-.github/actions/breakability-check/index.js}"
 REPO_ROOT="$(pwd)"
+PR_FILTER="${PR_FILTER:-${BREAKABILITY_PR_NUMBERS:-}}"
 
 # ── Per-batch Go BUILD-cache isolation (race-safety) ──────────────────────────
 # All self-hosted batch runners share one $HOME on the same machine, so they
@@ -1286,16 +1287,21 @@ fi
 PR_COUNT=$(echo "$PR_JSON" | jq length)
 echo "Found $PR_COUNT open Dependabot PRs"
 
-# Apply PR_FILTER if set (comma-separated list of PR numbers to analyze)
+# Apply PR_FILTER/BREAKABILITY_PR_NUMBERS if set (comma-separated PR numbers).
 # CR5-11: Pass PR_FILTER via env var read by Python, not shell expansion into code,
 # to eliminate injection risk from workflow_dispatch input.
 if [[ -n "${PR_FILTER:-}" ]]; then
   echo "PR_FILTER set: $PR_FILTER"
   FILTERED_JSON=$(echo "$PR_JSON" | _BC_PR_FILTER="$PR_FILTER" python3 -c "
-import json, sys, os
+import json, sys, os, re
 prs = json.load(sys.stdin)
 pr_filter = os.environ.get('_BC_PR_FILTER', '')
-allowed = set(pr_filter.replace(' ', '').split(','))
+allowed = set()
+for token in pr_filter.split(','):
+    token = token.strip().lstrip('#')
+    if not re.fullmatch(r'[0-9]+', token or ''):
+        continue
+    allowed.add(token)
 filtered = [p for p in prs if str(p['number']) in allowed]
 print(json.dumps(filtered))
 ")
@@ -1319,6 +1325,31 @@ cat > "$RESULTS_FILE" <<EOF
   "cross_pr_deps": []
 }
 EOF
+
+if [[ -n "${PR_FILTER:-}" ]]; then
+  _BC_PR_FILTER="$PR_FILTER" python3 - "$RESULTS_FILE" <<'PY'
+import json, os, re, sys
+
+path = sys.argv[1]
+requested = []
+seen = set()
+for token in os.environ.get("_BC_PR_FILTER", "").split(","):
+    token = token.strip().lstrip("#")
+    if not re.fullmatch(r"[0-9]+", token or ""):
+        continue
+    if token not in seen:
+        seen.add(token)
+        requested.append(int(token))
+
+with open(path) as f:
+    data = json.load(f)
+meta = data.setdefault("metadata", {})
+meta["subset_requested"] = True
+meta["requested_pr_numbers"] = requested
+with open(path, "w") as f:
+    json.dump(data, f, indent=2)
+PY
+fi
 
 # ── Fetch all branches ───────────────────────────────────────────────────────
 echo ""

@@ -10,8 +10,12 @@ on:
     types: [opened]
   workflow_dispatch:
     inputs:
-      pr_filter:
+      pr_numbers:
         description: 'Comma-separated PR numbers to analyze (empty = all)'
+        required: false
+        default: ''
+      pr_filter:
+        description: 'Legacy alias for pr_numbers (empty = all)'
         required: false
         default: ''
       skip_agent:
@@ -54,6 +58,7 @@ env:
   # Use 1.24 as the default — most repos in greenqloud use 1.24.x.
   GO_VERSION: '1.24'
   PYTHON_VERSION: '3.12'
+  BREAKABILITY_PR_NUMBERS: ${{ vars.BREAKABILITY_PR_NUMBERS || '' }}
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════
@@ -74,7 +79,10 @@ jobs:
         id: split
         run: |
           BATCH_COUNT="${{ inputs.batch_count || '4' }}"
-          PR_FILTER="${{ inputs.pr_filter }}"
+          PR_FILTER="${{ inputs.pr_numbers || inputs.pr_filter }}"
+          if [[ -z "$PR_FILTER" && -n "${BREAKABILITY_PR_NUMBERS:-}" ]]; then
+            PR_FILTER="$BREAKABILITY_PR_NUMBERS"
+          fi
 
           # Single-PR mode: when triggered by pull_request: opened, analyze only that PR.
           # This handles Scenario 2A — instant analysis for a new Dependabot PR.
@@ -245,6 +253,7 @@ jobs:
           BREAKABILITY_PAT: ${{ secrets.BREAKABILITY_PAT }}
           CLI_PATH: .github/actions/breakability-check/index.js
           PR_FILTER: ${{ matrix.pr_filter }}
+          BREAKABILITY_PR_NUMBERS: ${{ matrix.pr_filter }}
           BATCH_ID: ${{ matrix.batch_id }}
           REPO_ROOT: ${{ github.workspace }}
           # ── Private Registry Auth (see docs/PRIVATE_REGISTRIES.md) ──
