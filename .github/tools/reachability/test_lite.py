@@ -6,6 +6,19 @@ Exits non-zero on any failure.
 
 No pytest dependency — uses only stdlib assertions so it runs in any CI environment.
 
+CALLGRAPH POLICY VALIDATION
+----------------------------
+These tests validate the three-tier reachability strategy:
+  1. LITE (lite.py):    Fast, deterministic, no parsing → all PRs, default
+  2. DEEP (deep.go):    Full-repo callgraph → UNCERTAIN PRs, high-risk, policy
+  3. DYNAMIC (future):  Runtime probes → unresolved high-risk callsites
+
+lite.py is the FIRST TIER: lightweight deterministic analysis. When verdict is
+UNCERTAIN, DEEP can be invoked (expensive, targeted). ABSENT is deliberately
+conservative—only returned when deterministic layer explicitly confirms it
+(checked=True, kind='not_imported', no prod imports). Never inferred from
+missing evidence alone.
+
 Test matrix
 -----------
 1.  PRESENT   — surface_evidence has a named production callsite for a changed symbol.
@@ -26,6 +39,16 @@ Test matrix
 16. ABSENT     — prod_reachable=True blocks ABSENT even when kind='not_imported'.
 17. analyze_build_results — round-trip over a multi-PR results dict.
 18. UNCERTAIN  — missing data / empty PR record does not crash.
+
+Policy highlights
+-----------------
+• ABSENT only when deterministic layer explicitly says "not_imported" (strict opt-in).
+• UNCERTAIN with dynamic hazards + imports = cannot trust static analysis alone;
+  merge gate should require DEEP or manual review.
+• PRESENT with dynamic hazards = medium confidence (presence is high-confidence,
+  but dynamic could hide additional paths we didn't find).
+• lite.py always returns a verdict; never crashes; always includes uncertain_reason
+  or absent_reason to guide downstream decision-making.
 """
 from __future__ import annotations
 
@@ -167,6 +190,10 @@ _case(
 )
 
 # 5. ABSENT — fully clean: checked, kind=not_imported, no imports
+# Policy: ABSENT is STRICT OPT-IN. Only when:
+#   - deterministic layer explicitly checked=True AND kind='not_imported'
+#   - AND zero production imports/evidence found
+#   - NEVER inferred from missing evidence (absence ≠ evidence of absence)
 _case(
     "absent_clean",
     _pr(
@@ -205,6 +232,8 @@ _case(
 )
 
 # 7. NOT ABSENT (UNCERTAIN) — checked=True but kind != 'not_imported'
+# Policy: kind='not_imported' is required for ABSENT. Any other kind (e.g., 'import',
+# 'indirect', 'ambiguous') means reachability is not definitively ruled out → UNCERTAIN.
 _case(
     "uncertain_checked_kind_not_not_imported",
     _pr(
@@ -220,6 +249,9 @@ _case(
 )
 
 # 8. NOT ABSENT (UNCERTAIN) — unchecked, no evidence at all
+# Policy: checked=False means deterministic layer didn't run or didn't confirm.
+# Absence of evidence is NOT evidence of absence → stay UNCERTAIN. ABSENT only
+# when deterministic layer explicitly commits (checked=True, kind='not_imported').
 _case(
     "uncertain_unchecked_empty",
     _pr(),

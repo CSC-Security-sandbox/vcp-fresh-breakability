@@ -1,8 +1,44 @@
 #!/usr/bin/env python3
 """Lightweight deterministic reachability analyzer for the breakability pipeline.
 
-Consumes a PR record (build-results JSON format) and emits structured reachability
-evidence without performing whole-repo callgraph analysis (deferred: see deep.go).
+CALLGRAPH POLICY
+================
+This tool embodies a three-tier analysis strategy for the breakability pipeline:
+
+1. LITE (this tool)
+   - Fast, deterministic, no source parsing
+   - Consumes pre-computed fields from build-results: declared_break_reachability,
+     deterministic.usages, files_importing
+   - Answers: "Does the PR record contain enough evidence (surface-level) to
+     confirm or rule out production reachability?"
+   - Typical use: all PRs, default verdict strategy
+   - Scalable: O(PR record size), not O(codebase)
+
+2. DEEP (deep.go)
+   - Full-repo static callgraph analysis via golang.org/x/tools
+   - Mirrors govulncheck's proven pipeline: SSA → CHA → VTA → forward-reachable
+   - Answers: "From this repo's entrypoints, is the changed symbol transitively
+     reachable in the static call graph?"
+   - Use when: LITE yields UNCERTAIN and whole-repo analysis justified (targeted
+     high-risk PRs, policy validation, deep review)
+   - Cost: 30-300s per repo (compute-heavy), not typical dev workflow
+   - CRITICAL: Never asserts SAFE. Unreachable downgraded to POTENTIALLY_REACHABLE
+     when dynamic constructs (reflect/unsafe/cgo/plugin) exist.
+
+3. DYNAMIC PROBES (future/targeted)
+   - Runtime instrumentation, targeted to unresolved callsites from LITE+DEEP
+   - Probes specific high-risk function entry points
+   - Answers: "At runtime, does this function get called with a changed symbol?"
+   - Use when: static analysis insufficient, execution path required
+
+ABSENT IS STRICT OPT-IN
+-----------------------
+The ABSENT verdict is deliberately conservative. It is only returned when:
+  - The deterministic layer explicitly confirms: checked=True, kind='not_imported'
+  - AND no production imports exist in the PR record
+  - A "missing callsite" alone never triggers ABSENT; absence of evidence is NOT
+    evidence of absence. The merge gate can depend on ABSENT; false positives would
+    be catastrophic for security.
 
 Three verdicts
 --------------
@@ -418,8 +454,16 @@ def _cli() -> int:
     """Minimal CLI: reads a build-results JSON from stdin or a file argument,
     optionally filtered to a single PR + changed symbols, emits JSON to stdout.
 
+    This is the FIRST-TIER reachability check for the breakability pipeline
+    (see module docstring: CALLGRAPH POLICY). It performs lightweight deterministic
+    analysis without source parsing. If the verdict is UNCERTAIN and deeper
+    analysis is needed, consider running deep.go (the full-repo callgraph tool).
+
     Usage:
       python3 lite.py [build-results.json] [--pr N] [--symbols Foo,Bar]
+
+    Returns JSON dict with verdict (PRESENT|ABSENT|UNCERTAIN), confidence
+    (high|medium|low), and detailed evidence chain.
     """
     import argparse
 
