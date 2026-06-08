@@ -21,6 +21,15 @@ def extract_merge_plan_python():
     return body[start:end]
 
 
+def extract_policy_overlay_python():
+    body = SCRIPT.read_text()
+    marker = 'python3 - "$RESULTS_FILE" <<\'PYEOF\' || echo "[warn] policy lowering overlay unavailable; using legacy verdict_v2"'
+    start = body.index(marker)
+    start = body.index("\n", start) + 1
+    end = body.index("\nPYEOF\n\nget_verdict_v2", start)
+    return body[start:end]
+
+
 def base_pr(**overrides):
     pr = {
         "package": "example.com/lib",
@@ -64,6 +73,21 @@ def render_plan(results):
         return rendered.stdout
 
 
+def apply_policy_overlay(results):
+    code = extract_policy_overlay_python()
+    with tempfile.TemporaryDirectory() as td:
+        results_path = Path(td) / "build-results.json"
+        results_path.write_text(json.dumps(results))
+        subprocess.run(
+            [sys.executable, "-c", code, str(results_path)],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return json.loads(results_path.read_text())
+
+
 def section(markdown, heading):
     _, rest = markdown.split(heading, 1)
     return rest.split("\n## ", 1)[0]
@@ -74,6 +98,61 @@ def has_pr(markdown, number):
 
 
 class MergePlanRendererTests(unittest.TestCase):
+    def test_policy_glance_can_lower_legacy_medium_review(self):
+        out = apply_policy_overlay({
+            "prs": {
+                "1": base_pr(
+                    policy_lowering={
+                        "decision": {
+                            "verdict": "GLANCE",
+                            "severity": "low",
+                            "confidence": "medium",
+                            "reason_code": "glance:clean-missing-release-notes",
+                            "display_reason": "build, tests, and API diff are clean; changelog is unavailable",
+                        },
+                        "bundle": {
+                            "signals": {
+                                "build": {"status": "pass"},
+                                "test": {"status": "pass"},
+                                "api_diff": {"status": "pass"},
+                                "release_notes": {"status": "unavailable"},
+                                "security": {"status": "not_applicable"},
+                            },
+                        },
+                    },
+                ),
+                "2": base_pr(
+                    verdict_v2={
+                        "verdict": "REVIEW",
+                        "severity": "high",
+                        "confidence": "L4",
+                        "priority": "P1",
+                        "reason": "high-risk review",
+                        "residual": {"summary": "high-risk review", "check": "review:declared-break"},
+                    },
+                    policy_lowering={
+                        "decision": {
+                            "verdict": "GLANCE",
+                            "severity": "low",
+                            "confidence": "medium",
+                            "reason_code": "glance:clean-missing-release-notes",
+                            "display_reason": "build, tests, and API diff are clean; changelog is unavailable",
+                        },
+                        "bundle": {"signals": {"build": {"status": "pass"}}},
+                    },
+                ),
+            },
+        })
+
+        low = out["prs"]["1"]["verdict_v2"]
+        self.assertEqual(low["verdict"], "REVIEW")
+        self.assertEqual(low["severity"], "low")
+        self.assertEqual(low["residual"]["check"], "glance:clean-missing-release-notes")
+
+        high = out["prs"]["2"]["verdict_v2"]
+        self.assertEqual(high["severity"], "high")
+        self.assertEqual(high["residual"]["check"], "review:declared-break")
+
     def test_glance_review_rows_move_out_of_manual_review(self):
         plan = render_plan({
             "prs": {

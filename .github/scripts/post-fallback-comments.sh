@@ -314,7 +314,15 @@ for pr in (data.get("prs") or {}).values():
     if mapped["verdict"] == "SAFE" and existing_verdict == "BLOCKED":
         continue
     if mapped["verdict"] == "REVIEW" and existing_verdict == "REVIEW" and not stronger_review(existing, mapped):
-        continue
+        existing_sev = existing.get("severity")
+        allow_glance_lowering = (
+            decision.get("verdict") == "GLANCE"
+            and str(decision.get("reason_code") or "").startswith("glance:")
+            and existing_sev != "high"
+            and not policy_has_hard_fail(policy)
+        )
+        if not allow_glance_lowering:
+            continue
     if mapped["verdict"] == "SAFE" and existing_verdict == "SAFE":
         continue
 
