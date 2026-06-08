@@ -72,6 +72,29 @@ with open('$RESULTS_FILE') as f:
 for num in sorted(data.get('prs', {}).keys(), key=int):
     print(num)
 " 2>/dev/null || echo "")
+REQUESTED_SUBSET_PRS=$(python3 -c "
+import json
+with open('$RESULTS_FILE') as f:
+    data = json.load(f)
+meta = data.get('metadata', {})
+if meta.get('subset_requested'):
+    for num in meta.get('requested_pr_numbers', []):
+        print(num)
+" 2>/dev/null || echo "")
+
+if [[ -n "$REQUESTED_SUBSET_PRS" ]]; then
+  _FILTERED_DISCOVERED=""
+  for _disc_pr in $DISCOVERED_PRS; do
+    for _req_pr in $REQUESTED_SUBSET_PRS; do
+      if [[ "$_disc_pr" == "$_req_pr" ]]; then
+        _FILTERED_DISCOVERED="$_FILTERED_DISCOVERED $_disc_pr"
+        break
+      fi
+    done
+  done
+  DISCOVERED_PRS="$_FILTERED_DISCOVERED"
+  echo "Subset run: missing-PR check limited to requested PRs: $(echo "$REQUESTED_SUBSET_PRS" | tr '\n' ',' | sed 's/,$//')"
+fi
 
 # Find PRs in discovered list but NOT in analyzed results
 CANCELLED_PRS=""
