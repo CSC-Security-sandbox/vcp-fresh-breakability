@@ -88,6 +88,53 @@ def _policy_decision(pr):
     return dec if isinstance(dec, dict) else {}
 
 
+def _semver_tuple(v):
+    """Best-effort (major, minor) from a version string; None if unparseable."""
+    if not v:
+        return None
+    s = str(v).lstrip("vV").split("+")[0].split("-")[0]
+    parts = s.split(".")
+    try:
+        major = int(parts[0])
+        minor = int(parts[1]) if len(parts) > 1 else 0
+        return (major, minor)
+    except (ValueError, IndexError):
+        return None
+
+
+def _tests_executed(pr):
+    """True only when the candidate version's test suite actually RAN (not skipped/absent)."""
+    t = pr.get("test") or {}
+    if not isinstance(t, dict):
+        return False
+    return bool(t.get("ran")) and (t.get("exit") in (0, None) or t.get("main_test_exit") == 0)
+
+
+def _pre1_unverified_reachability_clear(pr):
+    """Guard: a pre-1.0 (0.x) dependency carries NO semver minor-stability guarantee, so a
+    multi-version 0.x jump can ship breaking BEHAVIORAL changes that name-grep of the apidiff
+    symbols cannot rule out. If the only basis for an AI SAFE downgrade is reachability/grep
+    (no probe, no executed test suite), such a jump must NOT be cleared -- it stays REVIEW.
+
+    Returns (True, human_reason) when the clear is insufficient and must be blocked."""
+    frm = _semver_tuple(pr.get("from"))
+    to = _semver_tuple(pr.get("to"))
+    if not frm or not to:
+        return (False, "")
+    if frm[0] != 0:
+        return (False, "")  # >=1.0 dep: semver protects minors; reachability clear is sound
+    # pre-1.0: any change above the patch level (minor or major component moved) is risky
+    risky_jump = (frm[0], frm[1]) != (to[0], to[1])
+    if not risky_jump:
+        return (False, "")  # 0.x patch bump -> low risk, allow clear
+    if _tests_executed(pr):
+        return (False, "")  # execution evidence backs the clear
+    return (True, (f"pre-1.0 dependency `{pr.get('package')}` jumps {pr.get('from')}->{pr.get('to')} "
+                   f"(no semver minor-stability guarantee) and the SAFE basis is reachability/grep "
+                   f"only with no executed test suite; name-grep cannot rule out a behavioral change. "
+                   f"Holding REVIEW (run the suite or a behavioral probe to clear)."))
+
+
 def _current_verdict(pr):
     # verdict_v2 is materialized late (by the comment poster's policy overlay). At reconcile
     # time the authoritative verdict lives in policy_lowering.decision; fall back to it.
@@ -211,6 +258,10 @@ def reconcile_pr(pr, verdict, repo):
         # The AI resolved it to SAFE with shown work. Honor it (validator already required
         # proof + real citation). The override of the deterministic REVIEW is justified by the
         # named deterministic_flaw when the two disagree.
+        blocked, why = _pre1_unverified_reachability_clear(pr)
+        if blocked:
+            _record_review(pr, why, cite, "pre1_reachability_floor", flaw)
+            return ("kept", f"AI said SAFE but blocked: pre-1.0 unverified reachability clear -> REVIEW")
         reason = "safe:ai-resolved" + ("-audit-override" if flaw else "")
         _apply_safe(pr, reason, ev, cite, "ai_arbiter")
         tail = f" (override flaw: {flaw})" if flaw else ""
