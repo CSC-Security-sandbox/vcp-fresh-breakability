@@ -176,7 +176,20 @@ class EvidenceContractTests(unittest.TestCase):
     def test_glance_for_non_sensitive_ci_major_low_residual(self):
         decision = decide(bundle(is_ci_only=True, is_major=True, residual_risk=SafetySeverity.LOW))
         self.assertEqual(decision.verdict, VerdictAction.GLANCE)
-        self.assertEqual(decision.reason_code, "glance:ci-major-low-residual")
+        self.assertEqual(decision.reason_code, "glance:ci-benign")
+
+    def test_benign_ci_only_glances_even_with_inapplicable_residual(self):
+        # A benign CI dep (e.g. setup-python) whose only "residual" comes from signals that are
+        # inapplicable to a CI action (Go api-diff/reachability unavailable -> default medium)
+        # must still GLANCE, not get forced to review on that speculative residual.
+        decision = decide(bundle(is_ci_only=True, is_major=True, residual_risk=SafetySeverity.MEDIUM))
+        self.assertEqual(decision.verdict, VerdictAction.GLANCE)
+        self.assertEqual(decision.reason_code, "glance:ci-benign")
+
+    def test_security_sensitive_ci_dep_reviews(self):
+        decision = decide(bundle(is_ci_only=True, security_sensitive=True, residual_risk=SafetySeverity.LOW))
+        self.assertEqual(decision.verdict, VerdictAction.REVIEW)
+        self.assertEqual(decision.reason_code, "review:security-sensitive")
 
     def test_glance_for_clean_tests_api_with_missing_release_notes(self):
         release_notes = record(SignalName.RELEASE_NOTES, SignalStatus.UNAVAILABLE, relevant=None)

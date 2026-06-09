@@ -974,14 +974,12 @@ for k, v in fields.items():
   # "CI-only" is NOT automatically "safe". Classify CI (actions/docker) deps into:
   #   secsens — handles tokens/creds/registry/cloud auth, code signing, OR deploy/publish.
   #             A breaking/compromised release here is a supply-chain risk -> security review.
-  #   major   — non-sensitive MAJOR action bump. Can change inputs/defaults/outputs and
-  #             break the workflow -> light changelog glance (breakability, not security).
-  #   ""      — non-sensitive minor/patch -> genuinely auto-safe.
+  #   ""      — benign CI dep -> auto-safe changelog glance. Majorness alone is NOT a review
+  #             trigger (a major setup-* bump is still a glance per the breakability oracle).
+  # MUST stay in sync with ci_classifier.py (the policy-layer source of truth).
   _CI_TIER=""
   if printf '%s' "$PKG" | grep -qiE 'token|credential|secret|password|login|oauth|oidc|/auth|-auth|ssh-agent|import-gpg|gpg|cosign|sigstore|vault|kms|aws-actions|azure/login|google-github-actions/auth|configure-aws-credentials|registry|ghcr|ecr|gcr|deploy|release|publish|pages'; then
     _CI_TIER="secsens"
-  elif [[ "$BUMP" == "major" ]]; then
-    _CI_TIER="major"
   fi
   VERDICT=$(echo "$_FIELDS_EXTRACTED" | grep '^VERDICT=' | cut -d= -f2-)
   INSTALL_METHOD=$(echo "$_FIELDS_EXTRACTED" | grep '^INSTALL_METHOD=' | cut -d= -f2-)
@@ -2981,14 +2979,11 @@ def headline_severity(pr):
 _ci_secsens_re = _v2_re.compile(r'token|credential|secret|password|login|oauth|oidc|/auth|-auth|ssh-agent|import-gpg|gpg|cosign|sigstore|vault|kms|aws-actions|azure/login|google-github-actions/auth|configure-aws-credentials|registry|ghcr|ecr|gcr|deploy|release|publish|pages', _v2_re.IGNORECASE)
 
 def ci_review_tier(pkg, bump):
-    # MUST stay in sync with the bash _CI_TIER classifier.
+    # MUST stay in sync with the bash _CI_TIER classifier and ci_classifier.py.
     #   "secsens" -> auth/token/registry/cloud-cred/signing/deploy CI dep -> security review
-    #   "major"   -> non-sensitive MAJOR action bump -> light changelog glance
-    #   ""        -> non-sensitive minor/patch -> genuinely auto-safe
+    #   ""        -> benign CI dep -> auto-safe changelog glance (majorness alone is NOT review)
     if _ci_secsens_re.search(str(pkg or "")):
         return "secsens"
-    if str(bump or "").lower() == "major":
-        return "major"
     return ""
 
 def fmt_merge_risk(pr):

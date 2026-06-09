@@ -363,6 +363,22 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     if _is_fail(probe):
         return _decision(VerdictAction.REVIEW, _at_least(_record_severity(probe), SafetySeverity.MEDIUM), Confidence.HIGH, "review:probe-changed")
 
+    # CI-only deps (GitHub Actions, Docker tags) have no compile/test step for OUR code, so the
+    # absence of a build/test signal is EXPECTED — not a tool failure to abstain on. Any genuine
+    # hard FAIL (build/test/api/probe) was already handled above. Security-sensitive CI deps
+    # (token / registry / cloud-cred / code-signing / deploy) still require human review; benign
+    # ones (e.g. setup-* actions) with low residual are a changelog GLANCE. This must precede the
+    # generic abstain check, which would otherwise force every CI dep to REVIEW on the missing build.
+    if bundle.is_ci_only:
+        if _is_security_sensitive(bundle):
+            return _decision(VerdictAction.REVIEW, _at_least(_max_residual(bundle), SafetySeverity.MEDIUM), Confidence.MEDIUM, "review:security-sensitive")
+        # Benign CI dep: any genuine hard FAIL was handled above; the remaining "residual" comes
+        # only from signals that are INAPPLICABLE to a CI action (Go api-diff, code reachability,
+        # release-note relevance) and default to medium when unavailable. That speculative residual
+        # is meaningless here, so it must not force review. The real risk axis for a CI dep is
+        # security-sensitivity, already excluded. Benign -> changelog GLANCE.
+        return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:ci-benign")
+
     abstain = _abstain_reason(bundle)
     if abstain != AbstainReason.NONE:
         return _decision(VerdictAction.ABSTAIN, SafetySeverity.MEDIUM, Confidence.LOW, f"abstain:{abstain.value}")
@@ -387,9 +403,6 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
     core_clean = _is_pass(build) and _is_pass(test) and _is_pass(api_diff)
     if not core_clean:
         return _decision(VerdictAction.REVIEW, SafetySeverity.MEDIUM, Confidence.LOW, "review:uncertain-critical-signal")
-
-    if bundle.is_ci_only and bundle.is_major and _severity_le(_max_residual(bundle), SafetySeverity.LOW):
-        return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:ci-major-low-residual")
 
     reachability = bundle.signal(SignalName.REACHABILITY)
     if _is_not_relevant_pass(reachability):
@@ -418,6 +431,8 @@ def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Conf
         "review:security-sensitive": "security-sensitive update requires human review",
         "review:uncertain-critical-signal": "critical build/test/API evidence is missing or uncertain",
         "glance:ci-major-low-residual": "major CI-only update with low residual risk",
+        "glance:ci-benign": "CI-only update (no app code affected); changelog glance",
+        "review:ci-residual": "CI-only update with elevated residual risk; quick review",
         "glance:clean-missing-release-notes": "build, tests, and API diff are clean; changelog is unavailable",
         "glance:tests-pass-soft-api-uncertain": "tests pass and API diff only found non-breaking uncertainty",
         "merge:not-reached": "changed dependency is not reached by production code",

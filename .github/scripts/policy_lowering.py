@@ -35,6 +35,7 @@ from evidence_contract import (  # noqa: E402
 from release_notes_evidence import analyse_pr as analyse_release_notes  # noqa: E402
 from callsite_impact import analyze as analyze_callsite_impact  # noqa: E402
 from agent_adjudicator import adjudicate_reachability  # noqa: E402
+from ci_classifier import ci_security_sensitive as _ci_security_sensitive  # noqa: E402
 
 
 def _load_lite_module() -> Any:
@@ -399,6 +400,10 @@ def bundle_for_pr(pr: Mapping[str, Any], global_test_exit: Optional[int] = None)
         security_sensitive=(
             bool(pr.get("security_sensitive"))
             or str(pr.get("ci_tier") or "") == "secsens"
+            or (
+                _first_str(pr, "ecosystem").lower() in {"actions", "docker"}
+                and _ci_security_sensitive(_first_str(pr, "package"))
+            )
             or bool(pr.get("cves"))
         ),
     )
