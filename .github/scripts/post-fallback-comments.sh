@@ -1563,7 +1563,19 @@ if changed or new or removed:
 print('---OUT---')
 print('\n'.join([l for l in out.splitlines() if l.strip()][-20:]))
 print('---DIFF---')
-print('\n'.join(diff.splitlines()[:160]))
+# Drop file-sections for internal breakability tooling (e.g. .github/tools/reachability)
+# that build-check mutates during analysis — they are not part of the analyzed module
+# and only add confusing noise to the go.mod/go.sum diff shown to developers.
+def _filter_internal(diff_text):
+    out, skip = [], False
+    for ln in diff_text.splitlines():
+        if ln.startswith('diff --git '):
+            skip = '.github/tools/' in ln
+        if skip:
+            continue
+        out.append(ln)
+    return '\n'.join(out)
+print('\n'.join(_filter_internal(diff).splitlines()[:160]))
 " 2>/dev/null || true)
     _GO_RES_CMD=$(echo "$_GO_RESOLUTION_PARSE" | grep '^CMD=' | head -1 | cut -d= -f2-)
     _GO_RES_SUMMARY=$(echo "$_GO_RESOLUTION_PARSE" | grep '^SUMMARY=' | head -1 | cut -d= -f2-)
