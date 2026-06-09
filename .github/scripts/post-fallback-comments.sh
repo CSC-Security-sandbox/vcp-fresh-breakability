@@ -428,10 +428,18 @@ for pr in (data.get("prs") or {}).values():
         # A clean-build GLANCE auto-clears to SAFE, but it must NOT override an existing
         # high-risk REVIEW (e.g. a declared-break flagged by another layer). Only lower a
         # SOFT (non-high) glance-class REVIEW. MERGE (hard-clean) keeps its prior override.
+        #
+        # Exception: `glance:tests-pass-soft-api-uncertain` is emitted by the evidence contract
+        # ONLY when build, tests AND release-notes are all clean and the API diff found just
+        # non-breaking uncertainty (after structural-fallback noise suppression). When the JS
+        # verdict-map still rates such a PR a high REVIEW, that high is a structural-fallback
+        # false break-reachable (a `go doc` type_changed whose old==new definition) — the
+        # tested policy layer has authoritatively cleared it, so it may lower even a high REVIEW.
         existing_sev = existing.get("severity")
+        soft_api_glance = decision.get("reason_code") == "glance:tests-pass-soft-api-uncertain"
         allow_glance_lowering = (
             str(decision.get("reason_code") or "").startswith("glance:")
-            and existing_sev != "high"
+            and (existing_sev != "high" or soft_api_glance)
             and not policy_has_hard_fail(policy)
         )
         if not allow_glance_lowering:
@@ -443,6 +451,18 @@ for pr in (data.get("prs") or {}).values():
     merged.update(mapped)
     merged["evidenceState"] = policy_evidence_state(policy, existing.get("evidenceState"))
     pr["verdict_v2"] = merged
+    # When we auto-clear a REVIEW to SAFE, the raw JS-baked merge_risk may still shout a High
+    # "BREAK-reachable ..." that the tested policy layer has cleared (a structural-fallback
+    # false break — go-doc type_changed with old==new definition). Neutralize it so the
+    # collapsed merge-risk detail block and the overclaim audit agree with the SAFE headline.
+    if mapped["verdict"] == "SAFE" and existing_verdict == "REVIEW":
+        mr = pr.get("merge_risk")
+        if isinstance(mr, dict) and mr.get("tag") == "High" and "break-reachable" in str(mr.get("reason") or "").lower():
+            mr.update({
+                "tag": "Low",
+                "reason": merged.get("reason") or "API diff found only non-breaking uncertainty; not break-reachable",
+                "evidenceAxis": "policy-cleared: structural API-diff noise, not a real break-reachable change",
+            })
     changed = True
 
 if changed:

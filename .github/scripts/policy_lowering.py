@@ -176,11 +176,14 @@ def _api_record(pr: Mapping[str, Any]) -> EvidenceRecord:
     det = pr.get("deterministic") if isinstance(pr.get("deterministic"), Mapping) else {}
     details = det.get("api_changes_detail")
     changes = _exit_status(det.get("api_changes"))
-    tool = str(det.get("api_diff_tool") or "")
+    tool_raw = det.get("api_diff_tool")
+    tool_mode = str(tool_raw.get("mode") or "") if isinstance(tool_raw, Mapping) else ""
+    tool = str(tool_raw or "")
+    structural = tool_mode.startswith("structural")
     if changes == 0:
         return _record(SignalName.API_DIFF, SignalStatus.PASS, confidence=Confidence.HIGH)
     if changes is not None and changes > 0:
-        severity = SafetySeverity.HIGH if _has_breaking_api_change(details) else SafetySeverity.LOW
+        severity = SafetySeverity.HIGH if _has_breaking_api_change(details, structural=structural) else SafetySeverity.LOW
         status = SignalStatus.FAIL if severity == SafetySeverity.HIGH else SignalStatus.UNKNOWN
         return _record(
             SignalName.API_DIFF,
@@ -199,7 +202,7 @@ def _api_record(pr: Mapping[str, Any]) -> EvidenceRecord:
     )
 
 
-def _has_breaking_api_change(details: Any) -> bool:
+def _has_breaking_api_change(details: Any, structural: bool = False) -> bool:
     if not isinstance(details, list):
         return False
     hard_change_types = {
@@ -217,9 +220,21 @@ def _has_breaking_api_change(details: Any) -> bool:
     breaking_words = ("removed", "deleted", "signature", "incompatible", "breaking", "type_changed", "return_type_changed")
     for item in details:
         if isinstance(item, Mapping):
+            change_type = str(item.get("changeType") or item.get("kind") or item.get("type") or "").strip().lower()
+            # Structural-fallback noise: the go-doc structural diff only captures the SYMBOL KIND
+            # (function/method/struct/interface), never the signature. When it reports a
+            # `type_changed` whose old and new definitions are identical (e.g. function->function),
+            # it has observed no actual change — it cannot see signatures — so this carries zero
+            # evidence of a real break and must not be treated as a hard break. Genuine removals
+            # surface as changeType=removed (old->None), and real kind changes have old!=new, so
+            # those are preserved. Semantic (apidiff module) mode is never suppressed.
+            if structural and change_type in {"type_changed", "return_type_changed"}:
+                old_def = item.get("oldDefinition")
+                new_def = item.get("newDefinition")
+                if old_def is not None and new_def is not None and old_def == new_def:
+                    continue
             if item.get("isHardBreak") is True or item.get("hard_break") is True:
                 return True
-            change_type = str(item.get("changeType") or item.get("kind") or item.get("type") or "").strip().lower()
             if change_type in hard_change_types:
                 return True
         blob = json.dumps(item, sort_keys=True).lower() if isinstance(item, (dict, list)) else str(item).lower()

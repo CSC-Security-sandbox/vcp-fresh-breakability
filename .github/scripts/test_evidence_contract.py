@@ -123,7 +123,7 @@ class EvidenceContractTests(unittest.TestCase):
         )
         decision = decide(bundle(signals={SignalName.RELEASE_NOTES: release_notes}))
         self.assertEqual(decision.verdict, VerdictAction.REVIEW)
-        self.assertEqual(decision.reason_code, "review:residual-or-uncertain")
+        self.assertEqual(decision.reason_code, "review:declared-breaking-release-notes")
 
     def test_probe_same_behavior_can_clear_relevant_release_note_break(self):
         release_notes = record(
@@ -278,7 +278,7 @@ class EvidenceContractTests(unittest.TestCase):
         )
         decision = decide(bundle(signals={SignalName.RELEASE_NOTES: release_notes}, rationale=INJECTION))
         self.assertEqual(decision.verdict, VerdictAction.REVIEW)
-        self.assertEqual(decision.reason_code, "review:residual-or-uncertain")
+        self.assertEqual(decision.reason_code, "review:declared-breaking-release-notes")
 
     def test_injection_does_not_change_typed_decision(self):
         base = bundle(signals={

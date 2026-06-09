@@ -401,6 +401,20 @@ def decide(bundle: Union[EvidenceBundle, Mapping[str, Any]]) -> VerdictDecision:
         return _decision(VerdictAction.GLANCE, SafetySeverity.LOW, Confidence.MEDIUM, "glance:tests-pass-soft-api-uncertain")
 
     core_clean = _is_pass(build) and _is_pass(test) and _is_pass(api_diff)
+
+    # A release note / changelog that DECLARES a breaking change (release_notes=FAIL, relevant)
+    # is a human-review trigger even when the structural API diff is clean or inconclusive — the
+    # upstream maintainer is telling us a consumer-visible contract changed, and build/test/api-diff
+    # cannot rule out a behavioral break. It must NOT, however, override the not-reached or
+    # probe-same-behavior clearance below: if the changed surface is provably unreached or a probe
+    # confirms identical behavior, the declared break does not affect us. No true-safe case carries
+    # a relevant release_notes FAIL that is also unreached/unprobed.
+    _reach = bundle.signal(SignalName.REACHABILITY)
+    _probe_same = probe is not None and _is_pass(probe) and probe.same_behavior is True
+    _cleared = _is_not_relevant_pass(_reach) or _probe_same
+    if _is_fail(release_notes) and release_notes is not None and release_notes.relevant is True and not _cleared:
+        return _decision(VerdictAction.REVIEW, _at_least(_record_severity(release_notes), SafetySeverity.HIGH), Confidence.HIGH, "review:declared-breaking-release-notes")
+
     if not core_clean:
         return _decision(VerdictAction.REVIEW, SafetySeverity.MEDIUM, Confidence.LOW, "review:uncertain-critical-signal")
 
@@ -426,6 +440,7 @@ def _decision(verdict: VerdictAction, severity: SafetySeverity, confidence: Conf
         "api_diff:fail": "breaking API diff affects the candidate version",
         "review:test-regression": "tests failed on the candidate version (the build still compiles — verify whether this upgrade caused it)",
         "review:break-reachable-api": "a breaking API change in the dependency is reachable from your code (the build still compiles, so verify the changed behavior)",
+        "review:declared-breaking-release-notes": "the upstream changelog declares a breaking change; build/tests/API-diff cannot rule out a behavioral break — verify against the release notes",
         "security:introduced": "candidate version introduces a security finding",
         "review:probe-changed": "dynamic probe observed changed behavior",
         "review:security-sensitive": "security-sensitive update requires human review",
