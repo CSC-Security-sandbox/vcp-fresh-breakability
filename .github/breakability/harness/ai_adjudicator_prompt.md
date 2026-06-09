@@ -20,18 +20,24 @@ Declared/changelog breaking bullets:
 {{changelog_breaking_bullets}}
 Exported symbols apidiff flagged as changed/removed:
 {{apidiff_symbols}}
+Sound call-graph reachability (go/ssa + RTA — authoritative; resolves interface/func-value dispatch):
+{{callgraph_reachability}}
 Build on PR branch: {{build_verdict}}    Tests: {{test_verdict}}
 
 ## PHASE 1 — INDEPENDENT (do this BEFORE looking at any prior verdict)
 Form your OWN judgment from first principles by running commands. Do NOT anchor on any
 deterministic result yet.
+- TRUST the sound call-graph above for REACHABILITY — it is RTA-based and sees indirect
+  dispatch that grep misses. `direct_in_module=false` for every flagged symbol means NO
+  compile/signature break can reach us (confirm against the build result). Only when a symbol
+  is `transitively_reachable=true` AND its change is behavioral must you investigate further.
 - Classify each breaking item: `symbol_removed` / `signature_changed` (statically decidable)
   or `behavioral` (changed default/ordering/error/semantics — needs a probe).
-- For symbol_removed / signature_changed: grep the bumped module for the exact symbol, e.g.
-  `grep -rn "\.Search(" {{module}} --include=*.go`. No prod call site → it cannot break us.
-  A real call site on the removed/changed symbol → it breaks us; note file:line + the fix.
-- For behavioral: write and RUN the smallest probe that exercises OUR usage and compares
-  old vs new behavior. Decide from the probe output.
+- For symbol_removed / signature_changed: the call-graph `direct_in_module` flag is decisive.
+  If you still grep, e.g. `grep -rn "\.Search(" {{module}} --include=*.go`, treat a grep miss
+  as WEAK (it cannot see interface dispatch). No direct call site → it cannot compile-break us.
+- For behavioral on a `transitively_reachable=true` symbol: write and RUN the smallest probe
+  that exercises OUR usage and compares old vs new behavior. Decide from the probe output.
 - Land an independent verdict: `safe`, `needs_change`, or (last resort, runtime-irreducible)
   `escalate` with one precise question.
 
