@@ -2950,6 +2950,13 @@ $IMPORT_OUT"
       RUN_TESTS="true"
     fi
   fi
+  # Opt-in fast survey mode: skip per-PR test execution. Default OFF so CI behavior is
+  # unchanged. Skipping tests only REMOVES build-verification evidence, which can never
+  # make a verdict less conservative (never introduces a false-green) -- it is used for
+  # fast local disposition sweeps across many PRs, not for ground-truth accuracy runs.
+  if [[ "${BREAKABILITY_SKIP_TESTS:-0}" == "1" ]]; then
+    RUN_TESTS="false"
+  fi
   if [[ "$RUN_TESTS" == "true" ]]; then
     PR_WORKTREE="${WORKTREE_BASE}-${PR_NUM}-test"
     rm -rf "$PR_WORKTREE" 2>/dev/null || true
