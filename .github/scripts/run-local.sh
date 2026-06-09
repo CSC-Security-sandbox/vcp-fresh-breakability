@@ -103,11 +103,14 @@ if command -v gh >/dev/null 2>&1; then
 fi
 # (b) The AI stage uses `agent -p` (print mode), which requires CURSOR_API_KEY even
 #     when you are interactively logged in (the keychain session is ignored headlessly).
-if [[ "$SKIP_AI" == 0 && "$FROM_I" -le 3 && "$TO_I" -ge 3 ]]; then
+#     EXCEPTION: replay mode (BRK_AGENT_MODE=replay) reads recorded cassettes and needs
+#     no key or network — never skip the AI stage in replay.
+if [[ "$SKIP_AI" == 0 && "$FROM_I" -le 3 && "$TO_I" -ge 3 && "${BRK_AGENT_MODE:-live}" != "replay" ]]; then
   if [[ -z "${CURSOR_API_KEY:-}" ]]; then
     echo "⚠️  CURSOR_API_KEY is not set — agent -p (headless) cannot authenticate."
     echo "    The AI stage will be SKIPPED (Tier-0 deterministic module-scope still runs)."
     echo "    To enable the AI layer locally:  export CURSOR_API_KEY=<your key>  (same as the CI secret)"
+    echo "    Or run fully offline from cassettes:  BRK_AGENT_MODE=replay"
     echo
     SKIP_AI=1
   fi
