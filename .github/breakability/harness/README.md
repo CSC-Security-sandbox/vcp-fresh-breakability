@@ -34,8 +34,18 @@ python3 .github/breakability/harness/run_gate.py /tmp/build-results.json \
 ## Current baseline (the honest starting point)
 - false_green: **0** (tool is conservative — good)
 - invented_citations: **1** (PR#38 — module-scoped reachability bug) → HARD FAIL
+- overclaims: **1** (PR#38 — verdict text asserts function reachability with no evidence object) → HARD FAIL
 - false_block: **7** (safe PRs over-flagged as review) → auto_clear only 6.7% vs 30% target
 - SCORE: 0.0, REJECTED
+
+## Gate guards (deterministic, run in seconds)
+- **false_green = 0** — never clear a real break (catastrophic).
+- **invented_citations = 0** — claims reachability but `files_importing` empty / files absent.
+- **overclaims = 0** — verdict text asserts function/symbol reachability while evidence is
+  import-only/absent and the build did not fail. Forces escalation to `deep.go` callgraph.
+- **golden_regressions = 0** — no previously-correct PR drifts.
+- AI verdicts: citation must be a real **source call site** referencing the package — manifests
+  (`go.mod`/`package.json`/…) and real-but-irrelevant files are rejected (`AI_REJECTED`).
 
 ## What the loop must drive to ACCEPTED
 1. Fix module-scoped reachability → invented_citations = 0.

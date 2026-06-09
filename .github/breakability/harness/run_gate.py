@@ -46,6 +46,28 @@ def claims_reachability(pr):
             or "reachable api" in reason)
 
 
+def overclaims_function_reach(pr):
+    """#38 class, generalized: the verdict TEXT asserts symbol/function-level reachability,
+    but the structured reachability evidence is absent or only import-level + unconfirmed.
+    Import-level reachability proves the package is imported, NOT that the changed symbol is
+    called. Asserting 'BREAK-reachable <symbol>' off import evidence is an over-claim that
+    only a function-level callgraph (deep.go) may license."""
+    if not claims_reachability(pr):
+        return False, ""
+    # A failing build already PROVES the break by compilation — the reachability text is
+    # corroborated, not an over-claim. Over-claim only applies when build/test PASS but the
+    # verdict still asserts symbol-level reachability on weak evidence.
+    if (pr.get("build") or {}).get("verdict") == "fail":
+        return False, ""
+    dbr = pr.get("declared_break_reachability")
+    if not dbr:  # text claims reachability, zero structured evidence (PR#38)
+        return True, "verdict asserts symbol reachability with no declared_break_reachability evidence"
+    if dbr.get("reachability_kind") == "import" and not dbr.get("behavior_confirmed"):
+        return True, ("verdict asserts symbol/function reachability but evidence is import-level "
+                      "+ behavior_confirmed=false (needs function-level callgraph or probe)")
+    return False, ""
+
+
 def invented_citation(pr, repo_root):
     """True if the PR claims reachability but has no real importing file to back it."""
     if not claims_reachability(pr):
@@ -60,9 +82,31 @@ def invented_citation(pr, repo_root):
     return False, ""
 
 
-def _validate_ai(v, repo_root):
-    """Same falsifiability contract as validate_adjudication.py: reject invented citations,
-    reject FIX/CVE attempts, require citation for a downgrade-to-safe."""
+def _cite_references_pkg(citation, repo_root, package):
+    """Stronger than existence: the cited file must be a SOURCE call site that actually
+    references the package/symbol. A real-but-irrelevant citation (or the dependency manifest,
+    which merely lists the package) is the subtle failure existence-checks miss."""
+    path = citation.split(":")[0].lstrip("./")
+    base = os.path.basename(path)
+    # manifests merely DECLARE the dependency; they are never proof of a call site
+    if base in {"go.mod", "go.sum", "package.json", "package-lock.json",
+                "yarn.lock", "requirements.txt", "Pipfile", "Pipfile.lock", "go.work"}:
+        return False
+    if not package:
+        return True  # nothing to anchor against; existence check already passed
+    full = os.path.join(repo_root, path)
+    try:
+        text = open(full, encoding="utf-8", errors="ignore").read()
+    except OSError:
+        return False
+    # last path segment of the module (e.g. lib/pq -> pq, otel/sdk -> sdk) + bare name
+    tokens = {package, package.rsplit("/", 1)[-1], package.split(".")[0].rsplit("/", 1)[-1]}
+    return any(t and t in text for t in tokens)
+
+
+def _validate_ai(v, repo_root, package=None):
+    """Falsifiability contract: reject invented citations, reject FIX/CVE attempts, require a
+    citation that actually references the symbol for any downgrade-to-safe."""
     need = {"reachable", "recommendation", "citation"}
     if not need <= set(v):
         return False, f"missing keys {sorted(need - set(v))}"
@@ -73,6 +117,8 @@ def _validate_ai(v, repo_root):
         path = cite.split(":")[0].lstrip("./")
         if not os.path.exists(os.path.join(repo_root, path)):
             return False, f"INVENTED CITATION {cite}"
+        if not _cite_references_pkg(cite, repo_root, package):
+            return False, f"IRRELEVANT CITATION {cite} does not reference {package}"
     if v["recommendation"] == "safe" and not (v["reachable"] is False and cite):
         return False, "downgrade to safe needs reachable=false WITH real citation"
     return True, ""
@@ -123,7 +169,7 @@ def main():
         for pid, v in ai.items():
             if predictions.get(pid) != "review":
                 continue  # AI only adjudicates the REVIEW bucket
-            ok, why = _validate_ai(v, repo_root)
+            ok, why = _validate_ai(v, repo_root, (prs.get(pid) or {}).get("package"))
             if not ok:
                 ai_rejected.append((pid, why))
                 continue
@@ -142,6 +188,14 @@ def main():
         if bad:
             invented.append((pid, pr.get("package", "?"), why))
 
+    # 2b. over-claim guard: verdict asserts function-level reachability off import-only/absent
+    #     evidence. Forces escalation to deep.go callgraph or a probe before asserting.
+    overclaims = []
+    for pid, pr in prs.items():
+        bad, why = overclaims_function_reach(pr)
+        if bad:
+            overclaims.append((pid, pr.get("package", "?"), why))
+
     # 3. golden regression (optional)
     golden_regressions = []
     if golden_path and os.path.exists(golden_path):
@@ -159,12 +213,14 @@ def main():
     zero_fg = fg == 0
     zero_invented = len(invented) == 0
     no_golden_reg = len(golden_regressions) == 0
-    accepted = zero_fg and zero_invented and no_golden_reg
+    zero_overclaim = len(overclaims) == 0
+    accepted = zero_fg and zero_invented and no_golden_reg and zero_overclaim
 
     # composite 0-10 score: start 10, subtract heavy for hard fails, light for noise
     score = 10.0
     score -= fg * 4.0            # false-green is catastrophic
     score -= len(invented) * 3.0  # fabricated evidence destroys trust
+    score -= len(overclaims) * 2.0  # unproven function-reachability assertion
     score -= len(golden_regressions) * 2.0
     score -= fb * 1.0            # over-flagging (noise)
     score -= fn * 1.0
@@ -176,6 +232,7 @@ def main():
     print(f"FALSE_BLOCK: {fb}")
     print(f"FALSE_NONE: {fn}")
     print(f"INVENTED_CITATIONS: {len(invented)}")
+    print(f"OVERCLAIMS: {len(overclaims)}")
     print(f"GOLDEN_REGRESSIONS: {len(golden_regressions)}")
     print(f"AUTO_CLEAR_PCT: {ac:.1f}")
     if ai_path:
@@ -194,12 +251,14 @@ def main():
             print(f"- [{p}] PR#{c['pr_id']} | {c['error']} | expected={c['expected']} predicted={c['predicted']}")
     for pid, pkg, why in invented:
         print(f"- [P0] PR#{pid} {pkg} | INVENTED CITATION | {why}")
+    for pid, pkg, why in overclaims:
+        print(f"- [P1] PR#{pid} {pkg} | OVERCLAIM | {why}")
     for pid, want, got in golden_regressions:
         print(f"- [P1] PR#{pid} | GOLDEN REGRESSION want={want} got={got}")
     print("END_FINDINGS")
 
     json.dump({"score": score, "accepted": accepted, "metrics": score_res["metrics"],
-               "errors": score_res["errors"], "invented": invented,
+               "errors": score_res["errors"], "invented": invented, "overclaims": overclaims,
                "golden_regressions": golden_regressions, "predictions": predictions},
               open("gate-result.json", "w"), indent=2)
     return 0 if accepted else 1
